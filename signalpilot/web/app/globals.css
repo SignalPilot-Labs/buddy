@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0a0a0f;
+  --color-bg-card: #12121a;
+  --color-bg-hover: #1a1a25;
+  --color-bg-input: #0d0d14;
+  --color-border: #1e1e2e;
+  --color-border-hover: #2e2e42;
+  --color-text: #e4e4ef;
+  --color-text-muted: #6b6b8a;
+  --color-text-dim: #44445a;
+  --color-accent: #6366f1;
+  --color-accent-hover: #818cf8;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-sidebar: #08080d;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-hover); }
+
+/* Terminal styling */
+.terminal-container .xterm { padding: 12px; }
+.terminal-container .xterm-viewport { overflow-y: auto !important; }

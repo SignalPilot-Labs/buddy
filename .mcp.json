@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "signalpilot": {
+      "command": "python",
+      "args": ["-m", "gateway.mcp_server"],
+      "cwd": "C:\\Users\\kiwi0\\Desktop\\what\\SignalPilot\\signalpilot\\gateway"
+    }
+  }
+}
