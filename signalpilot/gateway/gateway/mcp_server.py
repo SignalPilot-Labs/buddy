@@ -257,6 +257,112 @@ async def sandbox_status() -> str:
     return "\n".join(lines)
 
 
+@mcp.tool()
+async def describe_table(connection_name: str, table_name: str) -> str:
+    """
+    Get detailed column information for a specific database table.
+
+    Returns column names, types, nullability, and any annotations
+    (descriptions, PII flags) from the schema.yml file.
+
+    Args:
+        connection_name: Name of a configured database connection
+        table_name: Name of the table to describe
+
+    Returns:
+        Column details as formatted text.
+    """
+    from .connectors.registry import get_connector
+    from .governance.annotations import load_annotations
+
+    conn_info = get_connection(connection_name)
+    if not conn_info:
+        available = [c.name for c in list_connections()]
+        return f"Error: Connection '{connection_name}' not found. Available: {available}"
+
+    conn_str = get_connection_string(connection_name)
+    if not conn_str:
+        return "Error: No credentials stored for this connection"
+
+    connector = get_connector(conn_info.db_type)
+    try:
+        await connector.connect(conn_str)
+        schema = await connector.get_schema()
+        await connector.close()
+    except Exception as e:
+        return f"Error: {e}"
+
+    # Find the table (case-insensitive)
+    table_data = None
+    for key, val in schema.items():
+        if val.get("name", "").lower() == table_name.lower():
+            table_data = val
+            break
+
+    if not table_data:
+        table_names = [v.get("name", k) for k, v in schema.items()]
+        return f"Table '{table_name}' not found. Available tables:\n" + "\n".join(f"  - {t}" for t in sorted(table_names))
+
+    # Load annotations for descriptions/PII info
+    annotations = load_annotations(connection_name)
+    table_ann = annotations.get_table(table_name)
+
+    lines = [f"Table: {table_data['schema']}.{table_data['name']}"]
+    if table_ann and table_ann.description:
+        lines.append(f"Description: {table_ann.description}")
+    if table_ann and table_ann.owner:
+        lines.append(f"Owner: {table_ann.owner}")
+    lines.append(f"Columns ({len(table_data['columns'])}):")
+    lines.append("")
+
+    for col in table_data["columns"]:
+        nullable = "nullable" if col.get("nullable") else "NOT NULL"
+        pk = " [PK]" if col.get("primary_key") else ""
+        line = f"  {col['name']} — {col['type']} ({nullable}){pk}"
+
+        # Add annotation info
+        if table_ann and col["name"] in table_ann.columns:
+            col_ann = table_ann.columns[col["name"]]
+            if col_ann.description:
+                line += f"\n    {col_ann.description}"
+            if col_ann.pii:
+                line += f"\n    [PII: {col_ann.pii}]"
+
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def check_budget(session_id: str = "default") -> str:
+    """
+    Check the remaining query budget for a session.
+
+    Returns the budget limit, amount spent, amount remaining,
+    and query count for the specified session.
+
+    Args:
+        session_id: Session ID to check (default: "default")
+
+    Returns:
+        Budget status as formatted text.
+    """
+    from .governance.budget import budget_ledger
+
+    budget = budget_ledger.get_session(session_id)
+    if not budget:
+        return f"No budget tracking for session '{session_id}'. Create a budget via the gateway API to enable spending limits."
+
+    return (
+        f"Session: {budget.session_id}\n"
+        f"Budget: ${budget.budget_usd:.2f}\n"
+        f"Spent: ${budget.spent_usd:.4f}\n"
+        f"Remaining: ${budget.remaining_usd:.4f}\n"
+        f"Queries: {budget.query_count}\n"
+        f"Status: {'EXHAUSTED' if budget.is_exhausted else 'Active'}"
+    )
+
+
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
 def main():
