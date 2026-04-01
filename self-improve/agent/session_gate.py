@@ -72,85 +72,14 @@ def has_ended() -> bool:
 
 # --- Escalating work suggestions based on elapsed time ---
 
-_DEPTH_LEVELS = [
-    {
-        "threshold_pct": 0.0,
-        "label": "Phase 1: Critical fixes",
-        "suggestion": (
-            "Focus on CRITICAL and HIGH severity issues from SECURITY_AUDIT.md. "
-            "Fix authentication gaps, SQL injection vectors, and credential exposure."
-        ),
-    },
-    {
-        "threshold_pct": 0.15,
-        "label": "Phase 2: Bug fixes & error handling",
-        "suggestion": (
-            "Look for actual bugs, unhandled error paths, and edge cases. "
-            "Check for missing null checks, race conditions, and uncaught exceptions."
-        ),
-    },
-    {
-        "threshold_pct": 0.30,
-        "label": "Phase 3: Test coverage",
-        "suggestion": (
-            "Add test coverage for untested critical paths. Write integration tests "
-            "for the gateway endpoints, SQL validation engine, and connector logic."
-        ),
-    },
-    {
-        "threshold_pct": 0.50,
-        "label": "Phase 4: Performance & architecture",
-        "suggestion": (
-            "Profile hot paths and optimize. Look at connection pooling, query patterns, "
-            "caching opportunities, and startup time. Consider architectural improvements."
-        ),
-    },
-    {
-        "threshold_pct": 0.70,
-        "label": "Phase 5: Deep improvements",
-        "suggestion": (
-            "Go deeper: improve the SQL governance engine, add new connector types, "
-            "harden the sandbox execution model, improve observability and logging. "
-            "Run benchmarks and optimize based on results."
-        ),
-    },
-    {
-        "threshold_pct": 0.85,
-        "label": "Phase 6: Polish & documentation",
-        "suggestion": (
-            "Final stretch. Clean up any rough edges, add inline documentation for "
-            "complex logic, ensure all new code has tests, and verify the full "
-            "system works end-to-end. Run the benchmark suite one final time."
-        ),
-    },
-]
-
-
-def _get_current_phase() -> dict:
-    """Get the appropriate work phase based on elapsed time percentage."""
-    if _run_duration_sec <= 0:
-        return _DEPTH_LEVELS[0]
-
-    pct = elapsed_minutes() / (_run_duration_sec / 60)
-    result = _DEPTH_LEVELS[0]
-    for level in _DEPTH_LEVELS:
-        if pct >= level["threshold_pct"]:
-            result = level
-    return result
-
-
 def build_denial_message() -> str:
     """Build the message returned when end_session is denied."""
     remaining = time_remaining_str()
-    phase = _get_current_phase()
     return (
-        f"SESSION LOCKED — you have {remaining} remaining in this improvement run. "
-        f"You are not allowed to end the session yet.\n\n"
-        f"Current phase: {phase['label']}\n"
-        f"Suggested focus: {phase['suggestion']}\n\n"
-        f"Keep working. Commit each improvement separately. "
-        f"Call end_session again when you believe your work is complete — "
-        f"it will be allowed once the time lock expires."
+        f"SESSION LOCKED — {remaining} remaining. You cannot end the session yet.\n\n"
+        f"Your task is not done. If you've finished the current assignment, "
+        f"stop and wait — a Product Director will review your work and give you "
+        f"your next task. Do NOT go looking for unrelated work to do."
     )
 
 

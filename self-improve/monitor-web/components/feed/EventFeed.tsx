@@ -88,11 +88,21 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
         ) : (
           events.map((event, i) => {
             if (event._kind === "llm_text") {
-              return <LLMTextBlock key={`text-${i}`} text={event.text} />;
+              return (
+                <LLMTextBlock
+                  key={`text-${i}`}
+                  text={event.text}
+                  agentRole={event.agent_role}
+                />
+              );
             }
             if (event._kind === "llm_thinking") {
               return (
-                <LLMThinkingBlock key={`think-${i}`} text={event.text} />
+                <LLMThinkingBlock
+                  key={`think-${i}`}
+                  text={event.text}
+                  agentRole={event.agent_role}
+                />
               );
             }
             return <EventCard key={`ev-${i}`} event={event} />;

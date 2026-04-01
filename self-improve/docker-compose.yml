@@ -44,15 +44,8 @@ services:
     env_file:
       - ../.env
     environment:
-      # Claude CLI auth (headless OAuth token)
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
-      # Git auth
-      GIT_TOKEN: ${GIT_TOKEN}
-      GH_TOKEN: ${GIT_TOKEN}
-      GITHUB_REPO: ${GITHUB_REPO}
       GIT_TERMINAL_PROMPT: "0"
       # Agent config
-      MAX_BUDGET_USD: ${MAX_BUDGET_USD:-50}
       AUDIT_DB_URL: postgresql://improve_admin:Impr0ve!Aud1t@postgres:5432/improve_audit
       SP_BENCHMARK_DIR: /bench
       SP_GATEWAY_URL: http://host.docker.internal:3300
@@ -64,6 +57,7 @@ services:
       start_period: 30s
     volumes:
       - ../:/workspace:rw
+      - ../research:/home/agentuser/research:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - ${SP_BENCHMARK_DIR:-D:\signalpilot-bench}:/bench:rw
       # Persist Claude CLI auth state across restarts

@@ -78,13 +78,14 @@ async def log_tool_call(
     duration_ms: int | None = None,
     permitted: bool = True,
     deny_reason: str | None = None,
+    agent_role: str = "worker",
 ) -> int:
     """Log a tool call. Returns the row id."""
     pool = get_pool()
     row = await pool.fetchrow(
         """INSERT INTO tool_calls
-            (run_id, phase, tool_name, input_data, output_data, duration_ms, permitted, deny_reason)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (run_id, phase, tool_name, input_data, output_data, duration_ms, permitted, deny_reason, agent_role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id""",
         uuid.UUID(run_id),
         phase,
@@ -94,6 +95,7 @@ async def log_tool_call(
         duration_ms,
         permitted,
         deny_reason,
+        agent_role,
     )
     return row["id"]
 

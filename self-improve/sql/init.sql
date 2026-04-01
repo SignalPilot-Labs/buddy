@@ -27,7 +27,8 @@ CREATE TABLE tool_calls (
     output_data JSONB,
     duration_ms INT,
     permitted BOOLEAN NOT NULL DEFAULT TRUE,
-    deny_reason TEXT
+    deny_reason TEXT,
+    agent_role TEXT NOT NULL DEFAULT 'worker'
 );
 
 CREATE TABLE audit_log (
@@ -86,7 +87,8 @@ BEGIN
         'output_data', NEW.output_data,
         'duration_ms', NEW.duration_ms,
         'permitted', NEW.permitted,
-        'deny_reason', NEW.deny_reason
+        'deny_reason', NEW.deny_reason,
+        'agent_role', NEW.agent_role
     )::text);
     RETURN NEW;
 END;

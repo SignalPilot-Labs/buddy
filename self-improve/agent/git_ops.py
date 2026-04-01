@@ -84,6 +84,10 @@ def _ensure_repo() -> None:
 
 def setup_git_auth() -> None:
     """Initialize the repo clone and configure auth."""
+    # Ensure GH_TOKEN is set for gh CLI (mirrors GIT_TOKEN from env_file)
+    token = os.environ.get("GIT_TOKEN", "")
+    if token and not os.environ.get("GH_TOKEN"):
+        os.environ["GH_TOKEN"] = token
     _ensure_repo()
 
 

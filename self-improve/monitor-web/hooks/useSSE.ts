@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { FeedEvent, ToolCall, AuditEvent } from "@/lib/types";
+import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE } from "@/lib/api";
 
 export function useSSE(runId: string | null) {
@@ -25,7 +25,32 @@ export function useSSE(runId: string | null) {
     es.addEventListener("tool_call", (e) => {
       try {
         const data: ToolCall = JSON.parse(e.data);
-        setEvents((prev) => [...prev, { _kind: "tool", data }]);
+        if (data.phase === "post") {
+          // Merge post into the matching pre event (same tool_name, most recent)
+          setEvents((prev) => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              const ev = prev[i];
+              if (
+                ev._kind === "tool" &&
+                ev.data.phase === "pre" &&
+                ev.data.tool_name === data.tool_name &&
+                !ev.data.output_data
+              ) {
+                const merged = { ...ev.data };
+                merged.output_data = data.output_data;
+                merged.duration_ms = data.duration_ms;
+                merged.phase = "post"; // mark as complete
+                const next = [...prev];
+                next[i] = { _kind: "tool", data: merged };
+                return next;
+              }
+            }
+            // No matching pre found — show standalone
+            return [...prev, { _kind: "tool", data }];
+          });
+        } else {
+          setEvents((prev) => [...prev, { _kind: "tool", data }]);
+        }
       } catch {}
     });
 
@@ -37,10 +62,19 @@ export function useSSE(runId: string | null) {
             ? JSON.parse(raw.details)
             : raw.details || {};
 
-        if (raw.event_type === "llm_text") {
+        if (raw.event_type === "usage") {
+          setEvents((prev) => [
+            ...prev,
+            {
+              _kind: "usage",
+              data: { ...details, ts: raw.ts } as UsageEvent,
+            },
+          ]);
+        } else if (raw.event_type === "llm_text") {
+          const role = details.agent_role || "worker";
           setEvents((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last._kind === "llm_text") {
+            if (last && last._kind === "llm_text" && last.agent_role === role) {
               return [
                 ...prev.slice(0, -1),
                 { ...last, text: last.text + (details.text || "") },
@@ -48,13 +82,14 @@ export function useSSE(runId: string | null) {
             }
             return [
               ...prev,
-              { _kind: "llm_text", text: details.text || "", ts: raw.ts },
+              { _kind: "llm_text", text: details.text || "", ts: raw.ts, agent_role: role },
             ];
           });
         } else if (raw.event_type === "llm_thinking") {
+          const role = details.agent_role || "worker";
           setEvents((prev) => {
             const last = prev[prev.length - 1];
-            if (last && last._kind === "llm_thinking") {
+            if (last && last._kind === "llm_thinking" && last.agent_role === role) {
               return [
                 ...prev.slice(0, -1),
                 { ...last, text: last.text + (details.text || "") },
@@ -66,6 +101,7 @@ export function useSSE(runId: string | null) {
                 _kind: "llm_thinking",
                 text: details.text || "",
                 ts: raw.ts,
+                agent_role: role,
               },
             ];
           });

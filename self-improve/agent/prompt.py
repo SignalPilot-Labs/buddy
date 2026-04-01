@@ -52,28 +52,40 @@ def build_continuation_prompt() -> str:
     return _load("continuation-default")
 
 
-def build_escalating_continuation(round_num: int, elapsed_pct: float) -> str:
-    """Load the right phase-specific continuation prompt based on elapsed time."""
-    if elapsed_pct <= 0:
-        return build_continuation_prompt()
-
-    if elapsed_pct < 0.15:
-        phase = "phase1"
-    elif elapsed_pct < 0.30:
-        phase = "phase2"
-    elif elapsed_pct < 0.50:
-        phase = "phase3"
-    elif elapsed_pct < 0.70:
-        phase = "phase4"
-    elif elapsed_pct < 0.85:
-        phase = "phase5"
+def build_ceo_continuation(
+    round_num: int,
+    elapsed_minutes: float,
+    duration_minutes: float,
+    tool_summary: str,
+    files_changed: str,
+    commits: str,
+    cost_so_far: float,
+    round_summary: str,
+    original_prompt: str,
+) -> str:
+    """Build the CEO/PM continuation prompt with round context and original mission."""
+    if duration_minutes > 0:
+        pct = min(100, int((elapsed_minutes / duration_minutes) * 100))
+        elapsed_str = f"{int(elapsed_minutes)}m"
+        duration_str = f"{int(duration_minutes)}m"
     else:
-        phase = "phase6"
+        pct = 0
+        elapsed_str = f"{int(elapsed_minutes)}m"
+        duration_str = "unlimited"
 
-    try:
-        return _load(f"continuation-{phase}")
-    except FileNotFoundError:
-        return build_continuation_prompt()
+    template = _load("ceo-continuation")
+    return template.format(
+        round_num=round_num,
+        elapsed=elapsed_str,
+        duration=duration_str,
+        pct_complete=pct,
+        tool_summary=tool_summary or "none",
+        files_changed=files_changed or "none",
+        commits=commits or "none",
+        cost_so_far=f"{cost_so_far:.2f}",
+        round_summary=round_summary or "No summary available.",
+        original_prompt=original_prompt or "General self-improvement pass on the codebase.",
+    )
 
 
 def build_stop_prompt(reason: str = "") -> str:

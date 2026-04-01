@@ -13,13 +13,20 @@ from agent import db
 # Track pre-tool timestamps for duration calculation
 _pre_tool_times: dict[str, float] = {}
 
-# Current run_id, set by main.py
+# Current run_id and agent role, set by main.py
 _run_id: str | None = None
+_agent_role: str = "worker"  # "worker" or "ceo"
 
 
 def set_run_id(run_id: str) -> None:
     global _run_id
     _run_id = run_id
+
+
+def set_agent_role(role: str) -> None:
+    """Set the current agent role ('worker' or 'ceo')."""
+    global _agent_role
+    _agent_role = role
 
 
 async def pre_tool_use_hook(
@@ -44,6 +51,7 @@ async def pre_tool_use_hook(
             phase="pre",
             tool_name=tool_name,
             input_data=_safe_serialize(input_data),
+            agent_role=_agent_role,
         )
     except Exception as e:
         print(f"[hook] Failed to log pre-tool call: {e}")
@@ -61,7 +69,7 @@ async def post_tool_use_hook(
         return {}
 
     tool_name = hook_input.get("tool_name", "unknown")
-    tool_output = hook_input.get("tool_output", {})
+    tool_response = hook_input.get("tool_response", None)
 
     # Calculate duration
     duration_ms = None
@@ -73,8 +81,9 @@ async def post_tool_use_hook(
             run_id=_run_id,
             phase="post",
             tool_name=tool_name,
-            output_data=_safe_serialize(tool_output),
+            output_data=_safe_serialize(tool_response) if tool_response is not None else None,
             duration_ms=duration_ms,
+            agent_role=_agent_role,
         )
     except Exception as e:
         print(f"[hook] Failed to log post-tool call: {e}")
