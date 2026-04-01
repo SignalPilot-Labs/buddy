@@ -497,11 +497,13 @@ async def get_connection_health(name: str, window: int = Query(default=300, ge=6
 async def get_connection_schema(
     name: str,
     compact: bool = Query(default=False, description="Return compressed schema optimized for LLM context windows"),
+    filter: str = Query(default="", description="Filter tables by name pattern (case-insensitive substring match, comma-separated)"),
 ):
     """Retrieve the full schema for a database connection (Feature #18: schema caching).
 
     With compact=true, returns a compressed DDL-style representation that reduces
     token count by ~60-70% while preserving all information needed for text-to-SQL.
+    With filter, returns only tables matching the given patterns.
     This is critical for Spider2.0 benchmark performance on large schemas.
     """
     info = get_connection(name)
@@ -514,35 +516,36 @@ async def get_connection_schema(
 
     # Check schema cache first (Feature #18)
     cached = schema_cache.get(name)
-    if cached is not None:
-        tables = _compress_schema(cached) if compact else cached
-        return {
-            "connection_name": name,
-            "db_type": info.db_type,
-            "table_count": len(cached),
-            "tables": tables,
-            "cached": True,
-            "compact": compact,
+    is_cached = cached is not None
+    if cached is None:
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            cached = await connector.get_schema()
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+        schema_cache.put(name, cached)
+
+    # Apply table name filter if provided
+    filtered = cached
+    if filter:
+        patterns = [p.strip().lower() for p in filter.split(",") if p.strip()]
+        filtered = {
+            k: v for k, v in cached.items()
+            if any(pat in k.lower() or pat in v.get("name", "").lower() for pat in patterns)
         }
 
-    try:
-        extras = get_credential_extras(name)
-        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
-        schema = await connector.get_schema()
-        await pool_manager.release(info.db_type, conn_str)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
-
-    # Store full schema in cache (always cache the full version)
-    schema_cache.put(name, schema)
-    tables = _compress_schema(schema) if compact else schema
+    tables = _compress_schema(filtered) if compact else filtered
     return {
         "connection_name": name,
         "db_type": info.db_type,
-        "table_count": len(schema),
+        "table_count": len(filtered),
+        "total_tables": len(cached),
         "tables": tables,
-        "cached": False,
+        "cached": is_cached,
         "compact": compact,
+        "filtered": bool(filter),
     }
 
 
