@@ -473,13 +473,14 @@ async def query_database(req: DirectQueryRequest):
     if not conn_str:
         raise HTTPException(status_code=400, detail="No credentials stored for this connection")
 
+    # Acquire connector once for both cost estimation and query execution (perf optimization)
+    connector = await pool_manager.acquire(info.db_type, conn_str)
+
     # Cost estimation (Feature #13) — run EXPLAIN before execution
     cost_estimate = None
     try:
         from .governance.cost_estimator import CostEstimator
-        estimator_connector = await pool_manager.acquire(info.db_type, conn_str)
-        cost_estimate = await CostEstimator.estimate(estimator_connector, safe_sql, info.db_type)
-        await pool_manager.release(info.db_type, conn_str)
+        cost_estimate = await CostEstimator.estimate(connector, safe_sql, info.db_type)
 
         # Check budget before executing expensive queries
         if cost_estimate.is_expensive and cost_estimate.estimated_usd > 0:
@@ -497,7 +498,6 @@ async def query_database(req: DirectQueryRequest):
 
     start = time.monotonic()
     try:
-        connector = await pool_manager.acquire(info.db_type, conn_str)
         rows = await connector.execute(safe_sql, timeout=timeout)
         await pool_manager.release(info.db_type, conn_str)
     except asyncio.TimeoutError:
