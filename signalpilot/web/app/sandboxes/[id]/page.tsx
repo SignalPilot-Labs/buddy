@@ -26,6 +26,7 @@ import { getSandbox, executeSandbox, deleteSandbox } from "@/lib/api";
 import type { SandboxInfo } from "@/lib/types";
 import { StatusDot, MiniBar } from "@/components/ui/data-viz";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface HistoryEntry {
   type: "input" | "output" | "error" | "system" | "image" | "html";
@@ -122,6 +123,7 @@ export default function SandboxDetailPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
 
   useEffect(() => {
     getSandbox(sandboxId)
@@ -235,7 +237,11 @@ export default function SandboxDetailPage() {
   }
 
   async function handleKill() {
-    if (!confirm("Kill this sandbox? The VM will be terminated.")) return;
+    setShowKillConfirm(true);
+  }
+
+  async function confirmKill() {
+    setShowKillConfirm(false);
     await deleteSandbox(sandboxId);
     toast("sandbox terminated", "info");
     router.push("/sandboxes");
@@ -554,6 +560,16 @@ export default function SandboxDetailPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showKillConfirm}
+        title="kill sandbox"
+        message="Terminate this sandbox VM? Any running processes will be killed and unsaved state will be lost."
+        confirmLabel="kill"
+        variant="danger"
+        onConfirm={confirmKill}
+        onCancel={() => setShowKillConfirm(false)}
+      />
     </div>
   );
 }
