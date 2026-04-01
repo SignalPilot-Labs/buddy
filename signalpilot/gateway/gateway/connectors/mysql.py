@@ -120,6 +120,14 @@ class MySQLConnector(BaseConnector):
             WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
             GROUP BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, NON_UNIQUE
         """
+        # Column cardinality from index statistics
+        cardinality_sql = """
+            SELECT
+                TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, CARDINALITY
+            FROM information_schema.STATISTICS
+            WHERE TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
+                AND SEQ_IN_INDEX = 1
+        """
         with self._conn.cursor() as cursor:
             cursor.execute(sql)
             rows = cursor.fetchall()
@@ -127,6 +135,17 @@ class MySQLConnector(BaseConnector):
             fk_rows = cursor.fetchall()
             cursor.execute(idx_sql)
             idx_rows = cursor.fetchall()
+            cursor.execute(cardinality_sql)
+            card_rows = cursor.fetchall()
+
+        # Build cardinality map
+        cardinality: dict[str, int] = {}
+        for r in card_rows:
+            card_key = f"{r['TABLE_SCHEMA']}.{r['TABLE_NAME']}.{r['COLUMN_NAME']}"
+            # Keep the highest cardinality for a column (most selective index)
+            existing = cardinality.get(card_key, 0)
+            if r.get("CARDINALITY") and (r["CARDINALITY"] or 0) > existing:
+                cardinality[card_key] = r["CARDINALITY"]
 
         # Build index map
         indexes: dict[str, list[dict]] = {}
@@ -166,14 +185,18 @@ class MySQLConnector(BaseConnector):
                     "row_count": row.get("TABLE_ROWS", 0),
                     "description": row.get("TABLE_COMMENT", ""),
                 }
-            schema[key]["columns"].append({
+            col_entry: dict[str, Any] = {
                 "name": row["COLUMN_NAME"],
                 "type": row["DATA_TYPE"],
                 "nullable": row["IS_NULLABLE"] == "YES",
                 "primary_key": row["COLUMN_KEY"] == "PRI",
                 "default": row.get("COLUMN_DEFAULT"),
                 "comment": row.get("COLUMN_COMMENT", ""),
-            })
+            }
+            card_key = f"{row['TABLE_SCHEMA']}.{row['TABLE_NAME']}.{row['COLUMN_NAME']}"
+            if card_key in cardinality:
+                col_entry["stats"] = {"distinct_count": cardinality[card_key]}
+            schema[key]["columns"].append(col_entry)
         return schema
 
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:

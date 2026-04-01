@@ -162,16 +162,33 @@ class RedshiftConnector(BaseConnector):
         except Exception:
             pass
 
+        # Distribution and sort key info (Redshift-specific, like ClickHouse's sorting_key)
+        dist_sort: dict[str, dict] = {}
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute(dist_sort_sql)
+                for r in cursor.fetchall():
+                    key = f"{r['table_schema']}.{r['table_name']}"
+                    dist_sort[key] = {
+                        "diststyle": r.get("diststyle", ""),
+                        "sortkey1": r.get("sortkey1", ""),
+                    }
+        except Exception:
+            pass
+
         schema: dict[str, Any] = {}
         for row in rows:
             key = f"{row['table_schema']}.{row['table_name']}"
             if key not in schema:
+                ds = dist_sort.get(key, {})
                 schema[key] = {
                     "schema": row["table_schema"],
                     "name": row["table_name"],
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": row_counts.get(key, 0),
+                    "diststyle": ds.get("diststyle", ""),
+                    "sortkey": ds.get("sortkey1", ""),
                 }
             schema[key]["columns"].append({
                 "name": row["column_name"],
