@@ -406,6 +406,77 @@ async def check_budget(session_id: str = "default") -> str:
     )
 
 
+@mcp.tool()
+async def connection_health(connection_name: str = "") -> str:
+    """
+    Check the health and performance of database connections.
+
+    Returns latency percentiles (p50/p95/p99), error rates, and status
+    for monitored connections. Call without arguments to see all connections.
+
+    Args:
+        connection_name: Specific connection to check (empty = all connections)
+
+    Returns:
+        Health stats as formatted text.
+    """
+    from .connectors.health_monitor import health_monitor
+
+    if connection_name:
+        stats = health_monitor.connection_stats(connection_name)
+        if not stats:
+            return f"No health data for '{connection_name}'. Run some queries first."
+        return _format_health_stats(stats)
+
+    all_stats = health_monitor.all_stats()
+    if not all_stats:
+        return "No health data yet. Run some queries to start collecting metrics."
+
+    lines = [f"Connection Health ({len(all_stats)} connections):"]
+    for stats in all_stats:
+        lines.append("")
+        lines.append(_format_health_stats(stats))
+    return "\n".join(lines)
+
+
+def _format_health_stats(stats: dict) -> str:
+    """Format health stats dict into readable text."""
+    lines = [
+        f"Connection: {stats['connection_name']} ({stats['db_type']})",
+        f"Status: {stats['status'].upper()}",
+        f"Samples: {stats['sample_count']} (last {stats['window_seconds']}s)",
+    ]
+    if stats.get("successes") is not None:
+        lines.append(f"Success/Fail: {stats['successes']}/{stats['failures']}")
+    if stats.get("error_rate") is not None:
+        lines.append(f"Error Rate: {stats['error_rate'] * 100:.1f}%")
+    if stats.get("latency_p50_ms") is not None:
+        lines.append(f"Latency: p50={stats['latency_p50_ms']:.0f}ms  p95={stats['latency_p95_ms']:.0f}ms  p99={stats['latency_p99_ms']:.0f}ms")
+    if stats.get("last_error"):
+        lines.append(f"Last Error: {stats['last_error']}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def cache_status() -> str:
+    """
+    Check the query cache status and performance.
+
+    Returns cache hit rate, entry count, and usage statistics.
+    """
+    from .governance.cache import query_cache
+
+    stats = query_cache.stats()
+    return (
+        f"Query Cache Status:\n"
+        f"Entries: {stats['entries']} / {stats['max_entries']}\n"
+        f"TTL: {stats['ttl_seconds']}s\n"
+        f"Hits: {stats['hits']}\n"
+        f"Misses: {stats['misses']}\n"
+        f"Hit Rate: {stats['hit_rate'] * 100:.1f}%"
+    )
+
+
 # ─── Entry point ─────────────────────────────────────────────────────────────
 
 def main():

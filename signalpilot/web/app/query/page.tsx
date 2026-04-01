@@ -15,7 +15,7 @@ import {
   XCircle,
   Shield,
 } from "lucide-react";
-import { getConnections } from "@/lib/api";
+import { getConnections, executeQuery as apiExecuteQuery } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 
 interface QueryResult {
@@ -26,12 +26,7 @@ interface QueryResult {
   sql_executed: string;
 }
 
-interface QueryError {
-  detail: string;
-}
-
-const GATEWAY_URL =
-  process.env.NEXT_PUBLIC_GATEWAY_URL || "http://localhost:3300";
+const HISTORY_KEY = "sp_query_history";
 
 export default function QueryExplorerPage() {
   const [connections, setConnections] = useState<ConnectionInfo[]>([]);
@@ -42,10 +37,18 @@ export default function QueryExplorerPage() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<
-    { sql: string; connection: string; ts: number; duration_ms: number }[]
+    { sql: string; connection: string; ts: number; duration_ms: number; row_count?: number; cache_hit?: boolean }[]
   >([]);
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(HISTORY_KEY);
+      if (stored) setHistory(JSON.parse(stored));
+    } catch {}
+  }, []);
 
   useEffect(() => {
     getConnections()
@@ -58,51 +61,40 @@ export default function QueryExplorerPage() {
       .catch(() => {});
   }, []);
 
-  const executeQuery = useCallback(async () => {
+  const runQuery = useCallback(async () => {
     if (!sql.trim() || !selectedConn) return;
     setExecuting(true);
     setError(null);
     setResult(null);
 
     try {
-      const res = await fetch(`${GATEWAY_URL}/api/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          connection_name: selectedConn,
-          sql: sql.trim(),
-          row_limit: rowLimit,
-        }),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(body.detail || `HTTP ${res.status}`);
-      }
-
-      const data: QueryResult = await res.json();
-      setResult(data);
-      setHistory((prev) => [
+      const data = await apiExecuteQuery(selectedConn, sql.trim(), rowLimit);
+      setResult(data as QueryResult);
+      const newHistory = [
         {
           sql: sql.trim(),
           connection: selectedConn,
           ts: Date.now(),
           duration_ms: data.execution_ms,
+          row_count: data.row_count,
+          cache_hit: (data as Record<string, unknown>).cache_hit as boolean | undefined,
         },
-        ...prev.slice(0, 19),
-      ]);
+        ...history.filter((h) => h.sql !== sql.trim()).slice(0, 49),
+      ];
+      setHistory(newHistory);
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory)); } catch {}
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
       setExecuting(false);
     }
-  }, [sql, selectedConn, rowLimit]);
+  }, [sql, selectedConn, rowLimit, history]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     // Ctrl/Cmd + Enter to execute
     if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
       e.preventDefault();
-      executeQuery();
+      runQuery();
     }
   }
 
@@ -197,7 +189,7 @@ export default function QueryExplorerPage() {
         <div className="flex-1" />
 
         <button
-          onClick={executeQuery}
+          onClick={runQuery}
           disabled={executing || !sql.trim() || !selectedConn}
           className="flex items-center gap-2 px-5 py-2 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50"
         >
@@ -372,12 +364,18 @@ export default function QueryExplorerPage() {
       {/* Query history sidebar */}
       {history.length > 0 && !result && !error && (
         <div className="mt-4 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
-          <div className="px-4 py-3 border-b border-[var(--color-border)]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
             <h3 className="text-xs font-medium text-[var(--color-text-muted)] uppercase tracking-wider">
-              Recent Queries
+              Recent Queries ({history.length})
             </h3>
+            <button
+              onClick={() => { setHistory([]); localStorage.removeItem(HISTORY_KEY); }}
+              className="text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-error)] transition-colors"
+            >
+              Clear
+            </button>
           </div>
-          <div className="divide-y divide-[var(--color-border)]/50">
+          <div className="divide-y divide-[var(--color-border)]/50 max-h-72 overflow-auto">
             {history.map((h, i) => (
               <button
                 key={i}
@@ -393,9 +391,9 @@ export default function QueryExplorerPage() {
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--color-text-dim)]">
                   <span>{h.connection}</span>
                   <span>{h.duration_ms.toFixed(0)}ms</span>
-                  <span>
-                    {new Date(h.ts).toLocaleTimeString()}
-                  </span>
+                  {h.row_count != null && <span>{h.row_count} rows</span>}
+                  {h.cache_hit && <span className="text-[var(--color-success)]">cached</span>}
+                  <span>{new Date(h.ts).toLocaleTimeString()}</span>
                 </div>
               </button>
             ))}
