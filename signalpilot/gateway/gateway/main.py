@@ -500,6 +500,47 @@ async def close_budget(session_id: str):
         raise HTTPException(status_code=404, detail="Session budget not found")
 
 
+# ─── Schema Annotations ────────────────────────────────────────────────────
+
+from .governance.annotations import load_annotations, generate_skeleton
+
+
+@app.get("/api/connections/{name}/annotations")
+async def get_annotations(name: str):
+    """Get schema annotations for a connection (Feature #16)."""
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+    annotations = load_annotations(name)
+    return annotations.to_dict()
+
+
+@app.post("/api/connections/{name}/annotations/generate")
+async def generate_annotations(name: str):
+    """Generate a starter schema.yml from database introspection (Feature #29)."""
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    conn_str = get_connection_string(name)
+    if not conn_str:
+        raise HTTPException(status_code=400, detail="No credentials stored for this connection")
+
+    try:
+        connector = await pool_manager.acquire(info.db_type, conn_str)
+        schema = await connector.get_schema()
+        await pool_manager.release(info.db_type, conn_str)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+
+    skeleton = generate_skeleton(schema, name)
+    return {
+        "connection_name": name,
+        "table_count": len(schema),
+        "yaml": skeleton,
+    }
+
+
 # ─── Metrics SSE ─────────────────────────────────────────────────────────────
 
 @app.get("/api/metrics")
