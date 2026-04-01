@@ -22,13 +22,17 @@ class PostgresConnector(BaseConnector):
             raise RuntimeError("asyncpg not installed. Run: pip install asyncpg")
         self._pool = await asyncpg.create_pool(connection_string, min_size=1, max_size=5)
 
-    async def execute(self, sql: str, params: list | None = None) -> list[dict[str, Any]]:
+    async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._pool is None:
             raise RuntimeError("Not connected")
         async with self._pool.acquire() as conn:
+            # Set statement timeout on the DB side (Feature #8)
+            # This cancels the query on the server, not just the client
+            if timeout:
+                await conn.execute(f"SET LOCAL statement_timeout = {timeout * 1000}")
             # Wrap in read-only transaction (defense in depth)
             async with conn.transaction(readonly=True):
-                rows = await conn.fetch(sql, *(params or []))
+                rows = await conn.fetch(sql, *(params or []), timeout=timeout)
                 return [dict(r) for r in rows]
 
     async def get_schema(self) -> dict[str, Any]:

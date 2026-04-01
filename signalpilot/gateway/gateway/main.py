@@ -376,6 +376,7 @@ class DirectQueryRequest(BaseModel):
     connection_name: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
     sql: str = Field(..., min_length=1, max_length=100_000)
     row_limit: int = Field(default=10_000, ge=1, le=100_000)
+    timeout_seconds: int | None = Field(default=None, ge=1, le=300)
 
 
 @app.post("/api/query")
@@ -385,9 +386,14 @@ async def query_database(req: DirectQueryRequest):
         raise HTTPException(status_code=404, detail=f"Connection '{req.connection_name}' not found")
 
     settings = load_settings()
+    timeout = req.timeout_seconds or settings.default_timeout_seconds
 
-    # Validate SQL
-    validation = validate_sql(req.sql)
+    # Load annotations for blocked tables check (Feature #19)
+    annotations = load_annotations(req.connection_name)
+    blocked_tables = annotations.blocked_tables
+
+    # Validate SQL (with blocked tables from annotations)
+    validation = validate_sql(req.sql, blocked_tables=blocked_tables or None)
     if not validation.ok:
         await append_audit(AuditEntry(
             id=str(uuid.uuid4()),
@@ -410,14 +416,28 @@ async def query_database(req: DirectQueryRequest):
     start = time.monotonic()
     try:
         connector = await pool_manager.acquire(info.db_type, conn_str)
-        rows = await connector.execute(safe_sql)
+        rows = await connector.execute(safe_sql, timeout=timeout)
         await pool_manager.release(info.db_type, conn_str)
+    except asyncio.TimeoutError:
+        raise HTTPException(
+            status_code=408,
+            detail=f"Query timed out after {timeout}s. Consider adding more specific WHERE clauses or reducing the scope.",
+        )
     except Exception as e:
         # Sanitize error message — never expose connection strings or internal details (HIGH-06)
         sanitized = _sanitize_db_error(str(e))
         raise HTTPException(status_code=500, detail=sanitized)
 
     elapsed_ms = (time.monotonic() - start) * 1000
+
+    # Apply PII redaction from annotations (Feature #15)
+    from .governance.pii import PIIRedactor
+    pii_redactor = PIIRedactor()
+    pii_columns = annotations.pii_columns
+    for col_name, rule in pii_columns.items():
+        pii_redactor.add_rule(col_name, rule)
+    if pii_redactor.has_rules():
+        rows = pii_redactor.redact_rows(rows)
 
     await append_audit(AuditEntry(
         id=str(uuid.uuid4()),
@@ -428,6 +448,7 @@ async def query_database(req: DirectQueryRequest):
         tables=validation.tables,
         rows_returned=len(rows),
         duration_ms=elapsed_ms,
+        metadata={"pii_redacted": pii_redactor.last_redacted_columns} if pii_redactor.last_redacted_columns else {},
     ))
 
     return {
@@ -436,6 +457,7 @@ async def query_database(req: DirectQueryRequest):
         "tables": validation.tables,
         "execution_ms": elapsed_ms,
         "sql_executed": safe_sql,
+        "pii_redacted": pii_redactor.last_redacted_columns if pii_redactor.last_redacted_columns else None,
     }
 
 
