@@ -153,8 +153,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [activeSandboxes, setActiveSandboxes] = useState(0);
+  const [connHealth, setConnHealth] = useState<{ total: number; healthy: number }>({ total: 0, healthy: 0 });
 
-  // Poll for active sandbox count
+  // Poll for active sandbox count and connection health
   const fetchCounts = useCallback(() => {
     const url = typeof window !== "undefined" ? localStorage.getItem("sp_gateway_url") || "http://localhost:3300" : "";
     const key = typeof window !== "undefined" ? localStorage.getItem("sp_api_key") : null;
@@ -164,6 +165,16 @@ export default function Sidebar() {
       .then((r) => r.ok ? r.json() : [])
       .then((sandboxes: { status: string }[]) => {
         setActiveSandboxes(sandboxes.filter((s) => s.status === "running").length);
+      })
+      .catch(() => {});
+    fetch(`${url}/api/health/connections`, { headers })
+      .then((r) => r.ok ? r.json() : { connections: [] })
+      .then((data: { connections: { status: string }[] }) => {
+        const conns = data.connections || [];
+        setConnHealth({
+          total: conns.length,
+          healthy: conns.filter((c) => c.status === "healthy").length,
+        });
       })
       .catch(() => {});
   }, []);
@@ -266,6 +277,22 @@ export default function Sidebar() {
             <span className="tracking-[0.15em] uppercase">governance active</span>
           </div>
         </Tooltip>
+        {connHealth.total > 0 && (
+          <Tooltip content={`${connHealth.healthy}/${connHealth.total} connections healthy`} position="right">
+            <Link href="/connections" className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text-muted)] transition-colors cursor-pointer">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <ellipse cx="5" cy="3" rx="3.5" ry="1.5" stroke="currentColor" strokeWidth="0.75" fill="none" />
+                <path d="M1.5 3V7C1.5 8 3.1 9 5 9C6.9 9 8.5 8 8.5 7V3" stroke="currentColor" strokeWidth="0.75" />
+              </svg>
+              <span className="tracking-[0.15em] uppercase">
+                db {connHealth.healthy}/{connHealth.total}
+              </span>
+              {connHealth.healthy < connHealth.total && (
+                <span className="w-1.5 h-1.5 bg-[var(--color-warning)]" />
+              )}
+            </Link>
+          </Tooltip>
+        )}
         <Tooltip content="session uptime since page load" position="right">
           <div className="flex items-center gap-3 text-[9px] text-[var(--color-text-dim)] cursor-default">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
