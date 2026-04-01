@@ -234,7 +234,7 @@ export default function QueryExplorerPage() {
       </div>
 
       {/* SQL editor with line numbers */}
-      <div className="relative mb-4 flex-shrink-0 border border-[var(--color-border)] bg-[var(--color-bg-card)] flex overflow-hidden">
+      <div className="relative mb-4 flex-shrink-0 border border-[var(--color-border)] bg-[var(--color-bg-card)] flex overflow-hidden card-radial-glow">
         {/* Line numbers gutter */}
         <div
           ref={lineNumbersRef}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Terminal,
@@ -43,6 +44,23 @@ function SignalPilotLogo() {
       {/* Signal dot */}
       <circle cx="24" cy="9" r="2" fill="#00ff88" />
     </svg>
+  );
+}
+
+function UptimeCounter() {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const start = Date.now();
+    const interval = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, []);
+  const h = Math.floor(elapsed / 3600);
+  const m = Math.floor((elapsed % 3600) / 60);
+  const s = elapsed % 60;
+  return (
+    <span className="tabular-nums">
+      {String(h).padStart(2, "0")}:{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
+    </span>
   );
 }
 
@@ -93,12 +111,19 @@ export default function Sidebar() {
       </nav>
 
       {/* Status footer */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)]">
+      <div className="px-4 py-3 border-t border-[var(--color-border)] space-y-2">
         <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)]">
           <span className="w-1.5 h-1.5 bg-[var(--color-success)] pulse-dot" />
           <span className="tracking-[0.15em] uppercase">governance active</span>
         </div>
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center gap-3 text-[9px] text-[var(--color-text-dim)]">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <circle cx="5" cy="5" r="4" stroke="var(--color-border-hover)" strokeWidth="1" fill="none" />
+            <path d="M5 2.5V5L6.5 6.5" stroke="var(--color-text-dim)" strokeWidth="0.8" strokeLinecap="round" />
+          </svg>
+          <span className="tracking-wider">uptime <UptimeCounter /></span>
+        </div>
+        <div className="flex items-center justify-between">
           <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">
             v0.1.0
           </span>

@@ -17,6 +17,7 @@ import { getAudit, getAuditExportUrl } from "@/lib/api";
 import type { AuditEntry } from "@/lib/types";
 import { EmptyList, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader } from "@/components/ui/page-header";
+import { ActivityDots } from "@/components/ui/data-viz";
 
 const typeIcons: Record<string, React.ElementType> = {
   query: DbIcon,
@@ -90,6 +91,21 @@ export default function AuditPage() {
     blocked: filtered.filter(e => e.blocked).length,
   };
 
+  // Compute activity density for heatmap (36 time slots from entries)
+  const activitySlots = (() => {
+    if (entries.length === 0) return [];
+    const slots = new Array(36).fill(0);
+    const timestamps = entries.map(e => e.timestamp).sort();
+    const minTs = timestamps[0];
+    const maxTs = timestamps[timestamps.length - 1];
+    const range = maxTs - minTs || 1;
+    entries.forEach(e => {
+      const idx = Math.min(35, Math.floor(((e.timestamp - minTs) / range) * 35));
+      slots[idx]++;
+    });
+    return slots;
+  })();
+
   return (
     <div className="p-8 animate-fade-in">
       <PageHeader
@@ -129,6 +145,12 @@ export default function AuditPage() {
               <span className={`text-xs tabular-nums ${s.color}`}>{s.value}</span>
             </div>
           ))}
+          {activitySlots.length > 0 && (
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">activity</span>
+              <ActivityDots values={activitySlots} rows={3} cols={12} dotSize={5} gap={2} />
+            </div>
+          )}
         </div>
       )}
 

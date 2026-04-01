@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getSandbox, executeSandbox, deleteSandbox } from "@/lib/api";
 import type { SandboxInfo } from "@/lib/types";
+import { StatusDot, MiniBar } from "@/components/ui/data-viz";
 
 interface HistoryEntry {
   type: "input" | "output" | "error" | "system" | "image" | "html";
@@ -310,10 +311,11 @@ export default function SandboxDetailPage() {
             </h1>
             <div className="flex items-center gap-3 text-[10px] text-[var(--color-text-dim)] tracking-wider">
               <span className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 ${
-                  sandbox.status === "running" ? "bg-[var(--color-success)]" :
-                  sandbox.status === "error" ? "bg-[var(--color-error)]" : "bg-blue-400"
-                }`} />
+                <StatusDot
+                  status={sandbox.status === "running" ? "healthy" : sandbox.status === "error" ? "error" : "idle"}
+                  size={4}
+                  pulse={sandbox.status === "running"}
+                />
                 {sandbox.status}
               </span>
               {sandbox.vm_id && (
@@ -341,15 +343,13 @@ export default function SandboxDetailPage() {
                 <span>${sandbox.budget_used.toFixed(4)}</span>
                 <span>${sandbox.budget_usd.toFixed(2)}</span>
               </div>
-              <div className="w-full h-1 bg-[var(--color-bg)] overflow-hidden">
-                <div
-                  className={`h-full transition-all ${
-                    budgetPct > 80 ? "bg-[var(--color-error)]" :
-                    budgetPct > 50 ? "bg-[var(--color-warning)]" : "bg-[var(--color-success)]"
-                  }`}
-                  style={{ width: `${Math.min(100, budgetPct)}%` }}
-                />
-              </div>
+              <MiniBar
+                value={budgetPct}
+                max={100}
+                width={80}
+                height={4}
+                color={budgetPct > 80 ? "var(--color-error)" : budgetPct > 50 ? "var(--color-warning)" : "var(--color-success)"}
+              />
             </div>
           </div>
 
