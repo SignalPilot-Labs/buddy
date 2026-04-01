@@ -133,14 +133,19 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
         Query results as formatted text, or an error message.
     """
     from .connectors.registry import get_connector
+    from .governance.annotations import load_annotations
 
     conn_info = get_connection(connection_name)
     if not conn_info:
         available = [c.name for c in list_connections()]
         return f"Error: Connection '{connection_name}' not found. Available: {available}"
 
-    # Validate SQL
-    validation = validate_sql(sql)
+    # Load annotations for blocked tables (Feature #19)
+    annotations = load_annotations(connection_name)
+    blocked_tables = annotations.blocked_tables
+
+    # Validate SQL (with blocked tables from annotations)
+    validation = validate_sql(sql, blocked_tables=blocked_tables or None)
     if not validation.ok:
         await append_audit(AuditEntry(
             id=str(uuid.uuid4()),
@@ -186,6 +191,14 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
         rows_returned=len(rows),
         duration_ms=elapsed_ms,
     ))
+
+    # Apply PII redaction from annotations (Feature #15)
+    from .governance.pii import PIIRedactor
+    pii_redactor = PIIRedactor()
+    for col_name, rule in annotations.pii_columns.items():
+        pii_redactor.add_rule(col_name, rule)
+    if pii_redactor.has_rules():
+        rows = pii_redactor.redact_rows(rows)
 
     if not rows:
         return f"Query returned 0 rows ({elapsed_ms:.0f}ms)"

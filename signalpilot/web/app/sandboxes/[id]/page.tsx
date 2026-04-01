@@ -10,6 +10,8 @@ import {
   Clock,
   Cpu,
   Database,
+  DollarSign,
+  Shield,
 } from "lucide-react";
 import { getSandbox, executeSandbox, deleteSandbox } from "@/lib/api";
 import type { SandboxInfo } from "@/lib/types";
@@ -172,6 +174,14 @@ export default function SandboxDetailPage() {
                   {sandbox.connection_name}
                 </span>
               )}
+              <span className="flex items-center gap-1">
+                <DollarSign className="w-3 h-3" />
+                ${sandbox.budget_used.toFixed(4)} / ${sandbox.budget_usd.toFixed(2)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Shield className="w-3 h-3 text-[var(--color-success)]" />
+                Row limit: {sandbox.row_limit.toLocaleString()}
+              </span>
             </div>
           </div>
         </div>
