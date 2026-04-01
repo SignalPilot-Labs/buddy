@@ -66,6 +66,10 @@ def validate_sql(
     if not sql:
         return ValidationResult(ok=False, blocked_reason="Empty query")
 
+    # Strip null bytes which could bypass stacking detection (HIGH-04 defense)
+    if "\x00" in sql:
+        return ValidationResult(ok=False, blocked_reason="Null bytes are not allowed in SQL queries")
+
     # Input length limit (MED-07)
     if len(sql) > 100_000:
         return ValidationResult(ok=False, blocked_reason="Query exceeds maximum length (100KB)")

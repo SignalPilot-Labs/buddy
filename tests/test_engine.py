@@ -171,6 +171,12 @@ class TestValidateSQL:
         result = validate_sql("NOT VALID SQL AT ALL !@#$")
         assert result.ok is False
 
+    def test_null_byte_injection(self):
+        """Null bytes should be rejected to prevent stacking bypass (HIGH-04)."""
+        result = validate_sql("SELECT 1\x00DROP TABLE users")
+        assert result.ok is False
+        assert "null" in result.blocked_reason.lower()
+
     # ── Column extraction ──
 
     def test_extracts_columns(self):

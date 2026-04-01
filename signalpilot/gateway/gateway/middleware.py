@@ -123,6 +123,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         hits.append(now)
         return True
 
+    def _cleanup_stale_ips(self):
+        """Remove IP entries with no recent hits to prevent memory leaks."""
+        now = time.monotonic()
+        window = now - 120  # 2-minute stale threshold
+        for store in (self._general_hits, self._expensive_hits):
+            stale_ips = [ip for ip, hits in store.items() if not hits or hits[-1] < window]
+            for ip in stale_ips:
+                del store[ip]
+
     def _client_ip(self, request: Request) -> str:
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
@@ -132,6 +141,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.method == "OPTIONS":
             return await call_next(request)
+
+        # Periodic cleanup of stale IP tracking (every ~100 requests)
+        total_tracked = len(self._general_hits) + len(self._expensive_hits)
+        if total_tracked > 100:
+            self._cleanup_stale_ips()
 
         ip = self._client_ip(request)
 
