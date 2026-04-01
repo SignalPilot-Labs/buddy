@@ -6,7 +6,9 @@ WORKDIR /app
 COPY pyproject.toml .
 COPY gateway/ gateway/
 
-RUN pip install --no-cache-dir -e .
+# Install core dependencies + commonly used optional connectors
+RUN pip install --no-cache-dir -e . && \
+    pip install --no-cache-dir duckdb clickhouse-driver
 
 EXPOSE 3300
 CMD ["uvicorn", "gateway.main:app", "--host", "0.0.0.0", "--port", "3300"]
