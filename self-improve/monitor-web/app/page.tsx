@@ -82,6 +82,10 @@ export default function MonitorPage() {
           fetchAuditLog(id, 500),
         ]);
 
+        // API returns DESC order — sort ASC so pre comes before post
+        tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+        audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+
         // Merge pre/post tool call pairs.
         // Pre has input_data (no output), post has output_data (no input).
         // Use tool_use_id when available (new runs), fall back to name-based
@@ -351,7 +355,7 @@ export default function MonitorPage() {
         </main>
 
         {/* Right sidebar - WorkTree */}
-        <WorkTree events={allEvents} />
+        <WorkTree events={allEvents} runId={selectedRunId} />
       </div>
     </div>
   );

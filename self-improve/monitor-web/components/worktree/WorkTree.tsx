@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, FileChange } from "@/lib/types";
+import type { DiffFile, DiffStats } from "@/lib/api";
+import { fetchRunDiff } from "@/lib/api";
 import { getToolCategory } from "@/lib/types";
 
-/* ── Extract file changes from tool call events ── */
+/* ── Extract file changes from tool call events (live) ── */
 function extractFileChanges(events: FeedEvent[]): FileChange[] {
   const changes: FileChange[] = [];
-
   for (const ev of events) {
     if (ev._kind !== "tool") continue;
     const tc = ev.data;
@@ -21,159 +22,112 @@ function extractFileChanges(events: FeedEvent[]): FileChange[] {
       case "read": {
         const fileObj = (output as Record<string, unknown>)?.file as Record<string, unknown> | undefined;
         const fp = (input.file_path as string) || (fileObj?.filePath as string) || "";
-        if (fp) {
-          changes.push({
-            path: normalizePath(fp),
-            action: "read",
-            timestamp: tc.ts,
-            toolCallId: tc.id,
-            toolName: tc.tool_name,
-          });
-        }
+        if (fp) changes.push({ path: norm(fp), action: "read", timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
         break;
       }
       case "write": {
-        const fp = (input.file_path as string) || (output.filePath as string);
+        const fp = (input.file_path as string) || (output.filePath as string) || "";
         if (fp) {
           const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
           let added = 0;
-          if (patch) {
-            for (const hunk of patch) {
-              added += (hunk.newLines as number) || 0;
-            }
-          }
-          changes.push({
-            path: normalizePath(fp),
-            action: "write",
-            linesAdded: added || undefined,
-            timestamp: tc.ts,
-            toolCallId: tc.id,
-            toolName: tc.tool_name,
-          });
+          if (patch) for (const h of patch) added += (h.newLines as number) || 0;
+          changes.push({ path: norm(fp), action: "write", linesAdded: added || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
         }
         break;
       }
       case "edit": {
-        const fp = (input.file_path as string) || (output.filePath as string);
+        const fp = (input.file_path as string) || (output.filePath as string) || "";
         if (fp) {
           const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
           let added = 0, removed = 0;
-          if (patch) {
-            for (const hunk of patch) {
-              const lines = (hunk.lines as string[]) || [];
-              for (const l of lines) {
-                if (l.startsWith("+") && !l.startsWith("+++")) added++;
-                if (l.startsWith("-") && !l.startsWith("---")) removed++;
-              }
-            }
+          if (patch) for (const h of patch) for (const l of ((h.lines as string[]) || [])) {
+            if (l.startsWith("+") && !l.startsWith("+++")) added++;
+            if (l.startsWith("-") && !l.startsWith("---")) removed++;
           }
-          changes.push({
-            path: normalizePath(fp),
-            action: "edit",
-            linesAdded: added || undefined,
-            linesRemoved: removed || undefined,
-            timestamp: tc.ts,
-            toolCallId: tc.id,
-            toolName: tc.tool_name,
-          });
-        }
-        break;
-      }
-      case "bash": {
-        const cmd = (input.command as string) || "";
-        if (cmd.includes("git commit") || cmd.includes("git add")) {
-          changes.push({
-            path: "git",
-            action: "exec",
-            timestamp: tc.ts,
-            toolCallId: tc.id,
-            toolName: "git",
-          });
-        }
-        break;
-      }
-      case "glob": {
-        const pattern = (input.pattern as string) || "";
-        if (pattern) {
-          changes.push({
-            path: normalizePath(pattern),
-            action: "search",
-            timestamp: tc.ts,
-            toolCallId: tc.id,
-            toolName: tc.tool_name,
-          });
+          changes.push({ path: norm(fp), action: "edit", linesAdded: added || undefined, linesRemoved: removed || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
         }
         break;
       }
     }
   }
-
   return changes;
 }
 
-function normalizePath(p: string): string {
-  // Strip common prefixes
-  return p
-    .replace(/^\/home\/agentuser\/repo\//, "")
-    .replace(/^\/workspace\//, "")
-    .replace(/^\/home\/agentuser\//, "~/");
+function norm(p: string): string {
+  return p.replace(/^\/home\/agentuser\/repo\//, "").replace(/^\/workspace\//, "").replace(/^\/home\/agentuser\//, "~/");
 }
 
-/* ── Build file tree from changes ── */
+/* ── Tree node ── */
 interface TreeNode {
   name: string;
   fullPath: string;
-  type: "file" | "dir";
+  isDir: boolean;
   children: Map<string, TreeNode>;
-  changes: FileChange[];
+  added: number;
+  removed: number;
+  status?: string;
 }
 
-function buildTree(changes: FileChange[]): TreeNode {
-  const root: TreeNode = { name: "", fullPath: "", type: "dir", children: new Map(), changes: [] };
-
-  for (const change of changes) {
-    if (change.path === "git" || change.action === "search") continue;
-    const parts = change.path.split("/").filter(Boolean);
-    let current = root;
-
+function buildTreeFromDiff(files: DiffFile[]): TreeNode {
+  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
+  for (const f of files) {
+    const parts = f.path.split("/").filter(Boolean);
+    let cur = root;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const isLast = i === parts.length - 1;
-
-      if (!current.children.has(part)) {
-        current.children.set(part, {
-          name: part,
-          fullPath: parts.slice(0, i + 1).join("/"),
-          type: isLast ? "file" : "dir",
-          children: new Map(),
-          changes: [],
-        });
+      if (!cur.children.has(part)) {
+        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
       }
-      current = current.children.get(part)!;
+      cur = cur.children.get(part)!;
       if (isLast) {
-        current.changes.push(change);
+        cur.added = f.added;
+        cur.removed = f.removed;
+        cur.status = f.status;
       }
     }
   }
-
   return root;
 }
 
-/* ── File icon by extension ── */
-function FileIcon({ name, action }: { name: string; action?: string }) {
+function buildTreeFromChanges(changes: FileChange[]): TreeNode {
+  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
+  const seen = new Map<string, { added: number; removed: number }>();
+  for (const c of changes) {
+    if (c.action === "read") continue;
+    const key = c.path;
+    const existing = seen.get(key) || { added: 0, removed: 0 };
+    existing.added += c.linesAdded || 0;
+    existing.removed += c.linesRemoved || 0;
+    seen.set(key, existing);
+  }
+  for (const [path, stats] of seen) {
+    const parts = path.split("/").filter(Boolean);
+    let cur = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      if (!cur.children.has(part)) {
+        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
+      }
+      cur = cur.children.get(part)!;
+      if (isLast) { cur.added = stats.added; cur.removed = stats.removed; cur.status = "modified"; }
+    }
+  }
+  return root;
+}
+
+/* ── Icons ── */
+function FileIcon({ name, status }: { name: string; status?: string }) {
   const ext = name.split(".").pop()?.toLowerCase() || "";
   let color = "#555";
-
-  if (action === "write" || action === "create") color = "#cc88ff";
-  else if (action === "edit") color = "#ffcc44";
-  else if (action === "read") color = "#88ccff";
-
-  if (ext === "tsx" || ext === "ts") color = action ? color : "#3178c6";
-  if (ext === "css") color = action ? color : "#264de4";
-  if (ext === "py") color = action ? color : "#3776ab";
-  if (ext === "json") color = action ? color : "#777";
-  if (ext === "md") color = action ? color : "#555";
-  if (ext === "sql") color = action ? color : "#e38c00";
+  if (status === "added") color = "#00ff88";
+  else if (status === "deleted") color = "#ff4444";
+  else if (status === "modified") color = "#ffcc44";
+  else if (ext === "tsx" || ext === "ts") color = "#3178c6";
+  else if (ext === "css") color = "#264de4";
+  else if (ext === "py") color = "#3776ab";
+  else if (ext === "sql") color = "#e38c00";
 
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke={color} strokeWidth="1" strokeLinecap="round">
@@ -186,36 +140,42 @@ function FileIcon({ name, action }: { name: string; action?: string }) {
 function DirIcon({ open }: { open: boolean }) {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1" strokeLinecap="round">
-      {open ? (
-        <>
-          <path d="M1 3.5h3l1-1h4.5a1 1 0 011 1V4H2.5L1 9V3.5z" />
-          <path d="M2.5 4L1 9h8.5l1.5-5H2.5z" />
-        </>
-      ) : (
-        <path d="M1 3h3l1 1h5a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1V3z" />
-      )}
+      {open
+        ? <><path d="M1 3.5h3l1-1h4.5a1 1 0 011 1V4H2.5L1 9V3.5z" /><path d="M2.5 4L1 9h8.5l1.5-5H2.5z" /></>
+        : <path d="M1 3h3l1 1h5a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1V3z" />}
     </svg>
   );
 }
 
 /* ── Tree Node Component ── */
-function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
+function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
   const [open, setOpen] = useState(depth < 2);
-  const isDir = node.type === "dir" && node.children.size > 0;
-  const hasWriteChanges = node.changes.some(c => c.action === "write" || c.action === "edit" || c.action === "create");
+  const isDir = node.isDir && node.children.size > 0;
 
-  const totalAdded = node.changes.reduce((sum, c) => sum + (c.linesAdded || 0), 0);
-  const totalRemoved = node.changes.reduce((sum, c) => sum + (c.linesRemoved || 0), 0);
-
-  const sortedChildren = useMemo(() => {
+  const sorted = useMemo(() => {
     const arr = Array.from(node.children.values());
-    // Dirs first, then files
     return arr.sort((a, b) => {
-      if (a.type === "dir" && b.type !== "dir") return -1;
-      if (a.type !== "dir" && b.type === "dir") return 1;
+      if (a.isDir && !b.isDir) return -1;
+      if (!a.isDir && b.isDir) return 1;
       return a.name.localeCompare(b.name);
     });
   }, [node.children]);
+
+  // Aggregate child stats for directories
+  const totalAdded = useMemo(() => {
+    if (!node.isDir) return node.added;
+    let sum = node.added;
+    const walk = (n: TreeNode) => { sum += n.added; n.children.forEach(walk); };
+    node.children.forEach(walk);
+    return sum;
+  }, [node]);
+  const totalRemoved = useMemo(() => {
+    if (!node.isDir) return node.removed;
+    let sum = node.removed;
+    const walk = (n: TreeNode) => { sum += n.removed; n.children.forEach(walk); };
+    node.children.forEach(walk);
+    return sum;
+  }, [node]);
 
   return (
     <div>
@@ -223,57 +183,49 @@ function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
         className={clsx(
           "flex items-center gap-1.5 py-[3px] px-1 rounded cursor-pointer transition-colors text-[10px]",
           "hover:bg-white/[0.03]",
-          hasWriteChanges && "bg-[#ffcc44]/[0.02]"
+          node.status === "added" && "bg-[#00ff88]/[0.02]",
+          node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
-        style={{ paddingLeft: depth * 14 }}
+        style={{ paddingLeft: depth * 14 + 4 }}
         onClick={() => isDir && setOpen(!open)}
       >
         {isDir ? (
-          <span className="shrink-0">
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#444" strokeWidth="1.5" strokeLinecap="round"
-              className={clsx("transition-transform duration-150", open && "rotate-90")}>
-              <polyline points="2 1 6 4 2 7" />
-            </svg>
-          </span>
-        ) : (
-          <span className="w-2 shrink-0" />
-        )}
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#444" strokeWidth="1.5" strokeLinecap="round"
+            className={clsx("shrink-0 transition-transform duration-150", open && "rotate-90")}>
+            <polyline points="2 1 6 4 2 7" />
+          </svg>
+        ) : <span className="w-2 shrink-0" />}
 
-        {isDir ? <DirIcon open={open} /> : <FileIcon name={node.name} action={node.changes[0]?.action} />}
+        {isDir ? <DirIcon open={open} /> : <FileIcon name={node.name} status={node.status} />}
 
-        <span className={clsx(
-          "flex-1 truncate",
-          hasWriteChanges ? "text-[#ccc]" : "text-[#777]"
-        )}>
+        <span className={clsx("flex-1 truncate", node.status === "deleted" ? "text-[#ff4444]/60 line-through" : node.status === "added" ? "text-[#00ff88]/80" : "text-[#888]")}>
           {node.name}
         </span>
 
-        {/* LOC change indicators */}
-        {totalAdded > 0 && (
-          <span className="text-[8px] text-[#00ff88]/60 tabular-nums shrink-0">+{totalAdded}</span>
+        {(totalAdded > 0 || totalRemoved > 0) && (
+          <span className="flex items-center gap-1 shrink-0">
+            {totalAdded > 0 && <span className="text-[8px] text-[#00ff88]/60 tabular-nums">+{totalAdded}</span>}
+            {totalRemoved > 0 && <span className="text-[8px] text-[#ff4444]/60 tabular-nums">-{totalRemoved}</span>}
+          </span>
         )}
-        {totalRemoved > 0 && (
-          <span className="text-[8px] text-[#ff4444]/60 tabular-nums shrink-0">-{totalRemoved}</span>
-        )}
-        {node.changes.length > 0 && !totalAdded && !totalRemoved && (
-          <span className="text-[8px] text-[#555] tabular-nums shrink-0">
-            {node.changes.length}x
+
+        {node.status && !node.isDir && (
+          <span className={clsx(
+            "text-[7px] font-bold uppercase tracking-wider rounded px-1 py-0.5 shrink-0",
+            node.status === "added" && "text-[#00ff88]/60 bg-[#00ff88]/8",
+            node.status === "modified" && "text-[#ffcc44]/60 bg-[#ffcc44]/8",
+            node.status === "deleted" && "text-[#ff4444]/60 bg-[#ff4444]/8",
+            node.status === "renamed" && "text-[#88ccff]/60 bg-[#88ccff]/8",
+          )}>
+            {node.status === "added" ? "A" : node.status === "modified" ? "M" : node.status === "deleted" ? "D" : "R"}
           </span>
         )}
       </div>
 
       <AnimatePresence>
         {open && isDir && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
-            {sortedChildren.map((child) => (
-              <TreeNodeItem key={child.fullPath} node={child} depth={depth + 1} />
-            ))}
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
+            {sorted.map(child => <NodeItem key={child.fullPath} node={child} depth={depth + 1} />)}
           </motion.div>
         )}
       </AnimatePresence>
@@ -281,141 +233,169 @@ function TreeNodeItem({ node, depth }: { node: TreeNode; depth: number }) {
   );
 }
 
-/* ── Changelog ── */
-function ChangeLog({ changes }: { changes: FileChange[] }) {
-  // Group by file, show most recent changes
-  const writeChanges = changes.filter(c => c.action === "write" || c.action === "edit" || c.action === "create");
-  const sorted = [...writeChanges].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  const recent = sorted.slice(0, 20);
-
-  if (recent.length === 0) {
-    return <div className="text-[9px] text-[#444] px-2 py-3 text-center">No file changes yet</div>;
-  }
-
+/* ── File List (flat view) ── */
+function FileList({ files }: { files: DiffFile[] }) {
+  const sorted = [...files].sort((a, b) => (b.added + b.removed) - (a.added + a.removed));
   return (
     <div className="space-y-0.5">
-      {recent.map((change, i) => {
-        const fileName = change.path.split("/").pop() || change.path;
-        const time = new Date(change.timestamp).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
-        return (
-          <div key={`${change.path}-${i}`} className="flex items-center gap-1.5 px-2 py-[3px] text-[9px] hover:bg-white/[0.02] rounded transition-colors">
-            <span className="text-[#444] tabular-nums shrink-0 w-[36px]">{time}</span>
-            <span className={clsx(
-              "shrink-0 w-[32px] text-center rounded px-1 py-0.5 text-[7px] font-bold uppercase tracking-wider",
-              change.action === "edit" && "text-[#ffcc44] bg-[#ffcc44]/8",
-              change.action === "write" && "text-[#cc88ff] bg-[#cc88ff]/8",
-              change.action === "create" && "text-[#00ff88] bg-[#00ff88]/8",
-            )}>
-              {change.action === "edit" ? "MOD" : change.action === "write" ? "WRT" : "NEW"}
-            </span>
-            <span className="text-[#888] truncate flex-1">{fileName}</span>
-            {change.linesAdded && <span className="text-[#00ff88]/50 tabular-nums shrink-0">+{change.linesAdded}</span>}
-            {change.linesRemoved && <span className="text-[#ff4444]/50 tabular-nums shrink-0">-{change.linesRemoved}</span>}
-          </div>
-        );
-      })}
+      {sorted.map((f, i) => (
+        <div key={i} className="flex items-center gap-1.5 px-2 py-[3px] text-[9px] hover:bg-white/[0.02] rounded transition-colors">
+          <span className={clsx(
+            "shrink-0 w-[14px] text-center text-[7px] font-bold uppercase",
+            f.status === "added" && "text-[#00ff88]/60",
+            f.status === "modified" && "text-[#ffcc44]/60",
+            f.status === "deleted" && "text-[#ff4444]/60",
+            f.status === "renamed" && "text-[#88ccff]/60",
+          )}>
+            {f.status?.[0]?.toUpperCase() || "M"}
+          </span>
+          <span className="text-[#888] truncate flex-1">{f.path}</span>
+          {f.added > 0 && <span className="text-[#00ff88]/50 tabular-nums shrink-0">+{f.added}</span>}
+          {f.removed > 0 && <span className="text-[#ff4444]/50 tabular-nums shrink-0">-{f.removed}</span>}
+        </div>
+      ))}
     </div>
   );
 }
 
-/* ── WorkTree Panel ── */
-export function WorkTree({ events }: { events: FeedEvent[] }) {
-  const [activeTab, setActiveTab] = useState<"tree" | "log">("tree");
+/* ── Main WorkTree Panel ── */
+export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string | null }) {
+  const [activeTab, setActiveTab] = useState<"tree" | "files" | "live">("tree");
   const [collapsed, setCollapsed] = useState(false);
+  const [diffData, setDiffData] = useState<DiffStats | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
 
-  const changes = useMemo(() => extractFileChanges(events), [events]);
-  const tree = useMemo(() => buildTree(changes), [changes]);
+  // Fetch git diff when run changes
+  useEffect(() => {
+    if (!runId) { setDiffData(null); return; }
+    setDiffLoading(true);
+    fetchRunDiff(runId).then(d => { setDiffData(d); setDiffLoading(false); }).catch(() => setDiffLoading(false));
+  }, [runId]);
 
-  const totalFiles = new Set(changes.filter(c => c.action !== "search" && c.action !== "exec").map(c => c.path)).size;
-  const totalEdits = changes.filter(c => c.action === "edit" || c.action === "write" || c.action === "create").length;
-  const totalAdded = changes.reduce((sum, c) => sum + (c.linesAdded || 0), 0);
-  const totalRemoved = changes.reduce((sum, c) => sum + (c.linesRemoved || 0), 0);
+  // Also refresh periodically for live runs
+  useEffect(() => {
+    if (!runId || !diffData || diffData.source !== "live") return;
+    const id = setInterval(() => {
+      fetchRunDiff(runId).then(setDiffData).catch(() => {});
+    }, 15000);
+    return () => clearInterval(id);
+  }, [runId, diffData?.source]);
+
+  // Live changes from event stream
+  const liveChanges = useMemo(() => extractFileChanges(events), [events]);
+  const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
+
+  // Git diff tree
+  const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
+
+  const hasGitDiff = diffData && diffData.files.length > 0;
+  const hasLive = liveChanges.filter(c => c.action !== "read").length > 0;
+
+  const totalFiles = diffData?.total_files || 0;
+  const totalAdded = diffData?.total_added || 0;
+  const totalRemoved = diffData?.total_removed || 0;
 
   return (
-    <div className={clsx(
-      "flex flex-col border-l border-[#1a1a1a] bg-[#030303] transition-all duration-200",
-      collapsed ? "w-[32px]" : "w-[280px]"
-    )}>
+    <div className={clsx("flex flex-col border-l border-[#1a1a1a] bg-[#030303] transition-all duration-200", collapsed ? "w-[32px]" : "w-[280px]")}>
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#1a1a1a]">
         {!collapsed && (
           <>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M1 3h3l1 1h5a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1V3z" />
+              <path d="M6 1v10M6 1L3 4M6 1l3 3" />
+              <circle cx="6" cy="11" r="0" /><circle cx="3" cy="6" r="1" /><circle cx="9" cy="8" r="1" />
+              <line x1="3" y1="6" x2="6" y2="6" /><line x1="9" y1="8" x2="6" y2="8" />
             </svg>
-            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#555]">
-              WorkTree
-            </span>
-            <span className="text-[8px] text-[#444] tabular-nums ml-auto">
-              {totalFiles} files
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#555]">Changes</span>
+            {diffData?.source && (
+              <span className={clsx(
+                "text-[7px] rounded px-1 py-0.5 uppercase tracking-wider",
+                diffData.source === "live" ? "text-[#00ff88]/50 bg-[#00ff88]/8" :
+                diffData.source === "stored" ? "text-[#88ccff]/50 bg-[#88ccff]/8" :
+                "text-[#555] bg-white/[0.03]"
+              )}>
+                {diffData.source === "live" ? "live" : diffData.source === "stored" ? "git" : diffData.source}
+              </span>
+            )}
+            <span className="text-[8px] text-[#444] tabular-nums ml-auto">{totalFiles} files</span>
           </>
         )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="text-[#444] hover:text-[#888] transition-colors p-0.5"
-        >
+        <button onClick={() => setCollapsed(!collapsed)} className="text-[#444] hover:text-[#888] transition-colors p-0.5">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            {collapsed ? (
-              <polyline points="3 2 7 5 3 8" />
-            ) : (
-              <polyline points="7 2 3 5 7 8" />
-            )}
+            {collapsed ? <polyline points="3 2 7 5 3 8" /> : <polyline points="7 2 3 5 7 8" />}
           </svg>
         </button>
       </div>
 
       {!collapsed && (
         <>
-          {/* Stats bar */}
-          <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#1a1a1a]/60 text-[8px] text-[#555]">
-            <span>{totalEdits} changes</span>
-            {totalAdded > 0 && <span className="text-[#00ff88]/50">+{totalAdded}</span>}
-            {totalRemoved > 0 && <span className="text-[#ff4444]/50">-{totalRemoved}</span>}
-          </div>
+          {/* Stats */}
+          {(totalAdded > 0 || totalRemoved > 0) && (
+            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#1a1a1a]/60 text-[8px] text-[#555]">
+              <span>{totalFiles} files changed</span>
+              {totalAdded > 0 && <span className="text-[#00ff88]/50">+{totalAdded}</span>}
+              {totalRemoved > 0 && <span className="text-[#ff4444]/50">-{totalRemoved}</span>}
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex border-b border-[#1a1a1a]/60">
-            <button
-              onClick={() => setActiveTab("tree")}
-              className={clsx(
-                "flex-1 py-1.5 text-[9px] font-medium text-center transition-colors",
-                activeTab === "tree" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#555] hover:text-[#888]"
-              )}
-            >
-              Files
-            </button>
-            <button
-              onClick={() => setActiveTab("log")}
-              className={clsx(
-                "flex-1 py-1.5 text-[9px] font-medium text-center transition-colors",
-                activeTab === "log" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#555] hover:text-[#888]"
-              )}
-            >
-              Changelog
-            </button>
+            {hasGitDiff && (
+              <button onClick={() => setActiveTab("tree")}
+                className={clsx("flex-1 py-1.5 text-[9px] font-medium text-center transition-colors",
+                  activeTab === "tree" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#555] hover:text-[#888]")}>
+                Tree
+              </button>
+            )}
+            {hasGitDiff && (
+              <button onClick={() => setActiveTab("files")}
+                className={clsx("flex-1 py-1.5 text-[9px] font-medium text-center transition-colors",
+                  activeTab === "files" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#555] hover:text-[#888]")}>
+                Files
+              </button>
+            )}
+            {hasLive && (
+              <button onClick={() => setActiveTab("live")}
+                className={clsx("flex-1 py-1.5 text-[9px] font-medium text-center transition-colors",
+                  activeTab === "live" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#555] hover:text-[#888]")}>
+                Session
+              </button>
+            )}
+            {!hasGitDiff && !hasLive && (
+              <div className="flex-1 py-1.5 text-[9px] text-[#444] text-center">
+                {diffLoading ? "Loading..." : "No changes"}
+              </div>
+            )}
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto py-1">
-            {activeTab === "tree" ? (
-              tree.children.size > 0 ? (
-                Array.from(tree.children.values())
-                  .sort((a, b) => {
-                    if (a.type === "dir" && b.type !== "dir") return -1;
-                    if (a.type !== "dir" && b.type === "dir") return 1;
-                    return a.name.localeCompare(b.name);
-                  })
-                  .map((child) => (
-                    <TreeNodeItem key={child.fullPath} node={child} depth={0} />
-                  ))
-              ) : (
-                <div className="text-[9px] text-[#444] px-2 py-6 text-center">
-                  No files touched yet
-                </div>
-              )
-            ) : (
-              <ChangeLog changes={changes} />
+            {diffLoading && !diffData && (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-4 w-4 rounded-full border-2 border-[#333] border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+              </div>
+            )}
+
+            {activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
+              Array.from(diffTree.children.values())
+                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
+                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
+            )}
+
+            {activeTab === "files" && diffData && diffData.files.length > 0 && (
+              <FileList files={diffData.files} />
+            )}
+
+            {activeTab === "live" && liveTree.children.size > 0 && (
+              Array.from(liveTree.children.values())
+                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
+                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
+            )}
+
+            {!diffLoading && !hasGitDiff && !hasLive && (
+              <div className="text-[9px] text-[#444] px-3 py-6 text-center">
+                No file changes detected yet
+              </div>
             )}
           </div>
         </>
