@@ -101,6 +101,15 @@ export const getBudget = (session_id: string) =>
 // Health
 export const getHealth = () => request<Record<string, unknown>>("/health");
 
+// Cache
+export const getCacheStats = () =>
+  request<{ entries: number; max_entries: number; ttl_seconds: number; hits: number; misses: number; hit_rate: number }>("/api/cache/stats");
+export const invalidateCache = (connection_name?: string) =>
+  request<{ invalidated: number; connection_name: string | null }>(
+    `/api/cache/invalidate${connection_name ? `?connection_name=${encodeURIComponent(connection_name)}` : ""}`,
+    { method: "POST" },
+  );
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);

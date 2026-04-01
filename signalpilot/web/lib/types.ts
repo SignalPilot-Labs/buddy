@@ -74,4 +74,12 @@ export interface MetricsSnapshot {
   active_vms: number;
   max_vms: number;
   connections: number;
+  query_cache?: {
+    entries: number;
+    max_entries: number;
+    ttl_seconds: number;
+    hits: number;
+    misses: number;
+    hit_rate: number;
+  };
 }

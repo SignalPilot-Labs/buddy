@@ -16,7 +16,7 @@ import {
   Zap,
   BarChart3,
 } from "lucide-react";
-import { subscribeMetrics, getAudit, getBudgets, getConnections } from "@/lib/api";
+import { subscribeMetrics, getAudit, getBudgets, getConnections, getCacheStats } from "@/lib/api";
 import type { MetricsSnapshot, AuditEntry, ConnectionInfo } from "@/lib/types";
 
 function MetricCard({
@@ -93,6 +93,13 @@ export default function DashboardPage() {
     blocks: 0,
     total: 0,
   });
+  const [cacheStats, setCacheStats] = useState<{
+    entries: number;
+    max_entries: number;
+    hits: number;
+    misses: number;
+    hit_rate: number;
+  } | null>(null);
 
   useEffect(() => {
     const unsub = subscribeMetrics((data) => {
@@ -115,6 +122,7 @@ export default function DashboardPage() {
 
     getBudgets().then(setBudgetData).catch(() => {});
     getConnections().then(setConnections).catch(() => {});
+    getCacheStats().then(setCacheStats).catch(() => {});
 
     return unsub;
   }, []);
@@ -275,49 +283,93 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Connections overview — 1 col */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-            <h2 className="text-sm font-medium">Connections</h2>
-            <a href="/connections" className="text-xs text-[var(--color-accent)] hover:underline">
-              Manage
-            </a>
-          </div>
-          <div className="divide-y divide-[var(--color-border)]">
-            {connections.length === 0 ? (
-              <div className="px-5 py-12 text-center">
-                <Database className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-dim)] opacity-30" />
-                <p className="text-xs text-[var(--color-text-dim)]">
-                  No connections yet
-                </p>
-              </div>
-            ) : (
-              connections.map((conn) => (
-                <div
-                  key={conn.id}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--color-bg-hover)] transition-colors"
-                >
-                  <span className="text-lg">
-                    {conn.db_type === "postgres"
-                      ? "🐘"
-                      : conn.db_type === "duckdb"
-                        ? "🦆"
-                        : conn.db_type === "mysql"
-                          ? "🐬"
-                          : "❄️"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{conn.name}</p>
-                    <p className="text-xs text-[var(--color-text-dim)] truncate">
-                      {conn.host}:{conn.port}/{conn.database}
-                    </p>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-bg)] text-[var(--color-text-muted)]">
-                    {conn.db_type}
-                  </span>
+        {/* Right column — Connections + Cache */}
+        <div className="space-y-4">
+          {/* Connections overview */}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-sm font-medium">Connections</h2>
+              <a href="/connections" className="text-xs text-[var(--color-accent)] hover:underline">
+                Manage
+              </a>
+            </div>
+            <div className="divide-y divide-[var(--color-border)]">
+              {connections.length === 0 ? (
+                <div className="px-5 py-12 text-center">
+                  <Database className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-dim)] opacity-30" />
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    No connections yet
+                  </p>
                 </div>
-              ))
-            )}
+              ) : (
+                connections.map((conn) => (
+                  <div
+                    key={conn.id}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--color-bg-hover)] transition-colors"
+                  >
+                    <span className="text-lg">
+                      {conn.db_type === "postgres"
+                        ? "🐘"
+                        : conn.db_type === "duckdb"
+                          ? "🦆"
+                          : conn.db_type === "mysql"
+                            ? "🐬"
+                            : "❄️"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{conn.name}</p>
+                      <p className="text-xs text-[var(--color-text-dim)] truncate">
+                        {conn.host}:{conn.port}/{conn.database}
+                      </p>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-bg)] text-[var(--color-text-muted)]">
+                      {conn.db_type}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Query Cache Stats */}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+            <div className="px-5 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-sm font-medium">Query Cache</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              {cacheStats ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-muted)]">Hit Rate</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {(cacheStats.hit_rate * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--color-success)] rounded-full transition-all"
+                      style={{ width: `${cacheStats.hit_rate * 100}%` }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Hits</p>
+                      <p className="text-sm font-medium tabular-nums text-[var(--color-success)]">{cacheStats.hits}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Misses</p>
+                      <p className="text-sm font-medium tabular-nums text-[var(--color-text-muted)]">{cacheStats.misses}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Entries</p>
+                      <p className="text-sm font-medium tabular-nums">{cacheStats.entries} / {cacheStats.max_entries}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--color-text-dim)]">Loading...</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
