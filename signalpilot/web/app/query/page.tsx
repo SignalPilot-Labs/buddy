@@ -421,24 +421,41 @@ export default function QueryExplorerPage() {
                 <tbody className="divide-y divide-[var(--color-border)]/30">
                   {result.rows.map((row, i) => (
                     <tr key={i} className="table-row-hover">
-                      <td className="px-3 py-1.5 text-[var(--color-text-dim)] tabular-nums">{i + 1}</td>
-                      {Object.values(row).map((val, j) => (
+                      <td className="px-3 py-1.5 text-[var(--color-text-dim)] tabular-nums text-[9px]">{i + 1}</td>
+                      {Object.entries(row).map(([col, val], j) => (
                         <td
                           key={j}
-                          className="px-3 py-1.5 text-[var(--color-text-muted)] max-w-[300px] truncate"
+                          className="px-3 py-1.5 text-[var(--color-text-muted)] max-w-[300px] truncate cursor-default group/cell relative"
                           title={val == null ? "NULL" : String(val)}
+                          onClick={() => {
+                            if (val != null) {
+                              navigator.clipboard.writeText(String(val)).then(() => {
+                                toast(`copied: ${String(val).slice(0, 50)}`, "info");
+                              }).catch(() => {});
+                            }
+                          }}
                         >
                           {val == null ? (
-                            <span className="text-[var(--color-text-dim)] italic">null</span>
+                            <span className="text-[var(--color-text-dim)] italic opacity-50">null</span>
                           ) : typeof val === "number" ? (
                             <span className="tabular-nums text-[var(--color-text)]">{val.toLocaleString()}</span>
                           ) : typeof val === "boolean" ? (
-                            <span className={val ? "text-[var(--color-success)]" : "text-[var(--color-error)]"}>
+                            <span className={`font-medium ${val ? "text-[var(--color-success)]" : "text-[var(--color-error)]"}`}>
                               {String(val)}
                             </span>
+                          ) : typeof val === "object" ? (
+                            <span className="text-orange-400/80 font-mono text-[10px]">{JSON.stringify(val).slice(0, 60)}</span>
+                          ) : /^\d{4}-\d{2}-\d{2}/.test(String(val)) ? (
+                            <span className="text-purple-400/80 tabular-nums">{String(val)}</span>
+                          ) : /^[0-9a-f]{8}-[0-9a-f]{4}/.test(String(val)) ? (
+                            <span className="text-pink-400/70 font-mono text-[10px]">{String(val)}</span>
                           ) : (
                             String(val)
                           )}
+                          {/* Click-to-copy hint */}
+                          <span className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/cell:opacity-100 transition-opacity text-[8px] text-[var(--color-text-dim)]">
+                            <Copy className="w-2.5 h-2.5" />
+                          </span>
                         </td>
                       ))}
                     </tr>
