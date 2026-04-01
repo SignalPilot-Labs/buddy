@@ -396,3 +396,108 @@ input:focus::placeholder {
   background-size: 200px 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
+
+/* ── Gradient border glow ── */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, var(--color-border-hover) 0%, transparent 40%, transparent 60%, var(--color-border-hover) 100%);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* ── Radial glow behind cards ── */
+.card-radial-glow {
+  position: relative;
+  overflow: visible;
+}
+.card-radial-glow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 255, 136, 0.015), transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.card-radial-glow:hover::before {
+  opacity: 1;
+}
+
+/* ── Subtle inset glow ── */
+.inset-glow:hover {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04), inset 0 -1px 0 0 rgba(255, 255, 255, 0.02);
+}
+
+/* ── Matrix/code rain effect ── */
+@keyframes matrix-fall {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+/* ── Typing effect ── */
+@keyframes typing {
+  from { width: 0; }
+  to { width: 100%; }
+}
+.animate-typing {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typing 2s steps(40, end) forwards;
+}
+
+/* ── Border trace animation ── */
+@keyframes border-trace {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+.border-trace {
+  background: linear-gradient(90deg, transparent, var(--color-border-hover), var(--color-success), var(--color-border-hover), transparent);
+  background-size: 200% 1px;
+  background-repeat: no-repeat;
+  background-position: 0% 100%;
+  animation: border-trace 3s linear infinite;
+}
+
+/* ── Subtle float ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ── Glow text ── */
+.glow-text {
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.15), 0 0 40px rgba(0, 255, 136, 0.05);
+}
+
+/* ── Grid fade mask ── */
+.grid-fade {
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 30%, transparent 100%);
+}
+
+/* ── Dash border animated ── */
+@keyframes dash-move {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -16; }
+}
+.dash-animate {
+  animation: dash-move 1s linear infinite;
+}

@@ -259,7 +259,7 @@ export default function DashboardPage() {
       {/* ── Two-column layout ── */}
       <div className="grid grid-cols-3 gap-4">
         {/* Recent activity — takes 2 cols */}
-        <div className="col-span-2 border border-[var(--color-border)] bg-[var(--color-bg-card)]">
+        <div className="col-span-2 border border-[var(--color-border)] bg-[var(--color-bg-card)] card-radial-glow">
           <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
             <div className="flex items-center gap-2">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -328,7 +328,7 @@ export default function DashboardPage() {
         {/* Right column — Connections + Cache */}
         <div className="space-y-4">
           {/* Connections overview */}
-          <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)]">
+          <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)] card-radial-glow">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-2">
                 <Database className="w-3 h-3 text-[var(--color-text-dim)]" strokeWidth={1.5} />
@@ -354,14 +354,18 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={conn.id}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-bg-hover)] transition-colors"
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-bg-hover)] transition-colors group"
                     >
-                      <span className={`w-1.5 h-1.5 flex-shrink-0 ${
-                        health?.status === "healthy" ? "bg-[var(--color-success)]" :
-                        health?.status === "warning" ? "bg-[var(--color-warning)]" :
-                        health?.status === "degraded" || health?.status === "unhealthy" ? "bg-[var(--color-error)]" :
-                        "bg-[var(--color-text-dim)]"
-                      }`} />
+                      <StatusDot
+                        status={
+                          health?.status === "healthy" ? "healthy" :
+                          health?.status === "warning" ? "warning" :
+                          health?.status === "degraded" || health?.status === "unhealthy" ? "error" :
+                          "unknown"
+                        }
+                        size={4}
+                        pulse={health?.status === "healthy"}
+                      />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-[var(--color-text-muted)] truncate">{conn.name}</p>
                         <p className="text-[10px] text-[var(--color-text-dim)] truncate">
@@ -386,7 +390,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Query Cache Stats */}
-          <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)]">
+          <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)] card-radial-glow">
             <div className="px-4 py-3 border-b border-[var(--color-border)]">
               <div className="flex items-center gap-2">
                 <Zap className="w-3 h-3 text-[var(--color-text-dim)]" strokeWidth={1.5} />
