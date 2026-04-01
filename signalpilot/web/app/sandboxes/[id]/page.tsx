@@ -25,6 +25,7 @@ import {
 import { getSandbox, executeSandbox, deleteSandbox } from "@/lib/api";
 import type { SandboxInfo } from "@/lib/types";
 import { StatusDot, MiniBar } from "@/components/ui/data-viz";
+import { useToast } from "@/components/ui/toast";
 
 interface HistoryEntry {
   type: "input" | "output" | "error" | "system" | "image" | "html";
@@ -120,6 +121,7 @@ export default function SandboxDetailPage() {
   const [showSnippets, setShowSnippets] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     getSandbox(sandboxId)
@@ -235,6 +237,7 @@ export default function SandboxDetailPage() {
   async function handleKill() {
     if (!confirm("Kill this sandbox? The VM will be terminated.")) return;
     await deleteSandbox(sandboxId);
+    toast("sandbox terminated", "info");
     router.push("/sandboxes");
   }
 
@@ -245,6 +248,7 @@ export default function SandboxDetailPage() {
       .join("\n\n");
     navigator.clipboard.writeText(textEntries);
     setCopied(true);
+    toast("output copied to clipboard", "success");
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -265,6 +269,7 @@ export default function SandboxDetailPage() {
     a.download = `sandbox-${sandboxId.slice(0, 8)}-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+    toast("output downloaded", "success");
   }
 
   if (error) {
