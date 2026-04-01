@@ -415,6 +415,20 @@ export default function SandboxDetailPage() {
         </div>
       </div>
 
+      {/* Terminal status bar */}
+      <div className="flex items-center gap-4 px-4 py-1.5 border-b border-[var(--color-border)] bg-[var(--color-bg)] text-[9px] text-[var(--color-text-dim)] tracking-wider flex-shrink-0">
+        <span className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 ${sandbox.status === "running" ? "bg-[var(--color-success)]" : "bg-[var(--color-text-dim)]"}`} />
+          {sandbox.status}
+        </span>
+        <span className="tabular-nums">{inputCount} cells</span>
+        <span className="tabular-nums">{history.filter(h => h.type === "error").length} errors</span>
+        {sandbox.boot_ms != null && (
+          <span className="tabular-nums">boot: {sandbox.boot_ms.toFixed(0)}ms</span>
+        )}
+        <span className="ml-auto tabular-nums">python3 · firecracker</span>
+      </div>
+
       {/* Terminal output */}
       <div
         ref={scrollRef}
@@ -550,6 +564,9 @@ export default function SandboxDetailPage() {
             >
               {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
               run
+              <kbd className="ml-1 px-1 py-0.5 bg-[var(--color-bg)]/20 text-[7px] opacity-50 border border-[var(--color-bg)]/30">
+                ⌃⏎
+              </kbd>
             </button>
           </div>
         </div>
