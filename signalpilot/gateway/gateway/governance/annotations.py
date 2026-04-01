@@ -13,6 +13,7 @@ Annotations are stored in ~/.signalpilot/schema.yml or alongside dbt models.
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -104,17 +105,28 @@ class SchemaAnnotations:
         return result
 
 
+# TTL cache for annotations to avoid re-reading YAML on every query
+_annotations_cache: dict[str, tuple[float, SchemaAnnotations]] = {}
+_ANNOTATIONS_TTL = float(os.getenv("SP_ANNOTATIONS_TTL", "60"))  # seconds
+
+
 def load_annotations(
     connection_name: str,
     search_paths: list[str | Path] | None = None,
 ) -> SchemaAnnotations:
-    """Load schema annotations from YAML files.
+    """Load schema annotations from YAML files (cached with TTL).
 
     Searches in order:
     1. Custom paths provided
     2. ~/.signalpilot/annotations/{connection_name}.yml
     3. ~/.signalpilot/schema.yml
     """
+    # Check cache first (skip cache if custom search_paths provided)
+    if not search_paths and connection_name in _annotations_cache:
+        cached_at, cached = _annotations_cache[connection_name]
+        if time.monotonic() - cached_at < _ANNOTATIONS_TTL:
+            return cached
+
     if not HAS_YAML:
         return SchemaAnnotations(connection_name=connection_name)
 
@@ -134,11 +146,25 @@ def load_annotations(
     for path in paths_to_try:
         if path.exists():
             try:
-                return _parse_annotation_file(path, connection_name)
+                result = _parse_annotation_file(path, connection_name)
+                if not search_paths:
+                    _annotations_cache[connection_name] = (time.monotonic(), result)
+                return result
             except Exception:
                 continue
 
-    return SchemaAnnotations(connection_name=connection_name)
+    empty = SchemaAnnotations(connection_name=connection_name)
+    if not search_paths:
+        _annotations_cache[connection_name] = (time.monotonic(), empty)
+    return empty
+
+
+def invalidate_annotations_cache(connection_name: str | None = None):
+    """Clear cached annotations. Call when annotations are updated."""
+    if connection_name:
+        _annotations_cache.pop(connection_name, None)
+    else:
+        _annotations_cache.clear()
 
 
 def _parse_annotation_file(path: Path, connection_name: str) -> SchemaAnnotations:
