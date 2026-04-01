@@ -171,8 +171,34 @@ def delete_sandbox(sandbox_id: str) -> bool:
 
 # ─── Audit Log ───────────────────────────────────────────────────────────────
 
+# Max audit file size before rotation (10MB)
+_AUDIT_MAX_BYTES = int(os.getenv("SP_AUDIT_MAX_BYTES", str(10 * 1024 * 1024)))
+# Max entries to read into memory for a single query (prevents OOM on large files)
+_AUDIT_MAX_SCAN = int(os.getenv("SP_AUDIT_MAX_SCAN", "50000"))
+
+
+def _rotate_audit_if_needed():
+    """Rotate audit log if it exceeds max size (MED-04 fix)."""
+    if not AUDIT_FILE.exists():
+        return
+    try:
+        size = AUDIT_FILE.stat().st_size
+        if size > _AUDIT_MAX_BYTES:
+            # Rotate: rename current to .1, delete older rotations
+            rotated = AUDIT_FILE.with_suffix(".jsonl.1")
+            old_rotated = AUDIT_FILE.with_suffix(".jsonl.2")
+            if old_rotated.exists():
+                old_rotated.unlink()
+            if rotated.exists():
+                rotated.rename(old_rotated)
+            AUDIT_FILE.rename(rotated)
+    except OSError:
+        pass  # Best-effort rotation
+
+
 async def append_audit(entry: AuditEntry):
     _ensure_data_dir()
+    _rotate_audit_if_needed()
     line = entry.model_dump_json() + "\n"
     async with aiofiles.open(AUDIT_FILE, "a") as f:
         await f.write(line)
@@ -189,8 +215,12 @@ async def read_audit(
         return []
 
     entries = []
+    lines_scanned = 0
     async with aiofiles.open(AUDIT_FILE) as f:
         async for line in f:
+            lines_scanned += 1
+            if lines_scanned > _AUDIT_MAX_SCAN:
+                break  # Prevent OOM on very large audit files (MED-04)
             line = line.strip()
             if not line:
                 continue

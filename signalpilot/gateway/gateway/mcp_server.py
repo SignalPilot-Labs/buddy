@@ -221,20 +221,22 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
         if not conn_str:
             return "Error: No credentials stored for this connection (restart gateway to reload)"
 
-        connector = get_connector(conn_info.db_type)
+        # Use pool manager for connection reuse (MED-06 fix)
+        from .connectors.pool_manager import pool_manager
+        from .connectors.health_monitor import health_monitor
+
         start = time.monotonic()
         try:
-            await connector.connect(conn_str)
+            connector = await pool_manager.acquire(conn_info.db_type, conn_str)
             rows = await connector.execute(safe_sql)
-            await connector.close()
+            await pool_manager.release(conn_info.db_type, conn_str)
         except Exception as e:
-            try:
-                await connector.close()
-            except Exception:
-                pass
+            elapsed_err = (time.monotonic() - start) * 1000
+            health_monitor.record(connection_name, elapsed_err, False, str(e)[:200], conn_info.db_type)
             return f"Query error: {e}"
 
         elapsed_ms = (time.monotonic() - start) * 1000
+        health_monitor.record(connection_name, elapsed_ms, True, db_type=conn_info.db_type)
 
         # Apply PII redaction from annotations (Feature #15)
         from .governance.pii import PIIRedactor
@@ -377,11 +379,11 @@ async def describe_table(connection_name: str, table_name: str) -> str:
 
     schema = schema_cache.get(connection_name)
     if schema is None:
-        connector = get_connector(conn_info.db_type)
+        from .connectors.pool_manager import pool_manager
         try:
-            await connector.connect(conn_str)
+            connector = await pool_manager.acquire(conn_info.db_type, conn_str)
             schema = await connector.get_schema()
-            await connector.close()
+            await pool_manager.release(conn_info.db_type, conn_str)
         except Exception as e:
             return f"Error: {e}"
         schema_cache.put(connection_name, schema)
