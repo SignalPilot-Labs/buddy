@@ -9,19 +9,20 @@ import { useRouter } from "next/navigation";
  * Gives the product a strong first impression — "infra that takes itself seriously."
  */
 
-const BOOT_LINES = [
+const BOOT_LINES: { text: string; delay: number; color: string; check?: boolean }[] = [
   { text: "signalpilot v0.1.0", delay: 0, color: "text-[var(--color-text)]" },
-  { text: "initializing governance engine...", delay: 200, color: "text-[var(--color-text-dim)]" },
-  { text: "├── sql_parse        ✓", delay: 400, color: "text-[var(--color-text-dim)]" },
-  { text: "├── policy_check     ✓", delay: 550, color: "text-[var(--color-text-dim)]" },
-  { text: "├── cost_estimate    ✓", delay: 700, color: "text-[var(--color-text-dim)]" },
-  { text: "├── row_limit        ✓", delay: 850, color: "text-[var(--color-text-dim)]" },
-  { text: "├── pii_redact       ✓", delay: 1000, color: "text-[var(--color-text-dim)]" },
-  { text: "└── audit_log        ✓", delay: 1150, color: "text-[var(--color-text-dim)]" },
-  { text: "sandbox manager: connected", delay: 1400, color: "text-[var(--color-success)]" },
+  { text: "loading governance engine...", delay: 200, color: "text-[var(--color-text-dim)]" },
+  { text: "├── sql_parse", delay: 400, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "├── policy_check", delay: 550, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "├── cost_estimate", delay: 700, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "├── row_limit", delay: 850, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "├── pii_redact", delay: 1000, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "└── audit_log", delay: 1150, color: "text-[var(--color-text-dim)]", check: true },
+  { text: "firecracker sandbox: connected", delay: 1400, color: "text-[var(--color-success)]" },
   { text: "kvm acceleration: available", delay: 1550, color: "text-[var(--color-success)]" },
-  { text: "", delay: 1700, color: "" },
-  { text: "ready. redirecting to dashboard...", delay: 1800, color: "text-[var(--color-text-muted)]" },
+  { text: "mcp server: listening", delay: 1700, color: "text-[var(--color-success)]" },
+  { text: "", delay: 1850, color: "" },
+  { text: "ready. redirecting to dashboard...", delay: 1950, color: "text-[var(--color-text-muted)]" },
 ];
 
 export default function Home() {
@@ -38,7 +39,7 @@ export default function Home() {
     // Redirect after boot sequence
     const redirect = setTimeout(() => {
       router.push("/dashboard");
-    }, 2800);
+    }, 3200);
 
     // Cursor blink
     const cursorInterval = setInterval(() => {
@@ -132,12 +133,12 @@ export default function Home() {
                       <span className="text-[10px] text-[var(--color-text-dim)] w-6 text-right tabular-nums select-none">
                         {String(i + 1).padStart(2, "0")}
                       </span>
-                      <code className={`text-[11px] tracking-wider ${line.color}`}>
-                        {line.text}
-                        {line.text.includes("✓") && (
-                          <span className="text-[var(--color-success)] ml-0.5">
-                            {/* checkmark already in text */}
-                          </span>
+                      <code className={`text-[11px] tracking-wider ${line.color} flex items-center gap-2`}>
+                        <span>{line.text}</span>
+                        {line.check && (
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="flex-shrink-0">
+                            <path d="M2 5L4 7L8 3" stroke="var(--color-success)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
                         )}
                       </code>
                     </>
