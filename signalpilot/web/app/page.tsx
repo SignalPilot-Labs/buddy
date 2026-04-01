@@ -53,8 +53,27 @@ export default function Home() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen -ml-56">
-      <div className="w-[520px]">
+    <div className="flex items-center justify-center min-h-screen -ml-56 relative">
+      {/* Background grid pulse — centered radial */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <svg width="100%" height="100%" className="opacity-[0.025]">
+          <defs>
+            <pattern id="boot-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M32 0V32M0 32H32" stroke="currentColor" strokeWidth="0.5" fill="none" />
+            </pattern>
+            <radialGradient id="boot-fade" cx="50%" cy="50%" r="40%">
+              <stop offset="0%" stopColor="white" stopOpacity="1" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </radialGradient>
+            <mask id="boot-mask">
+              <rect width="100%" height="100%" fill="url(#boot-fade)" />
+            </mask>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#boot-grid)" mask="url(#boot-mask)" />
+        </svg>
+      </div>
+
+      <div className="w-[520px] relative z-10">
         {/* Terminal window */}
         <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)]">
           {/* Title bar */}
@@ -74,15 +93,23 @@ export default function Home() {
             {/* Logo */}
             <div className="mb-6">
               <svg width="200" height="32" viewBox="0 0 200 32" fill="none" className="mb-4">
-                {/* Terminal frame */}
-                <rect x="0.5" y="0.5" width="31" height="31" stroke="#e8e8e8" strokeWidth="1" fill="none" />
+                {/* Terminal frame with draw-in effect */}
+                <rect x="0.5" y="0.5" width="31" height="31" stroke="#e8e8e8" strokeWidth="1" fill="none">
+                  <animate attributeName="stroke-dasharray" from="0 128" to="128 0" dur="0.6s" fill="freeze" />
+                </rect>
                 <rect x="4" y="4" width="24" height="24" fill="#050505" />
                 {/* Chevron prompt */}
                 <path d="M10 12L16 16L10 20" stroke="#e8e8e8" strokeWidth="1.5" strokeLinecap="square" />
                 {/* Cursor line */}
                 <line x1="18" y1="12" x2="18" y2="20" stroke="#e8e8e8" strokeWidth="1.5" opacity="0.6" />
-                {/* Signal dot */}
-                <circle cx="24" cy="8" r="2" fill="#00ff88" />
+                {/* Signal dot with pulse */}
+                <circle cx="24" cy="8" r="4" fill="#00ff88" opacity="0">
+                  <animate attributeName="r" values="2;5;2" dur="2s" begin="0.8s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0;0.2;0" dur="2s" begin="0.8s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="24" cy="8" r="2" fill="#00ff88">
+                  <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="0.5s" fill="freeze" />
+                </circle>
                 {/* Text */}
                 <text x="40" y="14" fill="#e8e8e8" fontSize="11" fontFamily="monospace" letterSpacing="0.1em">
                   SIGNALPILOT
