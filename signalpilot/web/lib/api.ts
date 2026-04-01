@@ -124,6 +124,21 @@ export const invalidateCache = (connection_name?: string) =>
     { method: "POST" },
   );
 
+// PII Detection
+export const detectPII = (name: string) =>
+  request<{
+    connection_name: string;
+    tables_scanned: number;
+    tables_with_pii: number;
+    detections: Record<string, Record<string, string>>;
+  }>(`/api/connections/${name}/detect-pii`, { method: "POST" });
+
+// Schema Cache
+export const getSchemaCache = () =>
+  request<{ cached_connections: number; total_entries: number; ttl_seconds: number }>("/api/schema-cache/stats");
+export const invalidateSchemaCache = (name?: string) =>
+  request<{ invalidated: number }>(`/api/schema-cache/invalidate${name ? `?connection_name=${encodeURIComponent(name)}` : ""}`, { method: "POST" });
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);

@@ -15,6 +15,8 @@ import {
   Activity,
   AlertTriangle,
   Clock,
+  Shield,
+  Eye,
 } from "lucide-react";
 import {
   getConnections,
@@ -23,6 +25,7 @@ import {
   testConnection,
   getConnectionSchema,
   getConnectionsHealth,
+  detectPII,
 } from "@/lib/api";
 import type { ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
 
@@ -59,6 +62,8 @@ export default function ConnectionsPage() {
   const [schemaData, setSchemaData] = useState<Record<string, { tables: Record<string, { schema: string; name: string; columns: { name: string; type: string; nullable: boolean; primary_key?: boolean }[] }> }>>({});
   const [schemaLoading, setSchemaLoading] = useState<string | null>(null);
   const [healthData, setHealthData] = useState<Record<string, ConnectionHealthStats>>({});
+  const [piiData, setPiiData] = useState<Record<string, { tables_scanned: number; tables_with_pii: number; detections: Record<string, Record<string, string>> }>>({});
+  const [piiLoading, setPiiLoading] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     db_type: "postgres" as const,
@@ -156,6 +161,18 @@ export default function ConnectionsPage() {
       } finally {
         setSchemaLoading(null);
       }
+    }
+  }
+
+  async function handleScanPII(name: string) {
+    setPiiLoading(name);
+    try {
+      const data = await detectPII(name);
+      setPiiData((prev) => ({ ...prev, [name]: data }));
+    } catch (e) {
+      setPiiData((prev) => ({ ...prev, [name]: { tables_scanned: 0, tables_with_pii: 0, detections: {} } }));
+    } finally {
+      setPiiLoading(null);
     }
   }
 
@@ -331,6 +348,20 @@ export default function ConnectionsPage() {
                   </button>
 
                   <button
+                    onClick={(e) => { e.stopPropagation(); handleScanPII(conn.name); }}
+                    disabled={piiLoading === conn.name}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-colors"
+                    title="Scan for PII columns"
+                  >
+                    {piiLoading === conn.name ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+                    PII Scan
+                    {piiData[conn.name] && piiData[conn.name].tables_with_pii > 0 && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[var(--color-warning)]/10 text-[var(--color-warning)] text-[10px] font-medium">
+                        {piiData[conn.name].tables_with_pii}
+                      </span>
+                    )}
+                  </button>
+                  <button
                     onClick={() => handleTest(conn.name)}
                     disabled={testing === conn.name}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-colors"
@@ -392,6 +423,44 @@ export default function ConnectionsPage() {
                         No schema available. Test the connection first.
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* PII Detection Results */}
+                {piiData[conn.name] && piiData[conn.name].tables_with_pii > 0 && (
+                  <div className="border-t border-[var(--color-border)] px-4 py-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="w-4 h-4 text-[var(--color-warning)]" />
+                      <span className="text-xs font-medium">
+                        PII Detected: {piiData[conn.name].tables_with_pii} table{piiData[conn.name].tables_with_pii > 1 ? "s" : ""} with sensitive columns
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {Object.entries(piiData[conn.name].detections).map(([table, columns]) => (
+                        <div key={table} className="p-3 rounded-lg bg-[var(--color-warning)]/5 border border-[var(--color-warning)]/20">
+                          <p className="text-xs font-medium mb-1.5">{table}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {Object.entries(columns).map(([col, rule]) => (
+                              <span
+                                key={col}
+                                className={`text-[10px] px-2 py-1 rounded-full font-medium ${
+                                  rule === "drop"
+                                    ? "bg-[var(--color-error)]/10 text-[var(--color-error)]"
+                                    : rule === "hash"
+                                      ? "bg-purple-500/10 text-purple-400"
+                                      : "bg-[var(--color-warning)]/10 text-[var(--color-warning)]"
+                                }`}
+                              >
+                                {col} ({rule})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-[var(--color-text-dim)] mt-2">
+                      Add these rules to your schema.yml annotations to enable automatic PII redaction.
+                    </p>
                   </div>
                 )}
               </div>
