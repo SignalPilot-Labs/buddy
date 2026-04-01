@@ -107,6 +107,22 @@ export async function startRun(
   return res.json();
 }
 
+export async function resumeRun(
+  runId: string,
+  maxBudgetUsd = 0
+): Promise<{ ok: boolean; run_id?: string }> {
+  const res = await fetch(`${getApiBase()}/api/agent/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ run_id: runId, max_budget_usd: maxBudgetUsd }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function stopAgentInstant(): Promise<{ ok: boolean }> {
   const res = await fetch(`${getApiBase()}/api/agent/stop`, { method: "POST" });
   return res.json();

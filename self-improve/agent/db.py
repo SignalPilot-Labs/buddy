@@ -24,14 +24,58 @@ def get_pool() -> asyncpg.Pool:
     return _pool
 
 
-async def create_run(branch_name: str) -> str:
+async def create_run(
+    branch_name: str,
+    custom_prompt: str | None = None,
+    duration_minutes: float = 0,
+    base_branch: str = "main",
+) -> str:
     """Create a new run record. Returns the run UUID as string."""
     pool = get_pool()
     row = await pool.fetchrow(
-        "INSERT INTO runs (branch_name) VALUES ($1) RETURNING id",
+        """INSERT INTO runs (branch_name, custom_prompt, duration_minutes, base_branch)
+        VALUES ($1, $2, $3, $4) RETURNING id""",
         branch_name,
+        custom_prompt,
+        duration_minutes,
+        base_branch,
     )
     return str(row["id"])
+
+
+async def save_rate_limit_reset(run_id: str, resets_at: int) -> None:
+    """Save the rate limit reset timestamp."""
+    pool = get_pool()
+    await pool.execute(
+        "UPDATE runs SET rate_limit_resets_at = $2 WHERE id = $1",
+        uuid.UUID(run_id),
+        resets_at,
+    )
+
+
+async def save_session_id(run_id: str, session_id: str) -> None:
+    """Save the SDK session ID so we can resume later."""
+    pool = get_pool()
+    await pool.execute(
+        "UPDATE runs SET sdk_session_id = $2 WHERE id = $1",
+        uuid.UUID(run_id),
+        session_id,
+    )
+
+
+async def get_run_for_resume(run_id: str) -> dict | None:
+    """Get run info needed to resume a session."""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        """SELECT id, branch_name, status, sdk_session_id, custom_prompt,
+                  duration_minutes, base_branch, total_cost_usd,
+                  total_input_tokens, total_output_tokens
+        FROM runs WHERE id = $1""",
+        uuid.UUID(run_id),
+    )
+    if not row:
+        return None
+    return dict(row)
 
 
 async def finish_run(
@@ -79,13 +123,14 @@ async def log_tool_call(
     permitted: bool = True,
     deny_reason: str | None = None,
     agent_role: str = "worker",
+    tool_use_id: str | None = None,
 ) -> int:
     """Log a tool call. Returns the row id."""
     pool = get_pool()
     row = await pool.fetchrow(
         """INSERT INTO tool_calls
-            (run_id, phase, tool_name, input_data, output_data, duration_ms, permitted, deny_reason, agent_role)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            (run_id, phase, tool_name, input_data, output_data, duration_ms, permitted, deny_reason, agent_role, tool_use_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id""",
         uuid.UUID(run_id),
         phase,
@@ -96,6 +141,7 @@ async def log_tool_call(
         permitted,
         deny_reason,
         agent_role,
+        tool_use_id,
     )
     return row["id"]
 
@@ -159,7 +205,7 @@ async def mark_crashed_runs() -> int:
     result = await pool.execute(
         """UPDATE runs SET status = 'crashed', ended_at = now(),
            error_message = 'Agent container restarted while run was in progress'
-        WHERE status IN ('running', 'paused', 'rate_limited')"""
+        WHERE status IN ('running', 'paused')"""
     )
     # result is like "UPDATE N"
     try:
