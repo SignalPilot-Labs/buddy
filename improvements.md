@@ -93,6 +93,99 @@ This makes debugging connection issues much easier — users can see exactly whi
 
 This is critical for ClickHouse query optimization — the sorting key determines which queries can use primary key index scans vs full scans.
 
+### 6. Sample Value Extraction for Schema Linking
+
+**What:** New `/api/connections/{name}/schema/samples` endpoint returns sample distinct values for string columns.
+
+**Implementation:**
+- `get_sample_values()` method implemented for all 9 connectors
+- Concurrent execution on Postgres (asyncio.gather per column)
+- Filters to string-like columns only (most useful for schema linking)
+- Configurable `limit` parameter (default 5, max 20)
+
+**Example response:**
+```json
+{
+  "public.customers": {
+    "segment": ["education", "enterprise", "government", "mid-market", "smb"],
+    "loyalty_tier": ["bronze", "diamond", "gold", "platinum", "silver"],
+    "state": ["AK", "AL", "AR", "AZ", "CA"]
+  }
+}
+```
+
+**Spider2.0 impact:** Sample values reduce schema linking errors by ~15% (EDBT 2026). They help the agent match question terms like "enterprise customers" to the correct column (`segment`) and value (`enterprise`).
+
+### 7. Column Statistics from pg_stats
+
+**What:** PostgreSQL column statistics from `pg_stats` — distinct counts and uniqueness fractions.
+
+**Example:**
+- `id`: `distinct_fraction=-1.0` (all unique — primary key)
+- `first_name`: `distinct_count=690` (limited cardinality)
+- `email`: `distinct_fraction=-1.0` (all unique — potential join key)
+
+**Spider2.0 impact:** Helps the agent understand cardinality for JOIN planning. Columns with `distinct_fraction=-1.0` are annotated as `UNIQUE` in the compact schema format.
+
+### 8. Enriched Schema Endpoint
+
+**What:** New `/api/connections/{name}/schema/enriched` endpoint — the recommended endpoint for AI agents.
+
+Combines in a single request:
+- Compact DDL with UNIQUE annotations
+- Foreign key references
+- Index names
+- Row counts
+- Sample values for string columns
+
+**Size: 11.8KB for 10 tables** (vs 25.3KB full schema) — a 53% reduction while including sample values.
+
+### 9. Connection Validation
+
+**What:** Pre-flight validation catches common misconfigurations before persisting connections.
+
+**Validation rules per DB type:**
+| DB Type | Required Fields |
+|---------|----------------|
+| Postgres/MySQL/Redshift/ClickHouse | host, username |
+| Snowflake | account, username |
+| BigQuery | project, credentials_json |
+| Databricks | host, http_path, access_token |
+| DuckDB/SQLite | database (file path) |
+
+SSH tunnel validation: host, username, auth method + credential consistency.
+
+### 10. Snowflake and Databricks Connector Enhancements
+
+**Snowflake:**
+- Standard URL parsing: `snowflake://user:pass@account/db/schema?warehouse=WH&role=ROLE`
+- FK enrichment from `REFERENTIAL_CONSTRAINTS`
+- Row counts from `INFORMATION_SCHEMA.TABLES`
+- credential_extras passthrough (structured auth from frontend)
+- Sample value extraction
+
+**Databricks:**
+- credential_extras passthrough for http_path, access_token, catalog, schema_name
+- All structured params now correctly merged before connection
+
+### 11. Frontend Improvements
+
+- Schema display shows FK count, index count, row counts per table
+- Foreign key relationships displayed with arrow notation
+- Two-phase test results show per-phase timing and status
+- Updated API types for all new schema metadata fields
+
+### 12. Test Coverage
+
+**26 new tests added (132 → 158 total):**
+- SSH tunnel module (import, validation)
+- Pool manager helpers (host extraction, connection string rewriting)
+- Schema compression (DDL, FKs, UNIQUE hints)
+- Connection validation (7 cases: Postgres, Snowflake, BigQuery, Databricks, valid, connection_string, SSH)
+- Snowflake URL parsing (3 formats: pipe, standard, account-only)
+- Postgres enhanced schema (indexes, column stats, sample values)
+- DuckDB/SQLite sample values
+
 ---
 
 ## Round 1: Connector Expansion & HEX-Style UX (2026-04-01)
@@ -142,13 +235,15 @@ This is critical for ClickHouse query optimization — the sorting key determine
 |----------|-----------|-------|-----------|------------|--------|--------|
 | Columns + types | Yes | Yes | Yes | Yes | Yes | Yes |
 | Primary keys | Yes | Yes | Best-effort | Yes | N/A | N/A |
-| **Foreign keys** | **Yes** | **Yes** | N/A | N/A | **Yes** | **Yes** |
-| **Row count estimates** | **Yes** | **Yes** | N/A | **Yes** | N/A | **Yes** |
+| **Foreign keys** | **Yes** | **Yes** | **Yes** | N/A | **Yes** | **Yes** |
+| **Row count estimates** | **Yes** | **Yes** | **Yes** | **Yes** | N/A | **Yes** |
 | **Indexes** | **Yes** | **Yes** | N/A | **Engine/sort key** | N/A | N/A |
+| **Column stats** | **Yes** | N/A | N/A | N/A | N/A | N/A |
+| **Sample values** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** |
 | **Table comments** | **Yes** | **Yes** | Yes | Yes | N/A | N/A |
 | **Column comments** | **Yes** | **Yes** | Yes | Yes | N/A | N/A |
 
-**Performance optimization:** PostgreSQL schema pulling now uses `asyncio.gather` with separate pool connections to fetch columns, foreign keys, row counts, and indexes concurrently (4 parallel queries).
+**Performance optimization:** PostgreSQL schema pulling now uses `asyncio.gather` with separate pool connections to fetch columns, foreign keys, row counts, indexes, and column stats concurrently (5 parallel queries).
 
 **Spider2.0 impact:** Foreign key metadata is the #1 predictor of join accuracy in text-to-SQL benchmarks. Schema linking errors cause 27.6% of SQL failures (EDBT 2026).
 
@@ -226,7 +321,11 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 | OAuth | Some DBs | Planned |
 | Connection string mode | Yes | Yes |
 | Schema caching | Yes | Yes (with TTL) |
-| Schema compression | N/A | Yes (compact mode for AI agents) |
+| Schema compression | N/A | Yes (compact mode, 75% reduction) |
+| Sample values | N/A | Yes (all 9 connectors) |
+| Enriched AI schema | N/A | Yes (dedicated endpoint) |
+| Connection validation | Yes | Yes (per-DB-type rules) |
+| Column statistics | N/A | Yes (pg_stats for Postgres) |
 
 ### Spider2.0 Leaderboard Context
 - **Genloop Sentinel:** 96.7% (Snow) — multi-agent swarm, table compression
@@ -241,6 +340,8 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [ ] OAuth support for Snowflake, BigQuery, Databricks
 - [ ] Schema diff detection (track changes over time)
 - [ ] Automated schema refresh scheduling (like HEX workspace connections)
-- [ ] Sample value extraction for column linking (reduces schema linking errors by ~15%)
 - [ ] Multi-round semantic retrieval for irrelevant table filtering
 - [ ] Approximate string matching (threshold 0.5) for column name hallucination correction
+- [ ] Column statistics for MySQL and ClickHouse (currently Postgres only)
+- [ ] Identity-Aware Proxy (IAP) support for zero-trust database access
+- [ ] Query tagging for cost attribution (Databricks pattern)
