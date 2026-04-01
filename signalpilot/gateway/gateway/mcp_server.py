@@ -162,43 +162,73 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
     row_limit = min(row_limit, 10_000)
     safe_sql = inject_limit(sql, row_limit)
 
-    conn_str = get_connection_string(connection_name)
-    if not conn_str:
-        return "Error: No credentials stored for this connection (restart gateway to reload)"
+    # Check query cache (Feature #30)
+    from .governance.cache import query_cache
 
-    connector = get_connector(conn_info.db_type)
-    start = time.monotonic()
-    try:
-        await connector.connect(conn_str)
-        rows = await connector.execute(safe_sql)
-        await connector.close()
-    except Exception as e:
+    cached = query_cache.get(connection_name, sql, row_limit)
+    if cached:
+        await append_audit(AuditEntry(
+            id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            event_type="query",
+            connection_name=connection_name,
+            sql=sql,
+            tables=cached.tables,
+            rows_returned=len(cached.rows),
+            duration_ms=0.0,
+            metadata={"cache_hit": True},
+        ))
+        rows = cached.rows
+        elapsed_ms = cached.execution_ms
+    else:
+        conn_str = get_connection_string(connection_name)
+        if not conn_str:
+            return "Error: No credentials stored for this connection (restart gateway to reload)"
+
+        connector = get_connector(conn_info.db_type)
+        start = time.monotonic()
         try:
+            await connector.connect(conn_str)
+            rows = await connector.execute(safe_sql)
             await connector.close()
-        except Exception:
-            pass
-        return f"Query error: {e}"
+        except Exception as e:
+            try:
+                await connector.close()
+            except Exception:
+                pass
+            return f"Query error: {e}"
 
-    elapsed_ms = (time.monotonic() - start) * 1000
+        elapsed_ms = (time.monotonic() - start) * 1000
 
-    await append_audit(AuditEntry(
-        id=str(uuid.uuid4()),
-        timestamp=time.time(),
-        event_type="query",
-        connection_name=connection_name,
-        sql=sql,
-        tables=validation.tables,
-        rows_returned=len(rows),
-        duration_ms=elapsed_ms,
-    ))
+        # Apply PII redaction from annotations (Feature #15)
+        from .governance.pii import PIIRedactor
+        pii_redactor = PIIRedactor()
+        for col_name, rule in annotations.pii_columns.items():
+            pii_redactor.add_rule(col_name, rule)
+        if pii_redactor.has_rules():
+            rows = pii_redactor.redact_rows(rows)
 
-    # Apply PII redaction from annotations (Feature #15)
-    from .governance.pii import PIIRedactor
-    pii_redactor = PIIRedactor()
-    for col_name, rule in annotations.pii_columns.items():
-        pii_redactor.add_rule(col_name, rule)
-    if pii_redactor.has_rules():
-        rows = pii_redactor.redact_rows(rows)
+        # Store in cache after PII redaction
+        query_cache.put(
+            connection_name=connection_name,
+            sql=sql,
+            row_limit=row_limit,
+            rows=rows,
+            tables=validation.tables,
+            execution_ms=elapsed_ms,
+            sql_executed=safe_sql,
+        )
+
+        await append_audit(AuditEntry(
+            id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            event_type="query",
+            connection_name=connection_name,
+            sql=sql,
+            tables=validation.tables,
+            rows_returned=len(rows),
+            duration_ms=elapsed_ms,
+        ))
 
     if not rows:
         return f"Query returned 0 rows ({elapsed_ms:.0f}ms)"

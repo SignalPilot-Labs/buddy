@@ -409,6 +409,29 @@ async def query_database(req: DirectQueryRequest):
     # Inject LIMIT
     safe_sql = inject_limit(req.sql, req.row_limit)
 
+    # Check query cache (Feature #30) — same normalized query returns cached result
+    cached = query_cache.get(req.connection_name, req.sql, req.row_limit)
+    if cached:
+        await append_audit(AuditEntry(
+            id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            event_type="query",
+            connection_name=req.connection_name,
+            sql=req.sql,
+            tables=cached.tables,
+            rows_returned=len(cached.rows),
+            duration_ms=0.0,
+            metadata={"cache_hit": True},
+        ))
+        return {
+            "rows": cached.rows,
+            "row_count": len(cached.rows),
+            "tables": cached.tables,
+            "execution_ms": cached.execution_ms,
+            "sql_executed": cached.sql_executed,
+            "cache_hit": True,
+        }
+
     conn_str = get_connection_string(req.connection_name)
     if not conn_str:
         raise HTTPException(status_code=400, detail="No credentials stored for this connection")
@@ -439,6 +462,17 @@ async def query_database(req: DirectQueryRequest):
     if pii_redactor.has_rules():
         rows = pii_redactor.redact_rows(rows)
 
+    # Store in cache after PII redaction (so cached data is already redacted)
+    query_cache.put(
+        connection_name=req.connection_name,
+        sql=req.sql,
+        row_limit=req.row_limit,
+        rows=rows,
+        tables=validation.tables,
+        execution_ms=elapsed_ms,
+        sql_executed=safe_sql,
+    )
+
     await append_audit(AuditEntry(
         id=str(uuid.uuid4()),
         timestamp=time.time(),
@@ -457,6 +491,7 @@ async def query_database(req: DirectQueryRequest):
         "tables": validation.tables,
         "execution_ms": elapsed_ms,
         "sql_executed": safe_sql,
+        "cache_hit": False,
         "pii_redacted": pii_redactor.last_redacted_columns if pii_redactor.last_redacted_columns else None,
     }
 
@@ -482,6 +517,7 @@ async def get_audit(
 # ─── Budget / Governance ────────────────────────────────────────────────────
 
 from .governance.budget import budget_ledger
+from .governance.cache import query_cache
 
 
 class BudgetCreateRequest(BaseModel):
@@ -563,6 +599,22 @@ async def generate_annotations(name: str):
     }
 
 
+# ─── Query Cache ──────────────────────────────────────────────────────────────
+
+
+@app.get("/api/cache/stats")
+async def cache_stats():
+    """Get query cache statistics (Feature #30)."""
+    return query_cache.stats()
+
+
+@app.post("/api/cache/invalidate", status_code=200)
+async def invalidate_cache(connection_name: str | None = None):
+    """Invalidate cached query results. Optionally filter by connection."""
+    count = query_cache.invalidate(connection_name)
+    return {"invalidated": count, "connection_name": connection_name}
+
+
 # ─── Metrics SSE ─────────────────────────────────────────────────────────────
 
 @app.get("/api/metrics")
@@ -598,6 +650,7 @@ async def metrics_stream():
                 "active_vms": active_vms,
                 "max_vms": max_vms,
                 "connections": len(list_connections()),
+                "query_cache": query_cache.stats(),
             }
 
             yield f"data: {json.dumps(payload)}\n\n"
