@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { subscribeMetrics, getAudit, getBudgets, getConnections, getCacheStats } from "@/lib/api";
 import type { MetricsSnapshot, AuditEntry, ConnectionInfo } from "@/lib/types";
+import { GovernancePipeline } from "@/components/ui/governance-pipeline";
 
 function MetricCard({
   label,
@@ -220,6 +221,11 @@ export default function DashboardPage() {
           icon={Clock}
           color="var(--color-warning)"
         />
+      </div>
+
+      {/* Governance Pipeline */}
+      <div className="mb-6">
+        <GovernancePipeline />
       </div>
 
       {/* Two-column layout: Activity + Connections */}
