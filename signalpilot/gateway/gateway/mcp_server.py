@@ -15,11 +15,33 @@ Tools exposed:
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+
+# Input validation patterns
+_CONN_NAME_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+_MAX_SQL_LENGTH = 100_000
+_MAX_CODE_LENGTH = 1_000_000
+
+
+def _validate_connection_name(name: str) -> str | None:
+    """Validate connection name. Returns error message or None if valid."""
+    if not name or not _CONN_NAME_RE.match(name):
+        return f"Invalid connection name '{name}'. Use only letters, numbers, hyphens, underscores (1-64 chars)."
+    return None
+
+
+def _validate_sql(sql: str) -> str | None:
+    """Validate SQL input length. Returns error message or None if valid."""
+    if not sql or not sql.strip():
+        return "SQL query cannot be empty."
+    if len(sql) > _MAX_SQL_LENGTH:
+        return f"SQL query exceeds maximum length ({_MAX_SQL_LENGTH} characters)."
+    return None
 
 from .engine import inject_limit, validate_sql
 from .models import AuditEntry
@@ -68,6 +90,14 @@ async def execute_code(code: str, timeout: int = 30) -> str:
     Returns:
         The stdout output from the code, or an error message.
     """
+    # Input validation
+    if not code or not code.strip():
+        return "Error: Code cannot be empty."
+    if len(code) > _MAX_CODE_LENGTH:
+        return f"Error: Code exceeds maximum length ({_MAX_CODE_LENGTH} characters)."
+    if timeout < 1 or timeout > 300:
+        return "Error: Timeout must be between 1 and 300 seconds."
+
     sandbox_url = _get_sandbox_url()
 
     async with httpx.AsyncClient(timeout=timeout + 10) as client:
@@ -132,15 +162,26 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
     Returns:
         Query results as formatted text, or an error message.
     """
+    # Input validation
+    if err := _validate_connection_name(connection_name):
+        return f"Error: {err}"
+    if err := _validate_sql(sql):
+        return f"Error: {err}"
+
     from .connectors.registry import get_connector
+    from .governance.annotations import load_annotations
 
     conn_info = get_connection(connection_name)
     if not conn_info:
         available = [c.name for c in list_connections()]
         return f"Error: Connection '{connection_name}' not found. Available: {available}"
 
-    # Validate SQL
-    validation = validate_sql(sql)
+    # Load annotations for blocked tables (Feature #19)
+    annotations = load_annotations(connection_name)
+    blocked_tables = annotations.blocked_tables
+
+    # Validate SQL (with blocked tables from annotations)
+    validation = validate_sql(sql, blocked_tables=blocked_tables or None)
     if not validation.ok:
         await append_audit(AuditEntry(
             id=str(uuid.uuid4()),
@@ -157,38 +198,94 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
     row_limit = min(row_limit, 10_000)
     safe_sql = inject_limit(sql, row_limit)
 
-    conn_str = get_connection_string(connection_name)
-    if not conn_str:
-        return "Error: No credentials stored for this connection (restart gateway to reload)"
+    # Check query cache (Feature #30)
+    from .governance.cache import query_cache
 
-    connector = get_connector(conn_info.db_type)
-    start = time.monotonic()
-    try:
-        await connector.connect(conn_str)
-        rows = await connector.execute(safe_sql)
-        await connector.close()
-    except Exception as e:
+    cached = query_cache.get(connection_name, sql, row_limit)
+    if cached:
+        await append_audit(AuditEntry(
+            id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            event_type="query",
+            connection_name=connection_name,
+            sql=sql,
+            tables=cached.tables,
+            rows_returned=len(cached.rows),
+            duration_ms=0.0,
+            metadata={"cache_hit": True},
+        ))
+        rows = cached.rows
+        elapsed_ms = cached.execution_ms
+    else:
+        conn_str = get_connection_string(connection_name)
+        if not conn_str:
+            return "Error: No credentials stored for this connection (restart gateway to reload)"
+
+        # Use pool manager for connection reuse (MED-06 fix)
+        from .connectors.pool_manager import pool_manager
+        from .connectors.health_monitor import health_monitor
+
+        start = time.monotonic()
         try:
-            await connector.close()
-        except Exception:
-            pass
-        return f"Query error: {e}"
+            connector = await pool_manager.acquire(conn_info.db_type, conn_str)
+            rows = await connector.execute(safe_sql)
+            await pool_manager.release(conn_info.db_type, conn_str)
+        except Exception as e:
+            elapsed_err = (time.monotonic() - start) * 1000
+            health_monitor.record(connection_name, elapsed_err, False, str(e)[:200], conn_info.db_type)
+            return f"Query error: {e}"
 
-    elapsed_ms = (time.monotonic() - start) * 1000
+        elapsed_ms = (time.monotonic() - start) * 1000
+        health_monitor.record(connection_name, elapsed_ms, True, db_type=conn_info.db_type)
 
-    await append_audit(AuditEntry(
-        id=str(uuid.uuid4()),
-        timestamp=time.time(),
-        event_type="query",
-        connection_name=connection_name,
-        sql=sql,
-        tables=validation.tables,
-        rows_returned=len(rows),
-        duration_ms=elapsed_ms,
-    ))
+        # Apply PII redaction from annotations (Feature #15)
+        from .governance.pii import PIIRedactor
+        pii_redactor = PIIRedactor()
+        for col_name, rule in annotations.pii_columns.items():
+            pii_redactor.add_rule(col_name, rule)
+        if pii_redactor.has_rules():
+            rows = pii_redactor.redact_rows(rows)
+
+        # Store in cache after PII redaction
+        query_cache.put(
+            connection_name=connection_name,
+            sql=sql,
+            row_limit=row_limit,
+            rows=rows,
+            tables=validation.tables,
+            execution_ms=elapsed_ms,
+            sql_executed=safe_sql,
+        )
+
+        # Charge query cost to budget (Feature #11 + #12)
+        from .governance.budget import budget_ledger
+        # Cost formula: duration_sec × $0.000014 per vCPU (simplified for DB queries)
+        query_cost_usd = (elapsed_ms / 1000) * 0.000014
+        # Budget check uses "default" session if no specific session
+        budget_ok = budget_ledger.charge("default", query_cost_usd)
+        if not budget_ok:
+            meta_parts_budget = [f"${query_cost_usd:.6f} cost"]
+            return f"Query budget exhausted. This query would cost ~${query_cost_usd:.6f}. Remaining budget: $0.00"
+
+        await append_audit(AuditEntry(
+            id=str(uuid.uuid4()),
+            timestamp=time.time(),
+            event_type="query",
+            connection_name=connection_name,
+            sql=sql,
+            tables=validation.tables,
+            rows_returned=len(rows),
+            duration_ms=elapsed_ms,
+            cost_usd=query_cost_usd,
+        ))
+
+    # Build status footer
+    meta_parts = [f"{len(rows)} rows", f"{elapsed_ms:.0f}ms"]
+    if cached:
+        meta_parts.append("cache hit")
 
     if not rows:
-        return f"Query returned 0 rows ({elapsed_ms:.0f}ms)"
+        return f"Query returned 0 rows ({', '.join(meta_parts)})"
 
     # Format as readable table
     columns = list(rows[0].keys())
@@ -199,7 +296,7 @@ async def query_database(connection_name: str, sql: str, row_limit: int = 1000) 
     if len(rows) > 50:
         lines.append(f"... ({len(rows)} rows total, showing first 50)")
 
-    return "\n".join(lines) + f"\n\n[{len(rows)} rows, {elapsed_ms:.0f}ms]"
+    return "\n".join(lines) + f"\n\n[{', '.join(meta_parts)}]"
 
 
 @mcp.tool()
@@ -255,6 +352,193 @@ async def sandbox_status() -> str:
             lines.append(f"  - {s.label or s.id[:8]} ({s.status})")
 
     return "\n".join(lines)
+
+
+@mcp.tool()
+async def describe_table(connection_name: str, table_name: str) -> str:
+    """
+    Get detailed column information for a specific database table.
+
+    Returns column names, types, nullability, and any annotations
+    (descriptions, PII flags) from the schema.yml file.
+
+    Args:
+        connection_name: Name of a configured database connection
+        table_name: Name of the table to describe
+
+    Returns:
+        Column details as formatted text.
+    """
+    # Input validation
+    if err := _validate_connection_name(connection_name):
+        return f"Error: {err}"
+
+    from .connectors.registry import get_connector
+    from .governance.annotations import load_annotations
+
+    conn_info = get_connection(connection_name)
+    if not conn_info:
+        available = [c.name for c in list_connections()]
+        return f"Error: Connection '{connection_name}' not found. Available: {available}"
+
+    conn_str = get_connection_string(connection_name)
+    if not conn_str:
+        return "Error: No credentials stored for this connection"
+
+    # Check schema cache first (Feature #18)
+    from .connectors.schema_cache import schema_cache
+
+    schema = schema_cache.get(connection_name)
+    if schema is None:
+        from .connectors.pool_manager import pool_manager
+        try:
+            connector = await pool_manager.acquire(conn_info.db_type, conn_str)
+            schema = await connector.get_schema()
+            await pool_manager.release(conn_info.db_type, conn_str)
+        except Exception as e:
+            return f"Error: {e}"
+        schema_cache.put(connection_name, schema)
+
+    # Find the table (case-insensitive)
+    table_data = None
+    for key, val in schema.items():
+        if val.get("name", "").lower() == table_name.lower():
+            table_data = val
+            break
+
+    if not table_data:
+        table_names = [v.get("name", k) for k, v in schema.items()]
+        return f"Table '{table_name}' not found. Available tables:\n" + "\n".join(f"  - {t}" for t in sorted(table_names))
+
+    # Load annotations for descriptions/PII info
+    annotations = load_annotations(connection_name)
+    table_ann = annotations.get_table(table_name)
+
+    lines = [f"Table: {table_data['schema']}.{table_data['name']}"]
+    if table_ann and table_ann.description:
+        lines.append(f"Description: {table_ann.description}")
+    if table_ann and table_ann.owner:
+        lines.append(f"Owner: {table_ann.owner}")
+    lines.append(f"Columns ({len(table_data['columns'])}):")
+    lines.append("")
+
+    for col in table_data["columns"]:
+        nullable = "nullable" if col.get("nullable") else "NOT NULL"
+        pk = " [PK]" if col.get("primary_key") else ""
+        line = f"  {col['name']} — {col['type']} ({nullable}){pk}"
+
+        # Add annotation info
+        if table_ann and col["name"] in table_ann.columns:
+            col_ann = table_ann.columns[col["name"]]
+            if col_ann.description:
+                line += f"\n    {col_ann.description}"
+            if col_ann.pii:
+                line += f"\n    [PII: {col_ann.pii}]"
+
+        lines.append(line)
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def check_budget(session_id: str = "default") -> str:
+    """
+    Check the remaining query budget for a session.
+
+    Returns the budget limit, amount spent, amount remaining,
+    and query count for the specified session.
+
+    Args:
+        session_id: Session ID to check (default: "default")
+
+    Returns:
+        Budget status as formatted text.
+    """
+    from .governance.budget import budget_ledger
+
+    budget = budget_ledger.get_session(session_id)
+    if not budget:
+        return f"No budget tracking for session '{session_id}'. Create a budget via the gateway API to enable spending limits."
+
+    return (
+        f"Session: {budget.session_id}\n"
+        f"Budget: ${budget.budget_usd:.2f}\n"
+        f"Spent: ${budget.spent_usd:.4f}\n"
+        f"Remaining: ${budget.remaining_usd:.4f}\n"
+        f"Queries: {budget.query_count}\n"
+        f"Status: {'EXHAUSTED' if budget.is_exhausted else 'Active'}"
+    )
+
+
+@mcp.tool()
+async def connection_health(connection_name: str = "") -> str:
+    """
+    Check the health and performance of database connections.
+
+    Returns latency percentiles (p50/p95/p99), error rates, and status
+    for monitored connections. Call without arguments to see all connections.
+
+    Args:
+        connection_name: Specific connection to check (empty = all connections)
+
+    Returns:
+        Health stats as formatted text.
+    """
+    from .connectors.health_monitor import health_monitor
+
+    if connection_name:
+        stats = health_monitor.connection_stats(connection_name)
+        if not stats:
+            return f"No health data for '{connection_name}'. Run some queries first."
+        return _format_health_stats(stats)
+
+    all_stats = health_monitor.all_stats()
+    if not all_stats:
+        return "No health data yet. Run some queries to start collecting metrics."
+
+    lines = [f"Connection Health ({len(all_stats)} connections):"]
+    for stats in all_stats:
+        lines.append("")
+        lines.append(_format_health_stats(stats))
+    return "\n".join(lines)
+
+
+def _format_health_stats(stats: dict) -> str:
+    """Format health stats dict into readable text."""
+    lines = [
+        f"Connection: {stats['connection_name']} ({stats['db_type']})",
+        f"Status: {stats['status'].upper()}",
+        f"Samples: {stats['sample_count']} (last {stats['window_seconds']}s)",
+    ]
+    if stats.get("successes") is not None:
+        lines.append(f"Success/Fail: {stats['successes']}/{stats['failures']}")
+    if stats.get("error_rate") is not None:
+        lines.append(f"Error Rate: {stats['error_rate'] * 100:.1f}%")
+    if stats.get("latency_p50_ms") is not None:
+        lines.append(f"Latency: p50={stats['latency_p50_ms']:.0f}ms  p95={stats['latency_p95_ms']:.0f}ms  p99={stats['latency_p99_ms']:.0f}ms")
+    if stats.get("last_error"):
+        lines.append(f"Last Error: {stats['last_error']}")
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def cache_status() -> str:
+    """
+    Check the query cache status and performance.
+
+    Returns cache hit rate, entry count, and usage statistics.
+    """
+    from .governance.cache import query_cache
+
+    stats = query_cache.stats()
+    return (
+        f"Query Cache Status:\n"
+        f"Entries: {stats['entries']} / {stats['max_entries']}\n"
+        f"TTL: {stats['ttl_seconds']}s\n"
+        f"Hits: {stats['hits']}\n"
+        f"Misses: {stats['misses']}\n"
+        f"Hit Rate: {stats['hit_rate'] * 100:.1f}%"
+    )
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────

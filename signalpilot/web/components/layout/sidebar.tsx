@@ -9,12 +9,18 @@ import {
   ScrollText,
   Settings,
   Zap,
+  Search,
+  Table2,
+  Activity,
 } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/query", label: "Query Explorer", icon: Search },
+  { href: "/schema", label: "Schema Explorer", icon: Table2 },
   { href: "/sandboxes", label: "Sandboxes", icon: Terminal },
   { href: "/connections", label: "Connections", icon: Database },
+  { href: "/health", label: "System Health", icon: Activity },
   { href: "/audit", label: "Audit Log", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -59,8 +65,12 @@ export default function Sidebar() {
       </nav>
 
       {/* Status footer */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)] text-xs text-[var(--color-text-dim)]">
-        v0.1.0 &middot; BYOF Ready
+      <div className="px-4 py-3 border-t border-[var(--color-border)] text-xs text-[var(--color-text-dim)] space-y-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
+          <span>Governance Active</span>
+        </div>
+        <div>v0.1.0 &middot; BYOF Ready</div>
       </div>
     </aside>
   );

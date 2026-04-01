@@ -14,8 +14,15 @@ class BaseConnector(ABC):
         """Open connection pool."""
 
     @abstractmethod
-    async def execute(self, sql: str, params: list | None = None) -> list[dict[str, Any]]:
-        """Execute query and return rows as list of dicts."""
+    async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
+        """Execute query and return rows as list of dicts.
+
+        Args:
+            sql: SQL query string
+            params: Optional query parameters
+            timeout: Per-query timeout in seconds (Feature #8). The query is
+                     cancelled on the DB side (not just client-side) when exceeded.
+        """
 
     @abstractmethod
     async def get_schema(self) -> dict[str, Any]:

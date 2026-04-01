@@ -19,7 +19,7 @@ class SQLiteConnector(BaseConnector):
         self._conn = sqlite3.connect(connection_string)
         self._conn.row_factory = sqlite3.Row
 
-    async def execute(self, sql: str, params: list | None = None) -> list[dict[str, Any]]:
+    async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._conn is None:
             raise RuntimeError("Not connected")
         cursor = self._conn.execute(sql, params or [])

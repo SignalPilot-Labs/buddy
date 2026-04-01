@@ -6,6 +6,7 @@ export interface GatewaySettings {
   default_budget_usd: number;
   default_timeout_seconds: number;
   max_concurrent_sandboxes: number;
+  blocked_tables: string[];
   gateway_url: string;
   api_key: string | null;
 }
@@ -64,6 +65,24 @@ export interface AuditEntry {
   metadata: Record<string, unknown>;
 }
 
+export interface ConnectionHealthStats {
+  connection_name: string;
+  db_type: string;
+  status: "healthy" | "warning" | "degraded" | "unhealthy" | "unknown";
+  sample_count: number;
+  window_seconds: number;
+  successes?: number;
+  failures?: number;
+  error_rate?: number;
+  consecutive_failures?: number;
+  last_check: number | null;
+  last_error: string | null;
+  latency_p50_ms: number | null;
+  latency_p95_ms: number | null;
+  latency_p99_ms: number | null;
+  latency_avg_ms: number | null;
+}
+
 export interface MetricsSnapshot {
   timestamp: number;
   sandbox_manager: string;
@@ -74,4 +93,12 @@ export interface MetricsSnapshot {
   active_vms: number;
   max_vms: number;
   connections: number;
+  query_cache?: {
+    entries: number;
+    max_entries: number;
+    ttl_seconds: number;
+    hits: number;
+    misses: number;
+    hit_rate: number;
+  };
 }

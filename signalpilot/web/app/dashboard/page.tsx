@@ -10,18 +10,26 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
+  Shield,
+  DollarSign,
+  Clock,
+  Zap,
+  BarChart3,
 } from "lucide-react";
-import { subscribeMetrics, getAudit } from "@/lib/api";
-import type { MetricsSnapshot, AuditEntry } from "@/lib/types";
+import { subscribeMetrics, getAudit, getBudgets, getConnections, getCacheStats, getConnectionsHealth } from "@/lib/api";
+import type { MetricsSnapshot, AuditEntry, ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
+import { GovernancePipeline } from "@/components/ui/governance-pipeline";
 
 function MetricCard({
   label,
   value,
+  subtext,
   icon: Icon,
   color = "var(--color-accent)",
 }: {
   label: string;
   value: string | number;
+  subtext?: string;
   icon: React.ElementType;
   color?: string;
 }) {
@@ -37,6 +45,9 @@ function MetricCard({
         <span className="text-sm text-[var(--color-text-muted)]">{label}</span>
       </div>
       <p className="text-2xl font-semibold tabular-nums">{value}</p>
+      {subtext && (
+        <p className="text-xs text-[var(--color-text-dim)] mt-1">{subtext}</p>
+      )}
     </div>
   );
 }
@@ -62,19 +73,66 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+const eventTypeConfig: Record<string, { color: string; label: string }> = {
+  query: { color: "bg-[var(--color-success)]", label: "QUERY" },
+  execute: { color: "bg-[var(--color-accent)]", label: "EXEC" },
+  connect: { color: "bg-blue-500", label: "CONN" },
+  block: { color: "bg-[var(--color-error)]", label: "BLOCK" },
+};
+
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
   const [recentAudit, setRecentAudit] = useState<AuditEntry[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [budgetData, setBudgetData] = useState<{
+    sessions: Record<string, unknown>[];
+    total_spent_usd: number;
+  } | null>(null);
+  const [connections, setConnections] = useState<ConnectionInfo[]>([]);
+  const [auditStats, setAuditStats] = useState({
+    queries: 0,
+    executions: 0,
+    blocks: 0,
+    total: 0,
+  });
+  const [cacheStats, setCacheStats] = useState<{
+    entries: number;
+    max_entries: number;
+    hits: number;
+    misses: number;
+    hit_rate: number;
+  } | null>(null);
+  const [connHealth, setConnHealth] = useState<Record<string, ConnectionHealthStats>>({});
 
   useEffect(() => {
     const unsub = subscribeMetrics((data) => {
       setMetrics(data);
-      setError(null);
     });
 
-    getAudit({ limit: 20 })
-      .then((res) => setRecentAudit(res.entries))
+    getAudit({ limit: 50 })
+      .then((res) => {
+        setRecentAudit(res.entries);
+        // Compute stats
+        const stats = { queries: 0, executions: 0, blocks: 0, total: res.entries.length };
+        for (const e of res.entries) {
+          if (e.event_type === "query") stats.queries++;
+          else if (e.event_type === "execute") stats.executions++;
+          if (e.blocked) stats.blocks++;
+        }
+        setAuditStats(stats);
+      })
+      .catch(() => {});
+
+    getBudgets().then(setBudgetData).catch(() => {});
+    getConnections().then(setConnections).catch(() => {});
+    getCacheStats().then(setCacheStats).catch(() => {});
+    getConnectionsHealth()
+      .then((res) => {
+        const map: Record<string, ConnectionHealthStats> = {};
+        for (const h of res.connections) {
+          map[h.connection_name] = h;
+        }
+        setConnHealth(map);
+      })
       .catch(() => {});
 
     return unsub;
@@ -82,10 +140,11 @@ export default function DashboardPage() {
 
   return (
     <div className="p-8">
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
         <p className="text-sm text-[var(--color-text-muted)]">
-          Live overview of your SignalPilot instance
+          Live overview of your SignalPilot gateway
         </p>
       </div>
 
@@ -104,13 +163,20 @@ export default function DashboardPage() {
           <span className="text-sm text-[var(--color-text-muted)]">KVM:</span>
           <StatusBadge ok={metrics ? metrics.kvm_available : null} />
         </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Shield className="w-4 h-4 text-[var(--color-success)]" />
+          <span className="text-xs text-[var(--color-text-muted)]">
+            Governance: Active
+          </span>
+        </div>
       </div>
 
-      {/* Metric cards */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      {/* Metric cards — top row */}
+      <div className="grid grid-cols-4 gap-4 mb-4">
         <MetricCard
           label="Active Sandboxes"
           value={metrics?.active_sandboxes ?? "—"}
+          subtext={metrics ? `${metrics.running_sandboxes} running` : undefined}
           icon={Terminal}
         />
         <MetricCard
@@ -121,74 +187,225 @@ export default function DashboardPage() {
         />
         <MetricCard
           label="Connections"
-          value={metrics?.connections ?? "—"}
+          value={connections.length}
+          subtext={connections.length > 0 ? connections.map(c => c.db_type).filter((v, i, a) => a.indexOf(v) === i).join(", ") : undefined}
           icon={Database}
           color="var(--color-success)"
         />
         <MetricCard
-          label="Running Sandboxes"
-          value={metrics?.running_sandboxes ?? "—"}
-          icon={Activity}
+          label="Total Spent"
+          value={budgetData ? `$${budgetData.total_spent_usd.toFixed(4)}` : "$0.00"}
+          subtext={budgetData ? `${budgetData.sessions.length} active sessions` : undefined}
+          icon={DollarSign}
           color="#8b5cf6"
         />
       </div>
 
-      {/* Recent activity */}
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
-          <h2 className="text-sm font-medium">Recent Activity</h2>
-          <a href="/audit" className="text-xs text-[var(--color-accent)] hover:underline">
-            View all
-          </a>
-        </div>
-        <div className="divide-y divide-[var(--color-border)]">
-          {recentAudit.length === 0 ? (
-            <div className="px-5 py-12 text-center text-sm text-[var(--color-text-dim)]">
-              No activity yet. Create a sandbox to get started.
-            </div>
-          ) : (
-            recentAudit.slice(0, 10).map((entry) => (
-              <div
-                key={entry.id}
-                className="flex items-center gap-4 px-5 py-3 hover:bg-[var(--color-bg-hover)] transition-colors"
-              >
-                <div
-                  className={`w-2 h-2 rounded-full ${
-                    entry.blocked
-                      ? "bg-[var(--color-error)]"
-                      : entry.event_type === "execute"
-                        ? "bg-[var(--color-accent)]"
-                        : entry.event_type === "query"
-                          ? "bg-[var(--color-success)]"
-                          : "bg-[var(--color-text-dim)]"
-                  }`}
-                />
-                <span className="text-xs uppercase font-medium text-[var(--color-text-muted)] w-16">
-                  {entry.event_type}
-                </span>
-                <span className="flex-1 text-sm truncate text-[var(--color-text)]">
-                  {entry.sql
-                    ? entry.sql.slice(0, 80)
-                    : entry.metadata?.code_preview
-                      ? String(entry.metadata.code_preview).slice(0, 80)
-                      : entry.connection_name || "—"}
-                </span>
-                {entry.blocked && (
-                  <span className="text-xs px-2 py-0.5 rounded bg-[var(--color-error)]/10 text-[var(--color-error)]">
-                    blocked
-                  </span>
-                )}
-                {entry.duration_ms != null && (
-                  <span className="text-xs tabular-nums text-[var(--color-text-dim)]">
-                    {entry.duration_ms.toFixed(0)}ms
-                  </span>
-                )}
-                <span className="text-xs text-[var(--color-text-dim)] w-16 text-right">
-                  {timeAgo(entry.timestamp)}
-                </span>
+      {/* Stats cards — second row */}
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <MetricCard
+          label="Queries Executed"
+          value={auditStats.queries}
+          icon={BarChart3}
+          color="var(--color-success)"
+        />
+        <MetricCard
+          label="Code Executions"
+          value={auditStats.executions}
+          icon={Zap}
+          color="var(--color-accent)"
+        />
+        <MetricCard
+          label="Blocked Queries"
+          value={auditStats.blocks}
+          icon={Shield}
+          color="var(--color-error)"
+        />
+        <MetricCard
+          label="Avg Duration"
+          value={
+            recentAudit.filter(e => e.duration_ms != null).length > 0
+              ? `${Math.round(recentAudit.filter(e => e.duration_ms != null).reduce((sum, e) => sum + (e.duration_ms || 0), 0) / recentAudit.filter(e => e.duration_ms != null).length)}ms`
+              : "—"
+          }
+          icon={Clock}
+          color="var(--color-warning)"
+        />
+      </div>
+
+      {/* Governance Pipeline */}
+      <div className="mb-6">
+        <GovernancePipeline />
+      </div>
+
+      {/* Two-column layout: Activity + Connections */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Recent activity — takes 2 cols */}
+        <div className="col-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+            <h2 className="text-sm font-medium">Recent Activity</h2>
+            <a href="/audit" className="text-xs text-[var(--color-accent)] hover:underline">
+              View all
+            </a>
+          </div>
+          <div className="divide-y divide-[var(--color-border)]">
+            {recentAudit.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-[var(--color-text-dim)]">
+                No activity yet. Connect a database and run a query to get started.
               </div>
-            ))
-          )}
+            ) : (
+              recentAudit.slice(0, 12).map((entry) => {
+                const cfg = eventTypeConfig[entry.event_type] || eventTypeConfig.query;
+                return (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-4 px-5 py-3 hover:bg-[var(--color-bg-hover)] transition-colors"
+                  >
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      entry.blocked ? "bg-[var(--color-error)]" : cfg.color
+                    }`} />
+                    <span className="text-[10px] uppercase font-semibold text-[var(--color-text-muted)] w-12">
+                      {cfg.label}
+                    </span>
+                    <span className="flex-1 text-sm truncate text-[var(--color-text)]">
+                      {entry.sql
+                        ? entry.sql.slice(0, 80)
+                        : entry.metadata?.code_preview
+                          ? String(entry.metadata.code_preview).slice(0, 80)
+                          : entry.connection_name || "—"}
+                    </span>
+                    {entry.blocked && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-error)]/10 text-[var(--color-error)] font-medium">
+                        BLOCKED
+                      </span>
+                    )}
+                    {entry.rows_returned != null && (
+                      <span className="text-xs tabular-nums text-[var(--color-text-dim)]">
+                        {entry.rows_returned} rows
+                      </span>
+                    )}
+                    {entry.duration_ms != null && (
+                      <span className="text-xs tabular-nums text-[var(--color-text-dim)]">
+                        {entry.duration_ms.toFixed(0)}ms
+                      </span>
+                    )}
+                    <span className="text-xs text-[var(--color-text-dim)] w-16 text-right flex-shrink-0">
+                      {timeAgo(entry.timestamp)}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right column — Connections + Cache */}
+        <div className="space-y-4">
+          {/* Connections overview */}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-sm font-medium">Connections</h2>
+              <a href="/connections" className="text-xs text-[var(--color-accent)] hover:underline">
+                Manage
+              </a>
+            </div>
+            <div className="divide-y divide-[var(--color-border)]">
+              {connections.length === 0 ? (
+                <div className="px-5 py-12 text-center">
+                  <Database className="w-8 h-8 mx-auto mb-2 text-[var(--color-text-dim)] opacity-30" />
+                  <p className="text-xs text-[var(--color-text-dim)]">
+                    No connections yet
+                  </p>
+                </div>
+              ) : (
+                connections.map((conn) => {
+                  const health = connHealth[conn.name];
+                  const statusColor =
+                    health?.status === "healthy"
+                      ? "bg-[var(--color-success)]"
+                      : health?.status === "warning"
+                        ? "bg-[var(--color-warning)]"
+                        : health?.status === "degraded" || health?.status === "unhealthy"
+                          ? "bg-[var(--color-error)]"
+                          : "bg-[var(--color-text-dim)]";
+                  return (
+                    <div
+                      key={conn.id}
+                      className="flex items-center gap-3 px-5 py-3 hover:bg-[var(--color-bg-hover)] transition-colors"
+                    >
+                      <span className="text-lg">
+                        {conn.db_type === "postgres"
+                          ? "🐘"
+                          : conn.db_type === "duckdb"
+                            ? "🦆"
+                            : conn.db_type === "mysql"
+                              ? "🐬"
+                              : "❄️"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{conn.name}</p>
+                        <p className="text-xs text-[var(--color-text-dim)] truncate">
+                          {conn.host}:{conn.port}/{conn.database}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {health?.latency_p50_ms != null && (
+                          <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">
+                            {health.latency_p50_ms.toFixed(0)}ms
+                          </span>
+                        )}
+                        <div className={`w-2 h-2 rounded-full ${statusColor}`} />
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-bg)] text-[var(--color-text-muted)]">
+                          {conn.db_type}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Query Cache Stats */}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl">
+            <div className="px-5 py-4 border-b border-[var(--color-border)]">
+              <h2 className="text-sm font-medium">Query Cache</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              {cacheStats ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-muted)]">Hit Rate</span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {(cacheStats.hit_rate * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[var(--color-success)] rounded-full transition-all"
+                      style={{ width: `${cacheStats.hit_rate * 100}%` }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Hits</p>
+                      <p className="text-sm font-medium tabular-nums text-[var(--color-success)]">{cacheStats.hits}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Misses</p>
+                      <p className="text-sm font-medium tabular-nums text-[var(--color-text-muted)]">{cacheStats.misses}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-[var(--color-text-dim)] uppercase">Entries</p>
+                      <p className="text-sm font-medium tabular-nums">{cacheStats.entries} / {cacheStats.max_entries}</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-[var(--color-text-dim)]">Loading...</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

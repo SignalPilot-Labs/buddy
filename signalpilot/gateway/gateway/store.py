@@ -5,12 +5,15 @@ Uses JSON files for MVP (easy to inspect, no DB dependency).
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
+import stat
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote as url_quote
 
 import aiofiles
 
@@ -38,18 +41,38 @@ def _ensure_data_dir():
 
 
 def _load_json(path: Path, default: Any) -> Any:
+    """Load JSON file with shared (read) locking to prevent read-write races (MED-08 fix)."""
     _ensure_data_dir()
     if not path.exists():
         return default
     try:
-        return json.loads(path.read_text())
+        with open(path, "r") as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+            try:
+                return json.load(f)
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     except Exception:
         return default
 
 
 def _save_json(path: Path, data: Any):
+    """Save JSON file with exclusive locking to prevent concurrent write races (MED-08 fix)."""
     _ensure_data_dir()
-    path.write_text(json.dumps(data, indent=2))
+    content = json.dumps(data, indent=2)
+    with open(path, "w") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+    # Restrict file permissions to owner-only (0600) for sensitive data
+    try:
+        path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass  # May fail on some filesystems (Windows, Docker volumes)
 
 
 # ─── Settings ────────────────────────────────────────────────────────────────
@@ -125,11 +148,14 @@ def get_connection_string(name: str) -> str | None:
 
 def _build_connection_string(conn: ConnectionCreate) -> str:
     if conn.db_type == DBType.postgres:
-        pw = f":{conn.password}" if conn.password else ""
+        # URL-encode username and password to handle special chars (@, :, #, etc.)
+        user = url_quote(conn.username or "", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
         host = conn.host or "localhost"
         port = conn.port or 5432
         db = conn.database or "postgres"
-        return f"postgresql://{conn.username}{pw}@{host}:{port}/{db}"
+        ssl_param = "?sslmode=require" if conn.ssl else ""
+        return f"postgresql://{user}{pw}@{host}:{port}/{db}{ssl_param}"
     elif conn.db_type == DBType.duckdb:
         return conn.database or ":memory:"
     return ""
@@ -161,8 +187,34 @@ def delete_sandbox(sandbox_id: str) -> bool:
 
 # ─── Audit Log ───────────────────────────────────────────────────────────────
 
+# Max audit file size before rotation (10MB)
+_AUDIT_MAX_BYTES = int(os.getenv("SP_AUDIT_MAX_BYTES", str(10 * 1024 * 1024)))
+# Max entries to read into memory for a single query (prevents OOM on large files)
+_AUDIT_MAX_SCAN = int(os.getenv("SP_AUDIT_MAX_SCAN", "50000"))
+
+
+def _rotate_audit_if_needed():
+    """Rotate audit log if it exceeds max size (MED-04 fix)."""
+    if not AUDIT_FILE.exists():
+        return
+    try:
+        size = AUDIT_FILE.stat().st_size
+        if size > _AUDIT_MAX_BYTES:
+            # Rotate: rename current to .1, delete older rotations
+            rotated = AUDIT_FILE.with_suffix(".jsonl.1")
+            old_rotated = AUDIT_FILE.with_suffix(".jsonl.2")
+            if old_rotated.exists():
+                old_rotated.unlink()
+            if rotated.exists():
+                rotated.rename(old_rotated)
+            AUDIT_FILE.rename(rotated)
+    except OSError:
+        pass  # Best-effort rotation
+
+
 async def append_audit(entry: AuditEntry):
     _ensure_data_dir()
+    _rotate_audit_if_needed()
     line = entry.model_dump_json() + "\n"
     async with aiofiles.open(AUDIT_FILE, "a") as f:
         await f.write(line)
@@ -179,8 +231,12 @@ async def read_audit(
         return []
 
     entries = []
+    lines_scanned = 0
     async with aiofiles.open(AUDIT_FILE) as f:
         async for line in f:
+            lines_scanned += 1
+            if lines_scanned > _AUDIT_MAX_SCAN:
+                break  # Prevent OOM on very large audit files (MED-04)
             line = line.strip()
             if not line:
                 continue
