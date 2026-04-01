@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 /* Custom SVG nav icons — geometric, minimal, brutalism-lite */
 function NavIconDashboard({ active }: { active: boolean }) {
   const s = active ? "currentColor" : "currentColor";
@@ -135,9 +135,43 @@ function UptimeCounter() {
   );
 }
 
+/* ── Badge for nav items ── */
+function NavBadge({ count, color = "var(--color-success)" }: { count: number; color?: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="flex items-center justify-center min-w-[14px] h-[14px] px-1 text-[8px] tabular-nums tracking-wider"
+      style={{ backgroundColor: color, color: "var(--color-bg)" }}
+    >
+      {count}
+    </span>
+  );
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [activeSandboxes, setActiveSandboxes] = useState(0);
+
+  // Poll for active sandbox count
+  const fetchCounts = useCallback(() => {
+    const url = typeof window !== "undefined" ? localStorage.getItem("sp_gateway_url") || "http://localhost:3300" : "";
+    const key = typeof window !== "undefined" ? localStorage.getItem("sp_api_key") : null;
+    const headers: Record<string, string> = {};
+    if (key) headers["Authorization"] = `Bearer ${key}`;
+    fetch(`${url}/api/sandboxes`, { headers })
+      .then((r) => r.ok ? r.json() : [])
+      .then((sandboxes: { status: string }[]) => {
+        setActiveSandboxes(sandboxes.filter((s) => s.status === "running").length);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchCounts();
+    const i = setInterval(fetchCounts, 30000);
+    return () => clearInterval(i);
+  }, [fetchCounts]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -195,6 +229,7 @@ export default function Sidebar() {
       <nav className="flex-1 px-3 py-2 space-y-0.5">
         {nav.map(({ href, label, icon: Icon, shortcut }) => {
           const active = pathname.startsWith(href);
+          const badge = href === "/sandboxes" ? activeSandboxes : 0;
           return (
             <Link
               key={href}
@@ -207,9 +242,13 @@ export default function Sidebar() {
             >
               <Icon active={active} />
               <span className="flex-1 tracking-wide">{label}</span>
-              <span className={`text-[9px] tracking-wider ${active ? "text-[var(--color-text-dim)]" : "text-transparent group-hover:text-[var(--color-text-dim)]"} transition-colors`}>
-                ^{shortcut}
-              </span>
+              {badge > 0 ? (
+                <NavBadge count={badge} />
+              ) : (
+                <span className={`text-[9px] tracking-wider ${active ? "text-[var(--color-text-dim)]" : "text-transparent group-hover:text-[var(--color-text-dim)]"} transition-colors`}>
+                  ^{shortcut}
+                </span>
+              )}
             </Link>
           );
         })}
