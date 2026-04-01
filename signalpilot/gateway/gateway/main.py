@@ -216,6 +216,13 @@ async def add_connection(conn: ConnectionCreate):
     return info
 
 
+# Connection health — must be defined before {name} routes to avoid path conflict
+@app.get("/api/connections/health")
+async def get_all_connection_health(window: int = Query(default=300, ge=60, le=3600)):
+    """Get health stats for all monitored connections (Feature #31)."""
+    return {"connections": health_monitor.all_stats(window)}
+
+
 @app.get("/api/connections/{name}")
 async def get_connection_detail(name: str):
     conn = get_connection(name)
@@ -247,6 +254,15 @@ async def test_connection(name: str):
         return {"status": "healthy" if ok else "error", "message": "Connection test passed" if ok else "Health check failed"}
     except Exception as e:
         return {"status": "error", "message": _sanitize_db_error(str(e))}
+
+
+@app.get("/api/connections/{name}/health")
+async def get_connection_health(name: str, window: int = Query(default=300, ge=60, le=3600)):
+    """Get health stats for a specific connection."""
+    stats = health_monitor.connection_stats(name, window)
+    if stats is None:
+        raise HTTPException(status_code=404, detail=f"No health data for connection '{name}'")
+    return stats
 
 
 @app.get("/api/connections/{name}/schema")
@@ -602,22 +618,6 @@ async def generate_annotations(name: str):
     }
 
 
-# ─── Connection Health ────────────────────────────────────────────────────────
-
-
-@app.get("/api/connections/health")
-async def get_all_connection_health(window: int = Query(default=300, ge=60, le=3600)):
-    """Get health stats for all monitored connections (Feature #31)."""
-    return {"connections": health_monitor.all_stats(window)}
-
-
-@app.get("/api/connections/{name}/health")
-async def get_connection_health(name: str, window: int = Query(default=300, ge=60, le=3600)):
-    """Get health stats for a specific connection."""
-    stats = health_monitor.connection_stats(name, window)
-    if stats is None:
-        raise HTTPException(status_code=404, detail=f"No health data for connection '{name}'")
-    return stats
 
 
 # ─── Query Cache ──────────────────────────────────────────────────────────────

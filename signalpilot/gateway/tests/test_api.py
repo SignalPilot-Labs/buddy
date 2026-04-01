@@ -217,3 +217,49 @@ class TestAuditEndpoint:
     def test_audit_limit_validation(self, client):
         response = client.get("/api/audit?limit=1000")
         assert response.status_code == 422  # Over max 500
+
+
+class TestCacheEndpoint:
+    def test_cache_stats(self, client):
+        response = client.get("/api/cache/stats")
+        assert response.status_code == 200
+        data = response.json()
+        assert "entries" in data
+        assert "max_entries" in data
+        assert "ttl_seconds" in data
+        assert "hits" in data
+        assert "misses" in data
+        assert "hit_rate" in data
+
+    def test_invalidate_cache(self, client):
+        response = client.post("/api/cache/invalidate")
+        assert response.status_code == 200
+        data = response.json()
+        assert "invalidated" in data
+
+    def test_invalidate_cache_with_connection(self, client):
+        response = client.post("/api/cache/invalidate?connection_name=test-pg")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connection_name"] == "test-pg"
+
+
+class TestHealthEndpoints:
+    def test_all_connections_health(self, client):
+        response = client.get("/api/connections/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "connections" in data
+        assert isinstance(data["connections"], list)
+
+    def test_connection_health_not_found(self, client):
+        response = client.get("/api/connections/nonexistent/health")
+        assert response.status_code == 404
+
+    def test_health_window_parameter(self, client):
+        response = client.get("/api/connections/health?window=600")
+        assert response.status_code == 200
+
+    def test_health_window_validation(self, client):
+        response = client.get("/api/connections/health?window=10")
+        assert response.status_code == 422  # Below minimum of 60
