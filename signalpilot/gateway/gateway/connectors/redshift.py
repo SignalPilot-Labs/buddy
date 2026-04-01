@@ -58,7 +58,7 @@ class RedshiftConnector(BaseConnector):
         if self._conn is None:
             raise RuntimeError("Not connected")
 
-        # Redshift uses SVV_COLUMNS for a comprehensive view across schemas
+        # Columns with types
         sql = """
             SELECT
                 schemaname AS table_schema,
@@ -70,9 +70,97 @@ class RedshiftConnector(BaseConnector):
             WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
             ORDER BY schemaname, tablename, colnum
         """
+        # Primary keys
+        pk_sql = """
+            SELECT
+                n.nspname AS table_schema,
+                cl.relname AS table_name,
+                a.attname AS column_name
+            FROM pg_constraint con
+            JOIN pg_class cl ON con.conrelid = cl.oid
+            JOIN pg_namespace n ON cl.relnamespace = n.oid
+            JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
+            WHERE con.contype = 'p'
+                AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        """
+        # Foreign keys (critical for Spider2.0 join path discovery)
+        fk_sql = """
+            SELECT
+                n.nspname AS table_schema,
+                cl.relname AS table_name,
+                a.attname AS column_name,
+                n2.nspname AS foreign_table_schema,
+                cl2.relname AS foreign_table_name,
+                a2.attname AS foreign_column_name
+            FROM pg_constraint con
+            JOIN pg_class cl ON con.conrelid = cl.oid
+            JOIN pg_namespace n ON cl.relnamespace = n.oid
+            JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
+            JOIN pg_class cl2 ON con.confrelid = cl2.oid
+            JOIN pg_namespace n2 ON cl2.relnamespace = n2.oid
+            JOIN pg_attribute a2 ON a2.attrelid = cl2.oid AND a2.attnum = ANY(con.confkey)
+            WHERE con.contype = 'f'
+                AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+        """
+        # Row counts
+        row_count_sql = """
+            SELECT
+                schemaname AS table_schema,
+                relname AS table_name,
+                n_live_tup AS estimated_row_count
+            FROM pg_stat_user_tables
+        """
+        # Redshift distribution and sort key info
+        dist_sort_sql = """
+            SELECT
+                schemaname AS table_schema,
+                tablename AS table_name,
+                diststyle,
+                sortkey1
+            FROM pg_table_def
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
+            GROUP BY schemaname, tablename, diststyle, sortkey1
+        """
+
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
             cursor.execute(sql)
             rows = cursor.fetchall()
+
+        # Best-effort metadata enrichment
+        pk_set: set[tuple] = set()
+        foreign_keys: dict[str, list[dict]] = {}
+        row_counts: dict[str, int] = {}
+
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute(pk_sql)
+                pk_set = {(r["table_schema"], r["table_name"], r["column_name"]) for r in cursor.fetchall()}
+        except Exception:
+            pass
+
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute(fk_sql)
+                for r in cursor.fetchall():
+                    key = f"{r['table_schema']}.{r['table_name']}"
+                    if key not in foreign_keys:
+                        foreign_keys[key] = []
+                    foreign_keys[key].append({
+                        "column": r["column_name"],
+                        "references_schema": r["foreign_table_schema"],
+                        "references_table": r["foreign_table_name"],
+                        "references_column": r["foreign_column_name"],
+                    })
+        except Exception:
+            pass
+
+        try:
+            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
+                cursor.execute(row_count_sql)
+                for r in cursor.fetchall():
+                    row_counts[f"{r['table_schema']}.{r['table_name']}"] = r["estimated_row_count"]
+        except Exception:
+            pass
 
         schema: dict[str, Any] = {}
         for row in rows:
@@ -82,41 +170,15 @@ class RedshiftConnector(BaseConnector):
                     "schema": row["table_schema"],
                     "name": row["table_name"],
                     "columns": [],
+                    "foreign_keys": foreign_keys.get(key, []),
+                    "row_count": row_counts.get(key, 0),
                 }
             schema[key]["columns"].append({
                 "name": row["column_name"],
                 "type": row["data_type"],
                 "nullable": row["is_nullable"] == "YES",
-                "primary_key": False,
+                "primary_key": (row["table_schema"], row["table_name"], row["column_name"]) in pk_set,
             })
-
-        # Enrich with primary keys from pg_constraint
-        try:
-            pk_sql = """
-                SELECT
-                    n.nspname AS table_schema,
-                    cl.relname AS table_name,
-                    a.attname AS column_name
-                FROM pg_constraint con
-                JOIN pg_class cl ON con.conrelid = cl.oid
-                JOIN pg_namespace n ON cl.relnamespace = n.oid
-                JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
-                WHERE con.contype = 'p'
-                    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-            """
-            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                cursor.execute(pk_sql)
-                pk_rows = cursor.fetchall()
-
-            pk_set = {
-                (r["table_schema"], r["table_name"], r["column_name"]) for r in pk_rows
-            }
-            for table_data in schema.values():
-                for col in table_data["columns"]:
-                    if (table_data["schema"], table_data["name"], col["name"]) in pk_set:
-                        col["primary_key"] = True
-        except Exception:
-            pass  # PK enrichment is best-effort
 
         return schema
 

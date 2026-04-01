@@ -36,6 +36,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from .engine import inject_limit, validate_sql
+
+# Map db_type to sqlglot dialect for correct SQL parsing/generation
+_SQLGLOT_DIALECTS: dict[str, str] = {
+    "postgres": "postgres",
+    "mysql": "mysql",
+    "snowflake": "snowflake",
+    "bigquery": "bigquery",
+    "redshift": "redshift",
+    "clickhouse": "clickhouse",
+    "databricks": "databricks",
+    "duckdb": "duckdb",
+    "sqlite": "sqlite",
+}
 from .middleware import APIKeyAuthMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 from .models import (
     AuditEntry,
@@ -438,8 +451,11 @@ async def query_database(req: DirectQueryRequest):
     if settings.blocked_tables:
         blocked_tables.extend(t for t in settings.blocked_tables if t not in blocked_tables)
 
+    # Map DB type to sqlglot dialect for correct SQL parsing
+    dialect = _SQLGLOT_DIALECTS.get(info.db_type, "postgres")
+
     # Validate SQL (with blocked tables from annotations + settings)
-    validation = validate_sql(req.sql, blocked_tables=blocked_tables or None)
+    validation = validate_sql(req.sql, blocked_tables=blocked_tables or None, dialect=dialect)
     if not validation.ok:
         await append_audit(AuditEntry(
             id=str(uuid.uuid4()),
@@ -452,8 +468,8 @@ async def query_database(req: DirectQueryRequest):
         ))
         raise HTTPException(status_code=400, detail=f"Query blocked: {validation.blocked_reason}")
 
-    # Inject LIMIT
-    safe_sql = inject_limit(req.sql, req.row_limit)
+    # Inject LIMIT using correct dialect syntax
+    safe_sql = inject_limit(req.sql, req.row_limit, dialect=dialect)
 
     # Check query cache (Feature #30) — same normalized query returns cached result
     cached = query_cache.get(req.connection_name, req.sql, req.row_limit)
