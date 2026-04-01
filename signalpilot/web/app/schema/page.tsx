@@ -368,7 +368,7 @@ export default function SchemaExplorerPage() {
                         </thead>
                         <tbody className="divide-y divide-[var(--color-border)]/20">
                           {table.columns.map((col, i) => (
-                            <tr key={col.name} className="hover:bg-[var(--color-bg-hover)] transition-colors">
+                            <tr key={col.name} className="table-row-hover">
                               <td className="px-4 py-1.5 text-[var(--color-text-dim)] tabular-nums">{i + 1}</td>
                               <td className="px-4 py-1.5">
                                 <span className="flex items-center gap-2">

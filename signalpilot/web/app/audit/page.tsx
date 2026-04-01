@@ -251,7 +251,7 @@ export default function AuditPage() {
                   <tr
                     key={entry.id}
                     onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
-                    className="hover:bg-[var(--color-bg-hover)] transition-colors cursor-pointer group"
+                    className="table-row-hover cursor-pointer group"
                   >
                     <td className="px-4 py-2.5 text-[10px] text-[var(--color-text-dim)] tabular-nums whitespace-nowrap tracking-wider align-top">
                       <div className="flex items-center gap-1.5">

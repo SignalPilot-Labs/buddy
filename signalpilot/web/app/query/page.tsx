@@ -420,7 +420,7 @@ export default function QueryExplorerPage() {
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]/30">
                   {result.rows.map((row, i) => (
-                    <tr key={i} className="hover:bg-[var(--color-bg-hover)] transition-colors">
+                    <tr key={i} className="table-row-hover">
                       <td className="px-3 py-1.5 text-[var(--color-text-dim)] tabular-nums">{i + 1}</td>
                       {Object.values(row).map((val, j) => (
                         <td
