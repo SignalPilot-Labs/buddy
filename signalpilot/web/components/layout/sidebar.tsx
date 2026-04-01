@@ -108,7 +108,11 @@ function SignalPilotLogo() {
       />
       {/* Cursor line */}
       <line x1="16" y1="23" x2="24" y2="23" stroke="white" strokeWidth="2.5" strokeLinecap="square" />
-      {/* Signal dot */}
+      {/* Signal dot with pulse */}
+      <circle cx="24" cy="9" r="3" fill="#00ff88" opacity="0.15">
+        <animate attributeName="r" values="3;5;3" dur="3s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.15;0;0.15" dur="3s" repeatCount="indefinite" />
+      </circle>
       <circle cx="24" cy="9" r="2" fill="#00ff88" />
     </svg>
   );
@@ -197,9 +201,12 @@ export default function Sidebar() {
       </nav>
 
       {/* Status footer */}
-      <div className="px-4 py-3 border-t border-[var(--color-border)] space-y-2">
+      <div className="px-4 py-3 border-t border-[var(--color-border)] space-y-2.5">
         <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)]">
-          <span className="w-1.5 h-1.5 bg-[var(--color-success)] pulse-dot" />
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full bg-[var(--color-success)] opacity-30" />
+            <span className="relative inline-flex h-2 w-2 bg-[var(--color-success)]" />
+          </span>
           <span className="tracking-[0.15em] uppercase">governance active</span>
         </div>
         <div className="flex items-center gap-3 text-[9px] text-[var(--color-text-dim)]">
@@ -209,13 +216,22 @@ export default function Sidebar() {
           </svg>
           <span className="tracking-wider">uptime <UptimeCounter /></span>
         </div>
+        {/* System info line */}
+        <div className="separator-subtle" />
         <div className="flex items-center justify-between">
-          <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">
-            v0.1.0
-          </span>
-          <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider px-1.5 py-0.5 border border-[var(--color-border)]">
-            byof
-          </span>
+          <div className="flex items-center gap-1.5">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1 4H3L4 2L5 6L6 4H7" stroke="var(--color-text-dim)" strokeWidth="0.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">
+              v0.1.0
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider px-1.5 py-0.5 border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-colors cursor-default">
+              byof
+            </span>
+          </div>
         </div>
       </div>
     </aside>
