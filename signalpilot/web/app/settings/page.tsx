@@ -22,6 +22,7 @@ import {
 import { getSettings, updateSettings, getHealth, setApiKey } from "@/lib/api";
 import type { GatewaySettings } from "@/lib/types";
 import { PageHeader } from "@/components/ui/page-header";
+import { useToast } from "@/components/ui/toast";
 
 function SectionHeader({ icon: Icon, title, iconColor }: { icon: React.ElementType; title: string; iconColor?: string }) {
   return (
@@ -35,6 +36,7 @@ function SectionHeader({ icon: Icon, title, iconColor }: { icon: React.ElementTy
 }
 
 export default function SettingsPage() {
+  const { toast } = useToast();
   const [settings, setSettings] = useState<GatewaySettings | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -63,7 +65,8 @@ export default function SettingsPage() {
       await updateSettings({ ...settings, blocked_tables: blockedTables });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (e) { alert(String(e)); }
+      toast("settings saved", "success");
+    } catch (e) { toast(String(e), "error"); }
     finally { setSaving(false); }
   }
 
@@ -71,6 +74,7 @@ export default function SettingsPage() {
     setApiKey(browserApiKey || null);
     setBrowserKeySaved(true);
     setTimeout(() => setBrowserKeySaved(false), 3000);
+    toast("api key saved to localStorage", "success");
   }
 
   async function handleTestConnection() {

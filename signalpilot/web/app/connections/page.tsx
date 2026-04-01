@@ -31,6 +31,7 @@ import type { ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusDot } from "@/components/ui/data-viz";
+import { useToast } from "@/components/ui/toast";
 
 const dbTypeLabels: Record<string, string> = {
   postgres: "pg",
@@ -40,6 +41,7 @@ const dbTypeLabels: Record<string, string> = {
 };
 
 export default function ConnectionsPage() {
+  const { toast } = useToast();
   const [connections, setConnections] = useState<ConnectionInfo[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
@@ -80,7 +82,8 @@ export default function ConnectionsPage() {
       setShowForm(false);
       setForm({ name: "", db_type: "postgres", host: "localhost", port: "5432", database: "", username: "", password: "", description: "" });
       refresh();
-    } catch (e) { alert(String(e)); } finally { setSaving(false); }
+      toast("connection created successfully", "success");
+    } catch (e) { toast(String(e), "error"); } finally { setSaving(false); }
   }
 
   async function handleTest(name: string) {
@@ -88,8 +91,10 @@ export default function ConnectionsPage() {
     try {
       const result = await testConnection(name);
       setTestResult((prev) => ({ ...prev, [name]: result }));
+      toast(result.status === "healthy" ? `${name}: connection healthy` : `${name}: ${result.message}`, result.status === "healthy" ? "success" : "error");
     } catch (e) {
       setTestResult((prev) => ({ ...prev, [name]: { status: "error", message: String(e) } }));
+      toast(`${name}: test failed`, "error");
     } finally { setTesting(null); }
   }
 
@@ -97,6 +102,7 @@ export default function ConnectionsPage() {
     if (!confirm(`Delete connection "${name}"?`)) return;
     await deleteConnection(name);
     refresh();
+    toast(`${name} deleted`, "info");
   }
 
   async function handleToggleSchema(name: string) {
