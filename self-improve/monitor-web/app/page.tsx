@@ -98,21 +98,14 @@ export default function MonitorPage() {
             data: a,
           }));
 
-        const merged = [...toolEvents, ...auditEvents].sort((a, b) => {
-          const tsA =
-            a._kind === "tool"
-              ? a.data.ts
-              : a._kind === "audit"
-                ? a.data.ts
-                : a.ts;
-          const tsB =
-            b._kind === "tool"
-              ? b.data.ts
-              : b._kind === "audit"
-                ? b.data.ts
-                : b.ts;
-          return new Date(tsA).getTime() - new Date(tsB).getTime();
-        });
+        const getTs = (e: FeedEvent): string =>
+          e._kind === "tool" ? e.data.ts
+          : e._kind === "audit" ? e.data.ts
+          : e._kind === "usage" ? e.data.ts
+          : e.ts;
+        const merged = [...toolEvents, ...auditEvents].sort((a, b) =>
+          new Date(getTs(a)).getTime() - new Date(getTs(b)).getTime()
+        );
 
         setHistoryEvents(merged);
       } catch {

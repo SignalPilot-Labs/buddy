@@ -199,7 +199,7 @@ AGENT_API_URL = os.environ.get("AGENT_API_URL", "http://agent:8500")
 
 class StartRunRequest(BaseModel):
     prompt: str | None = None
-    max_budget_usd: float = 50.0
+    max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
 

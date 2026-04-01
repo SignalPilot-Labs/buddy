@@ -33,6 +33,7 @@ export interface ToolCall {
   duration_ms: number | null;
   permitted: boolean;
   deny_reason: string | null;
+  agent_role: "worker" | "ceo";
 }
 
 export interface AuditEvent {
@@ -43,12 +44,23 @@ export interface AuditEvent {
   details: Record<string, unknown>;
 }
 
+export interface UsageEvent {
+  input_tokens: number;
+  output_tokens: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  cache_creation_input_tokens: number;
+  cache_read_input_tokens: number;
+  ts: string;
+}
+
 export type FeedEvent =
   | { _kind: "tool"; data: ToolCall }
   | { _kind: "audit"; data: AuditEvent }
-  | { _kind: "llm_text"; text: string; ts: string }
-  | { _kind: "llm_thinking"; text: string; ts: string }
-  | { _kind: "control"; text: string; ts: string };
+  | { _kind: "llm_text"; text: string; ts: string; agent_role?: "worker" | "ceo" }
+  | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: "worker" | "ceo" }
+  | { _kind: "control"; text: string; ts: string }
+  | { _kind: "usage"; data: UsageEvent };
 
 export const STATUS_META: Record<
   RunStatus,

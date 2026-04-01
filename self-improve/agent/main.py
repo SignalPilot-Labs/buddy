@@ -170,6 +170,7 @@ async def run_agent(
     print(f"[agent] Run ID: {run_id}")
 
     hooks.set_run_id(run_id)
+    hooks.set_agent_role("worker")
     permissions.set_run_id(run_id)
     session_gate.configure(run_id, duration_minutes)
     session_mcp = session_gate.create_session_mcp_server()
@@ -210,11 +211,17 @@ async def run_agent(
         permission_mode="bypassPermissions",
         can_use_tool=permissions.check_tool_permission,
         cwd=work_dir,
-        add_dirs=["/workspace"],
+        add_dirs=["/workspace", "/home/agentuser/research"],
         setting_sources=["project"],
         max_budget_usd=max_budget if max_budget > 0 else None,
         include_partial_messages=True,
-        mcp_servers={"session_gate": session_mcp},
+        mcp_servers={
+            "session_gate": session_mcp,
+            "playwright": {
+                "command": "playwright-mcp",
+                "args": [],
+            },
+        },
         hooks={
             "PreToolUse": [HookMatcher(hooks=[hooks.pre_tool_use_hook])],
             "PostToolUse": [HookMatcher(hooks=[hooks.post_tool_use_hook])],
@@ -258,11 +265,18 @@ async def run_agent(
             print("[agent] Sent initial prompt")
 
             for round_num in range(max_rounds):
-                print(f"[agent] Round {round_num + 1} | Elapsed: {session_gate.elapsed_minutes():.0f}m | Remaining: {session_gate.time_remaining_str()}")
+                # After CEO prompt, this round processes the CEO's response (tool calls tagged "ceo").
+                # After CEO response completes, we switch back to worker.
+                current_role = hooks._agent_role  # track what role is active
+                print(f"[agent] Round {round_num + 1} [{current_role.upper()}] | Elapsed: {session_gate.elapsed_minutes():.0f}m | Remaining: {session_gate.time_remaining_str()}")
 
                 rate_limited = False
                 round_result = None
                 should_stop = False
+
+                # --- Per-round tracking for CEO summary ---
+                round_tools: list[str] = []
+                round_text_chunks: list[str] = []
 
                 async for message in client.receive_response():
                     # --- Instant signal check (non-blocking) ---
@@ -306,12 +320,12 @@ async def run_agent(
                             dtype = delta.get("type", "")
                             if dtype == "text_delta" and delta.get("text"):
                                 try:
-                                    await db.log_audit(run_id, "llm_text", {"text": delta["text"][:2000]})
+                                    await db.log_audit(run_id, "llm_text", {"text": delta["text"][:2000], "agent_role": hooks._agent_role})
                                 except Exception:
                                     pass
                             elif dtype == "thinking_delta" and delta.get("thinking"):
                                 try:
-                                    await db.log_audit(run_id, "llm_thinking", {"text": delta["thinking"][:2000]})
+                                    await db.log_audit(run_id, "llm_thinking", {"text": delta["thinking"][:2000], "agent_role": hooks._agent_role})
                                 except Exception:
                                     pass
                         continue
@@ -321,13 +335,28 @@ async def run_agent(
                         for block in message.content:
                             if isinstance(block, TextBlock):
                                 print(f"[agent] {block.text[:200].replace(chr(10), ' ')}")
+                                round_text_chunks.append(block.text[:500])
                             elif isinstance(block, ThinkingBlock):
                                 print(f"[agent] [thinking] {block.thinking[:100]}...")
                             elif isinstance(block, ToolUseBlock):
                                 print(f"[agent] Tool: {block.name}")
+                                round_tools.append(block.name)
                         if message.usage:
-                            total_input_tokens += message.usage.get("input_tokens", 0)
-                            total_output_tokens += message.usage.get("output_tokens", 0)
+                            msg_input = message.usage.get("input_tokens", 0)
+                            msg_output = message.usage.get("output_tokens", 0)
+                            total_input_tokens += msg_input
+                            total_output_tokens += msg_output
+                            try:
+                                await db.log_audit(run_id, "usage", {
+                                    "input_tokens": msg_input,
+                                    "output_tokens": msg_output,
+                                    "total_input_tokens": total_input_tokens,
+                                    "total_output_tokens": total_output_tokens,
+                                    "cache_creation_input_tokens": message.usage.get("cache_creation_input_tokens", 0),
+                                    "cache_read_input_tokens": message.usage.get("cache_read_input_tokens", 0),
+                                })
+                            except Exception:
+                                pass
 
                     # --- RateLimitEvent ---
                     elif isinstance(message, RateLimitEvent):
@@ -411,13 +440,13 @@ async def run_agent(
                         session_gate.force_unlock()
                         await db.log_audit(run_id, "session_unlocked", {})
 
+                # --- Reset to worker role after CEO round completes ---
+                if hooks._agent_role == "ceo":
+                    hooks.set_agent_role("worker")
+
                 # --- Continue logic ---
-                # With a time lock: ALWAYS continue (agent exits via end_session)
-                # Without a time lock: let the agent finish naturally after round 1
-                if duration_minutes > 0:
-                    await client.query("Continue.")
-                else:
-                    # No time lock — agent finished, we're done
+                # Without a time lock or session unlocked: let the agent finish naturally
+                if duration_minutes <= 0 or session_gate.is_unlocked():
                     if round_result and round_result.subtype == "success":
                         print("[agent] Round complete, no time lock — finishing")
                         final_status = "completed"
@@ -426,6 +455,116 @@ async def run_agent(
                         await client.query(prompt.build_continuation_prompt())
                     else:
                         break
+                else:
+                    # =========================================================
+                    # Time-locked: CEO/PM reviews work and assigns next task
+                    # Flow: worker finishes → CEO decides → worker executes
+                    # =========================================================
+
+                    # --- Build round summary ---
+                    tool_counts: dict[str, int] = {}
+                    for t in round_tools:
+                        tool_counts[t] = tool_counts.get(t, 0) + 1
+                    tool_summary = ", ".join(f"{t} x{c}" for t, c in sorted(tool_counts.items(), key=lambda x: -x[1])[:10])
+
+                    try:
+                        files_changed = git_ops._run_git(["diff", "--name-only", "HEAD~5..HEAD"], cwd=work_dir)
+                    except Exception:
+                        files_changed = "(unable to determine)"
+                    try:
+                        commits = git_ops._run_git(["log", "--oneline", "-5"], cwd=work_dir)
+                    except Exception:
+                        commits = "(none yet)"
+
+                    round_summary = "\n".join(round_text_chunks)[-1500:] if round_text_chunks else "Agent worked silently (tool calls only)."
+
+                    ceo_prompt = prompt.build_ceo_continuation(
+                        round_num=round_num + 1,
+                        elapsed_minutes=session_gate.elapsed_minutes(),
+                        duration_minutes=duration_minutes,
+                        tool_summary=tool_summary,
+                        files_changed=files_changed,
+                        commits=commits,
+                        cost_so_far=total_cost,
+                        round_summary=round_summary,
+                        original_prompt=custom_prompt or "General self-improvement pass on the SignalPilot codebase.",
+                    )
+
+                    await db.log_audit(run_id, "ceo_continuation", {
+                        "round": round_num + 1,
+                        "tool_summary": tool_summary,
+                        "files_changed": files_changed[:500],
+                        "round_summary": round_summary[:500],
+                    })
+
+                    # --- CEO round: send prompt, collect the CEO's decision ---
+                    print(f"[agent] CEO reviewing round {round_num + 1}...")
+                    hooks.set_agent_role("ceo")
+                    await client.query(ceo_prompt)
+
+                    ceo_decision_chunks: list[str] = []
+                    async for msg in client.receive_response():
+                        signal = await _drain_signal()
+                        if signal and signal["signal"] == "stop":
+                            final_status = "stopped"
+                            should_stop = True
+                            break
+
+                        if isinstance(msg, StreamEvent):
+                            event_data = msg.event or {}
+                            if event_data.get("type") == "content_block_delta":
+                                delta = event_data.get("delta", {})
+                                dtype = delta.get("type", "")
+                                if dtype == "text_delta" and delta.get("text"):
+                                    try:
+                                        await db.log_audit(run_id, "llm_text", {"text": delta["text"][:2000], "agent_role": "ceo"})
+                                    except Exception:
+                                        pass
+                                elif dtype == "thinking_delta" and delta.get("thinking"):
+                                    try:
+                                        await db.log_audit(run_id, "llm_thinking", {"text": delta["thinking"][:2000], "agent_role": "ceo"})
+                                    except Exception:
+                                        pass
+                            continue
+
+                        if isinstance(msg, AssistantMessage):
+                            for block in msg.content:
+                                if isinstance(block, TextBlock):
+                                    ceo_decision_chunks.append(block.text)
+                                    print(f"[agent] [CEO] {block.text[:200].replace(chr(10), ' ')}")
+                                elif isinstance(block, ThinkingBlock):
+                                    print(f"[agent] [CEO thinking] {block.thinking[:100]}...")
+                            if msg.usage:
+                                total_input_tokens += msg.usage.get("input_tokens", 0)
+                                total_output_tokens += msg.usage.get("output_tokens", 0)
+
+                        elif isinstance(msg, ResultMessage):
+                            if msg.total_cost_usd:
+                                total_cost = msg.total_cost_usd
+
+                    if should_stop:
+                        break
+
+                    # --- Hand CEO decision to worker ---
+                    ceo_decision = "\n".join(ceo_decision_chunks).strip()
+                    hooks.set_agent_role("worker")
+
+                    if not ceo_decision:
+                        ceo_decision = "Review and improve the quality of your previous work. Re-read what you wrote, refine it, and make it better."
+
+                    worker_prompt = (
+                        f"## Assignment from Product Director\n\n"
+                        f"{ceo_decision}\n\n"
+                        f"Complete this assignment, then stop. Do not do anything beyond what is described above."
+                    )
+
+                    await db.log_audit(run_id, "worker_assignment", {
+                        "round": round_num + 2,
+                        "assignment": ceo_decision[:1000],
+                    })
+
+                    print(f"[agent] Worker assigned round {round_num + 2} task")
+                    await client.query(worker_prompt)
 
     except asyncio.CancelledError:
         print("[agent] Run KILLED by operator")
@@ -470,7 +609,7 @@ async def run_agent(
 
 class StartRequest(BaseModel):
     prompt: str | None = None
-    max_budget_usd: float = 50.0
+    max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
 
@@ -518,7 +657,7 @@ async def start_run(body: StartRequest = StartRequest()):
     if _current_run_id is not None:
         raise HTTPException(status_code=409, detail=f"Run already in progress: {_current_run_id}")
 
-    budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "50"))
+    budget = body.max_budget_usd if body.max_budget_usd is not None and body.max_budget_usd != 0 else float(os.environ.get("MAX_BUDGET_USD", "0"))
     _current_task = asyncio.create_task(
         run_agent(
             custom_prompt=body.prompt,
