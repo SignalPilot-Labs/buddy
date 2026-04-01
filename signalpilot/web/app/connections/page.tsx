@@ -20,15 +20,19 @@ import {
   Settings2,
   Lock,
   Server,
+  Pencil,
+  RefreshCw,
 } from "lucide-react";
 import {
   getConnections,
   createConnection,
+  updateConnection,
   deleteConnection,
   testConnection,
   getConnectionSchema,
   getConnectionsHealth,
   detectPII,
+  refreshConnectionSchema,
 } from "@/lib/api";
 import type { ConnectionInfo, ConnectionHealthStats, DBType, SSHTunnelConfig, SSLConfig } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
@@ -92,7 +96,7 @@ const DB_CONFIGS: Record<DBType, DBTypeConfig> = {
     category: "warehouse",
     supportsSSH: false,
     supportsSSL: false,
-    connectionModes: ["fields"],
+    connectionModes: ["fields", "url"],
     fields: ["account", "warehouse", "database", "schema_name", "username", "password", "role"],
     description: "Cloud-native data platform",
   },
@@ -433,6 +437,7 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
       mysql: "mysql://user:pass@host:3306/dbname",
       redshift: "redshift://user:pass@cluster.region.redshift.amazonaws.com:5439/dev",
       clickhouse: "clickhouse://user:pass@host:9000/default",
+      snowflake: "snowflake://user:pass@account/db/schema?warehouse=WH&role=ROLE",
     };
     return (
       <FormInput
@@ -620,6 +625,7 @@ export default function ConnectionsPage() {
   const { toast } = useToast();
   const [connections, setConnections] = useState<ConnectionInfo[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingConnection, setEditingConnection] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, { status: string; message: string; phases?: { phase: string; status: string; message: string; duration_ms?: number }[]; total_duration_ms?: number }>>({});
   const [saving, setSaving] = useState(false);
@@ -661,13 +667,82 @@ export default function ConnectionsPage() {
     setSaving(true);
     try {
       const payload = buildCreatePayload(form);
-      await createConnection(payload);
+      if (editingConnection) {
+        // Update existing connection
+        const { name: _n, db_type: _d, ...updateFields } = payload;
+        await updateConnection(editingConnection, updateFields);
+        toast("connection updated successfully", "success");
+      } else {
+        await createConnection(payload);
+        toast("connection created successfully", "success");
+      }
       setShowForm(false);
+      setEditingConnection(null);
       setForm({ ...defaultForm });
       setShowAdvanced(false);
       refresh();
-      toast("connection created successfully", "success");
     } catch (e) { toast(String(e), "error"); } finally { setSaving(false); }
+  }
+
+  async function handleSaveAndTest() {
+    setSaving(true);
+    try {
+      const payload = buildCreatePayload(form);
+      if (editingConnection) {
+        const { name: _n, db_type: _d, ...updateFields } = payload;
+        await updateConnection(editingConnection, updateFields);
+      } else {
+        await createConnection(payload);
+      }
+      setShowForm(false);
+      setEditingConnection(null);
+      setForm({ ...defaultForm });
+      setShowAdvanced(false);
+      refresh();
+      // Auto-test after save
+      const connName = editingConnection || (payload.name as string);
+      toast(`${connName}: testing connection...`, "info");
+      const result = await testConnection(connName);
+      setTestResult((prev) => ({ ...prev, [connName]: result }));
+      toast(result.status === "healthy" ? `${connName}: connection healthy` : `${connName}: ${result.message}`, result.status === "healthy" ? "success" : "error");
+    } catch (e) { toast(String(e), "error"); } finally { setSaving(false); }
+  }
+
+  function handleEditConnection(conn: ConnectionInfo) {
+    const connConfig = DB_CONFIGS[conn.db_type as DBType] || DB_CONFIGS.postgres;
+    setForm({
+      ...defaultForm,
+      name: conn.name,
+      db_type: conn.db_type as DBType,
+      connectionMode: connConfig.connectionModes[0],
+      host: conn.host || "",
+      port: String(conn.port || connConfig.defaultPort || ""),
+      database: conn.database || "",
+      username: conn.username || "",
+      password: "", // Never pre-fill passwords
+      description: conn.description || "",
+      account: conn.account || "",
+      warehouse: conn.warehouse || "",
+      schema_name: conn.schema_name || "",
+      role: conn.role || "",
+      project: conn.project || "",
+      dataset: conn.dataset || "",
+      http_path: conn.http_path || "",
+      catalog: conn.catalog || "",
+      ssl_enabled: conn.ssl || false,
+      ssl_mode: conn.ssl_config?.mode || "require",
+      ssl_ca_cert: conn.ssl_config?.ca_cert || "",
+      ssl_client_cert: conn.ssl_config?.client_cert || "",
+      ssl_client_key: conn.ssl_config?.client_key || "",
+      ssh_enabled: conn.ssh_tunnel?.enabled || false,
+      ssh_host: conn.ssh_tunnel?.host || "",
+      ssh_port: String(conn.ssh_tunnel?.port || 22),
+      ssh_username: conn.ssh_tunnel?.username || "",
+      ssh_auth_method: conn.ssh_tunnel?.auth_method || "password",
+    });
+    setEditingConnection(conn.name);
+    setShowForm(true);
+    setShowAdvanced(!!(conn.ssl || conn.ssh_tunnel?.enabled));
   }
 
   async function handleTest(name: string) {
@@ -748,7 +823,7 @@ export default function ConnectionsPage() {
             <div className="flex items-center gap-2">
               <DbTypeIcon type={form.db_type} />
               <span className="text-[10px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">
-                new {DB_CONFIGS[form.db_type].label} connection
+                {editingConnection ? `edit ${editingConnection}` : `new ${DB_CONFIGS[form.db_type].label} connection`}
               </span>
             </div>
             <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider opacity-50">
@@ -784,7 +859,14 @@ export default function ConnectionsPage() {
 
             {/* Name + Description */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <FormInput label="connection name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="prod-analytics" hint="alphanumeric, dashes, underscores" required />
+              {editingConnection ? (
+                <div>
+                  <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">connection name</label>
+                  <div className="px-3 py-2 bg-[var(--color-bg-hover)] border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] tracking-wide">{editingConnection}</div>
+                </div>
+              ) : (
+                <FormInput label="connection name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="prod-analytics" hint="alphanumeric, dashes, underscores" required />
+              )}
               <FormInput label="description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Production analytics DB" />
             </div>
 
@@ -841,17 +923,22 @@ export default function ConnectionsPage() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-3 mt-5 pt-4 border-t border-[var(--color-border)]">
-              <button onClick={handleCreate} disabled={saving || !form.name} className="flex items-center gap-2 px-4 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium tracking-wider uppercase transition-all hover:opacity-90 disabled:opacity-30">
+              <button onClick={handleCreate} disabled={saving || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium tracking-wider uppercase transition-all hover:opacity-90 disabled:opacity-30">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                save connection
+                {editingConnection ? "update connection" : "save connection"}
               </button>
-              <button onClick={handleCreate} disabled={saving || !form.name} className="flex items-center gap-2 px-4 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider">
+              <button onClick={handleSaveAndTest} disabled={saving || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider">
                 <TestTube className="w-3.5 h-3.5" strokeWidth={1.5} />
-                save & test
+                {editingConnection ? "update & test" : "save & test"}
               </button>
-              <button onClick={() => { setShowForm(false); setForm({ ...defaultForm }); setShowAdvanced(false); }} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+              <button onClick={() => { setShowForm(false); setEditingConnection(null); setForm({ ...defaultForm }); setShowAdvanced(false); }} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
                 cancel
               </button>
+              {editingConnection && (
+                <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider opacity-60 ml-auto">
+                  leave password blank to keep existing credentials
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -1018,6 +1105,10 @@ export default function ConnectionsPage() {
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-all tracking-wider">
                       {testing === conn.name ? <Loader2 className="w-3 h-3 animate-spin" /> : <TestTube className="w-3 h-3" strokeWidth={1.5} />}
                       test
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleEditConnection(conn); }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-all tracking-wider">
+                      <Pencil className="w-3 h-3" strokeWidth={1.5} /> edit
                     </button>
                     <button onClick={() => handleDelete(conn.name)}
                       className="p-1.5 text-[var(--color-text-dim)] hover:text-[var(--color-error)] hover:bg-[var(--color-error)]/5 transition-all">

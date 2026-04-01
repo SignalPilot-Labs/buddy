@@ -43,8 +43,14 @@ export const updateSettings = (s: import("./types").GatewaySettings) =>
 export const getConnections = () => request<import("./types").ConnectionInfo[]>("/api/connections");
 export const createConnection = (c: Record<string, unknown>) =>
   request<import("./types").ConnectionInfo>("/api/connections", { method: "POST", body: JSON.stringify(c) });
+export const updateConnection = (name: string, updates: Record<string, unknown>) =>
+  request<import("./types").ConnectionInfo>(`/api/connections/${name}`, { method: "PUT", body: JSON.stringify(updates) });
 export const deleteConnection = (name: string) =>
   request<void>(`/api/connections/${name}`, { method: "DELETE" });
+export const refreshConnectionSchema = (name: string) =>
+  request<{ connection_name: string; table_count: number; message: string }>(
+    `/api/connections/${name}/schema/refresh`, { method: "POST" }
+  );
 export const testConnection = (name: string) =>
   request<{
     status: string;
