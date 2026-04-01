@@ -11,6 +11,7 @@ import {
   Zap,
   Search,
   Table2,
+  Activity,
 } from "lucide-react";
 
 const nav = [
@@ -19,6 +20,7 @@ const nav = [
   { href: "/schema", label: "Schema Explorer", icon: Table2 },
   { href: "/sandboxes", label: "Sandboxes", icon: Terminal },
   { href: "/connections", label: "Connections", icon: Database },
+  { href: "/health", label: "System Health", icon: Activity },
   { href: "/audit", label: "Audit Log", icon: ScrollText },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

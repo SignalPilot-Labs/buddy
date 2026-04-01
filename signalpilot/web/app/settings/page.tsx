@@ -15,6 +15,9 @@ import {
   EyeOff,
   Info,
   Copy,
+  Plus,
+  X,
+  Ban,
 } from "lucide-react";
 import { getSettings, updateSettings, getHealth, setApiKey } from "@/lib/api";
 import type { GatewaySettings } from "@/lib/types";
@@ -29,6 +32,8 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showGatewayKey, setShowGatewayKey] = useState(false);
   const [browserKeySaved, setBrowserKeySaved] = useState(false);
+  const [blockedTables, setBlockedTables] = useState<string[]>([]);
+  const [newBlockedTable, setNewBlockedTable] = useState("");
 
   useEffect(() => {
     getSettings().then(setSettings).catch(() => {});
@@ -321,6 +326,81 @@ export default function SettingsPage() {
                 Per-query hard timeout
               </p>
             </div>
+          </div>
+
+          {/* Blocked Tables */}
+          <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+            <div className="flex items-center gap-2 mb-3">
+              <Ban className="w-3.5 h-3.5 text-[var(--color-error)]" />
+              <h3 className="text-xs font-semibold uppercase tracking-wider">
+                Blocked Tables
+              </h3>
+            </div>
+            <p className="text-xs text-[var(--color-text-dim)] mb-3">
+              Tables listed here are rejected at the policy check step before execution.
+              Queries referencing these tables will be blocked with a governance error.
+            </p>
+
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="text"
+                value={newBlockedTable}
+                onChange={(e) => setNewBlockedTable(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newBlockedTable.trim()) {
+                    e.preventDefault();
+                    const table = newBlockedTable.trim().toLowerCase();
+                    if (!blockedTables.includes(table)) {
+                      setBlockedTables([...blockedTables, table]);
+                    }
+                    setNewBlockedTable("");
+                  }
+                }}
+                placeholder="e.g. users_private, financial_records"
+                className="flex-1 px-3 py-2 rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] text-sm focus:outline-none focus:border-[var(--color-accent)]"
+              />
+              <button
+                onClick={() => {
+                  const table = newBlockedTable.trim().toLowerCase();
+                  if (table && !blockedTables.includes(table)) {
+                    setBlockedTables([...blockedTables, table]);
+                  }
+                  setNewBlockedTable("");
+                }}
+                disabled={!newBlockedTable.trim()}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs text-[var(--color-error)] border border-[var(--color-error)]/20 hover:bg-[var(--color-error)]/5 transition-colors disabled:opacity-40"
+              >
+                <Plus className="w-3 h-3" /> Block
+              </button>
+            </div>
+
+            {blockedTables.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {blockedTables.map((table) => (
+                  <span
+                    key={table}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--color-error)]/5 border border-[var(--color-error)]/20 text-xs"
+                  >
+                    <Ban className="w-3 h-3 text-[var(--color-error)]" />
+                    <code className="text-[var(--color-text)]">{table}</code>
+                    <button
+                      onClick={() =>
+                        setBlockedTables(blockedTables.filter((t) => t !== table))
+                      }
+                      className="ml-0.5 p-0.5 rounded hover:bg-[var(--color-error)]/10 text-[var(--color-text-dim)] hover:text-[var(--color-error)] transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {blockedTables.length === 0 && (
+              <p className="text-xs text-[var(--color-text-dim)] italic">
+                No tables blocked. Add table names above to enforce access restrictions.
+              </p>
+            )}
           </div>
         </div>
       </section>

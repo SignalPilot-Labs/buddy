@@ -12,16 +12,103 @@ import {
   Database,
   DollarSign,
   Shield,
+  Download,
+  Maximize2,
+  Minimize2,
+  Copy,
+  Check,
+  Image as ImageIcon,
+  FileText,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { getSandbox, executeSandbox, deleteSandbox } from "@/lib/api";
 import type { SandboxInfo } from "@/lib/types";
 
 interface HistoryEntry {
-  type: "input" | "output" | "error" | "system";
+  type: "input" | "output" | "error" | "system" | "image" | "html";
   text: string;
   timestamp: number;
   execution_ms?: number;
+  /** Base64 image data (for type=image) */
+  imageData?: string;
+  /** HTML content (for type=html) */
+  htmlContent?: string;
+  collapsed?: boolean;
 }
+
+/** Detect if output contains base64 image data */
+function extractRichOutput(output: string): {
+  text: string;
+  images: string[];
+  html: string | null;
+} {
+  const images: string[] = [];
+  let html: string | null = null;
+  let text = output;
+
+  // Extract base64 PNG/JPEG markers: data:image/png;base64,...
+  const imgRegex = /data:image\/(png|jpeg|svg\+xml);base64,[A-Za-z0-9+/=]+/g;
+  let match;
+  while ((match = imgRegex.exec(output)) !== null) {
+    images.push(match[0]);
+    text = text.replace(match[0], `[Image ${images.length}]`);
+  }
+
+  // Detect HTML table output (common from pandas .to_html())
+  const htmlTableMatch = output.match(/<table[\s\S]*?<\/table>/i);
+  if (htmlTableMatch) {
+    html = htmlTableMatch[0];
+    text = text.replace(htmlTableMatch[0], "[HTML Table]");
+  }
+
+  return { text: text.trim(), images, html };
+}
+
+const EXAMPLE_SNIPPETS = [
+  {
+    label: "Data Analysis",
+    code: `import pandas as pd
+import numpy as np
+
+# Create sample data
+df = pd.DataFrame({
+    'date': pd.date_range('2024-01-01', periods=30),
+    'revenue': np.random.uniform(1000, 5000, 30),
+    'users': np.random.randint(100, 1000, 30)
+})
+
+print(df.describe())`,
+  },
+  {
+    label: "Chart",
+    code: `import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.linspace(0, 10, 100)
+plt.figure(figsize=(8, 4))
+plt.plot(x, np.sin(x), label='sin(x)')
+plt.plot(x, np.cos(x), label='cos(x)')
+plt.legend()
+plt.title('Trigonometric Functions')
+plt.grid(True, alpha=0.3)
+plt.savefig('/tmp/chart.png', dpi=100, bbox_inches='tight')
+print("Chart saved to /tmp/chart.png")`,
+  },
+  {
+    label: "SQL Query",
+    code: `# Query through the governed gateway
+import requests
+import os
+
+resp = requests.post(f"{os.environ.get('SP_GATEWAY_URL', 'http://localhost:3300')}/api/query", json={
+    "connection_name": "default",
+    "sql": "SELECT * FROM users LIMIT 5",
+    "row_limit": 100
+})
+print(resp.json())`,
+  },
+];
 
 export default function SandboxDetailPage() {
   const params = useParams();
@@ -33,6 +120,9 @@ export default function SandboxDetailPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showSnippets, setShowSnippets] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -47,7 +137,7 @@ export default function SandboxDetailPage() {
               sb.connection_name
                 ? `Connected to: ${sb.connection_name}`
                 : "No database connection."
-            }`,
+            }\nBudget: $${sb.budget_usd.toFixed(2)} | Row limit: ${sb.row_limit.toLocaleString()} | Status: ${sb.status}`,
             timestamp: Date.now(),
           },
         ]);
@@ -58,6 +148,14 @@ export default function SandboxDetailPage() {
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [history]);
+
+  // Refresh sandbox state periodically
+  useEffect(() => {
+    const i = setInterval(() => {
+      getSandbox(sandboxId).then(setSandbox).catch(() => {});
+    }, 10000);
+    return () => clearInterval(i);
+  }, [sandboxId]);
 
   const handleExecute = useCallback(async () => {
     if (!code.trim() || running) return;
@@ -74,15 +172,47 @@ export default function SandboxDetailPage() {
     try {
       const result = await executeSandbox(sandboxId, input, 30);
       if (result.success) {
-        setHistory((h) => [
-          ...h,
-          {
-            type: "output",
-            text: result.output || "(no output)",
-            timestamp: Date.now(),
-            execution_ms: result.execution_ms ?? undefined,
-          },
-        ]);
+        const rich = extractRichOutput(result.output || "(no output)");
+
+        // Add text output
+        if (rich.text) {
+          setHistory((h) => [
+            ...h,
+            {
+              type: "output",
+              text: rich.text,
+              timestamp: Date.now(),
+              execution_ms: result.execution_ms ?? undefined,
+            },
+          ]);
+        }
+
+        // Add images
+        for (const img of rich.images) {
+          setHistory((h) => [
+            ...h,
+            {
+              type: "image",
+              text: "",
+              imageData: img,
+              timestamp: Date.now(),
+            },
+          ]);
+        }
+
+        // Add HTML output
+        if (rich.html) {
+          const htmlStr = rich.html;
+          setHistory((h) => [
+            ...h,
+            {
+              type: "html",
+              text: "",
+              htmlContent: htmlStr,
+              timestamp: Date.now(),
+            },
+          ]);
+        }
       } else {
         setHistory((h) => [
           ...h,
@@ -112,6 +242,18 @@ export default function SandboxDetailPage() {
       e.preventDefault();
       handleExecute();
     }
+    // Tab indentation
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const target = e.target as HTMLTextAreaElement;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      setCode(code.substring(0, start) + "    " + code.substring(end));
+      // Set cursor position after indent
+      setTimeout(() => {
+        target.selectionStart = target.selectionEnd = start + 4;
+      }, 0);
+    }
   }
 
   async function handleKill() {
@@ -120,10 +262,47 @@ export default function SandboxDetailPage() {
     router.push("/sandboxes");
   }
 
+  function copyOutput() {
+    const textEntries = history
+      .filter((h) => h.type === "output" || h.type === "error")
+      .map((h) => h.text)
+      .join("\n\n");
+    navigator.clipboard.writeText(textEntries);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function downloadOutput() {
+    const textEntries = history
+      .map((h) => {
+        if (h.type === "input") return `In: ${h.text}`;
+        if (h.type === "output") return `Out: ${h.text}`;
+        if (h.type === "error") return `Error: ${h.text}`;
+        if (h.type === "system") return `# ${h.text}`;
+        return "";
+      })
+      .join("\n\n");
+    const blob = new Blob([textEntries], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sandbox-${sandboxId.slice(0, 8)}-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (error) {
     return (
       <div className="p-8">
-        <p className="text-[var(--color-error)]">{error}</p>
+        <button
+          onClick={() => router.push("/sandboxes")}
+          className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Sandboxes
+        </button>
+        <div className="p-4 rounded-xl bg-[var(--color-error)]/5 border border-[var(--color-error)]/20">
+          <p className="text-[var(--color-error)]">{error}</p>
+        </div>
       </div>
     );
   }
@@ -136,10 +315,15 @@ export default function SandboxDetailPage() {
     );
   }
 
+  const budgetPct =
+    sandbox.budget_usd > 0
+      ? (sandbox.budget_used / sandbox.budget_usd) * 100
+      : 0;
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg-card)]">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-bg-card)] flex-shrink-0">
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/sandboxes")}
@@ -157,7 +341,9 @@ export default function SandboxDetailPage() {
                   className={`w-1.5 h-1.5 rounded-full ${
                     sandbox.status === "running"
                       ? "bg-[var(--color-success)]"
-                      : "bg-blue-500"
+                      : sandbox.status === "error"
+                        ? "bg-[var(--color-error)]"
+                        : "bg-blue-500"
                   }`}
                 />
                 {sandbox.status}
@@ -165,7 +351,7 @@ export default function SandboxDetailPage() {
               {sandbox.vm_id && (
                 <span className="flex items-center gap-1">
                   <Cpu className="w-3 h-3" />
-                  {sandbox.vm_id}
+                  <code className="text-[10px]">{sandbox.vm_id}</code>
                 </span>
               )}
               {sandbox.connection_name && (
@@ -174,38 +360,111 @@ export default function SandboxDetailPage() {
                   {sandbox.connection_name}
                 </span>
               )}
-              <span className="flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
-                ${sandbox.budget_used.toFixed(4)} / ${sandbox.budget_usd.toFixed(2)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-[var(--color-success)]" />
-                Row limit: {sandbox.row_limit.toLocaleString()}
-              </span>
             </div>
           </div>
         </div>
-        <button
-          onClick={handleKill}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" /> Kill
-        </button>
+
+        <div className="flex items-center gap-3">
+          {/* Budget indicator */}
+          <div className="flex items-center gap-2">
+            <DollarSign className="w-3.5 h-3.5 text-[var(--color-text-dim)]" />
+            <div className="w-24">
+              <div className="flex justify-between text-[10px] text-[var(--color-text-dim)] mb-0.5">
+                <span>${sandbox.budget_used.toFixed(4)}</span>
+                <span>${sandbox.budget_usd.toFixed(2)}</span>
+              </div>
+              <div className="w-full h-1.5 bg-[var(--color-bg)] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    budgetPct > 80
+                      ? "bg-[var(--color-error)]"
+                      : budgetPct > 50
+                        ? "bg-[var(--color-warning)]"
+                        : "bg-[var(--color-success)]"
+                  }`}
+                  style={{ width: `${Math.min(100, budgetPct)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="h-4 w-px bg-[var(--color-border)]" />
+
+          <span className="flex items-center gap-1 text-xs text-[var(--color-text-dim)]">
+            <Shield className="w-3 h-3 text-[var(--color-success)]" />
+            {sandbox.row_limit.toLocaleString()}
+          </span>
+
+          {sandbox.uptime_sec != null && sandbox.uptime_sec > 0 && (
+            <span className="flex items-center gap-1 text-xs text-[var(--color-text-dim)]">
+              <Clock className="w-3 h-3" />
+              {sandbox.uptime_sec < 60
+                ? `${sandbox.uptime_sec.toFixed(0)}s`
+                : `${(sandbox.uptime_sec / 60).toFixed(0)}m`}
+            </span>
+          )}
+
+          <div className="h-4 w-px bg-[var(--color-border)]" />
+
+          {/* Action buttons */}
+          <button
+            onClick={copyOutput}
+            className="p-1.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors"
+            title="Copy all output"
+          >
+            {copied ? (
+              <Check className="w-3.5 h-3.5 text-[var(--color-success)]" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
+            onClick={downloadOutput}
+            className="p-1.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors"
+            title="Download session transcript"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="p-1.5 rounded hover:bg-[var(--color-bg-hover)] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors"
+            title={expanded ? "Collapse" : "Expand"}
+          >
+            {expanded ? (
+              <Minimize2 className="w-3.5 h-3.5" />
+            ) : (
+              <Maximize2 className="w-3.5 h-3.5" />
+            )}
+          </button>
+          <button
+            onClick={handleKill}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-[var(--color-error)] hover:bg-[var(--color-error)]/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Kill
+          </button>
+        </div>
       </div>
 
       {/* Terminal output */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-auto p-4 font-mono text-sm space-y-1"
+        className="flex-1 overflow-auto p-4 font-mono text-sm space-y-2"
       >
         {history.map((entry, i) => (
           <div key={i} className="flex gap-2">
             {entry.type === "input" && (
               <div className="w-full">
                 <div className="flex items-center gap-2 text-[var(--color-accent)] mb-0.5">
-                  <span className="text-xs opacity-60">In [{history.filter((h, j) => j <= i && h.type === "input").length}]:</span>
+                  <span className="text-xs opacity-60">
+                    In [
+                    {
+                      history.filter((h, j) => j <= i && h.type === "input")
+                        .length
+                    }
+                    ]:
+                  </span>
                 </div>
-                <pre className="whitespace-pre-wrap text-[var(--color-text)] bg-[var(--color-bg-card)] p-3 rounded-lg border border-[var(--color-border)]">
+                <pre className="whitespace-pre-wrap text-[var(--color-text)] bg-[var(--color-bg-card)] p-3 rounded-lg border border-[var(--color-border)] text-xs leading-relaxed">
                   {entry.text}
                 </pre>
               </div>
@@ -214,7 +473,12 @@ export default function SandboxDetailPage() {
               <div className="w-full">
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-xs text-[var(--color-success)] opacity-60">
-                    Out [{history.filter((h, j) => j <= i && h.type === "output").length}]:
+                    Out [
+                    {
+                      history.filter((h, j) => j <= i && h.type === "output")
+                        .length
+                    }
+                    ]:
                   </span>
                   {entry.execution_ms != null && (
                     <span className="text-xs text-[var(--color-text-dim)] flex items-center gap-1">
@@ -223,14 +487,45 @@ export default function SandboxDetailPage() {
                     </span>
                   )}
                 </div>
-                <pre className="whitespace-pre-wrap text-[var(--color-text)]">
+                <pre className="whitespace-pre-wrap text-[var(--color-text)] text-xs leading-relaxed">
                   {entry.text}
                 </pre>
               </div>
             )}
+            {entry.type === "image" && entry.imageData && (
+              <div className="w-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <ImageIcon className="w-3 h-3 text-purple-400" />
+                  <span className="text-xs text-purple-400">Image Output</span>
+                </div>
+                <div className="bg-white rounded-lg p-2 inline-block border border-[var(--color-border)]">
+                  <img
+                    src={entry.imageData}
+                    alt="Sandbox output"
+                    className="max-w-full max-h-96 rounded"
+                  />
+                </div>
+              </div>
+            )}
+            {entry.type === "html" && entry.htmlContent && (
+              <div className="w-full">
+                <div className="flex items-center gap-2 mb-1">
+                  <FileText className="w-3 h-3 text-blue-400" />
+                  <span className="text-xs text-blue-400">
+                    DataFrame Output
+                  </span>
+                </div>
+                <div className="bg-[var(--color-bg-card)] rounded-lg border border-[var(--color-border)] overflow-x-auto max-h-96">
+                  <div
+                    className="sandbox-html-output text-xs [&_table]:w-full [&_table]:text-left [&_th]:px-3 [&_th]:py-2 [&_th]:text-[10px] [&_th]:font-medium [&_th]:text-[var(--color-text-muted)] [&_th]:uppercase [&_th]:tracking-wider [&_th]:border-b [&_th]:border-[var(--color-border)] [&_td]:px-3 [&_td]:py-1.5 [&_td]:text-[var(--color-text)] [&_td]:border-b [&_td]:border-[var(--color-border)]/30 [&_tr:hover]:bg-[var(--color-bg-hover)]"
+                    dangerouslySetInnerHTML={{ __html: entry.htmlContent }}
+                  />
+                </div>
+              </div>
+            )}
             {entry.type === "error" && (
               <div className="w-full">
-                <pre className="whitespace-pre-wrap text-[var(--color-error)] bg-[var(--color-error)]/5 p-3 rounded-lg border border-[var(--color-error)]/20">
+                <pre className="whitespace-pre-wrap text-[var(--color-error)] bg-[var(--color-error)]/5 p-3 rounded-lg border border-[var(--color-error)]/20 text-xs leading-relaxed">
                   {entry.text}
                 </pre>
               </div>
@@ -243,42 +538,78 @@ export default function SandboxDetailPage() {
           </div>
         ))}
         {running && (
-          <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-xs py-1">
-            <Loader2 className="w-3 h-3 animate-spin" /> Executing...
+          <div className="flex items-center gap-2 text-[var(--color-text-muted)] text-xs py-2">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            <span>Executing in isolated Firecracker microVM...</span>
           </div>
         )}
       </div>
 
       {/* Input area */}
-      <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-card)] p-4">
-        <div className="flex gap-3">
+      <div className="border-t border-[var(--color-border)] bg-[var(--color-bg-card)] flex-shrink-0">
+        {/* Snippet bar */}
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+          <button
+            onClick={() => setShowSnippets(!showSnippets)}
+            className="flex items-center gap-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text-muted)] transition-colors"
+          >
+            {showSnippets ? (
+              <ChevronDown className="w-3 h-3" />
+            ) : (
+              <ChevronRight className="w-3 h-3" />
+            )}
+            Snippets
+          </button>
+          {showSnippets &&
+            EXAMPLE_SNIPPETS.map((snippet, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCode(snippet.code)}
+                className="px-2 py-0.5 rounded text-[10px] text-[var(--color-accent)] bg-[var(--color-accent)]/5 hover:bg-[var(--color-accent)]/10 transition-colors"
+              >
+                {snippet.label}
+              </button>
+            ))}
+        </div>
+
+        <div className="flex gap-3 p-4 pt-2">
           <textarea
             ref={textareaRef}
             value={code}
             onChange={(e) => setCode(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Enter Python code... (Ctrl+Enter to run)"
-            rows={3}
-            className="flex-1 px-4 py-3 rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] text-sm font-mono focus:outline-none focus:border-[var(--color-accent)] resize-none placeholder:text-[var(--color-text-dim)]"
+            placeholder="Enter Python code... (Ctrl+Enter to run, Tab to indent)"
+            rows={expanded ? 12 : 4}
+            spellCheck={false}
+            className="flex-1 px-4 py-3 rounded-lg bg-[var(--color-bg-input)] border border-[var(--color-border)] text-sm font-mono focus:outline-none focus:border-[var(--color-accent)] resize-none placeholder:text-[var(--color-text-dim)] leading-relaxed"
             autoFocus
           />
-          <button
-            onClick={handleExecute}
-            disabled={running || !code.trim()}
-            className="self-end flex items-center gap-2 px-5 py-3 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50"
-          >
-            {running ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
-            Run
-          </button>
+          <div className="flex flex-col gap-2 self-end">
+            <button
+              onClick={handleExecute}
+              disabled={running || !code.trim()}
+              className="flex items-center gap-2 px-5 py-3 rounded-lg bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              {running ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Play className="w-4 h-4" />
+              )}
+              Run
+            </button>
+          </div>
         </div>
-        <p className="text-xs text-[var(--color-text-dim)] mt-2">
-          Code runs inside an isolated Firecracker microVM. Ctrl+Enter to
-          execute.
-        </p>
+        <div className="flex items-center justify-between px-4 pb-3">
+          <p className="text-[10px] text-[var(--color-text-dim)]">
+            Code runs inside an isolated Firecracker microVM. Ctrl+Enter to
+            execute. Tab to indent.
+          </p>
+          {code.length > 0 && (
+            <span className="text-[10px] text-[var(--color-text-dim)] tabular-nums">
+              {code.length} chars &middot; {code.split("\n").length} lines
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
