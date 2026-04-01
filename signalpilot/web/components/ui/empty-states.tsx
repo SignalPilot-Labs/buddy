@@ -176,12 +176,19 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
-      <div className="mb-4 opacity-40">
+      <div className="mb-5 opacity-40 relative">
         <Icon className="" />
+        {/* Subtle radial glow behind icon */}
+        <div
+          className="absolute inset-0 -m-4 pointer-events-none"
+          style={{
+            background: "radial-gradient(circle at center, rgba(255,255,255,0.02) 0%, transparent 70%)",
+          }}
+        />
       </div>
-      <p className="text-xs text-[var(--color-text-muted)] mb-1 tracking-wider">{title}</p>
-      <p className="text-[10px] text-[var(--color-text-dim)] tracking-wider max-w-xs">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
+      <p className="text-xs text-[var(--color-text-muted)] mb-1.5 tracking-wider">{title}</p>
+      <p className="text-[10px] text-[var(--color-text-dim)] tracking-wider max-w-xs leading-relaxed">{description}</p>
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
