@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote as url_quote
 
 import aiofiles
 
@@ -50,6 +52,11 @@ def _load_json(path: Path, default: Any) -> Any:
 def _save_json(path: Path, data: Any):
     _ensure_data_dir()
     path.write_text(json.dumps(data, indent=2))
+    # Restrict file permissions to owner-only (0600) for sensitive data
+    try:
+        path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass  # May fail on some filesystems (Windows, Docker volumes)
 
 
 # ─── Settings ────────────────────────────────────────────────────────────────
@@ -125,11 +132,14 @@ def get_connection_string(name: str) -> str | None:
 
 def _build_connection_string(conn: ConnectionCreate) -> str:
     if conn.db_type == DBType.postgres:
-        pw = f":{conn.password}" if conn.password else ""
+        # URL-encode username and password to handle special chars (@, :, #, etc.)
+        user = url_quote(conn.username or "", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
         host = conn.host or "localhost"
         port = conn.port or 5432
         db = conn.database or "postgres"
-        return f"postgresql://{conn.username}{pw}@{host}:{port}/{db}"
+        ssl_param = "?sslmode=require" if conn.ssl else ""
+        return f"postgresql://{user}{pw}@{host}:{port}/{db}{ssl_param}"
     elif conn.db_type == DBType.duckdb:
         return conn.database or ":memory:"
     return ""
