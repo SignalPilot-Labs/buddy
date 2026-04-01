@@ -248,6 +248,31 @@ async def test_connection(name: str):
         return {"status": "error", "message": _sanitize_db_error(str(e))}
 
 
+@app.get("/api/connections/{name}/schema")
+async def get_connection_schema(name: str):
+    """Retrieve the full schema for a database connection (Feature #18: schema caching)."""
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    conn_str = get_connection_string(name)
+    if not conn_str:
+        raise HTTPException(status_code=400, detail="No credentials stored for this connection")
+
+    try:
+        connector = await pool_manager.acquire(info.db_type, conn_str)
+        schema = await connector.get_schema()
+        await pool_manager.release(info.db_type, conn_str)
+        return {
+            "connection_name": name,
+            "db_type": info.db_type,
+            "table_count": len(schema),
+            "tables": schema,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+
+
 # ─── Sandboxes ───────────────────────────────────────────────────────────────
 
 @app.get("/api/sandboxes")

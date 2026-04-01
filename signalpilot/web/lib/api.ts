@@ -47,6 +47,13 @@ export const deleteConnection = (name: string) =>
   request<void>(`/api/connections/${name}`, { method: "DELETE" });
 export const testConnection = (name: string) =>
   request<{ status: string; message: string }>(`/api/connections/${name}/test`, { method: "POST" });
+export const getConnectionSchema = (name: string) =>
+  request<{
+    connection_name: string;
+    db_type: string;
+    table_count: number;
+    tables: Record<string, { schema: string; name: string; columns: { name: string; type: string; nullable: boolean; primary_key?: boolean }[] }>;
+  }>(`/api/connections/${name}/schema`);
 
 // Sandboxes
 export const getSandboxes = () => request<import("./types").SandboxInfo[]>("/api/sandboxes");

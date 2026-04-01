@@ -10,11 +10,13 @@ import {
   Settings,
   Zap,
   Search,
+  Table2,
 } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/query", label: "Query Explorer", icon: Search },
+  { href: "/schema", label: "Schema Explorer", icon: Table2 },
   { href: "/sandboxes", label: "Sandboxes", icon: Terminal },
   { href: "/connections", label: "Connections", icon: Database },
   { href: "/audit", label: "Audit Log", icon: ScrollText },
