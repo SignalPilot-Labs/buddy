@@ -351,40 +351,72 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={entry.id}
-                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-bg-hover)] transition-colors group"
+                    className="group/row hover:bg-[var(--color-bg-hover)] transition-all"
                   >
-                    <span className={`text-[9px] font-medium uppercase tracking-[0.15em] w-8 ${
-                      entry.blocked ? "text-[var(--color-error)]" : cfg.color
-                    }`}>
-                      {cfg.label}
-                    </span>
-                    <span className="flex-1 text-xs truncate overflow-hidden">
-                      {entry.sql
-                        ? <SqlHighlight sql={entry.sql.slice(0, 80)} className="text-xs" />
-                        : <span className="text-[var(--color-text-muted)]">{entry.metadata?.code_preview
-                          ? String(entry.metadata.code_preview).slice(0, 80)
-                          : entry.connection_name || "—"}</span>}
-                    </span>
-                    {entry.blocked && (
-                      <span className="text-[9px] px-1.5 py-0.5 border border-[var(--color-error)]/30 text-[var(--color-error)] tracking-wider uppercase">
-                        blocked
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <span className={`text-[9px] font-medium uppercase tracking-[0.15em] w-8 ${
+                        entry.blocked ? "text-[var(--color-error)]" : cfg.color
+                      }`}>
+                        {cfg.label}
                       </span>
-                    )}
-                    {entry.rows_returned != null && (
-                      <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">
-                        {entry.rows_returned}r
+                      <span className="flex-1 text-xs truncate overflow-hidden">
+                        {entry.sql
+                          ? <SqlHighlight sql={entry.sql.slice(0, 80)} className="text-xs" />
+                          : <span className="text-[var(--color-text-muted)]">{entry.metadata?.code_preview
+                            ? String(entry.metadata.code_preview).slice(0, 80)
+                            : entry.connection_name || "—"}</span>}
                       </span>
-                    )}
-                    {entry.duration_ms != null && (
-                      <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">
-                        {entry.duration_ms.toFixed(0)}ms
-                      </span>
-                    )}
-                    <TimeAgo
-                      timestamp={entry.timestamp}
-                      live
-                      className="text-[10px] text-[var(--color-text-dim)] w-10 text-right flex-shrink-0"
-                    />
+                      {entry.blocked && (
+                        <span className="text-[9px] px-1.5 py-0.5 border border-[var(--color-error)]/30 text-[var(--color-error)] tracking-wider uppercase">
+                          blocked
+                        </span>
+                      )}
+                      {entry.rows_returned != null && (
+                        <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">
+                          {entry.rows_returned}r
+                        </span>
+                      )}
+                      {entry.duration_ms != null && (
+                        <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">
+                          {entry.duration_ms.toFixed(0)}ms
+                        </span>
+                      )}
+                      <TimeAgo
+                        timestamp={entry.timestamp}
+                        live
+                        className="text-[10px] text-[var(--color-text-dim)] w-10 text-right flex-shrink-0"
+                      />
+                    </div>
+                    {/* Hover-reveal detail row */}
+                    <div className="grid grid-cols-[2rem_1fr] gap-3 px-4 max-h-0 overflow-hidden opacity-0 group-hover/row:max-h-16 group-hover/row:opacity-100 group-hover/row:pb-2.5 transition-all duration-200 ease-out">
+                      <span />
+                      <div className="flex items-center gap-4 text-[9px] text-[var(--color-text-dim)] tracking-wider">
+                        {entry.connection_name && (
+                          <span className="flex items-center gap-1">
+                            <span className="w-1 h-1 bg-[var(--color-text-dim)] opacity-40" />
+                            {entry.connection_name}
+                          </span>
+                        )}
+                        {entry.sandbox_id && (
+                          <span className="flex items-center gap-1 font-mono tabular-nums">
+                            sbx:{entry.sandbox_id.slice(0, 8)}
+                          </span>
+                        )}
+                        {entry.metadata?.governance_latency_ms != null && (
+                          <span>gov: {Number(entry.metadata.governance_latency_ms).toFixed(1)}ms</span>
+                        )}
+                        {entry.metadata?.stages_applied != null && (
+                          <span className="flex items-center gap-1">
+                            stages: {String(entry.metadata.stages_applied)}
+                          </span>
+                        )}
+                        {entry.blocked && entry.block_reason && (
+                          <span className="text-[var(--color-error)]">
+                            reason: {entry.block_reason}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })
