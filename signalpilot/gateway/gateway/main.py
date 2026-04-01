@@ -423,9 +423,13 @@ async def query_database(req: DirectQueryRequest):
 
     # Load annotations for blocked tables check (Feature #19)
     annotations = load_annotations(req.connection_name)
-    blocked_tables = annotations.blocked_tables
+    blocked_tables = list(annotations.blocked_tables)
 
-    # Validate SQL (with blocked tables from annotations)
+    # Merge with settings-level blocked tables
+    if settings.blocked_tables:
+        blocked_tables.extend(t for t in settings.blocked_tables if t not in blocked_tables)
+
+    # Validate SQL (with blocked tables from annotations + settings)
     validation = validate_sql(req.sql, blocked_tables=blocked_tables or None)
     if not validation.ok:
         await append_audit(AuditEntry(

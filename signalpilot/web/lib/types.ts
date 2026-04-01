@@ -6,6 +6,7 @@ export interface GatewaySettings {
   default_budget_usd: number;
   default_timeout_seconds: number;
   max_concurrent_sandboxes: number;
+  blocked_tables: string[];
   gateway_url: string;
   api_key: string | null;
 }

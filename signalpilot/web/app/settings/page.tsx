@@ -36,7 +36,10 @@ export default function SettingsPage() {
   const [newBlockedTable, setNewBlockedTable] = useState("");
 
   useEffect(() => {
-    getSettings().then(setSettings).catch(() => {});
+    getSettings().then((s) => {
+      setSettings(s);
+      setBlockedTables(s.blocked_tables || []);
+    }).catch(() => {});
     // Load browser-side API key from localStorage
     const stored = localStorage.getItem("sp_api_key") || "";
     setBrowserApiKey(stored);
@@ -46,7 +49,7 @@ export default function SettingsPage() {
     if (!settings) return;
     setSaving(true);
     try {
-      await updateSettings(settings);
+      await updateSettings({ ...settings, blocked_tables: blockedTables });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {

@@ -28,6 +28,9 @@ class GatewaySettings(BaseModel):
     default_timeout_seconds: int = 30
     max_concurrent_sandboxes: int = 10
 
+    # Governance — blocked tables (Feature #19)
+    blocked_tables: list[str] = Field(default_factory=list)
+
     # Gateway
     gateway_url: str = "http://localhost:3300"
     api_key: str | None = None
