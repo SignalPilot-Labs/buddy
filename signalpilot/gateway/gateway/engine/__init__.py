@@ -134,11 +134,10 @@ def inject_limit(sql: str, max_rows: int = 10_000, dialect: str = "postgres") ->
     sql = sql.strip().rstrip(";")
 
     if not HAS_SQLGLOT:
-        # Fallback: always append LIMIT for safety even without AST parsing
-        upper = sql.upper()
-        if "LIMIT" not in upper:
-            return f"{sql} LIMIT {max_rows}"
-        return sql
+        # Fail-closed: refuse to process SQL without proper AST parsing.
+        # validate_sql() already blocks queries when sqlglot is missing,
+        # so this should never be reached in normal operation.
+        raise RuntimeError("SQL validation engine (sqlglot) is not available. Cannot safely inject LIMIT.")
 
     try:
         parsed = sqlglot.parse_one(sql, dialect=dialect)
