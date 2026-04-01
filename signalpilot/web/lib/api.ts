@@ -101,6 +101,12 @@ export const getBudget = (session_id: string) =>
 // Health
 export const getHealth = () => request<Record<string, unknown>>("/health");
 
+// Connection Health
+export const getConnectionsHealth = () =>
+  request<{ connections: import("./types").ConnectionHealthStats[] }>("/api/connections/health");
+export const getConnectionHealth = (name: string) =>
+  request<import("./types").ConnectionHealthStats>(`/api/connections/${name}/health`);
+
 // Cache
 export const getCacheStats = () =>
   request<{ entries: number; max_entries: number; ttl_seconds: number; hits: number; misses: number; hit_rate: number }>("/api/cache/stats");
