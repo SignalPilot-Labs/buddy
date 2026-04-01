@@ -18,6 +18,7 @@ import type { AuditEntry } from "@/lib/types";
 import { EmptyList, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
 import { ActivityDots, StatusDot } from "@/components/ui/data-viz";
+import { SqlHighlight } from "@/components/ui/sql-highlight";
 
 const typeIcons: Record<string, React.ElementType> = {
   query: DbIcon,
@@ -246,8 +247,8 @@ export default function AuditPage() {
                       {isExpanded && entry.sql && (
                         <div className="mt-3 ml-4 animate-fade-in">
                           <p className="text-[9px] uppercase tracking-[0.15em] text-[var(--color-text-dim)] mb-1">full sql</p>
-                          <pre className="whitespace-pre-wrap text-[11px] text-[var(--color-text-muted)] bg-[var(--color-bg)] p-3 border border-[var(--color-border)] max-h-40 overflow-auto">
-                            {entry.sql}
+                          <pre className="text-[11px] bg-[var(--color-bg)] p-3 border border-[var(--color-border)] max-h-40 overflow-auto">
+                            <SqlHighlight sql={entry.sql!} className="text-[11px]" />
                           </pre>
                           {entry.rows_returned != null && (
                             <p className="text-[9px] text-[var(--color-text-dim)] mt-2 tracking-wider">
@@ -281,9 +282,9 @@ export default function AuditPage() {
                     </td>
                     <td className="px-4 py-2.5 max-w-md align-top">
                       {entry.sql ? (
-                        <code className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-bg)] px-2 py-0.5 block truncate">
-                          {entry.sql}
-                        </code>
+                        <div className="text-[10px] bg-[var(--color-bg)] px-2 py-0.5 block truncate overflow-hidden">
+                          <SqlHighlight sql={entry.sql.slice(0, 120)} className="text-[10px]" />
+                        </div>
                       ) : entry.block_reason ? (
                         <span className="text-[10px] text-[var(--color-error)]">{entry.block_reason}</span>
                       ) : (

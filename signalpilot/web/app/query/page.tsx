@@ -23,6 +23,7 @@ import { EmptyQuery, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
 import { StatusDot } from "@/components/ui/data-viz";
 import { useToast } from "@/components/ui/toast";
+import { SqlHighlight } from "@/components/ui/sql-highlight";
 
 interface QueryResult {
   rows: Record<string, unknown>[];
@@ -419,9 +420,9 @@ export default function QueryExplorerPage() {
                 <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">
                   governed sql (limit injected):
                 </span>
-                <code className="text-[10px] text-[var(--color-text-dim)] truncate">
-                  {result.sql_executed}
-                </code>
+                <span className="text-[10px] truncate">
+                  <SqlHighlight sql={result.sql_executed} className="text-[10px]" />
+                </span>
               </div>
             </div>
           )}
@@ -455,9 +456,9 @@ export default function QueryExplorerPage() {
                 }}
                 className="w-full text-left px-4 py-2.5 hover:bg-[var(--color-bg-hover)] transition-colors group"
               >
-                <code className="text-[11px] text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] block truncate transition-colors">
-                  {h.sql}
-                </code>
+                <div className="text-[11px] block truncate overflow-hidden">
+                  <SqlHighlight sql={h.sql.slice(0, 100)} className="text-[11px]" />
+                </div>
                 <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--color-text-dim)] tracking-wider">
                   <span>{h.connection}</span>
                   <span className="tabular-nums">{h.duration_ms.toFixed(0)}ms</span>
