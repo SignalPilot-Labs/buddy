@@ -74,6 +74,14 @@ export const getAudit = (params?: Record<string, string | number>) => {
   return request<{ entries: import("./types").AuditEntry[]; total: number }>(`/api/audit${qs}`);
 };
 
+// Audit export
+export function getAuditExportUrl(format: "json" | "csv" = "json", eventType?: string, connectionName?: string): string {
+  const params = new URLSearchParams({ format });
+  if (eventType) params.set("event_type", eventType);
+  if (connectionName) params.set("connection_name", connectionName);
+  return `${GATEWAY_URL}/api/audit/export?${params}`;
+}
+
 // Query
 export const executeQuery = (connection_name: string, sql: string, row_limit = 1000) =>
   request<{

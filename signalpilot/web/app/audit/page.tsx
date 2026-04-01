@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { getAudit } from "@/lib/api";
+import { getAudit, getAuditExportUrl } from "@/lib/api";
 import type { AuditEntry } from "@/lib/types";
 
 const typeColors: Record<string, string> = {
@@ -103,6 +103,15 @@ export default function AuditPage() {
             <Download className="w-4 h-4" />
             Export CSV
           </button>
+          <a
+            href={getAuditExportUrl("json", typeFilter || undefined)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Compliance Export
+          </a>
           <button
             onClick={refresh}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-colors"
