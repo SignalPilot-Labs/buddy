@@ -63,6 +63,12 @@ body {
   100% { transform: translateY(100%); }
 }
 
+/* Empty state float */
+@keyframes empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
 /* Fade in */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
