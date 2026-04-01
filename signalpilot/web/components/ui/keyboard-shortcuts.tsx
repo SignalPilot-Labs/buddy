@@ -21,7 +21,9 @@ const SHORTCUTS = [
   { key: "3", label: "Schema Explorer", path: "/schema" },
   { key: "4", label: "Sandboxes", path: "/sandboxes" },
   { key: "5", label: "Connections", path: "/connections" },
-  { key: "6", label: "Audit Log", path: "/audit" },
+  { key: "6", label: "System Health", path: "/health" },
+  { key: "7", label: "Audit Log", path: "/audit" },
+  { key: "8", label: "Settings", path: "/settings" },
 ];
 
 export function KeyboardShortcuts() {
