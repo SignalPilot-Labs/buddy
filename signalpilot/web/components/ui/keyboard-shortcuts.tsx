@@ -15,7 +15,9 @@ const NAV_SHORTCUTS = [
 ];
 
 const ACTION_SHORTCUTS = [
+  { key: "K", label: "command palette", modifier: "ctrl" },
   { key: "enter", label: "execute query / run code", modifier: "ctrl" },
+  { key: "S", label: "save settings", modifier: "ctrl" },
   { key: "?", label: "show this dialog", modifier: "" },
 ];
 
