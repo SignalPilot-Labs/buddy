@@ -9,10 +9,12 @@ import {
   ScrollText,
   Settings,
   Zap,
+  Search,
 } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/query", label: "Query Explorer", icon: Search },
   { href: "/sandboxes", label: "Sandboxes", icon: Terminal },
   { href: "/connections", label: "Connections", icon: Database },
   { href: "/audit", label: "Audit Log", icon: ScrollText },
