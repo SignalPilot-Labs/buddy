@@ -432,6 +432,49 @@ async def get_audit(
     return {"entries": entries, "total": len(entries)}
 
 
+# ─── Budget / Governance ────────────────────────────────────────────────────
+
+from .governance.budget import budget_ledger
+
+
+class BudgetCreateRequest(BaseModel):
+    session_id: str = Field(..., min_length=1, max_length=128)
+    budget_usd: float = Field(default=10.0, ge=0.01, le=10_000.0)
+
+
+@app.post("/api/budget", status_code=201)
+async def create_budget(req: BudgetCreateRequest):
+    """Create a budget for a session."""
+    budget = budget_ledger.create_session(req.session_id, req.budget_usd)
+    return budget.to_dict()
+
+
+@app.get("/api/budget/{session_id}")
+async def get_budget(session_id: str):
+    """Get budget status for a session."""
+    budget = budget_ledger.get_session(session_id)
+    if not budget:
+        raise HTTPException(status_code=404, detail="Session budget not found")
+    return budget.to_dict()
+
+
+@app.get("/api/budget")
+async def list_budgets():
+    """List all active session budgets."""
+    return {
+        "sessions": budget_ledger.get_all_sessions(),
+        "total_spent_usd": round(budget_ledger.total_spent, 6),
+    }
+
+
+@app.delete("/api/budget/{session_id}", status_code=204)
+async def close_budget(session_id: str):
+    """Close and remove a session budget."""
+    closed = budget_ledger.close_session(session_id)
+    if not closed:
+        raise HTTPException(status_code=404, detail="Session budget not found")
+
+
 # ─── Metrics SSE ─────────────────────────────────────────────────────────────
 
 @app.get("/api/metrics")
