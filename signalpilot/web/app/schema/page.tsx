@@ -281,7 +281,7 @@ export default function SchemaExplorerPage() {
             filteredTables.map(([key, table]) => {
               const expanded = expandedTables.has(key);
               return (
-                <div key={key} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] overflow-hidden">
+                <div key={key} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] overflow-hidden card-accent-top">
                   <button
                     onClick={() => toggleTable(key)}
                     className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--color-bg-hover)] transition-colors text-left group"
@@ -291,7 +291,12 @@ export default function SchemaExplorerPage() {
                     ) : (
                       <ChevronRight className="w-3 h-3 text-[var(--color-text-dim)]" />
                     )}
-                    <Table2 className="w-3 h-3 text-[var(--color-text-muted)]" strokeWidth={1.5} />
+                    {/* Tree-style table icon SVG */}
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-shrink-0">
+                      <rect x="1" y="1" width="12" height="12" stroke="var(--color-text-muted)" strokeWidth="1" fill="none" rx="0" />
+                      <line x1="1" y1="5" x2="13" y2="5" stroke="var(--color-text-dim)" strokeWidth="0.5" />
+                      <line x1="5" y1="1" x2="5" y2="13" stroke="var(--color-text-dim)" strokeWidth="0.5" />
+                    </svg>
                     <span className="text-xs text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">{table.name}</span>
                     <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider">{table.schema}</span>
                     <span className="ml-auto text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
