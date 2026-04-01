@@ -24,6 +24,31 @@ import { PageHeader, TerminalBar } from "@/components/ui/page-header";
 import { StatusDot } from "@/components/ui/data-viz";
 import { useToast } from "@/components/ui/toast";
 import { SqlHighlight } from "@/components/ui/sql-highlight";
+import { Tooltip } from "@/components/ui/tooltip";
+
+/* ── Column type detection from values ── */
+const typeColorMap: Record<string, string> = {
+  number: "text-blue-400",
+  string: "text-green-400",
+  boolean: "text-yellow-400",
+  null: "text-[var(--color-text-dim)]",
+  object: "text-orange-400",
+};
+
+function inferColumnType(rows: Record<string, unknown>[], col: string): { type: string; color: string; dot: string } {
+  for (const row of rows.slice(0, 10)) {
+    const val = row[col];
+    if (val == null) continue;
+    if (typeof val === "boolean") return { type: "bool", color: typeColorMap.boolean, dot: "bg-yellow-400" };
+    if (typeof val === "number") return { type: Number.isInteger(val) ? "int" : "float", color: typeColorMap.number, dot: "bg-blue-400" };
+    if (typeof val === "object") return { type: "json", color: typeColorMap.object, dot: "bg-orange-400" };
+    const s = String(val);
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return { type: "time", color: "text-purple-400", dot: "bg-purple-400" };
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}/.test(s)) return { type: "uuid", color: "text-pink-400", dot: "bg-pink-400" };
+    return { type: "text", color: typeColorMap.string, dot: "bg-green-400" };
+  }
+  return { type: "null", color: typeColorMap.null, dot: "bg-[var(--color-text-dim)]" };
+}
 
 interface QueryResult {
   rows: Record<string, unknown>[];
@@ -369,17 +394,25 @@ export default function QueryExplorerPage() {
                     <th className="px-3 py-2 text-left text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-10">
                       #
                     </th>
-                    {Object.keys(result.rows[0]).map((col) => (
-                      <th
-                        key={col}
-                        className="px-3 py-2 text-left text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]"
-                      >
-                        {col}
-                        {result.pii_redacted?.includes(col) && (
-                          <Shield className="w-2.5 h-2.5 inline ml-1 text-[var(--color-warning)]" />
-                        )}
-                      </th>
-                    ))}
+                    {Object.keys(result.rows[0]).map((col) => {
+                      const colType = inferColumnType(result.rows, col);
+                      return (
+                        <th
+                          key={col}
+                          className="px-3 py-2 text-left text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]"
+                        >
+                          <Tooltip content={`${colType.type}${result.pii_redacted?.includes(col) ? " · pii redacted" : ""}`} position="top">
+                            <span className="inline-flex items-center gap-1.5 cursor-default">
+                              <span className={`w-1 h-1 flex-shrink-0 ${colType.dot}`} />
+                              {col}
+                              {result.pii_redacted?.includes(col) && (
+                                <Shield className="w-2.5 h-2.5 text-[var(--color-warning)]" />
+                              )}
+                            </span>
+                          </Tooltip>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border)]/30">
