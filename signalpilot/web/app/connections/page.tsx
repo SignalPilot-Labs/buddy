@@ -30,7 +30,8 @@ import {
 import type { ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
-import { StatusDot } from "@/components/ui/data-viz";
+import { StatusDot, MiniBar } from "@/components/ui/data-viz";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -289,10 +290,25 @@ export default function ConnectionsPage() {
                           </span>
                         )}
                         {health.latency_p50_ms != null && (
-                          <span className="flex items-center gap-1 tabular-nums">
-                            <Clock className="w-2.5 h-2.5" strokeWidth={1.5} />
-                            p50: {health.latency_p50_ms.toFixed(0)}ms
-                          </span>
+                          <Tooltip content={`p50: ${health.latency_p50_ms.toFixed(1)}ms${health.latency_p95_ms ? ` · p95: ${health.latency_p95_ms.toFixed(1)}ms` : ""}`} position="top">
+                            <span className="flex items-center gap-1.5 tabular-nums cursor-default">
+                              <Clock className="w-2.5 h-2.5" strokeWidth={1.5} />
+                              <MiniBar
+                                value={health.latency_p50_ms}
+                                max={300}
+                                width={32}
+                                height={3}
+                                color={health.latency_p50_ms < 50 ? "var(--color-success)" : health.latency_p50_ms < 150 ? "var(--color-warning)" : "var(--color-error)"}
+                              />
+                              <span className={
+                                health.latency_p50_ms < 50 ? "text-[var(--color-success)]" :
+                                health.latency_p50_ms < 150 ? "text-[var(--color-text-dim)]" :
+                                "text-[var(--color-error)]"
+                              }>
+                                {health.latency_p50_ms.toFixed(0)}ms
+                              </span>
+                            </span>
+                          </Tooltip>
                         )}
                         {health.latency_p95_ms != null && (
                           <span className="flex items-center gap-1 tabular-nums">
