@@ -561,3 +561,75 @@ kbd {
   height: 1px;
   background: linear-gradient(90deg, transparent 0%, var(--color-border) 20%, var(--color-border) 80%, transparent 100%);
 }
+
+/* ── Responsive adjustments ── */
+
+/* Large screens — wider content */
+@media (min-width: 1600px) {
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* Medium screens — collapse grid columns */
+@media (max-width: 1200px) {
+  .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Small screens — stack everything */
+@media (max-width: 900px) {
+  .grid-cols-4,
+  .grid-cols-3,
+  .grid-cols-2 { grid-template-columns: 1fr; }
+  .col-span-2 { grid-column: span 1; }
+}
+
+/* ── Smooth page load ── */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-enter 0.3s ease-out forwards;
+}
+
+/* ── Hover underline for links ── */
+.hover-underline {
+  position: relative;
+}
+.hover-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.2s ease;
+}
+.hover-underline:hover::after {
+  width: 100%;
+}
+
+/* ── Frosted glass panel ── */
+.frosted {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(5, 5, 5, 0.8);
+}
+
+/* ── Monospace stat counter ── */
+.stat-counter {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  font-weight: 300;
+}
+
+/* ── Tab indicator animation ── */
+@keyframes tab-indicator {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.tab-active-indicator {
+  animation: tab-indicator 0.2s ease-out forwards;
+  transform-origin: left;
+}
