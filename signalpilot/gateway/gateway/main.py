@@ -230,11 +230,76 @@ async def get_connections():
 
 @app.post("/api/connections", status_code=201)
 async def add_connection(conn: ConnectionCreate):
+    # Pre-flight validation per DB type
+    errors = _validate_connection_params(conn)
+    if errors:
+        raise HTTPException(status_code=422, detail={"validation_errors": errors})
     try:
         info = create_connection(conn)
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
     return info
+
+
+def _validate_connection_params(conn: ConnectionCreate) -> list[str]:
+    """Validate connection parameters before persisting. Returns list of error messages."""
+    errors: list[str] = []
+
+    # If using connection_string, minimal validation
+    if conn.connection_string:
+        return errors
+
+    db = conn.db_type
+
+    # Host/port databases need at minimum host
+    if db in ("postgres", "mysql", "redshift", "clickhouse"):
+        if not conn.host:
+            errors.append(f"{db} requires a host")
+        if not conn.username:
+            errors.append(f"{db} requires a username")
+
+    # Snowflake needs account
+    if db == "snowflake":
+        if not conn.account:
+            errors.append("Snowflake requires an account identifier")
+        if not conn.username:
+            errors.append("Snowflake requires a username")
+
+    # BigQuery needs project
+    if db == "bigquery":
+        if not conn.project:
+            errors.append("BigQuery requires a GCP project ID")
+        if not conn.credentials_json:
+            errors.append("BigQuery requires service account credentials JSON")
+
+    # Databricks needs host + http_path + token
+    if db == "databricks":
+        if not conn.host:
+            errors.append("Databricks requires a server hostname")
+        if not conn.http_path:
+            errors.append("Databricks requires an HTTP path (SQL warehouse endpoint)")
+        if not conn.access_token:
+            errors.append("Databricks requires a personal access token")
+
+    # DuckDB/SQLite just need a path
+    if db in ("duckdb", "sqlite"):
+        if not conn.database:
+            errors.append(f"{db} requires a database file path (or :memory:)")
+
+    # SSH tunnel validation
+    if conn.ssh_tunnel and conn.ssh_tunnel.enabled:
+        if not conn.ssh_tunnel.host:
+            errors.append("SSH tunnel requires a bastion host")
+        if not conn.ssh_tunnel.username:
+            errors.append("SSH tunnel requires a username")
+        if conn.ssh_tunnel.auth_method == "key" and not conn.ssh_tunnel.private_key:
+            errors.append("SSH tunnel with key auth requires a private key")
+        if conn.ssh_tunnel.auth_method == "password" and not conn.ssh_tunnel.password:
+            errors.append("SSH tunnel with password auth requires a password")
+        if db not in ("postgres", "mysql", "redshift", "clickhouse"):
+            errors.append(f"SSH tunnels are not supported for {db} (only host:port databases)")
+
+    return errors
 
 
 # Connection health — must be defined before {name} routes to avoid path conflict

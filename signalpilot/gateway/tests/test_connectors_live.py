@@ -330,5 +330,315 @@ class TestConnectionStringBuilder:
         assert "5439" in result
 
 
+# ── SSH Tunnel Module ──────────────────────────────────────────────────────
+
+class TestSSHTunnel:
+    def test_import_ssh_tunnel(self):
+        from gateway.connectors.ssh_tunnel import SSHTunnel, HAS_SSHTUNNEL
+        assert HAS_SSHTUNNEL is True
+
+    def test_ssh_tunnel_requires_host(self):
+        from gateway.connectors.ssh_tunnel import SSHTunnel
+        tunnel = SSHTunnel({"username": "user", "password": "pass"})
+        with pytest.raises(ValueError, match="requires host"):
+            tunnel.start("remote-host", 5432)
+
+    def test_ssh_tunnel_requires_username(self):
+        from gateway.connectors.ssh_tunnel import SSHTunnel
+        tunnel = SSHTunnel({"host": "bastion.example.com", "password": "pass"})
+        with pytest.raises(ValueError, match="requires host and username"):
+            tunnel.start("remote-host", 5432)
+
+
+# ── Pool Manager SSH Helpers ──────────────────────────────────────────────
+
+class TestPoolManagerHelpers:
+    def test_extract_host_port_postgres(self):
+        from gateway.connectors.pool_manager import _extract_host_port
+        h, p = _extract_host_port("postgresql://user:pass@myhost:5432/db", "postgres")
+        assert h == "myhost"
+        assert p == 5432
+
+    def test_extract_host_port_mysql(self):
+        from gateway.connectors.pool_manager import _extract_host_port
+        h, p = _extract_host_port("mysql+pymysql://user:pass@dbhost:3306/mydb", "mysql")
+        assert h == "dbhost"
+        assert p == 3306
+
+    def test_extract_host_port_clickhouse(self):
+        from gateway.connectors.pool_manager import _extract_host_port
+        h, p = _extract_host_port("clickhouse://default:pass@ch.host:9000/default", "clickhouse")
+        assert h == "ch.host"
+        assert p == 9000
+
+    def test_rewrite_connection_string_postgres(self):
+        from gateway.connectors.pool_manager import _rewrite_connection_string
+        result = _rewrite_connection_string(
+            "postgresql://user:pass@remote:5432/db", "postgres", "127.0.0.1", 12345
+        )
+        assert "127.0.0.1:12345" in result
+        assert "user:pass" in result
+
+    def test_rewrite_connection_string_mysql(self):
+        from gateway.connectors.pool_manager import _rewrite_connection_string
+        result = _rewrite_connection_string(
+            "mysql+pymysql://user:pass@remote:3306/db", "mysql", "127.0.0.1", 54321
+        )
+        assert "127.0.0.1:54321" in result
+
+
+# ── Schema Compression ────────────────────────────────────────────────────
+
+class TestSchemaCompression:
+    def test_compress_schema_basic(self):
+        from gateway.main import _compress_schema
+        schema = {
+            "public.users": {
+                "schema": "public",
+                "name": "users",
+                "columns": [
+                    {"name": "id", "type": "integer", "nullable": False, "primary_key": True},
+                    {"name": "email", "type": "varchar", "nullable": False, "primary_key": False},
+                ],
+                "foreign_keys": [],
+                "indexes": [{"name": "users_pkey"}],
+                "row_count": 1000,
+            }
+        }
+        compressed = _compress_schema(schema)
+        assert "public.users" in compressed
+        assert "ddl" in compressed["public.users"]
+        assert "PRIMARY KEY" in compressed["public.users"]["ddl"]
+        assert compressed["public.users"]["row_count"] == 1000
+        assert compressed["public.users"]["indexes"] == ["users_pkey"]
+
+    def test_compress_schema_foreign_keys(self):
+        from gateway.main import _compress_schema
+        schema = {
+            "public.orders": {
+                "schema": "public",
+                "name": "orders",
+                "columns": [
+                    {"name": "id", "type": "integer", "nullable": False, "primary_key": True},
+                    {"name": "user_id", "type": "integer", "nullable": False, "primary_key": False},
+                ],
+                "foreign_keys": [
+                    {"column": "user_id", "references_schema": "public",
+                     "references_table": "users", "references_column": "id"}
+                ],
+                "row_count": 5000,
+            }
+        }
+        compressed = _compress_schema(schema)
+        assert "foreign_keys" in compressed["public.orders"]
+        assert "user_id -> public.users.id" in compressed["public.orders"]["foreign_keys"]
+
+    def test_compress_schema_unique_hint(self):
+        from gateway.main import _compress_schema
+        schema = {
+            "public.users": {
+                "schema": "public",
+                "name": "users",
+                "columns": [
+                    {"name": "id", "type": "bigint", "nullable": False, "primary_key": True,
+                     "stats": {"distinct_fraction": -1.0}},
+                    {"name": "name", "type": "varchar", "nullable": True, "primary_key": False,
+                     "stats": {"distinct_count": 100}},
+                ],
+                "foreign_keys": [],
+                "row_count": 1000,
+            }
+        }
+        compressed = _compress_schema(schema)
+        assert "UNIQUE" in compressed["public.users"]["ddl"]
+        # name should NOT have UNIQUE
+        assert compressed["public.users"]["ddl"].count("UNIQUE") == 1
+
+
+# ── Connection Validation ──────────────────────────────────────────────────
+
+class TestConnectionValidation:
+    def test_postgres_requires_host(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="postgres", username="user")
+        errors = _validate_connection_params(conn)
+        assert any("host" in e for e in errors)
+
+    def test_snowflake_requires_account(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="snowflake")
+        errors = _validate_connection_params(conn)
+        assert any("account" in e for e in errors)
+
+    def test_bigquery_requires_project_and_creds(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="bigquery")
+        errors = _validate_connection_params(conn)
+        assert any("project" in e for e in errors)
+        assert any("credentials" in e for e in errors)
+
+    def test_databricks_requires_all_fields(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="databricks")
+        errors = _validate_connection_params(conn)
+        assert any("hostname" in e for e in errors)
+        assert any("HTTP path" in e for e in errors)
+        assert any("access token" in e for e in errors)
+
+    def test_valid_postgres_no_errors(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="postgres",
+            host="localhost", port=5432, database="mydb", username="user"
+        )
+        errors = _validate_connection_params(conn)
+        assert len(errors) == 0
+
+    def test_connection_string_skips_validation(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="postgres",
+            connection_string="postgresql://user:pass@host:5432/db"
+        )
+        errors = _validate_connection_params(conn)
+        assert len(errors) == 0
+
+    def test_ssh_tunnel_validation(self):
+        from gateway.main import _validate_connection_params
+        from gateway.models import ConnectionCreate, SSHTunnelConfig
+        conn = ConnectionCreate(
+            name="test", db_type="postgres",
+            host="dbhost", username="user",
+            ssh_tunnel=SSHTunnelConfig(enabled=True, auth_method="password")
+        )
+        errors = _validate_connection_params(conn)
+        assert any("bastion host" in e for e in errors)
+        assert any("username" in e.lower() for e in errors)
+
+
+# ── Snowflake URL Parsing ──────────────────────────────────────────────────
+
+class TestSnowflakeURLParsing:
+    def test_pipe_delimited_format(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        c = SnowflakeConnector()
+        params = c._parse_connection("snowflake://acct|user|pass|db|wh|schema|role")
+        assert params["account"] == "acct"
+        assert params["user"] == "user"
+        assert params["password"] == "pass"
+        assert params["database"] == "db"
+        assert params["warehouse"] == "wh"
+        assert params["schema"] == "schema"
+        assert params["role"] == "role"
+
+    def test_standard_url_format(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        c = SnowflakeConnector()
+        params = c._parse_connection("snowflake://myuser:mypass@xy12345/mydb/myschema?warehouse=WH&role=ADMIN")
+        assert params["account"] == "xy12345"
+        assert params["user"] == "myuser"
+        assert params["password"] == "mypass"
+        assert params["database"] == "mydb"
+        assert params["schema"] == "myschema"
+        assert params["warehouse"] == "WH"
+        assert params["role"] == "ADMIN"
+
+    def test_account_only_format(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        c = SnowflakeConnector()
+        params = c._parse_connection("xy12345")
+        assert params["account"] == "xy12345"
+
+
+# ── Postgres Enhanced Schema ───────────────────────────────────────────────
+
+class TestPostgresEnhancedSchema:
+    CONN_STR = "postgresql://enterprise_admin:Ent3rpr1se!S3cur3@host.docker.internal:5601/enterprise_prod"
+
+    @pytest.mark.asyncio
+    async def test_schema_has_indexes(self):
+        from gateway.connectors.postgres import PostgresConnector
+        c = PostgresConnector()
+        await c.connect(self.CONN_STR)
+        schema = await c.get_schema()
+        # At least one table should have indexes
+        tables_with_indexes = [t for t in schema.values() if t.get("indexes")]
+        assert len(tables_with_indexes) > 0
+        # Each index should have name and definition
+        idx = tables_with_indexes[0]["indexes"][0]
+        assert "name" in idx
+        assert "definition" in idx
+        await c.close()
+
+    @pytest.mark.asyncio
+    async def test_schema_has_column_stats(self):
+        from gateway.connectors.postgres import PostgresConnector
+        c = PostgresConnector()
+        await c.connect(self.CONN_STR)
+        schema = await c.get_schema()
+        # At least some columns should have stats
+        has_stats = False
+        for table in schema.values():
+            for col in table.get("columns", []):
+                if col.get("stats"):
+                    has_stats = True
+                    break
+            if has_stats:
+                break
+        assert has_stats
+        await c.close()
+
+    @pytest.mark.asyncio
+    async def test_sample_values(self):
+        from gateway.connectors.postgres import PostgresConnector
+        c = PostgresConnector()
+        await c.connect(self.CONN_STR)
+        samples = await c.get_sample_values("public.customers", ["segment", "country"], limit=3)
+        assert "segment" in samples
+        assert len(samples["segment"]) <= 3
+        assert "country" in samples
+        await c.close()
+
+
+# ── DuckDB Sample Values ──────────────────────────────────────────────────
+
+class TestDuckDBSampleValues:
+    @pytest.mark.asyncio
+    async def test_sample_values(self):
+        from gateway.connectors.duckdb import DuckDBConnector
+        c = DuckDBConnector()
+        await c.connect(":memory:")
+        await c.execute("CREATE TABLE test_t (id INT, name VARCHAR, city VARCHAR)")
+        await c.execute("INSERT INTO test_t VALUES (1, 'Alice', 'NYC'), (2, 'Bob', 'LA'), (3, 'Charlie', 'SF')")
+        samples = await c.get_sample_values("test_t", ["name", "city"], limit=5)
+        assert "name" in samples
+        assert set(samples["name"]) == {"Alice", "Bob", "Charlie"}
+        assert "city" in samples
+        await c.close()
+
+
+# ── SQLite Sample Values ──────────────────────────────────────────────────
+
+class TestSQLiteSampleValues:
+    @pytest.mark.asyncio
+    async def test_sample_values(self):
+        from gateway.connectors.sqlite import SQLiteConnector
+        c = SQLiteConnector()
+        await c.connect(":memory:")
+        await c.execute("CREATE TABLE users (id INTEGER, name TEXT, role TEXT)")
+        await c.execute("INSERT INTO users VALUES (1, 'Admin', 'admin'), (2, 'User', 'viewer')")
+        samples = await c.get_sample_values("users", ["name", "role"], limit=5)
+        assert "name" in samples
+        assert "role" in samples
+        assert "admin" in samples["role"]
+        await c.close()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
