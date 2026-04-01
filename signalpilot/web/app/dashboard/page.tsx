@@ -31,7 +31,7 @@ function MetricCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] p-5 hover:border-[var(--color-border-hover)] transition-colors">
+    <div className="bg-[var(--color-bg-card)] p-5 hover:bg-[var(--color-bg-hover)] transition-colors card-glow">
       <div className="flex items-center gap-2 mb-3">
         <Icon className="w-3.5 h-3.5 text-[var(--color-text-dim)]" strokeWidth={1.5} />
         <span className="text-[10px] text-[var(--color-text-dim)] uppercase tracking-widest">{label}</span>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metric cards — top row */}
-      <div className="grid grid-cols-4 gap-px mb-px bg-[var(--color-border)]">
+      <div className="grid grid-cols-4 gap-px mb-px bg-[var(--color-border)] border border-[var(--color-border)]">
         <MetricCard
           label="active sandboxes"
           value={metrics?.active_sandboxes ?? "—"}

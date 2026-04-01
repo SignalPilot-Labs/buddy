@@ -16,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="antialiased">
+      <body className="antialiased bg-noise">
         <Sidebar />
         <main className="ml-56 min-h-screen bg-dots">
           <ErrorBoundary>{children}</ErrorBoundary>

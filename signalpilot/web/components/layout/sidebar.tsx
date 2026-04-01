@@ -59,7 +59,7 @@ export default function Sidebar() {
               href={href}
               className={`group flex items-center gap-3 px-3 py-2 text-xs transition-all ${
                 active
-                  ? "text-[var(--color-text)] bg-[var(--color-bg-hover)]"
+                  ? "nav-active text-[var(--color-text)] bg-[var(--color-bg-hover)]"
                   : "text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)]"
               }`}
             >
