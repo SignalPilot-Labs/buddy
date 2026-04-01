@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
+
 /**
  * Lightweight SVG-based data visualization components.
  * No external dependencies — pure SVG for minimal bundle impact.
@@ -420,5 +422,43 @@ export function StatusDot({
       )}
       <circle cx={size} cy={size} r={size * 0.4} fill={color} />
     </svg>
+  );
+}
+
+/**
+ * Responsive wrapper for AreaChart — fills container width automatically.
+ */
+export function ResponsiveAreaChart({
+  values,
+  height = 80,
+  color = "var(--color-success)",
+  showGrid = true,
+}: {
+  values: number[];
+  height?: number;
+  color?: string;
+  showGrid?: boolean;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(400);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setWidth(Math.floor(entry.contentRect.width));
+      }
+    });
+    observer.observe(containerRef.current);
+    setWidth(containerRef.current.offsetWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="w-full">
+      {width > 0 && (
+        <AreaChart values={values} width={width} height={height} color={color} showGrid={showGrid} />
+      )}
+    </div>
   );
 }

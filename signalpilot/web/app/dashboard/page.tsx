@@ -18,7 +18,7 @@ import { subscribeMetrics, getAudit, getBudgets, getConnections, getCacheStats, 
 import type { MetricsSnapshot, AuditEntry, ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
 import { GovernancePipeline } from "@/components/ui/governance-pipeline";
 import { EmptyTerminal, EmptyState } from "@/components/ui/empty-states";
-import { RingGauge, Sparkline, StatusDot, MiniBar, AreaChart, StackedBar } from "@/components/ui/data-viz";
+import { RingGauge, Sparkline, StatusDot, MiniBar, StackedBar, ResponsiveAreaChart } from "@/components/ui/data-viz";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
 import { SystemDiagram } from "@/components/ui/system-diagram";
 import { SqlHighlight } from "@/components/ui/sql-highlight";
@@ -258,7 +258,7 @@ export default function DashboardPage() {
               </div>
               <span className="text-[10px] tabular-nums text-[var(--color-text-dim)]">last {latencyValues.length} ops</span>
             </div>
-            <AreaChart values={latencyValues} width={600} height={80} color="var(--color-success)" />
+            <ResponsiveAreaChart values={latencyValues} height={80} color="var(--color-success)" />
           </div>
           <div className="border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4 card-accent-top">
             <div className="flex items-center gap-2 mb-3">
