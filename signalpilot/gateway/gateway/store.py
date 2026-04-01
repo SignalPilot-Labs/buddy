@@ -24,6 +24,8 @@ from .models import (
     DBType,
     GatewaySettings,
     SandboxInfo,
+    SSHTunnelConfig,
+    SSLConfig,
 )
 
 DATA_DIR = Path(os.getenv("SP_DATA_DIR", str(Path.home() / ".signalpilot")))
@@ -34,6 +36,8 @@ AUDIT_FILE = DATA_DIR / "audit.jsonl"
 
 # In-memory vault for raw credentials (never written to disk in plain text)
 _credential_vault: dict[str, str] = {}
+# Extra structured credential data (service account JSON, SSH keys, etc.)
+_credential_extras: dict[str, dict] = {}
 
 
 def _ensure_data_dir():
@@ -110,6 +114,18 @@ def create_connection(conn: ConnectionCreate) -> ConnectionInfo:
     if conn.name in data:
         raise ValueError(f"Connection '{conn.name}' already exists")
 
+    # Strip sensitive fields from SSHTunnelConfig for persistence
+    ssh_tunnel_safe = None
+    if conn.ssh_tunnel and conn.ssh_tunnel.enabled:
+        ssh_tunnel_safe = conn.ssh_tunnel.model_copy(update={
+            "password": None, "private_key": None, "private_key_passphrase": None,
+        })
+
+    # Strip sensitive fields from SSLConfig for persistence
+    ssl_config_safe = None
+    if conn.ssl_config and conn.ssl_config.enabled:
+        ssl_config_safe = conn.ssl_config
+
     info = ConnectionInfo(
         id=str(uuid.uuid4()),
         name=conn.name,
@@ -119,6 +135,16 @@ def create_connection(conn: ConnectionCreate) -> ConnectionInfo:
         database=conn.database,
         username=conn.username,
         ssl=conn.ssl,
+        ssl_config=ssl_config_safe,
+        ssh_tunnel=ssh_tunnel_safe,
+        account=conn.account,
+        warehouse=conn.warehouse,
+        schema_name=conn.schema_name,
+        role=conn.role,
+        project=conn.project,
+        dataset=conn.dataset,
+        http_path=conn.http_path,
+        catalog=conn.catalog,
         description=conn.description,
         created_at=time.time(),
     )
@@ -126,6 +152,9 @@ def create_connection(conn: ConnectionCreate) -> ConnectionInfo:
     # Store raw credential in vault (memory only for now — encrypt at rest later)
     raw_cred = conn.connection_string or _build_connection_string(conn)
     _credential_vault[conn.name] = raw_cred
+
+    # Store extra credential data for connectors that need structured params
+    _credential_extras[conn.name] = _extract_credential_extras(conn)
 
     data[conn.name] = info.model_dump()
     _save_json(CONNECTIONS_FILE, data)
@@ -148,17 +177,104 @@ def get_connection_string(name: str) -> str | None:
 
 def _build_connection_string(conn: ConnectionCreate) -> str:
     if conn.db_type == DBType.postgres:
-        # URL-encode username and password to handle special chars (@, :, #, etc.)
         user = url_quote(conn.username or "", safe="")
         pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
         host = conn.host or "localhost"
         port = conn.port or 5432
         db = conn.database or "postgres"
-        ssl_param = "?sslmode=require" if conn.ssl else ""
+        ssl_mode = conn.ssl_config.mode if conn.ssl_config and conn.ssl_config.enabled else ("require" if conn.ssl else "")
+        ssl_param = f"?sslmode={ssl_mode}" if ssl_mode else ""
         return f"postgresql://{user}{pw}@{host}:{port}/{db}{ssl_param}"
+
+    elif conn.db_type == DBType.mysql:
+        user = url_quote(conn.username or "", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
+        host = conn.host or "localhost"
+        port = conn.port or 3306
+        db = conn.database or ""
+        return f"mysql+pymysql://{user}{pw}@{host}:{port}/{db}"
+
     elif conn.db_type == DBType.duckdb:
         return conn.database or ":memory:"
+
+    elif conn.db_type == DBType.sqlite:
+        return conn.database or ":memory:"
+
+    elif conn.db_type == DBType.snowflake:
+        # Snowflake uses account identifier, not host:port
+        account = conn.account or ""
+        user = conn.username or ""
+        pw = conn.password or ""
+        db = conn.database or ""
+        wh = conn.warehouse or ""
+        schema = conn.schema_name or ""
+        role = conn.role or ""
+        return f"snowflake://{account}|{user}|{pw}|{db}|{wh}|{schema}|{role}"
+
+    elif conn.db_type == DBType.bigquery:
+        # BigQuery uses project + credentials JSON — connection_string holds the project ID
+        return conn.project or ""
+
+    elif conn.db_type == DBType.redshift:
+        user = url_quote(conn.username or "", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
+        host = conn.host or "localhost"
+        port = conn.port or 5439
+        db = conn.database or "dev"
+        ssl_param = "?sslmode=require" if conn.ssl else ""
+        return f"redshift://{user}{pw}@{host}:{port}/{db}{ssl_param}"
+
+    elif conn.db_type == DBType.clickhouse:
+        user = url_quote(conn.username or "default", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
+        host = conn.host or "localhost"
+        port = conn.port or 9000
+        db = conn.database or "default"
+        return f"clickhouse://{user}{pw}@{host}:{port}/{db}"
+
+    elif conn.db_type == DBType.databricks:
+        # Databricks uses server_hostname + http_path + access_token
+        host = conn.host or ""
+        http_path = conn.http_path or ""
+        token = conn.access_token or ""
+        return f"databricks://{host}|{http_path}|{token}"
+
     return ""
+
+
+def _extract_credential_extras(conn: ConnectionCreate) -> dict:
+    """Extract structured credential data that can't fit in a connection string."""
+    extras: dict = {}
+    if conn.ssh_tunnel and conn.ssh_tunnel.enabled:
+        extras["ssh_tunnel"] = conn.ssh_tunnel.model_dump()
+    if conn.ssl_config and conn.ssl_config.enabled:
+        extras["ssl_config"] = conn.ssl_config.model_dump()
+    if conn.credentials_json:
+        extras["credentials_json"] = conn.credentials_json
+    if conn.access_token:
+        extras["access_token"] = conn.access_token
+    if conn.password:
+        extras["password"] = conn.password
+    # Snowflake structured params
+    if conn.db_type == DBType.snowflake:
+        extras["account"] = conn.account
+        extras["warehouse"] = conn.warehouse
+        extras["schema_name"] = conn.schema_name
+        extras["role"] = conn.role
+        extras["username"] = conn.username
+        extras["password"] = conn.password
+    # Databricks structured params
+    if conn.db_type == DBType.databricks:
+        extras["http_path"] = conn.http_path
+        extras["access_token"] = conn.access_token
+        extras["catalog"] = conn.catalog
+        extras["schema_name"] = conn.schema_name
+    return extras
+
+
+def get_credential_extras(name: str) -> dict:
+    """Get extra credential data for a connection."""
+    return _credential_extras.get(name, {})
 
 
 # ─── Sandboxes ───────────────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ from .store import (
     delete_sandbox,
     get_connection,
     get_connection_string,
+    get_credential_extras,
     get_sandbox,
     list_connections,
     list_sandboxes,
@@ -71,8 +72,14 @@ import re as _re
 _SENSITIVE_PATTERNS = [
     _re.compile(r"postgresql://[^\s]+", _re.IGNORECASE),
     _re.compile(r"mysql://[^\s]+", _re.IGNORECASE),
+    _re.compile(r"redshift://[^\s]+", _re.IGNORECASE),
+    _re.compile(r"clickhouse://[^\s]+", _re.IGNORECASE),
+    _re.compile(r"snowflake://[^\s]+", _re.IGNORECASE),
+    _re.compile(r"databricks://[^\s]+", _re.IGNORECASE),
     _re.compile(r"password[=:]\s*\S+", _re.IGNORECASE),
     _re.compile(r"host=\S+", _re.IGNORECASE),
+    _re.compile(r"access_token[=:]\s*\S+", _re.IGNORECASE),
+    _re.compile(r"private_key[=:]\s*\S+", _re.IGNORECASE),
 ]
 
 
@@ -249,7 +256,8 @@ async def test_connection(name: str):
         return {"status": "error", "message": "No credentials stored (restart gateway to reload)"}
 
     try:
-        connector = await pool_manager.acquire(info.db_type, conn_str)
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
         ok = await connector.health_check()
         await pool_manager.release(info.db_type, conn_str)
         return {"status": "healthy" if ok else "error", "message": "Connection test passed" if ok else "Health check failed"}
@@ -289,7 +297,8 @@ async def get_connection_schema(name: str):
         }
 
     try:
-        connector = await pool_manager.acquire(info.db_type, conn_str)
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
         schema = await connector.get_schema()
         await pool_manager.release(info.db_type, conn_str)
     except Exception as e:
@@ -474,7 +483,8 @@ async def query_database(req: DirectQueryRequest):
         raise HTTPException(status_code=400, detail="No credentials stored for this connection")
 
     # Acquire connector once for both cost estimation and query execution (perf optimization)
-    connector = await pool_manager.acquire(info.db_type, conn_str)
+    extras = get_credential_extras(req.connection_name)
+    connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
 
     # Cost estimation (Feature #13) — run EXPLAIN before execution
     cost_estimate = None
@@ -727,7 +737,8 @@ async def generate_annotations(name: str):
         raise HTTPException(status_code=400, detail="No credentials stored for this connection")
 
     try:
-        connector = await pool_manager.acquire(info.db_type, conn_str)
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
         schema = await connector.get_schema()
         await pool_manager.release(info.db_type, conn_str)
     except Exception as e:
@@ -779,7 +790,8 @@ async def detect_pii(name: str):
     cached_schema = schema_cache.get(name)
     if cached_schema is None:
         try:
-            connector = await pool_manager.acquire(info.db_type, conn_str)
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
             cached_schema = await connector.get_schema()
             await pool_manager.release(info.db_type, conn_str)
             schema_cache.put(name, cached_schema)

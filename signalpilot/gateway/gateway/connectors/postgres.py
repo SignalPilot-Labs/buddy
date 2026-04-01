@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from .base import BaseConnector
@@ -38,6 +39,8 @@ class PostgresConnector(BaseConnector):
     async def get_schema(self) -> dict[str, Any]:
         if self._pool is None:
             raise RuntimeError("Not connected")
+
+        # Single optimized query: columns + primary keys + comments in one pass
         sql = """
             SELECT
                 t.table_schema,
@@ -46,11 +49,16 @@ class PostgresConnector(BaseConnector):
                 c.data_type,
                 c.is_nullable,
                 c.column_default,
-                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key
+                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key,
+                col_description(pgc.oid, c.ordinal_position) AS column_comment,
+                obj_description(pgc.oid) AS table_comment
             FROM information_schema.tables t
             JOIN information_schema.columns c
                 ON t.table_schema = c.table_schema
                 AND t.table_name = c.table_name
+            LEFT JOIN pg_catalog.pg_class pgc
+                ON pgc.relname = t.table_name
+                AND pgc.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = t.table_schema)
             LEFT JOIN (
                 SELECT kcu.table_schema, kcu.table_name, kcu.column_name
                 FROM information_schema.table_constraints tc
@@ -66,9 +74,67 @@ class PostgresConnector(BaseConnector):
                 AND t.table_type = 'BASE TABLE'
             ORDER BY t.table_schema, t.table_name, c.ordinal_position
         """
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(sql)
 
+        # Foreign keys query — critical for Spider2.0 (join path discovery)
+        fk_sql = """
+            SELECT
+                tc.table_schema,
+                tc.table_name,
+                kcu.column_name,
+                ccu.table_schema AS foreign_table_schema,
+                ccu.table_name AS foreign_table_name,
+                ccu.column_name AS foreign_column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu
+                ON tc.constraint_name = ccu.constraint_name
+                AND tc.table_schema = ccu.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY'
+                AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
+        """
+
+        # Row count estimates (fast, from pg_stat)
+        row_count_sql = """
+            SELECT
+                schemaname AS table_schema,
+                relname AS table_name,
+                n_live_tup AS estimated_row_count
+            FROM pg_stat_user_tables
+        """
+
+        # Run queries concurrently using separate connections from pool
+        async def _fetch(query: str):
+            async with self._pool.acquire() as c:
+                return await c.fetch(query)
+
+        rows, fk_rows, count_rows = await asyncio.gather(
+            _fetch(sql),
+            _fetch(fk_sql),
+            _fetch(row_count_sql),
+        )
+
+        # Build row count map
+        row_counts: dict[str, int] = {}
+        for r in count_rows:
+            key = f"{r['table_schema']}.{r['table_name']}"
+            row_counts[key] = r["estimated_row_count"]
+
+        # Build foreign key map
+        foreign_keys: dict[str, list[dict]] = {}
+        for r in fk_rows:
+            key = f"{r['table_schema']}.{r['table_name']}"
+            if key not in foreign_keys:
+                foreign_keys[key] = []
+            foreign_keys[key].append({
+                "column": r["column_name"],
+                "references_schema": r["foreign_table_schema"],
+                "references_table": r["foreign_table_name"],
+                "references_column": r["foreign_column_name"],
+            })
+
+        # Build schema
         schema: dict[str, Any] = {}
         for row in rows:
             key = f"{row['table_schema']}.{row['table_name']}"
@@ -77,12 +143,17 @@ class PostgresConnector(BaseConnector):
                     "schema": row["table_schema"],
                     "name": row["table_name"],
                     "columns": [],
+                    "foreign_keys": foreign_keys.get(key, []),
+                    "row_count": row_counts.get(key, 0),
+                    "description": row["table_comment"] or "",
                 }
             schema[key]["columns"].append({
                 "name": row["column_name"],
                 "type": row["data_type"],
                 "nullable": row["is_nullable"] == "YES",
                 "primary_key": row["is_primary_key"],
+                "default": row["column_default"],
+                "comment": row["column_comment"] or "",
             })
         return schema
 

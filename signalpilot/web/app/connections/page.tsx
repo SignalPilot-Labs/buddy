@@ -16,6 +16,10 @@ import {
   Clock,
   Shield,
   Eye,
+  Link2,
+  Settings2,
+  Lock,
+  Server,
 } from "lucide-react";
 import {
   getConnections,
@@ -26,7 +30,7 @@ import {
   getConnectionsHealth,
   detectPII,
 } from "@/lib/api";
-import type { ConnectionInfo, ConnectionHealthStats } from "@/lib/types";
+import type { ConnectionInfo, ConnectionHealthStats, DBType, SSHTunnelConfig, SSLConfig } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
 import { StatusDot, MiniBar } from "@/components/ui/data-viz";
@@ -34,19 +38,143 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-const dbTypeLabels: Record<string, string> = {
-  postgres: "pg",
-  duckdb: "duck",
-  mysql: "mysql",
-  snowflake: "snow",
+/* ── DB type configuration ── */
+interface DBTypeConfig {
+  label: string;
+  shortLabel: string;
+  defaultPort: number;
+  category: "relational" | "warehouse" | "embedded" | "columnar";
+  supportsSSH: boolean;
+  supportsSSL: boolean;
+  connectionModes: ("fields" | "url")[];
+  fields: string[];
+  description: string;
+}
+
+const DB_CONFIGS: Record<DBType, DBTypeConfig> = {
+  postgres: {
+    label: "PostgreSQL",
+    shortLabel: "pg",
+    defaultPort: 5432,
+    category: "relational",
+    supportsSSH: true,
+    supportsSSL: true,
+    connectionModes: ["fields", "url"],
+    fields: ["host", "port", "database", "username", "password"],
+    description: "Open-source relational database",
+  },
+  mysql: {
+    label: "MySQL",
+    shortLabel: "mysql",
+    defaultPort: 3306,
+    category: "relational",
+    supportsSSH: true,
+    supportsSSL: true,
+    connectionModes: ["fields", "url"],
+    fields: ["host", "port", "database", "username", "password"],
+    description: "Popular open-source RDBMS",
+  },
+  redshift: {
+    label: "Amazon Redshift",
+    shortLabel: "redshift",
+    defaultPort: 5439,
+    category: "warehouse",
+    supportsSSH: true,
+    supportsSSL: true,
+    connectionModes: ["fields", "url"],
+    fields: ["host", "port", "database", "username", "password"],
+    description: "AWS cloud data warehouse",
+  },
+  snowflake: {
+    label: "Snowflake",
+    shortLabel: "snow",
+    defaultPort: 443,
+    category: "warehouse",
+    supportsSSH: false,
+    supportsSSL: false,
+    connectionModes: ["fields"],
+    fields: ["account", "warehouse", "database", "schema_name", "username", "password", "role"],
+    description: "Cloud-native data platform",
+  },
+  bigquery: {
+    label: "Google BigQuery",
+    shortLabel: "bq",
+    defaultPort: 443,
+    category: "warehouse",
+    supportsSSH: false,
+    supportsSSL: false,
+    connectionModes: ["fields"],
+    fields: ["project", "dataset", "credentials_json"],
+    description: "Google serverless data warehouse",
+  },
+  clickhouse: {
+    label: "ClickHouse",
+    shortLabel: "ch",
+    defaultPort: 9000,
+    category: "columnar",
+    supportsSSH: true,
+    supportsSSL: true,
+    connectionModes: ["fields", "url"],
+    fields: ["host", "port", "database", "username", "password"],
+    description: "Column-oriented OLAP database",
+  },
+  databricks: {
+    label: "Databricks",
+    shortLabel: "dbx",
+    defaultPort: 443,
+    category: "warehouse",
+    supportsSSH: false,
+    supportsSSL: false,
+    connectionModes: ["fields"],
+    fields: ["host", "http_path", "access_token", "catalog", "schema_name"],
+    description: "Unified analytics platform",
+  },
+  duckdb: {
+    label: "DuckDB",
+    shortLabel: "duck",
+    defaultPort: 0,
+    category: "embedded",
+    supportsSSH: false,
+    supportsSSL: false,
+    connectionModes: ["fields"],
+    fields: ["database"],
+    description: "In-process analytical database",
+  },
+  sqlite: {
+    label: "SQLite",
+    shortLabel: "sqlite",
+    defaultPort: 0,
+    category: "embedded",
+    supportsSSH: false,
+    supportsSSL: false,
+    connectionModes: ["fields"],
+    fields: ["database"],
+    description: "Lightweight file-based database",
+  },
 };
 
+const DB_TYPE_ORDER: DBType[] = [
+  "postgres", "mysql", "redshift", "snowflake", "bigquery",
+  "clickhouse", "databricks", "duckdb", "sqlite",
+];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  relational: "relational databases",
+  warehouse: "data warehouses",
+  columnar: "columnar databases",
+  embedded: "embedded databases",
+};
+
+const dbTypeLabels: Record<string, string> = Object.fromEntries(
+  Object.entries(DB_CONFIGS).map(([k, v]) => [k, v.shortLabel])
+);
+
 /* ── Database type SVG icons ── */
-function DbTypeIcon({ type }: { type: string }) {
+function DbTypeIcon({ type, size = 12 }: { type: string; size?: number }) {
   switch (type) {
     case "postgres":
       return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
           <ellipse cx="6" cy="3" rx="4.5" ry="2" stroke="currentColor" strokeWidth="0.75" fill="none" />
           <path d="M1.5 3V9C1.5 10.1 3.5 11 6 11C8.5 11 10.5 10.1 10.5 9V3" stroke="currentColor" strokeWidth="0.75" />
           <path d="M1.5 6C1.5 7.1 3.5 8 6 8C8.5 8 10.5 7.1 10.5 6" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
@@ -54,7 +182,7 @@ function DbTypeIcon({ type }: { type: string }) {
       );
     case "duckdb":
       return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
           <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="0.75" fill="none" />
           <circle cx="4.5" cy="5" r="0.8" fill="currentColor" />
           <path d="M4 7.5C4.5 8.5 7.5 8.5 8 7.5" stroke="currentColor" strokeWidth="0.75" strokeLinecap="round" fill="none" />
@@ -63,29 +191,430 @@ function DbTypeIcon({ type }: { type: string }) {
       );
     case "mysql":
       return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
           <path d="M2 2L6 10L10 2" stroke="currentColor" strokeWidth="0.75" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           <line x1="4" y1="6" x2="8" y2="6" stroke="currentColor" strokeWidth="0.75" />
         </svg>
       );
     case "snowflake":
       return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
           <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" strokeWidth="0.75" />
           <line x1="1.7" y1="3.5" x2="10.3" y2="8.5" stroke="currentColor" strokeWidth="0.75" />
           <line x1="1.7" y1="8.5" x2="10.3" y2="3.5" stroke="currentColor" strokeWidth="0.75" />
           <circle cx="6" cy="6" r="1.5" stroke="currentColor" strokeWidth="0.5" fill="none" />
         </svg>
       );
+    case "bigquery":
+      return (
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+          <rect x="2" y="2" width="8" height="8" rx="1" stroke="currentColor" strokeWidth="0.75" fill="none" />
+          <path d="M4 5L6 8L8 5" stroke="currentColor" strokeWidth="0.75" fill="none" strokeLinecap="round" />
+          <circle cx="6" cy="4" r="1" stroke="currentColor" strokeWidth="0.5" fill="none" />
+        </svg>
+      );
+    case "redshift":
+      return (
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+          <path d="M6 1L10.5 3.5V8.5L6 11L1.5 8.5V3.5L6 1Z" stroke="currentColor" strokeWidth="0.75" fill="none" />
+          <line x1="6" y1="6" x2="6" y2="11" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+          <line x1="6" y1="6" x2="10.5" y2="3.5" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+          <line x1="6" y1="6" x2="1.5" y2="3.5" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+        </svg>
+      );
+    case "clickhouse":
+      return (
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+          <rect x="2" y="1" width="1.5" height="10" fill="currentColor" opacity="0.8" />
+          <rect x="4.5" y="3" width="1.5" height="8" fill="currentColor" opacity="0.6" />
+          <rect x="7" y="1" width="1.5" height="10" fill="currentColor" opacity="0.4" />
+          <rect x="9.5" y="5" width="1.5" height="6" fill="currentColor" opacity="0.3" />
+        </svg>
+      );
+    case "databricks":
+      return (
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+          <path d="M6 1L11 3.5L6 6L1 3.5L6 1Z" stroke="currentColor" strokeWidth="0.75" fill="none" />
+          <path d="M1 6L6 8.5L11 6" stroke="currentColor" strokeWidth="0.75" fill="none" />
+          <path d="M1 8.5L6 11L11 8.5" stroke="currentColor" strokeWidth="0.75" fill="none" />
+        </svg>
+      );
+    case "sqlite":
+      return (
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+          <rect x="3" y="1" width="6" height="10" rx="1" stroke="currentColor" strokeWidth="0.75" fill="none" />
+          <line x1="4.5" y1="4" x2="7.5" y2="4" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+          <line x1="4.5" y1="6" x2="7.5" y2="6" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+          <line x1="4.5" y1="8" x2="7.5" y2="8" stroke="currentColor" strokeWidth="0.5" opacity="0.5" />
+        </svg>
+      );
     default:
       return (
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
+        <svg width={size} height={size} viewBox="0 0 12 12" fill="none" className="flex-shrink-0">
           <rect x="1.5" y="1.5" width="9" height="9" stroke="currentColor" strokeWidth="0.75" fill="none" />
           <circle cx="6" cy="6" r="2" stroke="currentColor" strokeWidth="0.5" fill="none" />
         </svg>
       );
   }
 }
+
+/* ── Form field components ── */
+function FormInput({
+  label, value, onChange, type = "text", placeholder, hint, required, className = "",
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string; hint?: string; required?: boolean; className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">
+        {label}{required && <span className="text-[var(--color-error)] ml-0.5">*</span>}
+      </label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tracking-wide"
+      />
+      {hint && <p className="text-[9px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">{hint}</p>}
+    </div>
+  );
+}
+
+function FormTextArea({
+  label, value, onChange, placeholder, hint, rows = 4, className = "",
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  placeholder?: string; hint?: string; rows?: number; className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">{label}</label>
+      <textarea
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tracking-wide font-mono resize-y"
+      />
+      {hint && <p className="text-[9px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">{hint}</p>}
+    </div>
+  );
+}
+
+/* ── Connection form state ── */
+interface FormState {
+  name: string;
+  db_type: DBType;
+  connectionMode: "fields" | "url";
+  connection_string: string;
+  host: string;
+  port: string;
+  database: string;
+  username: string;
+  password: string;
+  description: string;
+  // Snowflake
+  account: string;
+  warehouse: string;
+  schema_name: string;
+  role: string;
+  // BigQuery
+  project: string;
+  dataset: string;
+  credentials_json: string;
+  // Databricks
+  http_path: string;
+  access_token: string;
+  catalog: string;
+  // SSL
+  ssl_enabled: boolean;
+  ssl_mode: string;
+  ssl_ca_cert: string;
+  ssl_client_cert: string;
+  ssl_client_key: string;
+  // SSH
+  ssh_enabled: boolean;
+  ssh_host: string;
+  ssh_port: string;
+  ssh_username: string;
+  ssh_auth_method: string;
+  ssh_password: string;
+  ssh_private_key: string;
+  ssh_key_passphrase: string;
+}
+
+const defaultForm: FormState = {
+  name: "", db_type: "postgres", connectionMode: "fields",
+  connection_string: "", host: "localhost", port: "5432",
+  database: "", username: "", password: "", description: "",
+  account: "", warehouse: "", schema_name: "", role: "",
+  project: "", dataset: "", credentials_json: "",
+  http_path: "", access_token: "", catalog: "",
+  ssl_enabled: false, ssl_mode: "require", ssl_ca_cert: "", ssl_client_cert: "", ssl_client_key: "",
+  ssh_enabled: false, ssh_host: "", ssh_port: "22", ssh_username: "", ssh_auth_method: "password",
+  ssh_password: "", ssh_private_key: "", ssh_key_passphrase: "",
+};
+
+function buildCreatePayload(form: FormState): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    name: form.name,
+    db_type: form.db_type,
+    description: form.description,
+  };
+
+  if (form.connectionMode === "url" && form.connection_string) {
+    payload.connection_string = form.connection_string;
+  }
+
+  const config = DB_CONFIGS[form.db_type];
+
+  // Common host/port fields
+  if (config.fields.includes("host")) payload.host = form.host;
+  if (config.fields.includes("port")) payload.port = parseInt(form.port) || config.defaultPort;
+  if (config.fields.includes("database")) payload.database = form.database;
+  if (config.fields.includes("username")) payload.username = form.username;
+  if (config.fields.includes("password")) payload.password = form.password;
+
+  // Snowflake
+  if (config.fields.includes("account")) payload.account = form.account;
+  if (config.fields.includes("warehouse")) payload.warehouse = form.warehouse;
+  if (config.fields.includes("schema_name")) payload.schema_name = form.schema_name;
+  if (config.fields.includes("role")) payload.role = form.role;
+
+  // BigQuery
+  if (config.fields.includes("project")) payload.project = form.project;
+  if (config.fields.includes("dataset")) payload.dataset = form.dataset;
+  if (config.fields.includes("credentials_json")) payload.credentials_json = form.credentials_json;
+
+  // Databricks
+  if (config.fields.includes("http_path")) payload.http_path = form.http_path;
+  if (config.fields.includes("access_token")) payload.access_token = form.access_token;
+  if (config.fields.includes("catalog")) payload.catalog = form.catalog;
+
+  // SSL
+  if (form.ssl_enabled && config.supportsSSL) {
+    payload.ssl = true;
+    payload.ssl_config = {
+      enabled: true,
+      mode: form.ssl_mode,
+      ca_cert: form.ssl_ca_cert || null,
+      client_cert: form.ssl_client_cert || null,
+      client_key: form.ssl_client_key || null,
+    };
+  }
+
+  // SSH
+  if (form.ssh_enabled && config.supportsSSH) {
+    payload.ssh_tunnel = {
+      enabled: true,
+      host: form.ssh_host,
+      port: parseInt(form.ssh_port) || 22,
+      username: form.ssh_username,
+      auth_method: form.ssh_auth_method,
+      password: form.ssh_auth_method === "password" ? form.ssh_password : null,
+      private_key: form.ssh_auth_method === "key" ? form.ssh_private_key : null,
+      private_key_passphrase: form.ssh_auth_method === "key" ? form.ssh_key_passphrase : null,
+    };
+  }
+
+  return payload;
+}
+
+/* ── DB-specific form sections ── */
+function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f: FormState) => void }) {
+  const config = DB_CONFIGS[form.db_type];
+
+  // URL mode
+  if (form.connectionMode === "url") {
+    const urlHints: Record<string, string> = {
+      postgres: "postgresql://user:pass@host:5432/dbname",
+      mysql: "mysql://user:pass@host:3306/dbname",
+      redshift: "redshift://user:pass@cluster.region.redshift.amazonaws.com:5439/dev",
+      clickhouse: "clickhouse://user:pass@host:9000/default",
+    };
+    return (
+      <FormInput
+        label="connection string"
+        value={form.connection_string}
+        onChange={(v) => setForm({ ...form, connection_string: v })}
+        type="password"
+        placeholder={urlHints[form.db_type] || "connection string"}
+        hint="full connection URL including credentials"
+        className="col-span-2"
+      />
+    );
+  }
+
+  // Snowflake fields
+  if (form.db_type === "snowflake") {
+    return (
+      <>
+        <FormInput label="account identifier" value={form.account} onChange={(v) => setForm({ ...form, account: v })} placeholder="org-account" hint="e.g., xy12345.us-east-1" required />
+        <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="ANALYTICS_USER" required />
+        <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" required />
+        <FormInput label="warehouse" value={form.warehouse} onChange={(v) => setForm({ ...form, warehouse: v })} placeholder="COMPUTE_WH" hint="optional — default warehouse" />
+        <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="PROD_DB" hint="optional — default database" />
+        <FormInput label="schema" value={form.schema_name} onChange={(v) => setForm({ ...form, schema_name: v })} placeholder="PUBLIC" hint="optional — default schema" />
+        <FormInput label="role" value={form.role} onChange={(v) => setForm({ ...form, role: v })} placeholder="ANALYST_ROLE" hint="optional — Snowflake role" />
+      </>
+    );
+  }
+
+  // BigQuery fields
+  if (form.db_type === "bigquery") {
+    return (
+      <>
+        <FormInput label="gcp project id" value={form.project} onChange={(v) => setForm({ ...form, project: v })} placeholder="my-project-123" required />
+        <FormInput label="default dataset" value={form.dataset} onChange={(v) => setForm({ ...form, dataset: v })} placeholder="analytics" hint="optional — default dataset for queries" />
+        <FormTextArea
+          label="service account json"
+          value={form.credentials_json}
+          onChange={(v) => setForm({ ...form, credentials_json: v })}
+          placeholder='{"type": "service_account", "project_id": "...", ...}'
+          hint="paste the full service account JSON key file contents"
+          rows={6}
+          className="col-span-2"
+        />
+      </>
+    );
+  }
+
+  // Databricks fields
+  if (form.db_type === "databricks") {
+    return (
+      <>
+        <FormInput label="server hostname" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="adb-1234567890123456.7.azuredatabricks.net" required />
+        <FormInput label="http path" value={form.http_path} onChange={(v) => setForm({ ...form, http_path: v })} placeholder="/sql/1.0/warehouses/abc123" hint="SQL warehouse or cluster HTTP path" required />
+        <FormInput label="access token" value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} type="password" hint="personal access token (PAT)" required />
+        <FormInput label="catalog" value={form.catalog} onChange={(v) => setForm({ ...form, catalog: v })} placeholder="main" hint="optional — Unity Catalog name" />
+        <FormInput label="schema" value={form.schema_name} onChange={(v) => setForm({ ...form, schema_name: v })} placeholder="default" hint="optional — default schema" />
+      </>
+    );
+  }
+
+  // DuckDB/SQLite — just path
+  if (form.db_type === "duckdb" || form.db_type === "sqlite") {
+    return (
+      <FormInput
+        label="database path"
+        value={form.database}
+        onChange={(v) => setForm({ ...form, database: v })}
+        placeholder={form.db_type === "duckdb" ? ":memory: or /path/to/db.duckdb" : ":memory: or /path/to/db.sqlite"}
+        hint={form.db_type === "duckdb" ? "file path, :memory:, or md: for MotherDuck" : "file path or :memory:"}
+        className="col-span-2"
+      />
+    );
+  }
+
+  // Standard host/port (Postgres, MySQL, Redshift, ClickHouse)
+  return (
+    <>
+      <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="localhost" required />
+      <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder={String(config.defaultPort)} />
+      <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder={form.db_type === "clickhouse" ? "default" : "mydb"} required />
+      <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder={form.db_type === "clickhouse" ? "default" : "postgres"} required />
+      <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+    </>
+  );
+}
+
+/* ── SSL Config Section ── */
+function SSLSection({ form, setForm }: { form: FormState; setForm: (f: FormState) => void }) {
+  const config = DB_CONFIGS[form.db_type];
+  if (!config.supportsSSL) return null;
+
+  return (
+    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+      <button
+        type="button"
+        onClick={() => setForm({ ...form, ssl_enabled: !form.ssl_enabled })}
+        className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+      >
+        <Lock className="w-3 h-3" strokeWidth={1.5} />
+        <span>ssl / tls</span>
+        {form.ssl_enabled ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {form.ssl_enabled && <span className="text-[var(--color-success)] text-[9px]">enabled</span>}
+      </button>
+      {form.ssl_enabled && (
+        <div className="grid grid-cols-2 gap-4 mt-3 animate-fade-in">
+          <div>
+            <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">ssl mode</label>
+            <select
+              value={form.ssl_mode}
+              onChange={(e) => setForm({ ...form, ssl_mode: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)]"
+            >
+              <option value="require">require</option>
+              <option value="verify-ca">verify-ca</option>
+              <option value="verify-full">verify-full</option>
+              <option value="prefer">prefer</option>
+              <option value="allow">allow</option>
+            </select>
+          </div>
+          <div />
+          <FormTextArea label="ca certificate (pem)" value={form.ssl_ca_cert} onChange={(v) => setForm({ ...form, ssl_ca_cert: v })} placeholder="-----BEGIN CERTIFICATE-----" hint="root CA certificate for server verification" rows={3} />
+          <FormTextArea label="client certificate (pem)" value={form.ssl_client_cert} onChange={(v) => setForm({ ...form, ssl_client_cert: v })} placeholder="-----BEGIN CERTIFICATE-----" hint="optional — for mutual TLS" rows={3} />
+          <FormTextArea label="client key (pem)" value={form.ssl_client_key} onChange={(v) => setForm({ ...form, ssl_client_key: v })} placeholder="-----BEGIN PRIVATE KEY-----" hint="optional — for mutual TLS" rows={3} className="col-span-2" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── SSH Tunnel Section ── */
+function SSHSection({ form, setForm }: { form: FormState; setForm: (f: FormState) => void }) {
+  const config = DB_CONFIGS[form.db_type];
+  if (!config.supportsSSH) return null;
+
+  return (
+    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+      <button
+        type="button"
+        onClick={() => setForm({ ...form, ssh_enabled: !form.ssh_enabled })}
+        className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+      >
+        <Server className="w-3 h-3" strokeWidth={1.5} />
+        <span>ssh tunnel</span>
+        {form.ssh_enabled ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        {form.ssh_enabled && <span className="text-[var(--color-success)] text-[9px]">enabled</span>}
+      </button>
+      {form.ssh_enabled && (
+        <div className="grid grid-cols-2 gap-4 mt-3 animate-fade-in">
+          <FormInput label="ssh host" value={form.ssh_host} onChange={(v) => setForm({ ...form, ssh_host: v })} placeholder="bastion.example.com" required />
+          <FormInput label="ssh port" value={form.ssh_port} onChange={(v) => setForm({ ...form, ssh_port: v })} placeholder="22" />
+          <FormInput label="ssh username" value={form.ssh_username} onChange={(v) => setForm({ ...form, ssh_username: v })} placeholder="ubuntu" required />
+          <div>
+            <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">auth method</label>
+            <select
+              value={form.ssh_auth_method}
+              onChange={(e) => setForm({ ...form, ssh_auth_method: e.target.value })}
+              className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)]"
+            >
+              <option value="password">password</option>
+              <option value="key">private key</option>
+            </select>
+          </div>
+          {form.ssh_auth_method === "password" ? (
+            <FormInput label="ssh password" value={form.ssh_password} onChange={(v) => setForm({ ...form, ssh_password: v })} type="password" className="col-span-2" />
+          ) : (
+            <>
+              <FormTextArea label="private key (pem)" value={form.ssh_private_key} onChange={(v) => setForm({ ...form, ssh_private_key: v })} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" rows={4} className="col-span-2" />
+              <FormInput label="key passphrase" value={form.ssh_key_passphrase} onChange={(v) => setForm({ ...form, ssh_key_passphrase: v })} type="password" hint="leave empty if key is not encrypted" className="col-span-2" />
+            </>
+          )}
+          <div className="col-span-2">
+            <p className="text-[9px] text-[var(--color-text-dim)] tracking-wider opacity-60">
+              signalpilot will create an on-demand ssh tunnel to your database through this bastion host. whitelist our ip: <code className="text-[var(--color-text-muted)]">your-signalpilot-ip</code>
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function ConnectionsPage() {
   const { toast } = useToast();
@@ -101,10 +630,8 @@ export default function ConnectionsPage() {
   const [piiData, setPiiData] = useState<Record<string, { tables_scanned: number; tables_with_pii: number; detections: Record<string, Record<string, string>> }>>({});
   const [piiLoading, setPiiLoading] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    name: "", db_type: "postgres" as const, host: "localhost",
-    port: "5432", database: "", username: "", password: "", description: "",
-  });
+  const [form, setForm] = useState<FormState>({ ...defaultForm });
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const refresh = useCallback(() => {
     getConnections().then(setConnections).catch(() => {});
@@ -119,16 +646,25 @@ export default function ConnectionsPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  function handleDbTypeChange(newType: DBType) {
+    const config = DB_CONFIGS[newType];
+    setForm({
+      ...form,
+      db_type: newType,
+      port: String(config.defaultPort || ""),
+      connectionMode: config.connectionModes[0],
+      host: config.fields.includes("host") ? form.host || "localhost" : "",
+    });
+  }
+
   async function handleCreate() {
     setSaving(true);
     try {
-      await createConnection({
-        name: form.name, db_type: form.db_type, host: form.host,
-        port: parseInt(form.port) || 5432, database: form.database,
-        username: form.username, password: form.password, description: form.description,
-      });
+      const payload = buildCreatePayload(form);
+      await createConnection(payload);
       setShowForm(false);
-      setForm({ name: "", db_type: "postgres", host: "localhost", port: "5432", database: "", username: "", password: "", description: "" });
+      setForm({ ...defaultForm });
+      setShowAdvanced(false);
       refresh();
       toast("connection created successfully", "success");
     } catch (e) { toast(String(e), "error"); } finally { setSaving(false); }
@@ -146,9 +682,7 @@ export default function ConnectionsPage() {
     } finally { setTesting(null); }
   }
 
-  async function handleDelete(name: string) {
-    setDeleteTarget(name);
-  }
+  async function handleDelete(name: string) { setDeleteTarget(name); }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
@@ -180,6 +714,8 @@ export default function ConnectionsPage() {
     finally { setPiiLoading(null); }
   }
 
+  const config = DB_CONFIGS[form.db_type];
+
   return (
     <div className="p-8 animate-fade-in">
       <PageHeader
@@ -205,56 +741,115 @@ export default function ConnectionsPage() {
         </div>
       </TerminalBar>
 
-      {/* Create form */}
+      {/* ─── Create Connection Form ─── */}
       {showForm && (
         <div className="mb-6 border border-[var(--color-border)] bg-[var(--color-bg-card)] animate-scale-in overflow-hidden">
-          <div className="px-6 py-3 border-b border-[var(--color-border)] flex items-center gap-2">
-            <span className="text-[var(--color-text-dim)]"><DbTypeIcon type={form.db_type} /></span>
-            <span className="text-[10px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">new connection</span>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-2 gap-4 mb-5">
-              {[
-                { label: "name", key: "name", placeholder: "prod-analytics", type: "text" },
-                { label: "type", key: "db_type", type: "select" },
-                { label: "host", key: "host", placeholder: "localhost", type: "text" },
-                { label: "port", key: "port", placeholder: "5432", type: "text" },
-                { label: "database", key: "database", placeholder: "mydb", type: "text" },
-                { label: "username", key: "username", placeholder: "postgres", type: "text" },
-                { label: "password", key: "password", type: "password" },
-                { label: "description", key: "description", placeholder: "Production analytics DB", type: "text" },
-              ].map((field) => (
-                <div key={field.key}>
-                  <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">{field.label}</label>
-                  {field.type === "select" ? (
-                    <select
-                      value={form.db_type}
-                      onChange={(e) => setForm({ ...form, db_type: e.target.value as typeof form.db_type, port: e.target.value === "postgres" ? "5432" : e.target.value === "mysql" ? "3306" : form.port })}
-                      className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)]"
-                    >
-                      <option value="postgres">PostgreSQL</option>
-                      <option value="duckdb">DuckDB</option>
-                      <option value="mysql">MySQL</option>
-                      <option value="snowflake">Snowflake</option>
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type}
-                      placeholder={field.placeholder}
-                      value={form[field.key as keyof typeof form]}
-                      onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                      className="w-full px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tracking-wide"
-                    />
-                  )}
-                </div>
-              ))}
+          <div className="px-6 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <DbTypeIcon type={form.db_type} />
+              <span className="text-[10px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">
+                new {DB_CONFIGS[form.db_type].label} connection
+              </span>
             </div>
-            <div className="flex items-center gap-3">
+            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider opacity-50">
+              {DB_CONFIGS[form.db_type].description}
+            </span>
+          </div>
+
+          <div className="p-6">
+            {/* DB Type Selector — visual grid */}
+            <div className="mb-5">
+              <label className="block text-[10px] text-[var(--color-text-dim)] mb-2 tracking-wider">database type</label>
+              <div className="flex flex-wrap gap-1.5">
+                {DB_TYPE_ORDER.map((dbType) => {
+                  const cfg = DB_CONFIGS[dbType];
+                  const isSelected = form.db_type === dbType;
+                  return (
+                    <button
+                      key={dbType}
+                      onClick={() => handleDbTypeChange(dbType)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] tracking-wider border transition-all ${
+                        isSelected
+                          ? "border-[var(--color-text)] text-[var(--color-text)] bg-[var(--color-text)]/5"
+                          : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)] hover:text-[var(--color-text)]"
+                      }`}
+                    >
+                      <DbTypeIcon type={dbType} />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Name + Description */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <FormInput label="connection name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="prod-analytics" hint="alphanumeric, dashes, underscores" required />
+              <FormInput label="description" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="Production analytics DB" />
+            </div>
+
+            {/* Connection mode toggle (fields vs URL) */}
+            {config.connectionModes.length > 1 && (
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider">connect via:</span>
+                {config.connectionModes.map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setForm({ ...form, connectionMode: mode })}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] tracking-wider border transition-all ${
+                      form.connectionMode === mode
+                        ? "border-[var(--color-text)] text-[var(--color-text)]"
+                        : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)]"
+                    }`}
+                  >
+                    {mode === "url" ? <Link2 className="w-3 h-3" strokeWidth={1.5} /> : <Settings2 className="w-3 h-3" strokeWidth={1.5} />}
+                    {mode === "url" ? "connection string" : "individual fields"}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* DB-specific fields */}
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <ConnectionFieldsForm form={form} setForm={setForm} />
+            </div>
+
+            {/* Advanced: SSL + SSH */}
+            {(config.supportsSSL || config.supportsSSH) && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider mb-2"
+                >
+                  {showAdvanced ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                  advanced options
+                  {(form.ssl_enabled || form.ssh_enabled) && (
+                    <span className="text-[var(--color-success)] text-[9px] ml-1">
+                      {[form.ssl_enabled && "ssl", form.ssh_enabled && "ssh"].filter(Boolean).join(" + ")}
+                    </span>
+                  )}
+                </button>
+                {showAdvanced && (
+                  <div className="animate-fade-in">
+                    <SSLSection form={form} setForm={setForm} />
+                    <SSHSection form={form} setForm={setForm} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-3 mt-5 pt-4 border-t border-[var(--color-border)]">
               <button onClick={handleCreate} disabled={saving || !form.name} className="flex items-center gap-2 px-4 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium tracking-wider uppercase transition-all hover:opacity-90 disabled:opacity-30">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                save
+                save connection
               </button>
-              <button onClick={() => setShowForm(false)} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+              <button onClick={handleCreate} disabled={saving || !form.name} className="flex items-center gap-2 px-4 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider">
+                <TestTube className="w-3.5 h-3.5" strokeWidth={1.5} />
+                save & test
+              </button>
+              <button onClick={() => { setShowForm(false); setForm({ ...defaultForm }); setShowAdvanced(false); }} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
                 cancel
               </button>
             </div>
@@ -262,7 +857,7 @@ export default function ConnectionsPage() {
         </div>
       )}
 
-      {/* Connections list */}
+      {/* ─── Connections List ─── */}
       {connections.length === 0 && !showForm ? (
         <EmptyState
           icon={EmptyDatabase}
@@ -283,6 +878,19 @@ export default function ConnectionsPage() {
             const health = healthData[conn.name];
             const isExpanded = expandedConn === conn.name;
             const tables = schemaData[conn.name]?.tables;
+            const connConfig = DB_CONFIGS[conn.db_type as DBType] || DB_CONFIGS.postgres;
+
+            // Build display string
+            let displayStr = "";
+            if (conn.host && conn.port) {
+              displayStr = `${conn.host}:${conn.port}/${conn.database || ""}`;
+            } else if (conn.account) {
+              displayStr = `${conn.account}/${conn.database || ""}`;
+            } else if (conn.project) {
+              displayStr = `${conn.project}/${conn.dataset || ""}`;
+            } else if (conn.database) {
+              displayStr = conn.database;
+            }
 
             return (
               <div key={conn.id} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-all card-accent-top">
@@ -309,6 +917,12 @@ export default function ConnectionsPage() {
                         <DbTypeIcon type={conn.db_type} />
                         {dbTypeLabels[conn.db_type] || conn.db_type}
                       </span>
+                      {conn.ssl && (
+                        <span className="text-[9px] px-1 py-0.5 border border-[var(--color-success)]/30 text-[var(--color-success)] tracking-wider">ssl</span>
+                      )}
+                      {conn.ssh_tunnel?.enabled && (
+                        <span className="text-[9px] px-1 py-0.5 border border-purple-500/30 text-purple-400 tracking-wider">ssh</span>
+                      )}
                       {health && (
                         <span className={`text-[10px] tracking-wider ${
                           health.status === "healthy" ? "text-[var(--color-success)]" :
@@ -320,7 +934,7 @@ export default function ConnectionsPage() {
                       )}
                     </div>
                     <div className="text-[10px] text-[var(--color-text-dim)] mt-0.5 tracking-wider">
-                      {conn.host}:{conn.port}/{conn.database}
+                      {displayStr}
                       {conn.description && <span className="ml-2 text-[var(--color-text-dim)]">— {conn.description}</span>}
                     </div>
                     {health && health.sample_count > 0 && (

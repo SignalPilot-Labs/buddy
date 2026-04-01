@@ -24,8 +24,20 @@ class PoolManager:
         self._idle_timeout = idle_timeout_sec
         self._lock = asyncio.Lock()
 
-    async def acquire(self, db_type: str, connection_string: str) -> BaseConnector:
-        """Get or create a connected connector for the given connection."""
+    async def acquire(
+        self,
+        db_type: str,
+        connection_string: str,
+        credential_extras: dict | None = None,
+    ) -> BaseConnector:
+        """Get or create a connected connector for the given connection.
+
+        Args:
+            db_type: Database type string (e.g., "postgres", "bigquery").
+            connection_string: Connection string for the database.
+            credential_extras: Optional structured credential data (service account JSON,
+                SSH tunnel config, etc.) for connectors that need more than a connection string.
+        """
         key = f"{db_type}:{connection_string}"
         async with self._lock:
             if key in self._pools:
@@ -45,6 +57,19 @@ class PoolManager:
                 del self._pools[key]
 
             connector = get_connector(db_type)
+
+            # Special handling for connectors that need structured credentials
+            if db_type == "bigquery" and credential_extras and credential_extras.get("credentials_json"):
+                from .bigquery import BigQueryConnector
+                if isinstance(connector, BigQueryConnector):
+                    connector.set_credentials(
+                        credentials_json=credential_extras["credentials_json"],
+                        project=connection_string,
+                        dataset=credential_extras.get("dataset", ""),
+                    )
+                    self._pools[key] = (connector, time.monotonic())
+                    return connector
+
             await connector.connect(connection_string)
             self._pools[key] = (connector, time.monotonic())
             return connector

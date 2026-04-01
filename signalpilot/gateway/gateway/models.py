@@ -43,18 +43,64 @@ class DBType(str, Enum):
     duckdb = "duckdb"
     mysql = "mysql"
     snowflake = "snowflake"
+    bigquery = "bigquery"
+    redshift = "redshift"
+    clickhouse = "clickhouse"
+    databricks = "databricks"
+    sqlite = "sqlite"
+
+
+class SSHTunnelConfig(BaseModel):
+    """SSH tunnel configuration for connecting through bastion hosts."""
+    enabled: bool = False
+    host: str | None = Field(default=None, max_length=255)
+    port: int = Field(default=22, ge=1, le=65535)
+    username: str | None = Field(default=None, max_length=128)
+    auth_method: str = "password"  # password | key
+    password: str | None = Field(default=None, max_length=1024)
+    private_key: str | None = Field(default=None, max_length=16384)
+    private_key_passphrase: str | None = Field(default=None, max_length=1024)
+
+
+class SSLConfig(BaseModel):
+    """SSL/TLS configuration for database connections."""
+    enabled: bool = False
+    mode: str = "require"  # disable | allow | prefer | require | verify-ca | verify-full
+    ca_cert: str | None = Field(default=None, max_length=32768)  # PEM-encoded CA certificate
+    client_cert: str | None = Field(default=None, max_length=32768)  # PEM-encoded client certificate
+    client_key: str | None = Field(default=None, max_length=32768)  # PEM-encoded client private key
 
 
 class ConnectionCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=64, pattern=r"^[a-zA-Z0-9_-]+$")
     db_type: DBType
+    # ─── Common fields (host/port style) ────────────────────────────
     host: str | None = Field(default=None, max_length=255)
     port: int | None = Field(default=None, ge=1, le=65535)
     database: str | None = Field(default=None, max_length=128)
     username: str | None = Field(default=None, max_length=128)
     password: str | None = Field(default=None, max_length=1024)
-    connection_string: str | None = Field(default=None, max_length=2048)
+    # ─── Connection string mode (alternative to individual fields) ──
+    connection_string: str | None = Field(default=None, max_length=4096)
+    # ─── SSL/TLS ────────────────────────────────────────────────────
     ssl: bool = False
+    ssl_config: SSLConfig | None = None
+    # ─── SSH tunnel ─────────────────────────────────────────────────
+    ssh_tunnel: SSHTunnelConfig | None = None
+    # ─── Snowflake-specific ─────────────────────────────────────────
+    account: str | None = Field(default=None, max_length=255)  # Snowflake account identifier
+    warehouse: str | None = Field(default=None, max_length=128)
+    schema_name: str | None = Field(default=None, max_length=128)  # default schema
+    role: str | None = Field(default=None, max_length=128)  # Snowflake role
+    # ─── BigQuery-specific ──────────────────────────────────────────
+    project: str | None = Field(default=None, max_length=255)  # GCP project ID
+    dataset: str | None = Field(default=None, max_length=255)  # default dataset
+    credentials_json: str | None = Field(default=None, max_length=65536)  # service account JSON
+    # ─── Databricks-specific ────────────────────────────────────────
+    http_path: str | None = Field(default=None, max_length=512)  # SQL endpoint path
+    access_token: str | None = Field(default=None, max_length=1024)  # PAT token
+    catalog: str | None = Field(default=None, max_length=128)  # Unity Catalog
+    # ─── Metadata ───────────────────────────────────────────────────
     description: str = Field(default="", max_length=500)
 
 
@@ -67,6 +113,20 @@ class ConnectionInfo(BaseModel):
     database: str | None = None
     username: str | None = None
     ssl: bool = False
+    ssl_config: SSLConfig | None = None
+    ssh_tunnel: SSHTunnelConfig | None = None
+    # Snowflake
+    account: str | None = None
+    warehouse: str | None = None
+    schema_name: str | None = None
+    role: str | None = None
+    # BigQuery
+    project: str | None = None
+    dataset: str | None = None
+    # Databricks
+    http_path: str | None = None
+    catalog: str | None = None
+    # Metadata
     description: str = ""
     created_at: float = Field(default_factory=time.time)
     last_used: float | None = None
