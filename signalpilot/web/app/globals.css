@@ -102,6 +102,13 @@ body {
 }
 .animate-slide-in-right { animation: slide-in-right 0.3s ease-out forwards; }
 
+/* Slide out to right */
+@keyframes slide-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(8px); }
+}
+.animate-slide-out-right { animation: slide-out-right 0.2s ease-in forwards; }
+
 /* Scale in */
 @keyframes scale-in {
   from { opacity: 0; transform: scale(0.95); }
