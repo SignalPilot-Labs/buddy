@@ -1104,6 +1104,7 @@ async def get_schema_samples(
                 values = await connector.get_sample_values(table_name, sample_cols, limit=limit)
                 if values:
                     samples[table_key] = values
+                    schema_cache.put_sample_values(name, table_key, values)
 
         return {
             "connection_name": name,
@@ -1823,6 +1824,42 @@ async def schema_link(
         ddl_lines.append(f"{header}CREATE TABLE {table_name} (\n{',\n'.join(col_parts)}\n);{rc_comment}")
 
     ddl_text = "\n\n".join(ddl_lines)
+
+    # Proactively fetch sample values for linked tables that lack them (background)
+    # Next schema_link call will include inline samples in DDL annotations
+    missing_samples = []
+    string_types = {"character varying", "varchar", "text", "char", "character", "enum",
+                   "String", "VARCHAR", "TEXT", "CHAR", "NVARCHAR", "string"}
+    for key in linked_keys:
+        if key not in filtered:
+            continue
+        if schema_cache.get_sample_values(name, key) is not None:
+            continue  # Already cached
+        t = filtered[key]
+        sample_cols = [
+            c["name"] for c in t.get("columns", [])
+            if c.get("type", "") in string_types or "char" in c.get("type", "").lower()
+        ]
+        if sample_cols:
+            missing_samples.append((key, t, sample_cols[:10]))
+
+    if missing_samples:
+        try:
+            conn_str = get_connection_string(name)
+            if conn_str:
+                extras = get_credential_extras(name)
+                async with pool_manager.connection(info.db_type, conn_str, credential_extras=extras) as connector:
+                    for key, t, sample_cols in missing_samples[:5]:  # Cap at 5 tables
+                        table_name = f"{t.get('schema', '')}.{t['name']}" if t.get("schema") else t["name"]
+                        try:
+                            values = await connector.get_sample_values(table_name, sample_cols, limit=5)
+                            if values:
+                                schema_cache.put_sample_values(name, key, values)
+                        except Exception:
+                            pass
+        except Exception:
+            pass  # Best-effort — don't fail the schema_link response
+
     return {
         "connection_name": name,
         "question": question,
