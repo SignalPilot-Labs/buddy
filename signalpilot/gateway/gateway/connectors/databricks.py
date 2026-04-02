@@ -183,8 +183,11 @@ class DatabricksConnector(BaseConnector):
                     pass
 
             return schema
-        except Exception:
-            pass
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).info(
+                "information_schema not available, falling back to SHOW/DESCRIBE: %s", e
+            )
 
         # Fallback: SHOW TABLES + DESCRIBE TABLE (legacy Hive metastore)
         try:

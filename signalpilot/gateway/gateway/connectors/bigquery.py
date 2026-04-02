@@ -140,13 +140,13 @@ class BigQueryConnector(BaseConnector):
                     """Flatten nested STRUCT/RECORD fields for Spider2.0 compatibility."""
                     cols = []
                     for field in fields:
-                        full_name = f"{prefix}{field.name}" if not prefix else f"{prefix}.{field.name}"
+                        full_name = f"{prefix}.{field.name}" if prefix else field.name
                         cols.append({
-                            "name": full_name if prefix else field.name,
+                            "name": full_name,
                             "type": field.field_type,
                             "nullable": field.mode != "REQUIRED",
                             "primary_key": False,
-                            "description": field.description or "",
+                            "comment": field.description or "",
                             "mode": field.mode,
                         })
                         # Recursively flatten nested RECORD fields

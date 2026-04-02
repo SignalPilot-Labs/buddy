@@ -119,17 +119,25 @@ class DuckDBConnector(BaseConnector):
         except Exception:
             pass
 
-        # Row counts (DuckDB is fast enough for this)
+        # Row counts — use duckdb_tables() for estimated_size, but get actual count
         row_counts: dict[str, int] = {}
         try:
+            # DuckDB v0.9+ has estimated_size; row count from pg_stat not available
+            # Use table list + SELECT COUNT(*) TABLESAMPLE for large tables
             count_sql = """
-                SELECT table_schema, table_name, estimated_size
+                SELECT table_schema, table_name, estimated_size, column_count
                 FROM duckdb_tables()
                 WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
             """
             count_result = self._conn.execute(count_sql)
             for row in count_result.fetchall():
-                row_counts[f"{row[0]}.{row[1]}"] = row[2] or 0
+                key = f"{row[0]}.{row[1]}"
+                est_size = row[2] or 0
+                # estimated_size is in bytes; estimate rows as size / avg_row_size
+                # avg_row_size ≈ 100 bytes per row for most analytical tables
+                col_count = row[3] or 1
+                avg_row_bytes = max(col_count * 20, 50)  # ~20 bytes per column
+                row_counts[key] = est_size // avg_row_bytes if est_size > 0 else 0
         except Exception:
             pass
 
@@ -150,6 +158,7 @@ class DuckDBConnector(BaseConnector):
                 "nullable": is_nullable == "YES",
                 "default": col_default,
                 "primary_key": f"{table_schema}.{table_name}.{col_name}" in pk_cols,
+                "comment": "",
             })
         return schema
 

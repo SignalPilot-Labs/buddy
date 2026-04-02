@@ -1479,6 +1479,13 @@ async def get_schema_ddl(
         sort_key = table.get("sortkey", "")
         if sort_key:
             comment_parts.append(f"SORTKEY({sort_key})")
+        # BigQuery-specific: partitioning and clustering
+        partitioning = table.get("partitioning", {})
+        if partitioning and partitioning.get("field"):
+            comment_parts.append(f"PARTITION BY {partitioning['field']}")
+        clustering = table.get("clustering_fields", [])
+        if clustering:
+            comment_parts.append(f"CLUSTER BY({', '.join(clustering)})")
         row_comment = f" -- {', '.join(comment_parts)}" if comment_parts else ""
 
         ddl = f"{table_header}CREATE TABLE {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
