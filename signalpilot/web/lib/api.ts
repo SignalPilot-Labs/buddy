@@ -255,6 +255,13 @@ export const getConnectionSchemaDiff = (name: string) =>
     message?: string;
   }>(`/api/connections/${name}/schema/diff`);
 
+// Schema DDL (Spider2.0 optimized format)
+export const getConnectionSchemaDDL = (name: string, maxTables = 50) =>
+  request<{
+    connection_name: string; format: string; table_count: number;
+    token_estimate: number; ddl: string;
+  }>(`/api/connections/${name}/schema/ddl?max_tables=${maxTables}`);
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);

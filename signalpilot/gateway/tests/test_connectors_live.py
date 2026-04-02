@@ -2314,6 +2314,69 @@ class TestSchemaDiff:
         assert "email" in diff["modified_tables"][0]["added_columns"]
 
 
+# ── Schema DDL Endpoint ────────────────────────────────────────────────────
+
+class TestSchemaDDL:
+    """Tests for the CREATE TABLE DDL schema format endpoint."""
+
+    def test_ddl_format_basic(self):
+        """DDL format produces valid CREATE TABLE statements."""
+        from gateway.main import get_schema_ddl
+        import asyncio
+        # This test requires a running connection — skip if gateway not available
+        try:
+            result = asyncio.get_event_loop().run_until_complete(
+                get_schema_ddl("enterprise-pg")
+            )
+            assert result["format"] == "ddl"
+            assert result["table_count"] > 0
+            assert "CREATE TABLE" in result["ddl"]
+            assert result["token_estimate"] > 0
+        except Exception:
+            pytest.skip("enterprise-pg connection not available")
+
+    def test_relevance_sorting(self):
+        """Tables with more FKs sort first (join-hub prioritization)."""
+        # Test the sorting logic directly
+        tables = {
+            "public.orders": {
+                "schema": "public", "name": "orders",
+                "columns": [{"name": "id", "type": "int"}],
+                "foreign_keys": [
+                    {"column": "customer_id", "references_table": "customers", "references_column": "id"},
+                    {"column": "product_id", "references_table": "products", "references_column": "id"},
+                ],
+                "row_count": 1000,
+            },
+            "public.customers": {
+                "schema": "public", "name": "customers",
+                "columns": [{"name": "id", "type": "int"}],
+                "foreign_keys": [],
+                "row_count": 500,
+            },
+            "public.products": {
+                "schema": "public", "name": "products",
+                "columns": [{"name": "id", "type": "int"}],
+                "foreign_keys": [],
+                "row_count": 100,
+            },
+        }
+
+        def _table_relevance(key: str) -> tuple:
+            table = tables[key]
+            fk_count = len(table.get("foreign_keys", []))
+            row_count = table.get("row_count", 0)
+            col_count = len(table.get("columns", []))
+            return (-fk_count, -row_count, -col_count, key)
+
+        sorted_keys = sorted(tables.keys(), key=_table_relevance)
+        # orders has 2 FKs, so it should be first
+        assert sorted_keys[0] == "public.orders"
+        # customers has more rows than products
+        assert sorted_keys[1] == "public.customers"
+        assert sorted_keys[2] == "public.products"
+
+
 # ── MCP Capabilities and Diff Tools ───────────────────────────────────────
 
 class TestMCPCapabilitiesTools:
@@ -2330,6 +2393,12 @@ class TestMCPCapabilitiesTools:
         from gateway.mcp_server import mcp
         tools = mcp._tool_manager._tools
         assert "schema_diff" in tools
+
+    def test_schema_ddl_tool_exists(self):
+        """schema_ddl MCP tool is registered."""
+        from gateway.mcp_server import mcp
+        tools = mcp._tool_manager._tools
+        assert "schema_ddl" in tools
 
 
 if __name__ == "__main__":

@@ -902,6 +902,45 @@ async def schema_diff(connection_name: str) -> str:
 
 
 @mcp.tool()
+async def schema_ddl(connection_name: str, max_tables: int = 50) -> str:
+    """
+    Get the database schema as CREATE TABLE DDL statements.
+
+    DDL format is preferred over JSON/text for text-to-SQL because:
+    - LLMs have seen massive DDL in training, making it the natural schema format
+    - DDL encodes constraints (PK, FK, NOT NULL) in standard SQL syntax
+    - Spider2.0 SOTA systems (DAIL-SQL, CHESS) use DDL format
+
+    Use this when you need to write SQL queries against the database.
+    For initial exploration, use schema_overview first, then compact_schema,
+    then this tool for the final DDL needed to write queries.
+
+    Args:
+        connection_name: Name of the database connection
+        max_tables: Maximum number of tables to include (default 50)
+    """
+    if not _CONN_NAME_RE.match(connection_name):
+        return "Error: Invalid connection name"
+
+    gw = _gateway_url()
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.get(
+            f"{gw}/api/connections/{connection_name}/schema/ddl",
+            params={"max_tables": max_tables},
+        )
+    if r.status_code != 200:
+        return f"Error ({r.status_code}): {r.text[:200]}"
+
+    data = r.json()
+    header = (
+        f"-- Schema DDL for {connection_name}\n"
+        f"-- Tables: {data.get('table_count', 0)}, "
+        f"Est. tokens: {data.get('token_estimate', 0)}\n\n"
+    )
+    return header + data.get("ddl", "")
+
+
+@mcp.tool()
 async def cache_status() -> str:
     """
     Check the query cache status and performance.

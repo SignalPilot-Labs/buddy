@@ -1253,8 +1253,18 @@ async def get_compact_schema(
 
     filtered = apply_endorsement_filter(name, cached)
 
-    # Sort tables: endorsed first, then by name
-    table_keys = sorted(filtered.keys())[:max_tables]
+    # Sort tables by relevance: most connected (FK-rich) first, then by row count
+    # This ensures the most important join-hub tables appear in truncated schemas
+    def _table_relevance(key: str) -> tuple:
+        table = filtered[key]
+        fk_count = len(table.get("foreign_keys", []))
+        row_count = table.get("row_count", 0)
+        col_count = len(table.get("columns", []))
+        # Higher FK count = higher relevance (join hubs are critical for Spider2.0)
+        # Higher row count = higher relevance (larger tables are usually more important)
+        return (-fk_count, -row_count, -col_count, key)
+
+    table_keys = sorted(filtered.keys(), key=_table_relevance)[:max_tables]
 
     # Build FK lookup for compact reference format
     fk_map: dict[str, dict[str, str]] = {}  # table.col -> ref_table.ref_col
@@ -1340,6 +1350,118 @@ async def get_compact_schema(
         "table_count": len(lines),
         "token_estimate": total_chars // 4,
         "schema": schema_text,
+    }
+
+
+@app.get("/api/connections/{name}/schema/ddl")
+async def get_schema_ddl(
+    name: str,
+    max_tables: int = Query(default=50, ge=1, le=500, description="Maximum tables to include"),
+    include_fk: bool = Query(default=True, description="Include foreign key constraints"),
+):
+    """CREATE TABLE DDL representation of the schema.
+
+    Spider2.0 SOTA systems (DAIL-SQL, DIN-SQL, CHESS) found that CREATE TABLE
+    DDL format outperforms list/JSON formats for text-to-SQL accuracy because:
+    1. LLMs have seen massive amounts of DDL in training data
+    2. DDL naturally encodes constraints (PK, FK, NOT NULL)
+    3. DDL is compact and unambiguous
+
+    Example output:
+        CREATE TABLE public.customers (
+            customer_id INT PRIMARY KEY,
+            name VARCHAR NOT NULL,
+            email VARCHAR
+        );
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached = schema_cache.get(name)
+    if cached is None:
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="No credentials stored")
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+        cached = await connector.get_schema()
+        schema_cache.put(name, cached)
+        await pool_manager.release(info.db_type, conn_str)
+
+    filtered = apply_endorsement_filter(name, cached)
+
+    # Sort by FK relevance (same as compact)
+    def _table_relevance(key: str) -> tuple:
+        table = filtered[key]
+        fk_count = len(table.get("foreign_keys", []))
+        row_count = table.get("row_count", 0)
+        return (-fk_count, -row_count, key)
+
+    table_keys = sorted(filtered.keys(), key=_table_relevance)[:max_tables]
+
+    # Build FK lookup
+    fk_map: dict[str, str] = {}
+    if include_fk:
+        for key, table in filtered.items():
+            for fk in table.get("foreign_keys", []):
+                fk_key = f"{key}.{fk['column']}"
+                ref = f"{fk.get('references_table', '')}.{fk.get('references_column', '')}"
+                fk_map[fk_key] = ref
+
+    ddl_statements = []
+    for key in table_keys:
+        table = filtered[key]
+        # Use schema-qualified name
+        table_name = f"{table.get('schema', '')}.{table.get('name', '')}"
+
+        col_lines = []
+        pk_cols = []
+        for col in table.get("columns", []):
+            col_type = col.get("type", "TEXT").upper()
+            # Shorten common types
+            type_map = {
+                "CHARACTER VARYING": "VARCHAR",
+                "TIMESTAMP WITHOUT TIME ZONE": "TIMESTAMP",
+                "TIMESTAMP WITH TIME ZONE": "TIMESTAMPTZ",
+                "DOUBLE PRECISION": "DOUBLE",
+                "BOOLEAN": "BOOL",
+            }
+            col_type = type_map.get(col_type, col_type)
+
+            parts = [f"  {col['name']} {col_type}"]
+            if not col.get("nullable", True):
+                parts.append("NOT NULL")
+            col_lines.append(" ".join(parts))
+            if col.get("primary_key"):
+                pk_cols.append(col["name"])
+
+        # Add PK constraint
+        if pk_cols:
+            col_lines.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+
+        # Add FK constraints
+        if include_fk:
+            for fk in table.get("foreign_keys", []):
+                ref_table = fk.get("references_table", "")
+                ref_col = fk.get("references_column", "")
+                col_lines.append(f"  FOREIGN KEY ({fk['column']}) REFERENCES {ref_table}({ref_col})")
+
+        row_comment = ""
+        rc = table.get("row_count", 0)
+        if rc:
+            row_comment = f" -- {rc:,} rows" if rc < 1_000_000 else f" -- {rc/1_000_000:.1f}M rows"
+
+        ddl = f"CREATE TABLE {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
+        ddl_statements.append(ddl)
+
+    ddl_text = "\n\n".join(ddl_statements)
+    return {
+        "connection_name": name,
+        "format": "ddl",
+        "table_count": len(ddl_statements),
+        "token_estimate": len(ddl_text) // 4,
+        "ddl": ddl_text,
     }
 
 
