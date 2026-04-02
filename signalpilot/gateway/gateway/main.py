@@ -589,9 +589,31 @@ async def _auto_schema_refresh(name: str, db_type: str):
         extras = get_credential_extras(name)
         async with pool_manager.connection(db_type, conn_str, credential_extras=extras) as connector:
             schema = await connector.get_schema()
-        # Cache the schema
-        schema_cache.put(name, schema)
-        logger.info("Auto-refreshed schema for new connection '%s': %d tables", name, len(schema))
+            # Cache the schema
+            schema_cache.put(name, schema)
+            logger.info("Auto-refreshed schema for new connection '%s': %d tables", name, len(schema))
+
+            # Pre-fetch sample values for likely categorical columns (Spider2.0 optimization)
+            # This powers value-based schema linking before the first query
+            _cat_names = {"status", "state", "type", "category", "region", "country",
+                          "city", "role", "department", "channel", "source", "currency"}
+            _str_types = {"varchar", "nvarchar", "text", "char", "character varying", "string"}
+            for table_key, table_data in list(schema.items())[:20]:
+                sample_cols = []
+                for col in table_data.get("columns", []):
+                    cn = col.get("name", "").lower()
+                    ct = col.get("type", "").lower().split("(")[0]
+                    stats = col.get("stats", {})
+                    dc = stats.get("distinct_count", 0) if stats else 0
+                    if (dc and dc <= 50) or (ct in _str_types and (cn in _cat_names or cn.endswith("_type") or cn.endswith("_status"))):
+                        sample_cols.append(col["name"])
+                if sample_cols:
+                    try:
+                        values = await connector.get_sample_values(table_key, sample_cols[:10], limit=5)
+                        if values:
+                            schema_cache.put_sample_values(name, table_key, values)
+                    except Exception:
+                        pass  # Best-effort
     except Exception as e:
         logger.warning("Auto-schema-refresh failed for '%s': %s", name, e)
 
@@ -975,20 +997,40 @@ async def warmup_all_schemas():
                 schema_cache.put(name, schema)
 
                 # Pre-fetch sample values for low-cardinality columns (RSL-SQL pattern)
-                # This enables value-based schema linking in the agent without extra queries
+                # This enables value-based schema linking in the agent without extra queries.
+                # Two strategies: (1) stats-based for columns with cardinality info,
+                # (2) type-heuristic for string columns likely to be categorical
+                # (e.g., status, category, region, type, role, gender, country).
+                _categorical_patterns = {
+                    "status", "state", "type", "category", "region", "country",
+                    "city", "gender", "role", "department", "dept", "tier",
+                    "priority", "severity", "channel", "source", "currency",
+                    "payment_method", "payment_type", "order_status", "plan",
+                    "segment", "class", "grade", "level", "phase",
+                }
+                _string_types = {"varchar", "nvarchar", "text", "char", "nchar",
+                                 "character varying", "enum", "string", "String"}
                 sample_count = 0
                 for table_key, table_data in list(schema.items())[:30]:  # Cap at 30 tables
                     if schema_cache.get_sample_values(name, table_key) is not None:
                         continue  # Already cached
                     low_card_cols = []
                     for col in table_data.get("columns", []):
+                        col_name = col.get("name", "")
+                        col_type = col.get("type", "").lower().split("(")[0]
                         stats = col.get("stats", {})
                         dc = stats.get("distinct_count", 0) if stats else 0
                         df = abs(stats.get("distinct_fraction", 0)) if stats else 0
+                        # Strategy 1: stats-based (when cardinality data available)
                         if dc and dc <= 50:
-                            low_card_cols.append(col["name"])
+                            low_card_cols.append(col_name)
                         elif df and df < 0.05:
-                            low_card_cols.append(col["name"])
+                            low_card_cols.append(col_name)
+                        # Strategy 2: type+name heuristic (when no stats available)
+                        elif not stats and col_type in _string_types:
+                            col_lower = col_name.lower()
+                            if col_lower in _categorical_patterns or col_lower.endswith("_type") or col_lower.endswith("_status"):
+                                low_card_cols.append(col_name)
                     if low_card_cols:
                         try:
                             samples = await connector.get_sample_values(
