@@ -1954,12 +1954,20 @@ async def get_schema_overview(
         total_fks += len(fks)
         if fks:
             tables_with_fks.add(key)
-        largest_tables.append({
+        entry: dict = {
             "table": key,
             "columns": len(cols),
             "rows": row_count,
             "fks": len(fks),
-        })
+        }
+        # Include optimization metadata for agent query planning
+        for meta_key in ("engine", "sorting_key", "diststyle", "sortkey",
+                         "clustering_key", "partitioning", "clustering_fields",
+                         "size_bytes", "size_mb", "total_bytes"):
+            val = table.get(meta_key)
+            if val:
+                entry[meta_key] = val
+        largest_tables.append(entry)
 
     # Sort by row count descending
     largest_tables.sort(key=lambda t: t["rows"], reverse=True)

@@ -385,6 +385,7 @@ class CostEstimator:
             "clickhouse": CostEstimator.estimate_clickhouse,
             "databricks": CostEstimator.estimate_databricks,
             "duckdb": CostEstimator.estimate_duckdb,
+            "sqlite": CostEstimator.estimate_duckdb,  # SQLite is local — same minimal cost model
             "mssql": CostEstimator.estimate_mssql,
             "trino": CostEstimator.estimate_trino,
         }
