@@ -295,7 +295,7 @@ class PoolManager:
         return {
             "pool_count": len(self._pools),
             "tunnel_count": len(self._tunnels),
-            "max_idle_seconds": self._max_idle,
+            "max_idle_seconds": self._idle_timeout,
             "pools": pools,
             "tunnels": tunnels,
         }
