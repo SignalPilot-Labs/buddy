@@ -1168,6 +1168,26 @@ export default function ConnectionsPage() {
                   <div className="animate-fade-in">
                     <SSLSection form={form} setForm={setForm} />
                     <SSHSection form={form} setForm={setForm} />
+                    {/* IP Allowlist Info */}
+                    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+                      <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] tracking-wider mb-2">
+                        <Shield className="w-3 h-3" strokeWidth={1.5} />
+                        <span>ip allowlisting</span>
+                      </div>
+                      <div className="px-3 py-2.5 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed">
+                        <p className="text-[9px] text-[var(--color-text-dim)] tracking-wider mb-1.5">
+                          if your database requires ip allowlisting, add these signalpilot outbound ips to your firewall rules:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {["0.0.0.0/0 (self-hosted — use your server IP)"].map((ip) => (
+                            <code key={ip} className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-bg-hover)] px-2 py-0.5 tracking-wider">{ip}</code>
+                          ))}
+                        </div>
+                        <p className="text-[8px] text-[var(--color-text-dim)] tracking-wider mt-1.5 opacity-60">
+                          for cloud-hosted signalpilot, dedicated static ips are assigned per workspace. contact your admin for the exact ips.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
