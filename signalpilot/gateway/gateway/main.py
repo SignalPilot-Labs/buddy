@@ -1461,6 +1461,12 @@ async def get_schema_ddl(
                     annotations.append("UNIQUE")
                 elif frac > 0 and frac <= 0.01:
                     annotations.append("low_cardinality")
+            # Inline sample values for low-cardinality columns
+            cached_samples = schema_cache.get_sample_values(name, key)
+            if cached_samples and col["name"] in cached_samples:
+                sample_vals = cached_samples[col["name"]]
+                if len(sample_vals) <= 10:
+                    annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
             if annotations:
                 parts.append(f"-- {'; '.join(annotations)}")
             col_lines.append(" ".join(parts))
@@ -1776,6 +1782,13 @@ async def schema_link(
                 annotations.append(f"SORTKEY#{col['sort_key_position']}")
             if col.get("low_cardinality"):
                 annotations.append("low cardinality")
+            # Inline sample values for low-cardinality string columns (Spider2.0 key technique)
+            # Helps agent pick correct WHERE values without hallucinating
+            cached_samples = schema_cache.get_sample_values(name, key)
+            if cached_samples and col["name"] in cached_samples:
+                sample_vals = cached_samples[col["name"]]
+                if len(sample_vals) <= 10:
+                    annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
             if annotations:
                 parts.append(f"-- {'; '.join(annotations)}")
             col_parts.append(" ".join(parts))
