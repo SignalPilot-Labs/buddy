@@ -943,6 +943,38 @@ class TestSchemaSearch:
         assert any(r[1] == "public.orders" for r in results)
 
 
+class TestDatabricksURLParsing:
+    """Test Databricks connection string parsing."""
+
+    def test_pipe_delimited_format(self):
+        from gateway.connectors.databricks import DatabricksConnector
+        c = DatabricksConnector()
+        params = c._parse_connection("databricks://my-workspace.cloud.databricks.com|/sql/1.0/warehouses/abc123|dapi_token|my_catalog|my_schema")
+        assert params["host"] == "my-workspace.cloud.databricks.com"
+        assert params["http_path"] == "/sql/1.0/warehouses/abc123"
+        assert params["access_token"] == "dapi_token"
+        assert params["catalog"] == "my_catalog"
+        assert params["schema"] == "my_schema"
+
+    def test_url_format(self):
+        from gateway.connectors.databricks import DatabricksConnector
+        c = DatabricksConnector()
+        params = c._parse_connection("databricks://dapi_token@my-workspace.cloud.databricks.com/sql/1.0/warehouses/abc123?catalog=my_catalog&schema=my_schema")
+        assert params["host"] == "my-workspace.cloud.databricks.com"
+        assert params["http_path"] == "sql/1.0/warehouses/abc123"
+        assert params["access_token"] == "dapi_token"
+        assert params["catalog"] == "my_catalog"
+        assert params["schema"] == "my_schema"
+
+    def test_host_only_format(self):
+        from gateway.connectors.databricks import DatabricksConnector
+        c = DatabricksConnector()
+        params = c._parse_connection("my-workspace.cloud.databricks.com")
+        assert params["host"] == "my-workspace.cloud.databricks.com"
+        assert params["http_path"] == ""
+        assert params["access_token"] == ""
+
+
 class TestMySQLSSLConfig:
     """Test MySQL SSL configuration support."""
 

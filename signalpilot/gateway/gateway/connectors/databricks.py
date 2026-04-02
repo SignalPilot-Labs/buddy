@@ -57,15 +57,37 @@ class DatabricksConnector(BaseConnector):
         self._conn = databricks_sql.connect(**connect_args)
 
     def _parse_connection(self, conn_str: str) -> dict:
-        """Parse databricks://host|http_path|token format."""
+        """Parse Databricks connection strings.
+
+        Supported formats:
+        - databricks://host|http_path|token|catalog|schema (pipe-delimited)
+        - databricks://token@host/http_path?catalog=CAT&schema=SCH (URL format)
+        - host only (use with credential_extras)
+        """
         if conn_str.startswith("databricks://"):
-            parts = conn_str[len("databricks://"):].split("|")
+            inner = conn_str[len("databricks://"):]
+
+            # Pipe-delimited format (legacy)
+            if "|" in inner:
+                parts = inner.split("|")
+                return {
+                    "host": parts[0] if len(parts) > 0 else "",
+                    "http_path": parts[1] if len(parts) > 1 else "",
+                    "access_token": parts[2] if len(parts) > 2 else "",
+                    "catalog": parts[3] if len(parts) > 3 else "",
+                    "schema": parts[4] if len(parts) > 4 else "",
+                }
+
+            # URL format: databricks://token@host/http_path?catalog=CAT&schema=SCH
+            from urllib.parse import urlparse, unquote, parse_qs
+            parsed = urlparse(conn_str)
+            query = parse_qs(parsed.query or "")
             return {
-                "host": parts[0] if len(parts) > 0 else "",
-                "http_path": parts[1] if len(parts) > 1 else "",
-                "access_token": parts[2] if len(parts) > 2 else "",
-                "catalog": parts[3] if len(parts) > 3 else "",
-                "schema": parts[4] if len(parts) > 4 else "",
+                "host": parsed.hostname or "",
+                "http_path": parsed.path.lstrip("/") if parsed.path else "",
+                "access_token": unquote(parsed.username or ""),
+                "catalog": query.get("catalog", [""])[0],
+                "schema": query.get("schema", [""])[0],
             }
         return {"host": conn_str, "http_path": "", "access_token": ""}
 
