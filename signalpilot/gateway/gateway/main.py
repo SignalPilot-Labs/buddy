@@ -1579,13 +1579,37 @@ async def schema_link(
         "say", "she", "too", "use", "what", "which", "show", "find", "list",
         "give", "tell", "many", "much", "each", "every", "from", "with", "that",
         "this", "have", "will", "your", "they", "been", "more", "when", "make",
-        "like", "time", "very", "just", "than", "them", "some", "would", "could",
-        "select", "where", "order", "group", "having", "limit", "count",
-        "average", "total", "number", "amount", "value", "result", "data",
-        "table", "column", "database", "query", "display", "retrieve",
+        "like", "very", "just", "than", "them", "some", "would", "could",
+        "select", "where", "group", "having", "limit",
+        "result", "table", "column", "database", "query", "display", "retrieve",
+    }
+    # Semantic synonyms for common business/analytical terms that map to column names
+    # This improves recall when the question uses different words than the schema
+    _synonyms: dict[str, list[str]] = {
+        "spending": ["amount", "total", "payment", "cost", "price", "revenue"],
+        "revenue": ["amount", "total", "sales", "income", "price"],
+        "bought": ["order", "purchase", "transaction"],
+        "sold": ["order", "sale", "transaction"],
+        "profit": ["margin", "revenue", "cost", "amount"],
+        "expensive": ["price", "cost", "amount"],
+        "cheapest": ["price", "cost", "amount"],
+        "latest": ["date", "time", "created", "updated", "recent"],
+        "oldest": ["date", "time", "created"],
+        "biggest": ["count", "total", "amount", "size"],
+        "active": ["status", "is_active", "enabled"],
+        "inactive": ["status", "is_active", "enabled"],
     }
     question_lower = question.lower()
     terms = [w for w in _re_link.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question_lower) if len(w) >= 3 and w not in stopwords]
+
+    # Expand terms with semantic synonyms (improves recall for Spider2.0)
+    expanded_terms = list(terms)
+    for term in terms:
+        if term in _synonyms:
+            for syn in _synonyms[term]:
+                if syn not in expanded_terms:
+                    expanded_terms.append(syn)
+    terms = expanded_terms
 
     # Step 2: Score each table by relevance
     table_scores: dict[str, float] = {}
