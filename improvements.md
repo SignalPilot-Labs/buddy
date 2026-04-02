@@ -5,6 +5,75 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 24: Semantic Model, Databricks OAuth, Network Diagnostics (2026-04-01)
+
+**Summary:** 8 improvements — HEX-style semantic model API (CRUD + auto-generation), agent-context enrichment with semantic descriptions/glossary/joins, Databricks OAuth M2M auth, network diagnostics endpoint (DNS/TCP/TLS/Auth), IP whitelist helper, connection diagnostics frontend, semantic model tests, and glossary filtering for question-relevant terms.
+
+**Key metrics:**
+- 387 tests passing (10 new semantic model tests)
+- 6 git commits this round
+- All 5 Docker databases verified healthy
+- Semantic model auto-generation: 10 tables, 10 joins, 99 glossary terms from enterprise-pg
+- Agent-context enrichment verified: semantic descriptions in DDL, filtered glossary in context
+
+### 1. Semantic Model API (HEX-Style)
+**Files:** `gateway/main.py`
+- **Impact:** Full CRUD for curated schema metadata — table/column descriptions, join hints, business glossary
+- GET/PUT `/api/connections/{name}/semantic-model` — full model read/write
+- PATCH `/api/connections/{name}/semantic-model/table/{table_key}` — quick single-table edit
+- POST `/api/connections/{name}/semantic-model/generate` — auto-generates from schema introspection
+- Auto-generation: FK relationships → join entries, column names → glossary terms, DB comments → descriptions
+- Persistent storage via JSON files in DATA_DIR
+
+### 2. Agent-Context Semantic Enrichment
+**Files:** `gateway/main.py`
+- **Impact:** Semantic model descriptions, glossary, and join hints injected into agent-context DDL
+- Semantic descriptions override empty DB comments in DDL output
+- Business names prepended to column comments (e.g., "Customer ID: Unique identifier")
+- Unit annotations appended (e.g., "Order total (USD)")
+- Glossary filtered to only tables relevant to the current question
+- Semantic join hints added as DDL comments
+
+### 3. Databricks OAuth M2M Auth
+**Files:** `connectors/databricks.py`, `web/app/connections/page.tsx`
+- **Impact:** Service principal authentication alongside existing PAT auth
+- Auth method toggle (PAT vs OAuth M2M) in connection form
+- Uses `databricks.sdk.core.oauth_service_principal` with fallback to `Config`
+- Setup guidance for creating Databricks service principals
+
+### 4. Network Diagnostics Endpoint
+**Files:** `gateway/main.py`
+- **Impact:** Layered connectivity diagnosis — DNS → TCP → TLS → Auth
+- POST `/api/connections/{name}/diagnose` runs all checks with per-phase timing
+- Each phase reports status, message, optional hint, and duration_ms
+- Graceful degradation: TLS check skipped for non-TLS connections
+
+### 5. IP Whitelist Helper
+**Files:** `gateway/main.py`, `web/app/connections/page.tsx`
+- **Impact:** Auto-detects server public IP and generates per-platform firewall instructions
+- GET `/api/network/info` returns hostname, local IPs, public IP
+- Platform-specific instructions for AWS RDS, Redshift, Azure SQL, GCP Cloud SQL, Snowflake, Databricks, ClickHouse Cloud
+- Frontend displays real IP with copy-to-clipboard button
+
+### 6. Connection Diagnostics Frontend
+**Files:** `web/app/connections/page.tsx`
+- **Impact:** One-click "diagnose" button per connection with phase results display
+- Shows DNS✓, TCP✓, Auth✓ status format with timing
+- Integrates with network diagnostics backend
+
+### 7. Frontend Semantic Button
+**Files:** `web/app/connections/page.tsx`
+- **Impact:** One-click semantic model generation in schema browser
+- "semantic" button triggers auto-generation from schema introspection
+- Results displayed inline (tables, joins, glossary counts)
+
+### 8. Semantic Model Tests
+**Files:** `tests/test_semantic_model.py`
+- **Impact:** 10 tests covering model storage, context enrichment, and join hints
+- Tests: model merge, glossary merge, description override priority, business name formatting, unit annotations, glossary filtering, join auto-generation, join deduplication
+
+---
+
 ## Round 23: Spider2.0 SOTA Techniques, Schema Refinement, URL Builder (2026-04-02)
 
 **Summary:** 7 improvements — Two-pass schema refinement endpoint (Spider2.0 SOTA), agent-context single-call schema provisioning, connection URL builder endpoint, async schema fetching for MSSQL/MySQL, HEX-style contextual setup guidance for PG/MySQL, comprehensive SQL extraction tests, and all 5 databases verified healthy with agent-context data.
@@ -2644,7 +2713,10 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~Query history MCP tool~~ (Done: recent successful queries for agent learning)
 - [x] ~~Schema context panel~~ (Done: query page shows relevant DDL while writing SQL)
 - [x] ~~MySQL reconnect safety~~ (Done: ping before each schema introspection query)
-- [ ] OAuth support for Snowflake, BigQuery, Databricks
+- [x] ~~Databricks OAuth M2M~~ (Done: service principal auth with SDK fallback)
+- [x] ~~Semantic model API~~ (Done: HEX-style CRUD + auto-generation + agent-context enrichment)
+- [x] ~~Network diagnostics~~ (Done: DNS/TCP/TLS/Auth layered checks + IP whitelist helper)
+- [ ] OAuth support for Snowflake, BigQuery
 - [ ] Claude MCP Connector integration (HEX pattern)
 - [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
 - [ ] Identity-Aware Proxy (IAP) support for zero-trust database access

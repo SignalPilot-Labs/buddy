@@ -240,6 +240,16 @@ export const getSchemaCache = () =>
 export const invalidateSchemaCache = (name?: string) =>
   request<{ invalidated: number }>(`/api/schema-cache/invalidate${name ? `?connection_name=${encodeURIComponent(name)}` : ""}`, { method: "POST" });
 
+// Schema Warmup (parallel across all connections)
+export const warmupSchemas = () =>
+  request<{
+    warmed: number;
+    total_connections: number;
+    total_tables: number;
+    results: { name: string; status: string; table_count?: number; error?: string }[];
+    duration_ms: number;
+  }>("/api/connections/schema/warmup", { method: "POST" });
+
 // Connection URL Validation
 export const validateConnectionUrl = (connection_string: string, db_type: string) =>
   request<{ valid: boolean; parsed?: Record<string, unknown>; warnings?: string[]; error?: string }>(

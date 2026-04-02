@@ -841,6 +841,56 @@ async def refresh_connection_schema(name: str):
     }
 
 
+@app.post("/api/connections/schema/warmup")
+async def warmup_all_schemas():
+    """Parallel schema warmup for all connections.
+
+    Fetches schemas for all connections concurrently, caching results.
+    Useful at startup or when an AI agent first connects.
+    Returns per-connection results (success/failure + table counts).
+    """
+    import asyncio
+
+    connections = list_connections()
+    if not connections:
+        return {"warmed": 0, "results": [], "duration_ms": 0}
+
+    start = time.monotonic()
+
+    async def _warmup_one(info: ConnectionInfo) -> dict:
+        name = info.name
+        # Skip if already cached
+        cached = schema_cache.get(name)
+        if cached is not None:
+            return {"name": name, "status": "cached", "table_count": len(cached)}
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            return {"name": name, "status": "skipped", "error": "no credentials"}
+        try:
+            extras = get_credential_extras(name)
+            async with pool_manager.connection(info.db_type, conn_str, credential_extras=extras) as connector:
+                schema = await connector.get_schema()
+            schema_cache.put(name, schema)
+            now = time.time()
+            update_connection(name, ConnectionUpdate(last_schema_refresh=now))
+            return {"name": name, "status": "ok", "table_count": len(schema)}
+        except Exception as e:
+            return {"name": name, "status": "error", "error": str(e)[:200]}
+
+    results = await asyncio.gather(*[_warmup_one(c) for c in connections], return_exceptions=False)
+    elapsed = (time.monotonic() - start) * 1000
+
+    ok_count = sum(1 for r in results if r["status"] in ("ok", "cached"))
+    total_tables = sum(r.get("table_count", 0) for r in results)
+    return {
+        "warmed": ok_count,
+        "total_connections": len(connections),
+        "total_tables": total_tables,
+        "results": results,
+        "duration_ms": round(elapsed, 1),
+    }
+
+
 @app.post("/api/connections/validate-url")
 async def validate_connection_url(body: dict):
     """Validate and parse a connection string without saving or connecting.
