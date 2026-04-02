@@ -5,6 +5,102 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 7: Schema Refresh, Filtering, Sample Caching, Cost Estimation (2026-04-02)
+
+**Summary:** 6 features — scheduled schema refresh (HEX pattern), schema filtering by prefix, sample values caching, compact schema endpoint, improved cost estimation for ClickHouse/Databricks, frontend schema refresh UI.
+
+**Key metrics:**
+- 248 unit tests passing (up from 230)
+- All 3 Docker databases tested E2E (PostgreSQL, MySQL, ClickHouse)
+- Compact schema: 10 PostgreSQL tables in ~340 tokens, 6 MySQL tables in ~126 tokens
+- Sample values caching with 2x TTL for stable schema linking
+- Cost estimation now uses EXPLAIN ESTIMATE + PLAN for ClickHouse, EXPLAIN FORMATTED for Databricks
+
+### 1. Scheduled Schema Refresh (HEX Pattern)
+
+**What:** Background task periodically refreshes schema for connections with `schema_refresh_interval` configured.
+
+**How it works:**
+- `schema_refresh_interval` field added to ConnectionCreate/Update/Info (60-86400 seconds)
+- `last_schema_refresh` timestamp tracks when schema was last refreshed
+- Background loop checks every 30s, refreshes connections whose interval has elapsed
+- Manual refresh via `POST /api/connections/{name}/schema/refresh` updates timestamp
+- Status via `GET /api/connections/{name}/schema/refresh-status`
+
+**Frontend:**
+- Checkbox toggle in advanced options: "auto-refresh schema metadata"
+- Dropdown presets: 1 min, 5 min, 15 min, 30 min, 1 hour, 4 hours, 12 hours, 24 hours
+- Editing a connection with refresh enabled opens advanced options automatically
+
+**HEX reference:** "Toggling on scheduled schema refresh sets up a recurring refresh of the database, schema, table, and column metadata visible in the Data browser and discoverable by AI agents."
+
+### 2. Schema Filtering by Prefix
+
+**What:** `GET /api/connections/{name}/schema/filter` with `schema_prefix` and `table_prefix` parameters.
+
+**Use case:** Large enterprise databases with hundreds of schemas — AI agent focuses on relevant subsets without loading entire schema into context.
+
+**Parameters:**
+- `schema_prefix` — filter by schema/database name prefix (e.g., "public", "analytics")
+- `table_prefix` — filter by table name prefix
+- `include_columns` — false returns just table metadata with column counts
+- `max_tables` — limit results (default 100)
+
+**E2E verified:** PostgreSQL filtered 5 of 10 tables with `schema_prefix=public`, ClickHouse filtered 2 tables with `schema_prefix=test`.
+
+### 3. Sample Values Caching
+
+**What:** SchemaCache extended with `put_sample_values()` / `get_sample_values()` for caching distinct column values.
+
+**Why:** Sample values help AI agents understand data domains for more accurate SQL generation (e.g., knowing `status` contains 'active', 'inactive', 'pending').
+
+**Implementation:**
+- `GET /api/connections/{name}/schema/sample-values?table=...&columns=...&limit=5`
+- Auto-selects string/text/enum columns when `columns` is omitted
+- Cache TTL is 2x the regular schema cache TTL (values change less often than schema)
+- Cache hit returns `cached: true` — no DB round-trip
+
+**E2E verified:** PostgreSQL `public.employees.department` → ["Data", "Design", "DevOps", "Engineering", "Executive"]. Second request returns cached result.
+
+### 4. Compact Schema Improvements
+
+**What:** Fixed deprecation warning (`regex` → `pattern` in FastAPI Query).
+
+### 5. Cost Estimation Improvements
+
+**ClickHouse:** Now tries `EXPLAIN ESTIMATE` first (returns rows/marks per partition — most accurate), falls back to `EXPLAIN PLAN` and parses `rows: N` from query tree.
+
+**Databricks:** Now uses `EXPLAIN FORMATTED` and parses `rowCount=N` from Statistics or `numOutputRows` from plan output, instead of using a hardcoded 10K default.
+
+### 6. Industry Research — Spider 2.0 & HEX 2026 Updates
+
+**Spider 2.0 state of the art (April 2026):**
+- BAR-SQL: 91.48% average accuracy, outperforms Claude 4.5 Sonnet and GPT-5
+- SQL-R1: 87.6% Spider dev, 88.7% test, 66.6% BIRD
+- NL2SQL toolkit on Spider-2: 90% execution accuracy with schema linking + compression + self-refinement
+- Enterprise gap: 85%+ on clean academic datasets, but 10-20% in real enterprise environments
+- Key insight: "The most dangerous queries run perfectly and return data — the data is just wrong"
+
+**Best techniques 2026:**
+1. Schema linking funnel (LinkedIn pattern): popularity → vector search → LLM re-rank → top 7 tables
+2. Chain-of-thought fine-tuning: 36% → 54.5% accuracy for small models
+3. Multi-agent error correction: 95-99% syntactic validity, failures are intent mismatches
+4. Execution-based self-refinement: standard practice over text-based exact match
+5. TailorSQL: 10-22% higher accuracy with 2-15x smaller prompts via workload specialization
+
+**HEX 2026 updates:**
+- Claude Connector: native app with interactive charts, tables, thinking steps
+- ClickHouse partnership: chDB 4 with native pythonic support
+- Query mode: skips upstream cells not included in app
+- Tier system: T1 (full), T2 (stable), T3 (basic) — same as our implementation
+
+**SignalPilot positioning:**
+- We now match HEX on: scheduled refresh, schema browsing, connection tiers, SSH/SSL, tags, bidirectional URL/fields
+- Advantages over HEX: compact schema for LLM context, sample values caching, cost estimation, schema diff
+- Next priorities: OAuth connections, Claude MCP connector, execution-based self-refinement
+
+---
+
 ## Round 6: Connection UX, Key-Pair Auth, ClickHouse HTTP, Parallel Schema (2026-04-02)
 
 **Summary:** 7 features — bidirectional URL/fields sync, connection tags, Snowflake key-pair auth, IP allowlist display, parallel schema fetching for 3 connectors, ClickHouse HTTP fallback for v26+ compatibility.
@@ -112,20 +208,24 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 - Real academic leaderboard (spider2-sql.github.io) shows o1-preview at only 21.3%
 - Key takeaway: schema linking and foreign key discovery remain the highest-impact optimizations
 
-### HEX Comparison Update (Round 6)
+### HEX Comparison Update (Round 7)
 
 | Feature | HEX | SignalPilot |
 |---------|-----|-------------|
-| Bidirectional URL/fields sync | Yes | **Yes** (new) |
-| Connection tags/groups | Yes (workspaces) | **Yes** (new — tag-based) |
-| Snowflake key-pair auth | Yes | **Yes** (new) |
-| IP allowlist display | Yes | **Yes** (new) |
-| ClickHouse v26+ support | Yes (HTTP) | **Yes** (new — HTTP fallback) |
-| Parallel schema fetching | Yes | **Yes** (new — 3 connectors) |
+| Scheduled schema refresh | Yes | **Yes** (new — configurable 60s-24h) |
+| Schema filtering by prefix | Yes (Data Browser) | **Yes** (new — API endpoint) |
+| Sample values caching | Yes (schema browser) | **Yes** (new — 2x TTL cache) |
+| Compact schema for LLM | No | **Yes** (unique — text + JSON formats) |
+| Cost estimation (all DBs) | Partial | **Yes** (new — EXPLAIN on all 8 DBs) |
+| Bidirectional URL/fields sync | Yes | Yes |
+| Connection tags/groups | Yes (workspaces) | Yes (tag-based) |
+| Snowflake key-pair auth | Yes | Yes |
+| ClickHouse v26+ support | Yes (HTTP + chDB) | Yes (HTTP fallback) |
 | SSL certs (all connectors) | Yes | Yes |
 | Schema endorsements | Yes (Data Browser) | Yes |
-| Auto schema refresh | Yes | Yes |
 | Column correction | No | Yes (unique) |
+| Schema diff tracking | No | Yes (unique) |
+| Claude MCP connector | Yes (2026) | Planned |
 | OAuth | Snowflake/Databricks/BigQuery | Planned |
 
 ---
