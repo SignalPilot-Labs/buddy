@@ -216,7 +216,8 @@ class RedshiftConnector(BaseConnector):
         if self._conn is None:
             raise RuntimeError("Not connected")
 
-        # Combined columns + primary key + encoding query (reduces round trips)
+        # Combined columns + primary key + encoding + view detection query
+        # Merges the former views_sql query into the main column query (6→5 queries)
         sql = """
             SELECT
                 td.schemaname AS table_schema,
@@ -227,7 +228,8 @@ class RedshiftConnector(BaseConnector):
                 CASE WHEN td.notnull THEN 'NO' ELSE 'YES' END AS is_nullable,
                 CASE WHEN td.distkey THEN true ELSE false END AS is_dist_key,
                 td.sortkey AS sort_key_position,
-                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key
+                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key,
+                CASE WHEN v.viewname IS NOT NULL THEN true ELSE false END AS is_view
             FROM pg_table_def td
             LEFT JOIN (
                 SELECT n.nspname AS table_schema, cl.relname AS table_name, a.attname AS column_name
@@ -237,6 +239,7 @@ class RedshiftConnector(BaseConnector):
                 JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
                 WHERE con.contype = 'p' AND n.nspname NOT IN ('pg_catalog', 'information_schema')
             ) pk ON td.schemaname = pk.table_schema AND td.tablename = pk.table_name AND td."column" = pk.column_name
+            LEFT JOIN pg_views v ON td.schemaname = v.schemaname AND td.tablename = v.viewname
             WHERE td.schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
             ORDER BY td.schemaname, td.tablename, td.colnum
         """
@@ -286,12 +289,6 @@ class RedshiftConnector(BaseConnector):
             WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
         """
 
-        # Identify views vs tables
-        views_sql = """
-            SELECT schemaname AS table_schema, viewname AS table_name
-            FROM pg_views
-            WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
-        """
         # Column and table comments via pg_description (Redshift supports COMMENT ON)
         comments_sql = """
             SELECT
@@ -330,16 +327,10 @@ class RedshiftConnector(BaseConnector):
                 _fetch(fk_sql, "foreign_keys"),
                 _fetch(table_info_sql, "table_info"),
                 _fetch(stats_sql, "stats"),
-                _fetch(views_sql, "views"),
                 _fetch(comments_sql, "comments"),
             )
 
-        rows, fk_rows_raw, table_info_raw, stats_raw, views_raw, comments_raw = await asyncio.to_thread(_fetch_all)
-
-        # Build views set for type classification
-        view_keys: set[str] = set()
-        for r in views_raw:
-            view_keys.add(f"{r['table_schema']}.{r['table_name']}")
+        rows, fk_rows_raw, table_info_raw, stats_raw, comments_raw = await asyncio.to_thread(_fetch_all)
 
         # Build FK map
         foreign_keys: dict[str, list[dict]] = {}
@@ -401,7 +392,7 @@ class RedshiftConnector(BaseConnector):
                 schema[key] = {
                     "schema": row["table_schema"],
                     "name": row["table_name"],
-                    "type": "view" if key in view_keys else "table",
+                    "type": "view" if row.get("is_view") else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": ti.get("row_count", 0),

@@ -719,13 +719,35 @@ function validateForm(form: FormState): Record<string, string> {
   if (form.db_type === "databricks") {
     if (!form.http_path.trim()) errors.http_path = "HTTP path is required (e.g., /sql/1.0/warehouses/abc123)";
     if (form.databricks_auth_method === "pat" && !form.access_token.trim()) errors.access_token = "personal access token is required";
+    if (form.databricks_auth_method === "oauth_m2m") {
+      if (!form.dbx_oauth_client_id?.trim()) errors.dbx_oauth_client_id = "OAuth client ID is required for M2M auth";
+      if (!form.dbx_oauth_client_secret?.trim()) errors.dbx_oauth_client_secret = "OAuth client secret is required for M2M auth";
+    }
   }
 
   if (form.ssh_enabled) {
     if (!form.ssh_host.trim()) errors.ssh_host = "SSH host is required";
     if (!form.ssh_username.trim()) errors.ssh_username = "SSH username is required";
     if (form.ssh_auth_method === "password" && !form.ssh_password.trim()) errors.ssh_password = "SSH password is required";
-    if (form.ssh_auth_method === "key" && !form.ssh_private_key.trim()) errors.ssh_private_key = "SSH private key is required";
+    if (form.ssh_auth_method === "key") {
+      if (!form.ssh_private_key.trim()) {
+        errors.ssh_private_key = "SSH private key is required";
+      } else if (!form.ssh_private_key.trim().startsWith("-----BEGIN")) {
+        errors.ssh_private_key = "must be a PEM-format private key (-----BEGIN ... PRIVATE KEY-----)";
+      }
+    }
+    const sshPort = parseInt(form.ssh_port || "22");
+    if (isNaN(sshPort) || sshPort < 1 || sshPort > 65535) errors.ssh_port = "SSH port must be 1-65535";
+  }
+
+  // Timeout validation (if provided, must be positive integers)
+  if (form.connection_timeout) {
+    const ct = parseInt(form.connection_timeout);
+    if (isNaN(ct) || ct < 1 || ct > 300) errors.connection_timeout = "connection timeout must be 1-300 seconds";
+  }
+  if (form.query_timeout) {
+    const qt = parseInt(form.query_timeout);
+    if (isNaN(qt) || qt < 1 || qt > 3600) errors.query_timeout = "query timeout must be 1-3600 seconds";
   }
 
   return errors;

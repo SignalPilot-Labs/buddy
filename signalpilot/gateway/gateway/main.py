@@ -1732,13 +1732,48 @@ async def diagnose_connection(name: str):
 
     diagnostics: list[dict] = []
 
+    # Local-only databases skip network diagnostics — just test the connection
+    if info.db_type in ("duckdb", "sqlite"):
+        extras = get_credential_extras(name)
+        t0 = time.monotonic()
+        try:
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            try:
+                ok = await connector.health_check()
+                diagnostics.append({
+                    "check": "local_access",
+                    "status": "ok" if ok else "error",
+                    "message": "Local database accessible" if ok else "Health check failed",
+                    "duration_ms": round((time.monotonic() - t0) * 1000, 1),
+                })
+            finally:
+                await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            diagnostics.append({
+                "check": "local_access",
+                "status": "error",
+                "message": f"Cannot access database: {_sanitize_db_error(str(e), db_type=info.db_type)}",
+                "hint": "Check the file path exists and is readable",
+                "duration_ms": round((time.monotonic() - t0) * 1000, 1),
+            })
+        return {"host": "localhost", "port": 0, "diagnostics": diagnostics}
+
     # Extract host and port from connection string
     host, port = "", 0
     try:
+        import re as _re
         from urllib.parse import urlparse
-        parsed = urlparse(conn_str.replace("postgresql://", "http://").replace("mysql://", "http://").replace("mssql://", "http://").replace("redshift://", "http://").replace("clickhouse://", "http://"))
+        # Normalize any DB scheme to http:// so urlparse can extract host/port.
+        # Handles all variants: postgresql://, postgres://, mysql+pymysql://,
+        # clickhouse+https://, sqlserver://, mssql+pymssql://, trino+https://, etc.
+        normalized = _re.sub(r'^[a-zA-Z][a-zA-Z0-9+.\-]*://', 'http://', conn_str)
+        parsed = urlparse(normalized)
         host = parsed.hostname or ""
-        _default_ports = {"postgres": 5432, "mysql": 3306, "mssql": 1433, "redshift": 5439, "snowflake": 443, "bigquery": 443, "clickhouse": 9000, "databricks": 443, "trino": 8080}
+        _default_ports = {
+            "postgres": 5432, "mysql": 3306, "mssql": 1433, "redshift": 5439,
+            "snowflake": 443, "bigquery": 443, "clickhouse": 9000,
+            "databricks": 443, "trino": 8080, "duckdb": 0, "sqlite": 0,
+        }
         port = parsed.port or _default_ports.get(info.db_type, 0)
     except Exception:
         diagnostics.append({"check": "url_parse", "status": "error", "message": "Could not parse connection URL"})
@@ -1897,7 +1932,16 @@ async def get_connection_schema(
             if any(pat in k.lower() or pat in v.get("name", "").lower() for pat in patterns)
         }
 
-    tables = _compress_schema(filtered) if compact else filtered
+    # For compact mode, include cached sample values inline (Spider2.0 optimization)
+    if compact:
+        sample_map: dict[str, dict[str, list]] = {}
+        for table_key in filtered:
+            cached_samples = schema_cache.get_sample_values(name, table_key)
+            if cached_samples:
+                sample_map[table_key] = cached_samples
+        tables = _compress_schema(filtered, sample_map)
+    else:
+        tables = filtered
     return {
         "connection_name": name,
         "db_type": info.db_type,
@@ -1910,7 +1954,7 @@ async def get_connection_schema(
     }
 
 
-def _compress_schema(schema: dict) -> dict:
+def _compress_schema(schema: dict, sample_values: dict[str, dict[str, list]] | None = None) -> dict:
     """Compress schema to DDL-style representation for LLM context efficiency.
 
     Top Spider2.0 performers use table compression for schemas >50K tokens.
@@ -1919,31 +1963,45 @@ def _compress_schema(schema: dict) -> dict:
     - Primary keys and foreign keys (critical for join path discovery)
     - Row counts (helps query planning)
     - Index information (helps optimization)
+    - Sample values for ENUM-like columns (helps semantic understanding)
     """
+    sample_values = sample_values or {}
     compressed = {}
     for key, table in schema.items():
         cols = []
         pk_cols = []
+        table_samples = sample_values.get(key, {})
         for col in table.get("columns", []):
             col_type = col.get("type", "")
             nullable = "" if col.get("nullable", True) else " NOT NULL"
             # Add cardinality hints (helps Spider2.0 agent understand data distribution)
             unique_hint = ""
             stats = col.get("stats", {})
+            is_enum_like = False
             if stats.get("distinct_fraction") == -1.0:
                 unique_hint = " UNIQUE"
             elif col.get("low_cardinality"):
-                unique_hint = " ENUM"  # ClickHouse LowCardinality type
+                unique_hint = " ENUM"
+                is_enum_like = True
             elif (stats.get("distinct_count") and stats["distinct_count"] <= 10
                   and col_type.lower() not in ("timestamp", "timestamptz", "timestamp with time zone",
                       "timestamp without time zone", "date", "datetime", "datetime2")):
-                unique_hint = " ENUM"  # Low-cardinality: likely status/type field
+                unique_hint = " ENUM"
+                is_enum_like = True
             # Column comments help Spider2.0 agents understand column semantics
             comment = col.get("comment", "")
             comment_str = f" -- {comment}" if comment else ""
-            cols.append(f"{col['name']} {col_type}{nullable}{unique_hint}{comment_str}")
+            # Inline sample values for ENUM-like columns (Spider2.0: helps agent
+            # understand valid values without running a SELECT DISTINCT)
+            col_name = col["name"]
+            if is_enum_like and col_name in table_samples:
+                vals = table_samples[col_name][:5]
+                if vals:
+                    val_str = ", ".join(repr(v) for v in vals)
+                    comment_str = f" -- values: {val_str}" + (f" | {comment}" if comment else "")
+            cols.append(f"{col_name} {col_type}{nullable}{unique_hint}{comment_str}")
             if col.get("primary_key"):
-                pk_cols.append(col["name"])
+                pk_cols.append(col_name)
 
         # Build compact DDL string
         overview_kw = "CREATE VIEW" if table.get("type") == "view" else "CREATE TABLE"
