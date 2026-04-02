@@ -101,14 +101,49 @@ _SENSITIVE_PATTERNS = [
 ]
 
 
-def _sanitize_db_error(error: str) -> str:
-    """Remove connection strings, passwords, and host info from error messages."""
+def _sanitize_db_error(error: str, db_type: str | None = None) -> str:
+    """Remove connection strings, passwords, and host info from error messages.
+
+    Also appends DB-specific troubleshooting hints for common errors.
+    """
     sanitized = error
     for pattern in _SENSITIVE_PATTERNS:
         sanitized = pattern.sub("[REDACTED]", sanitized)
     # Truncate to prevent information dump
     if len(sanitized) > 500:
         sanitized = sanitized[:500] + "..."
+
+    # Add troubleshooting hints for common errors
+    err_lower = sanitized.lower()
+    hints: list[str] = []
+
+    if "connection refused" in err_lower or "could not connect" in err_lower:
+        hints.append("Check that the database server is running and the host/port are correct")
+        if db_type in ("postgres", "mysql", "redshift"):
+            hints.append("Verify firewall rules allow connections from this server's IP")
+    elif "authentication" in err_lower or "password" in err_lower or "access denied" in err_lower:
+        hints.append("Verify username and password are correct")
+        if db_type == "snowflake":
+            hints.append("For Snowflake, ensure the account identifier is correct (e.g., xy12345.us-east-1)")
+        elif db_type == "databricks":
+            hints.append("For Databricks, check that the personal access token (PAT) is valid and not expired")
+    elif "timeout" in err_lower or "timed out" in err_lower:
+        hints.append("Database is unreachable — check network connectivity")
+        hints.append("If behind a VPN, ensure VPN is connected. If behind a firewall, add this server's IP to the allowlist")
+    elif "ssl" in err_lower or "certificate" in err_lower:
+        hints.append("SSL/TLS connection failed — check SSL configuration")
+        hints.append("Try enabling SSL in advanced options with the appropriate CA certificate")
+    elif "does not exist" in err_lower or "not found" in err_lower:
+        if "database" in err_lower:
+            hints.append("Database name not found — verify the database exists and the user has access")
+        elif "warehouse" in err_lower:
+            hints.append("Warehouse not found — verify warehouse name and that it is running")
+        elif "schema" in err_lower:
+            hints.append("Schema not found — verify schema name and permissions")
+
+    if hints:
+        sanitized += " | Hint: " + "; ".join(hints)
+
     return sanitized
 
 
@@ -655,10 +690,10 @@ async def test_connection(name: str):
         phases.append({
             "phase": "database",
             "status": "error",
-            "message": _sanitize_db_error(str(e)),
+            "message": _sanitize_db_error(str(e), db_type=info.db_type),
             "duration_ms": round((time.monotonic() - t1) * 1000, 1),
         })
-        return {"status": "error", "phases": phases, "message": _sanitize_db_error(str(e))}
+        return {"status": "error", "phases": phases, "message": _sanitize_db_error(str(e), db_type=info.db_type)}
 
     total_ms = round((time.monotonic() - t0) * 1000, 1)
     # Overall status: healthy if no errors, warning if schema access had issues

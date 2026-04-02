@@ -2051,5 +2051,53 @@ class TestExploreTable:
         assert callable(explore_table)
 
 
+# ── Enhanced Error Messages (Round 8) ──────────────────────────────────────
+
+class TestEnhancedErrors:
+    """Tests for DB-specific troubleshooting hints in error messages."""
+
+    def test_connection_refused_hint(self):
+        from gateway.main import _sanitize_db_error
+        msg = _sanitize_db_error("connection refused to host", db_type="postgres")
+        assert "Check that the database server is running" in msg
+        assert "firewall" in msg.lower()
+
+    def test_auth_error_snowflake_hint(self):
+        from gateway.main import _sanitize_db_error
+        msg = _sanitize_db_error("Authentication failed: wrong password", db_type="snowflake")
+        assert "account identifier" in msg.lower()
+
+    def test_auth_error_databricks_hint(self):
+        from gateway.main import _sanitize_db_error
+        msg = _sanitize_db_error("Authentication failed: 401 Unauthorized", db_type="databricks")
+        assert "personal access token" in msg.lower()
+
+    def test_timeout_hint(self):
+        from gateway.main import _sanitize_db_error
+        msg = _sanitize_db_error("Connection timed out after 30s", db_type="mysql")
+        assert "VPN" in msg
+        assert "allowlist" in msg.lower()
+
+    def test_ssl_hint(self):
+        from gateway.main import _sanitize_db_error
+        msg = _sanitize_db_error("SSL certificate verify failed", db_type="postgres")
+        assert "CA certificate" in msg
+
+
+# ── Schema Overview (Round 8) ──────────────────────────────────────────────
+
+class TestSchemaOverview:
+    """Tests for the /schema/overview endpoint."""
+
+    def test_overview_endpoint_exists(self):
+        from gateway.main import app
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/connections/{name}/schema/overview" in routes
+
+    def test_overview_mcp_tool_exists(self):
+        from gateway.mcp_server import schema_overview
+        assert callable(schema_overview)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
