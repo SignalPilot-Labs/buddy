@@ -872,10 +872,38 @@ async def warmup_all_schemas():
             extras = get_credential_extras(name)
             async with pool_manager.connection(info.db_type, conn_str, credential_extras=extras) as connector:
                 schema = await connector.get_schema()
-            schema_cache.put(name, schema)
+                schema_cache.put(name, schema)
+
+                # Pre-fetch sample values for low-cardinality columns (RSL-SQL pattern)
+                # This enables value-based schema linking in the agent without extra queries
+                sample_count = 0
+                for table_key, table_data in list(schema.items())[:30]:  # Cap at 30 tables
+                    if schema_cache.get_sample_values(name, table_key) is not None:
+                        continue  # Already cached
+                    low_card_cols = []
+                    for col in table_data.get("columns", []):
+                        stats = col.get("stats", {})
+                        dc = stats.get("distinct_count", 0) if stats else 0
+                        df = abs(stats.get("distinct_fraction", 0)) if stats else 0
+                        if dc and dc <= 50:
+                            low_card_cols.append(col["name"])
+                        elif df and df < 0.05:
+                            low_card_cols.append(col["name"])
+                    if low_card_cols:
+                        try:
+                            samples = await connector.get_sample_values(
+                                table_key, low_card_cols[:10], limit=5
+                            )
+                            if samples:
+                                schema_cache.put_sample_values(name, table_key, samples)
+                                sample_count += len(samples)
+                        except Exception:
+                            pass  # Best-effort — don't fail warmup over samples
+
             now = time.time()
             update_connection(name, ConnectionUpdate(last_schema_refresh=now))
-            return {"name": name, "status": "ok", "table_count": len(schema)}
+            return {"name": name, "status": "ok", "table_count": len(schema),
+                    "sample_columns": sample_count}
         except Exception as e:
             return {"name": name, "status": "error", "error": str(e)[:200]}
 
