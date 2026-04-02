@@ -17,7 +17,7 @@ import {
   DollarSign,
   Zap,
 } from "lucide-react";
-import { getConnections, executeQuery as apiExecuteQuery } from "@/lib/api";
+import { getConnections, executeQuery as apiExecuteQuery, getConnectionSchemaLink } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 import { EmptyQuery, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
@@ -80,6 +80,11 @@ export default function QueryExplorerPage() {
     { sql: string; connection: string; ts: number; duration_ms: number; row_count?: number; cache_hit?: boolean }[]
   >([]);
   const [copied, setCopied] = useState(false);
+  const [schemaContext, setSchemaContext] = useState<string>("");
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [showSchema, setShowSchema] = useState(false);
+  const [schemaLinked, setSchemaLinked] = useState(0);
+  const [schemaTotal, setSchemaTotal] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +150,22 @@ export default function QueryExplorerPage() {
   }
 
   const lineCount = Math.max(sql.split("\n").length, 6);
+
+  async function loadSchemaContext() {
+    if (!selectedConn || !sql.trim()) return;
+    setSchemaLoading(true);
+    setShowSchema(true);
+    try {
+      const data = await getConnectionSchemaLink(selectedConn, sql.trim(), "ddl", 10);
+      setSchemaContext(data.ddl || data.schema || "-- No relevant tables found");
+      setSchemaLinked(data.linked_tables);
+      setSchemaTotal(data.total_tables);
+    } catch (e) {
+      setSchemaContext(`-- Error loading schema: ${e}`);
+    } finally {
+      setSchemaLoading(false);
+    }
+  }
 
   function exportCSV() {
     if (!result || result.rows.length === 0) return;
@@ -259,6 +280,18 @@ export default function QueryExplorerPage() {
 
         <div className="flex-1" />
 
+        <Tooltip content="Show relevant tables for your query (schema linking)" position="bottom">
+          <button
+            onClick={loadSchemaContext}
+            disabled={schemaLoading || !sql.trim() || !selectedConn}
+            className="flex items-center gap-1.5 px-3 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider disabled:opacity-30"
+          >
+            {schemaLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Table2 className="w-3 h-3" strokeWidth={1.5} />}
+            schema
+            {schemaLinked > 0 && <span className="text-[9px] px-1 py-0.5 border border-blue-500/20 text-blue-400 tabular-nums">{schemaLinked}</span>}
+          </button>
+        </Tooltip>
+
         <button
           onClick={runQuery}
           disabled={executing || !sql.trim() || !selectedConn}
@@ -310,6 +343,48 @@ export default function QueryExplorerPage() {
           <span className="tracking-wider opacity-60">ctrl+enter</span>
         </div>
       </div>
+
+      {/* Schema context panel */}
+      {showSchema && (
+        <div className="mb-4 border border-[var(--color-border)] bg-[var(--color-bg-card)] flex-shrink-0 animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
+            <div className="flex items-center gap-2">
+              <Table2 className="w-3 h-3 text-blue-400" strokeWidth={1.5} />
+              <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider uppercase">
+                relevant schema
+              </span>
+              {schemaLinked > 0 && (
+                <span className="text-[9px] text-[var(--color-text-dim)] tabular-nums">
+                  {schemaLinked}/{schemaTotal} tables linked
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigator.clipboard.writeText(schemaContext)}
+                className="text-[9px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+              >
+                copy
+              </button>
+              <button
+                onClick={() => setShowSchema(false)}
+                className="text-[9px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+              >
+                close
+              </button>
+            </div>
+          </div>
+          {schemaLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-text-dim)]" />
+            </div>
+          ) : (
+            <pre className="px-4 py-3 text-[10px] text-[var(--color-text-muted)] overflow-x-auto font-mono leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre">
+              {schemaContext}
+            </pre>
+          )}
+        </div>
+      )}
 
       {/* Error display */}
       {error && (
