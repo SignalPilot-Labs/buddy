@@ -28,6 +28,12 @@ class TrinoConnector(BaseConnector):
         self._connect_params: dict = {}
         self._credential_extras: dict = {}
         self._request_timeout: int | None = None
+        # Auth method: "password" | "jwt" | "certificate" | "kerberos" | "none"
+        self._auth_method: str = "none"
+        self._jwt_token: str = ""
+        self._client_cert: str = ""
+        self._client_key: str = ""
+        self._kerberos_config: dict = {}
 
     @staticmethod
     def _quote_ident(name: str) -> str:
@@ -43,6 +49,16 @@ class TrinoConnector(BaseConnector):
         self._credential_extras = extras
         if extras.get("query_timeout"):
             self._request_timeout = extras["query_timeout"]
+        if extras.get("auth_method"):
+            self._auth_method = extras["auth_method"]
+        if extras.get("jwt_token"):
+            self._jwt_token = extras["jwt_token"]
+        if extras.get("client_cert"):
+            self._client_cert = extras["client_cert"]
+        if extras.get("client_key"):
+            self._client_key = extras["client_key"]
+        if extras.get("kerberos_config"):
+            self._kerberos_config = extras["kerberos_config"]
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_TRINO:
@@ -70,19 +86,69 @@ class TrinoConnector(BaseConnector):
         if params.get("schema"):
             connect_kwargs["schema"] = params["schema"]
 
-        # Authentication — support both password and password-less SSL
+        # Determine auth method — credential_extras takes precedence over URL-inferred
+        auth_method = self._auth_method or params.get("auth_method", "")
         has_password = bool(params.get("password"))
-        use_https = params.get("https", False) or has_password
+        use_https = params.get("https", False) or has_password or auth_method in ("jwt", "certificate", "kerberos")
 
         if use_https:
             connect_kwargs["http_scheme"] = "https"
-            if has_password:
-                connect_kwargs["auth"] = trino_lib.auth.BasicAuthentication(
-                    params["username"], params["password"]
-                )
+
             # SSL verification — allow disabling for self-signed certs
             if params.get("verify", "true").lower() in ("false", "0", "no"):
                 connect_kwargs["verify"] = False
+
+        # Auth routing: JWT > Certificate > Kerberos > Password > None
+        if auth_method == "jwt" or self._jwt_token:
+            token = self._jwt_token or params.get("jwt_token", "")
+            if not token:
+                raise RuntimeError("JWT auth requires a token (jwt_token)")
+            connect_kwargs["http_scheme"] = "https"
+            connect_kwargs["auth"] = trino_lib.auth.JWTAuthentication(token)
+
+        elif auth_method == "certificate" or self._client_cert:
+            cert_pem = self._client_cert or params.get("client_cert", "")
+            key_pem = self._client_key or params.get("client_key", "")
+            if not cert_pem:
+                raise RuntimeError("Certificate auth requires client_cert (PEM)")
+            # Write cert/key to temp files for the requests library
+            import tempfile, os
+            cert_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pem", mode="w")
+            cert_file.write(cert_pem)
+            cert_file.close()
+            cert_path = cert_file.name
+            key_path = None
+            if key_pem:
+                key_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pem", mode="w")
+                key_file.write(key_pem)
+                key_file.close()
+                os.chmod(key_file.name, 0o600)
+                key_path = key_file.name
+            connect_kwargs["http_scheme"] = "https"
+            connect_kwargs["auth"] = trino_lib.auth.CertificateAuthentication(
+                cert_path, key_path
+            )
+
+        elif auth_method == "kerberos":
+            krb_config = self._kerberos_config or {}
+            krb_kwargs = {}
+            if krb_config.get("service_name"):
+                krb_kwargs["service_name"] = krb_config["service_name"]
+            if krb_config.get("mutual_authentication"):
+                krb_kwargs["mutual_authentication"] = krb_config["mutual_authentication"]
+            if krb_config.get("delegate"):
+                krb_kwargs["delegate"] = krb_config["delegate"]
+            connect_kwargs["http_scheme"] = "https"
+            try:
+                connect_kwargs["auth"] = trino_lib.auth.KerberosAuthentication(**krb_kwargs)
+            except Exception as e:
+                raise RuntimeError(f"Kerberos auth setup failed: {e}") from e
+
+        elif has_password:
+            connect_kwargs["http_scheme"] = "https"
+            connect_kwargs["auth"] = trino_lib.auth.BasicAuthentication(
+                params["username"], params["password"]
+            )
 
         # Request timeout for all queries — from URL param or credential extras
         if params.get("request_timeout"):
@@ -132,6 +198,8 @@ class TrinoConnector(BaseConnector):
                 result["verify"] = query["verify"][0]
             if query.get("request_timeout"):
                 result["request_timeout"] = query["request_timeout"][0]
+            if query.get("auth_method"):
+                result["auth_method"] = query["auth_method"][0]
 
             return result
 

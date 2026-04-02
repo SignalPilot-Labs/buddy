@@ -439,8 +439,13 @@ interface FormState {
   azure_tenant_id: string;
   azure_client_id: string;
   azure_client_secret: string;
-  // Trino HTTPS
+  // Trino
   trino_https: boolean;
+  trino_auth_method: "none" | "password" | "jwt" | "certificate" | "kerberos";
+  trino_jwt_token: string;
+  trino_client_cert: string;
+  trino_client_key: string;
+  trino_krb_service_name: string;
   // DuckDB / MotherDuck
   motherduck_token: string;
   // Tags
@@ -480,7 +485,8 @@ const defaultForm: FormState = {
   iam_auth: false, aws_region: "us-east-1", aws_access_key_id: "", aws_secret_access_key: "",
   redshift_cluster_id: "", redshift_workgroup: "",
   azure_ad_auth: false, azure_tenant_id: "", azure_client_id: "", azure_client_secret: "",
-  trino_https: false, motherduck_token: "",
+  trino_https: false, trino_auth_method: "none", trino_jwt_token: "", trino_client_cert: "", trino_client_key: "", trino_krb_service_name: "trino",
+  motherduck_token: "",
   tags: [], tagInput: "",
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
@@ -638,14 +644,27 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
     payload.protocol = "http";
   }
 
-  // Trino HTTPS — build connection string with trino+https:// scheme
-  if (form.db_type === "trino" && form.trino_https && form.connectionMode !== "url") {
-    const trinoPort = form.port || "443";
-    const userPart = form.password
-      ? `${form.username || "trino"}:${form.password}@`
-      : `${form.username || "trino"}@`;
-    const pathPart = form.catalog ? `/${form.catalog}${form.schema_name ? `/${form.schema_name}` : ""}` : "";
-    payload.connection_string = `trino+https://${userPart}${form.host}:${trinoPort}${pathPart}`;
+  // Trino — auth method and HTTPS connection string
+  if (form.db_type === "trino" && form.connectionMode !== "url") {
+    if (form.trino_https) {
+      const trinoPort = form.port || "443";
+      const userPart = form.password
+        ? `${form.username || "trino"}:${form.password}@`
+        : `${form.username || "trino"}@`;
+      const pathPart = form.catalog ? `/${form.catalog}${form.schema_name ? `/${form.schema_name}` : ""}` : "";
+      payload.connection_string = `trino+https://${userPart}${form.host}:${trinoPort}${pathPart}`;
+    }
+    if (form.trino_auth_method !== "none") {
+      payload.auth_method = form.trino_auth_method;
+      if (form.trino_auth_method === "jwt") {
+        payload.jwt_token = form.trino_jwt_token;
+      } else if (form.trino_auth_method === "certificate") {
+        payload.client_cert = form.trino_client_cert;
+        if (form.trino_client_key) payload.client_key = form.trino_client_key;
+      } else if (form.trino_auth_method === "kerberos") {
+        payload.kerberos_config = { service_name: form.trino_krb_service_name || "trino" };
+      }
+    }
   }
 
   // Tags
@@ -946,16 +965,86 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
     );
   }
 
-  // Trino — host/port + catalog/schema + HTTPS toggle
+  // Trino — host/port + catalog/schema + auth method + HTTPS toggle
   if (form.db_type === "trino") {
+    const trinoAuthMethods = ["none", "password", "jwt", "certificate", "kerberos"] as const;
+    const trinoAuthLabels: Record<string, string> = { none: "no auth", password: "password", jwt: "JWT token", certificate: "client cert", kerberos: "Kerberos" };
     return (
       <>
         <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="trino.example.com" required />
         <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder={form.trino_https ? "443" : "8080"} />
         <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="trino" />
-        <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" hint="optional — for authenticated clusters" />
         <FormInput label="catalog" value={form.catalog} onChange={(v) => setForm({ ...form, catalog: v })} placeholder="hive" hint="default catalog for queries" />
         <FormInput label="schema" value={form.schema_name} onChange={(v) => setForm({ ...form, schema_name: v })} placeholder="default" hint="optional — default schema" />
+
+        {/* Auth method selector */}
+        <div className="col-span-2 mb-1">
+          <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">authentication method</label>
+          <div className="flex flex-wrap gap-2">
+            {trinoAuthMethods.map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => {
+                  const updates: Partial<FormState> = { trino_auth_method: method };
+                  // Auto-enable HTTPS for authenticated methods
+                  if (method !== "none" && !form.trino_https) {
+                    updates.trino_https = true;
+                    updates.port = "443";
+                  }
+                  setForm({ ...form, ...updates } as FormState);
+                }}
+                className={`px-2.5 py-1 text-[10px] tracking-wider border transition-all ${
+                  form.trino_auth_method === method
+                    ? "border-[var(--color-text)] text-[var(--color-text)]"
+                    : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)]"
+                }`}
+              >
+                {trinoAuthLabels[method]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Auth-specific fields */}
+        {form.trino_auth_method === "password" && (
+          <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" required className="col-span-2" />
+        )}
+        {form.trino_auth_method === "jwt" && (
+          <FormInput label="JWT token" value={form.trino_jwt_token} onChange={(v) => setForm({ ...form, trino_jwt_token: v })} type="password" required className="col-span-2" hint="Bearer token from your identity provider (Okta, Auth0, etc.)" />
+        )}
+        {form.trino_auth_method === "certificate" && (
+          <>
+            <FormTextArea
+              label="client certificate (PEM)"
+              value={form.trino_client_cert}
+              onChange={(v) => setForm({ ...form, trino_client_cert: v })}
+              placeholder="-----BEGIN CERTIFICATE-----"
+              rows={3}
+              className="col-span-2"
+            />
+            <FormTextArea
+              label="client private key (PEM)"
+              value={form.trino_client_key}
+              onChange={(v) => setForm({ ...form, trino_client_key: v })}
+              placeholder="-----BEGIN PRIVATE KEY-----"
+              rows={3}
+              hint="optional — if separate from certificate"
+              className="col-span-2"
+            />
+          </>
+        )}
+        {form.trino_auth_method === "kerberos" && (
+          <>
+            <FormInput label="service name" value={form.trino_krb_service_name} onChange={(v) => setForm({ ...form, trino_krb_service_name: v })} placeholder="trino" hint="Kerberos service principal name" className="col-span-2" />
+            <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
+              <div><span className="text-[var(--color-text-muted)]">setup:</span> Configure krb5.conf and kinit before connecting. The server must have a valid Kerberos ticket.</div>
+              <div><span className="text-[var(--color-text-muted)]">keytab:</span> For unattended access, configure a keytab file in /etc/krb5.keytab or via KRB5_KTNAME.</div>
+            </div>
+          </>
+        )}
+
+        {/* HTTPS toggle */}
         <div className="col-span-2">
           <button
             type="button"
