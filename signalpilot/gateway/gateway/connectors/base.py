@@ -36,6 +36,15 @@ class BaseConnector(ABC):
     async def close(self) -> None:
         """Close connection pool."""
 
+    def set_credential_extras(self, extras: dict) -> None:
+        """Set structured credential data for the connection.
+
+        Override in subclasses that need structured auth beyond a connection string
+        (e.g., SSL certs, service account JSON, SSH tunnel config).
+        Called by PoolManager before connect().
+        """
+        pass
+
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:
         """Return sample distinct values for specified columns.
 

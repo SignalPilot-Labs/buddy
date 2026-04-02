@@ -51,6 +51,15 @@ class BigQueryConnector(BaseConnector):
             credentials=creds,
         )
 
+    def set_credential_extras(self, extras: dict) -> None:
+        """Extract BigQuery credentials from credential extras."""
+        if extras.get("credentials_json"):
+            self.set_credentials(
+                credentials_json=extras["credentials_json"],
+                project=extras.get("project", self._project),
+                dataset=extras.get("dataset", self._dataset),
+            )
+
     async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._client is None:
             raise RuntimeError("Not connected")

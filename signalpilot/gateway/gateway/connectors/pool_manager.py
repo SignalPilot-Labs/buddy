@@ -161,53 +161,17 @@ class PoolManager:
 
             connector = get_connector(db_type)
 
-            # Special handling for connectors that need structured credentials
+            # Pass credential extras to connector via standardized interface.
+            # Each connector's set_credential_extras() extracts what it needs
+            # (SSL certs, service account JSON, structured auth params, etc.)
+            if credential_extras:
+                connector.set_credential_extras(credential_extras)
+
+            # BigQuery short-circuit: set_credential_extras already configures
+            # the client with credentials, so we can skip connect()
             if db_type == "bigquery" and credential_extras and credential_extras.get("credentials_json"):
-                from .bigquery import BigQueryConnector
-                if isinstance(connector, BigQueryConnector):
-                    connector.set_credentials(
-                        credentials_json=credential_extras["credentials_json"],
-                        project=connection_string,
-                        dataset=credential_extras.get("dataset", ""),
-                    )
-                    self._pools[key] = (connector, time.monotonic())
-                    return connector
-
-            # Snowflake: pass credential_extras for structured auth params
-            if db_type == "snowflake" and credential_extras:
-                from .snowflake import SnowflakeConnector
-                if isinstance(connector, SnowflakeConnector):
-                    connector.set_credential_extras(credential_extras)
-
-            # Databricks: pass credential_extras for structured auth params
-            if db_type == "databricks" and credential_extras:
-                from .databricks import DatabricksConnector
-                if isinstance(connector, DatabricksConnector):
-                    connector.set_credential_extras(credential_extras)
-
-            # MySQL: pass SSL config if present in credential_extras
-            if db_type == "mysql" and credential_extras and credential_extras.get("ssl_config"):
-                from .mysql import MySQLConnector
-                if isinstance(connector, MySQLConnector):
-                    connector.set_ssl_config(credential_extras["ssl_config"])
-
-            # PostgreSQL: pass SSL config for CA/client cert support
-            if db_type == "postgres" and credential_extras and credential_extras.get("ssl_config"):
-                from .postgres import PostgresConnector
-                if isinstance(connector, PostgresConnector):
-                    connector.set_ssl_config(credential_extras["ssl_config"])
-
-            # Redshift: pass SSL config for CA/client cert support
-            if db_type == "redshift" and credential_extras and credential_extras.get("ssl_config"):
-                from .redshift import RedshiftConnector
-                if isinstance(connector, RedshiftConnector):
-                    connector.set_ssl_config(credential_extras["ssl_config"])
-
-            # ClickHouse: pass SSL config for CA cert and verify modes
-            if db_type == "clickhouse" and credential_extras and credential_extras.get("ssl_config"):
-                from .clickhouse import ClickHouseConnector
-                if isinstance(connector, ClickHouseConnector):
-                    connector.set_ssl_config(credential_extras["ssl_config"])
+                self._pools[key] = (connector, time.monotonic())
+                return connector
 
             # SSH tunnel setup (for host:port-based databases)
             actual_conn_str = connection_string

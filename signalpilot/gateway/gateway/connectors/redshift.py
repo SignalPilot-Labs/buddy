@@ -29,6 +29,11 @@ class RedshiftConnector(BaseConnector):
         """Set SSL configuration (CA cert, client cert, client key as PEM strings)."""
         self._ssl_config = ssl_config
 
+    def set_credential_extras(self, extras: dict) -> None:
+        """Extract SSL config from credential extras."""
+        if extras.get("ssl_config"):
+            self.set_ssl_config(extras["ssl_config"])
+
     async def connect(self, connection_string: str) -> None:
         if not HAS_PSYCOPG2:
             raise RuntimeError(

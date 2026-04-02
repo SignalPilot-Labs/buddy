@@ -29,6 +29,11 @@ class MySQLConnector(BaseConnector):
         """Set SSL configuration for the connection."""
         self._ssl_config = ssl_config
 
+    def set_credential_extras(self, extras: dict) -> None:
+        """Extract SSL config from credential extras."""
+        if extras.get("ssl_config"):
+            self.set_ssl_config(extras["ssl_config"])
+
     async def connect(self, connection_string: str) -> None:
         if not HAS_PYMYSQL:
             raise RuntimeError("pymysql not installed. Run: pip install pymysql")
