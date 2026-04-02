@@ -1146,11 +1146,17 @@ def _compress_schema(schema: dict) -> dict:
         for col in table.get("columns", []):
             col_type = col.get("type", "")
             nullable = "" if col.get("nullable", True) else " NOT NULL"
-            # Add cardinality hint for unique columns (helps Spider2.0 join planning)
+            # Add cardinality hints (helps Spider2.0 agent understand data distribution)
             unique_hint = ""
             stats = col.get("stats", {})
             if stats.get("distinct_fraction") == -1.0:
                 unique_hint = " UNIQUE"
+            elif col.get("low_cardinality"):
+                unique_hint = " ENUM"  # ClickHouse LowCardinality type
+            elif (stats.get("distinct_count") and stats["distinct_count"] <= 10
+                  and col_type.lower() not in ("timestamp", "timestamptz", "timestamp with time zone",
+                      "timestamp without time zone", "date", "datetime", "datetime2")):
+                unique_hint = " ENUM"  # Low-cardinality: likely status/type field
             # Column comments help Spider2.0 agents understand column semantics
             comment = col.get("comment", "")
             comment_str = f" -- {comment}" if comment else ""
