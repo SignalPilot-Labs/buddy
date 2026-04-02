@@ -256,6 +256,15 @@ export const validateConnectionUrl = (connection_string: string, db_type: string
     "/api/connections/validate-url", { method: "POST", body: JSON.stringify({ connection_string, db_type }) }
   );
 
+// Pre-save Connection Test (HEX pattern: test before saving)
+export const testCredentials = (payload: Record<string, unknown>) =>
+  request<{
+    status: string;
+    message: string;
+    phases: { phase: string; status: string; message: string; hint?: string; duration_ms: number }[];
+    total_duration_ms?: number;
+  }>("/api/connections/test-credentials", { method: "POST", body: JSON.stringify(payload) });
+
 // Connector Capabilities
 export const getConnectorCapabilities = (dbType?: string) =>
   request<{

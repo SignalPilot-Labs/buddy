@@ -84,6 +84,8 @@ from .store import (
     get_schema_endorsements,
     set_schema_endorsements,
     apply_endorsement_filter,
+    _build_connection_string,
+    _extract_credential_extras,
     DATA_DIR,
 )
 
@@ -888,6 +890,167 @@ async def warmup_all_schemas():
         "total_tables": total_tables,
         "results": results,
         "duration_ms": round(elapsed, 1),
+    }
+
+
+@app.post("/api/connections/test-credentials")
+async def test_credentials(request: Request):
+    """Test connection credentials without saving (HEX pre-save validation pattern).
+
+    Accepts the same payload as POST /api/connections but only tests connectivity.
+    Returns phase-by-phase results: network → auth → schema access.
+    """
+    body = await request.json()
+    t0 = time.monotonic()
+    phases: list[dict] = []
+
+    try:
+        # Build a ConnectionCreate model from the request body
+        conn = ConnectionCreate(**body)
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Invalid connection parameters: {e}",
+            "phases": [],
+        }
+
+    # Build connection string and credential extras
+    try:
+        conn_str = conn.connection_string or _build_connection_string(conn)
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Could not build connection string: {e}",
+            "phases": [],
+        }
+
+    extras = _extract_credential_extras(conn)
+    # Propagate auth_method and other top-level fields into extras
+    for field_name in ("auth_method", "oauth_access_token", "impersonate_service_account",
+                       "private_key", "private_key_passphrase",
+                       "oauth_client_id", "oauth_client_secret",
+                       "jwt_token", "client_cert", "client_key", "kerberos_config",
+                       "aws_region", "aws_access_key_id", "aws_secret_access_key",
+                       "cluster_id", "workgroup",
+                       "azure_tenant_id", "azure_client_id", "azure_client_secret"):
+        val = body.get(field_name)
+        if val and field_name not in extras:
+            extras[field_name] = val
+    # IAM auth flag
+    if body.get("auth_method") == "iam":
+        extras["auth_method"] = "iam"
+    # Azure AD auth flag
+    if body.get("auth_method") == "azure_ad":
+        extras["auth_method"] = "azure_ad"
+        extras["azure_ad_auth"] = True
+
+    db_type = conn.db_type
+
+    # Phase 1: Network connectivity (DNS + TCP)
+    t1 = time.monotonic()
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(conn_str if "://" in conn_str else f"dummy://{conn_str}")
+        host = parsed.hostname or conn.host or "localhost"
+        port = parsed.port or conn.port or 5432
+
+        if host and port and db_type not in ("duckdb", "sqlite", "bigquery"):
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            try:
+                sock.connect((host, int(port)))
+                sock.close()
+                phases.append({
+                    "phase": "network",
+                    "status": "ok",
+                    "message": f"TCP connection to {host}:{port} succeeded",
+                    "duration_ms": round((time.monotonic() - t1) * 1000, 1),
+                })
+            except (socket.timeout, socket.error, OSError) as e:
+                phases.append({
+                    "phase": "network",
+                    "status": "error",
+                    "message": f"Cannot reach {host}:{port} — {e}",
+                    "hint": "Check hostname, port, firewall rules, and VPN/SSH tunnel settings",
+                    "duration_ms": round((time.monotonic() - t1) * 1000, 1),
+                })
+                return {
+                    "status": "error",
+                    "message": f"Network unreachable: {host}:{port}",
+                    "phases": phases,
+                    "total_duration_ms": round((time.monotonic() - t0) * 1000, 1),
+                }
+        else:
+            phases.append({
+                "phase": "network",
+                "status": "skipped",
+                "message": f"{db_type} does not require network connectivity check",
+                "duration_ms": 0,
+            })
+    except Exception as e:
+        phases.append({
+            "phase": "network",
+            "status": "warning",
+            "message": f"Could not verify network: {e}",
+            "duration_ms": round((time.monotonic() - t1) * 1000, 1),
+        })
+
+    # Phase 2: Database authentication
+    t2 = time.monotonic()
+    try:
+        async with pool_manager.connection(db_type, conn_str, credential_extras=extras) as connector:
+            ok = await connector.health_check()
+            if ok:
+                phases.append({
+                    "phase": "authentication",
+                    "status": "ok",
+                    "message": "Authenticated and connected successfully",
+                    "duration_ms": round((time.monotonic() - t2) * 1000, 1),
+                })
+
+                # Phase 3: Schema access
+                t3 = time.monotonic()
+                try:
+                    schema = await connector.get_schema()
+                    table_count = len(schema) if schema else 0
+                    phases.append({
+                        "phase": "schema_access",
+                        "status": "ok",
+                        "message": f"Schema access verified — {table_count} tables found",
+                        "duration_ms": round((time.monotonic() - t3) * 1000, 1),
+                    })
+                except Exception as e:
+                    phases.append({
+                        "phase": "schema_access",
+                        "status": "warning",
+                        "message": f"Connected but schema access limited: {_sanitize_db_error(str(e))}",
+                        "hint": "Check SELECT permissions on information_schema or system tables",
+                        "duration_ms": round((time.monotonic() - t3) * 1000, 1),
+                    })
+            else:
+                phases.append({
+                    "phase": "authentication",
+                    "status": "error",
+                    "message": "Connection established but health check failed",
+                    "duration_ms": round((time.monotonic() - t2) * 1000, 1),
+                })
+    except Exception as e:
+        err_msg = _sanitize_db_error(str(e))
+        phases.append({
+            "phase": "authentication",
+            "status": "error",
+            "message": f"Authentication failed: {err_msg}",
+            "hint": "Check username, password, and database permissions",
+            "duration_ms": round((time.monotonic() - t2) * 1000, 1),
+        })
+
+    all_ok = all(p["status"] in ("ok", "skipped") for p in phases)
+    return {
+        "status": "healthy" if all_ok else "error",
+        "message": "All connection tests passed" if all_ok else "Connection test failed",
+        "phases": phases,
+        "total_duration_ms": round((time.monotonic() - t0) * 1000, 1),
     }
 
 

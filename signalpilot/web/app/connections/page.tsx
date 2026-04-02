@@ -49,6 +49,7 @@ import {
   getNetworkInfo,
   diagnoseConnection,
   generateSemanticModel,
+  testCredentials,
 } from "@/lib/api";
 import type { ConnectionInfo, ConnectionHealthStats, DBType, SSHTunnelConfig, SSLConfig } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
@@ -1529,6 +1530,8 @@ export default function ConnectionsPage() {
   const [testing, setTesting] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<Record<string, { status: string; message: string; phases?: { phase: string; status: string; message: string; duration_ms?: number }[]; total_duration_ms?: number }>>({});
   const [saving, setSaving] = useState(false);
+  const [preTesting, setPreTesting] = useState(false);
+  const [preTestResult, setPreTestResult] = useState<{ status: string; message: string; phases: { phase: string; status: string; message: string; hint?: string; duration_ms: number }[] } | null>(null);
   const [expandedConn, setExpandedConn] = useState<string | null>(null);
   const [schemaData, setSchemaData] = useState<Record<string, { tables: Record<string, { schema: string; name: string; columns: { name: string; type: string; nullable: boolean; primary_key?: boolean }[] }> }>>({});
   const [schemaLoading, setSchemaLoading] = useState<string | null>(null);
@@ -1639,6 +1642,27 @@ export default function ConnectionsPage() {
       setTestResult((prev) => ({ ...prev, [connName]: result }));
       toast(result.status === "healthy" ? `${connName}: connection healthy` : `${connName}: ${result.message}`, result.status === "healthy" ? "success" : "error");
     } catch (e) { toast(_parseError(e), "error"); } finally { setSaving(false); }
+  }
+
+  async function handlePreTest() {
+    setPreTesting(true);
+    setPreTestResult(null);
+    try {
+      const payload = buildCreatePayload(form);
+      const result = await testCredentials(payload);
+      setPreTestResult(result);
+      if (result.status === "healthy") {
+        toast("connection test passed — ready to save", "success");
+      } else {
+        const failedPhase = result.phases?.find((p: { status: string }) => p.status === "error");
+        toast(failedPhase?.message || result.message, "error");
+      }
+    } catch (e) {
+      toast(_parseError(e), "error");
+      setPreTestResult({ status: "error", message: _parseError(e), phases: [] });
+    } finally {
+      setPreTesting(false);
+    }
   }
 
   function handleEditConnection(conn: ConnectionInfo) {
@@ -2321,17 +2345,61 @@ export default function ConnectionsPage() {
                 )}
               </div>
 
+            {/* Pre-test result display */}
+            {preTestResult && (
+              <div className={`mt-4 p-3 border ${preTestResult.status === "healthy" ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {preTestResult.status === "healthy" ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span className={`text-[10px] tracking-wider font-medium ${preTestResult.status === "healthy" ? "text-emerald-400" : "text-red-400"}`}>
+                    {preTestResult.message}
+                  </span>
+                </div>
+                {preTestResult.phases?.length > 0 && (
+                  <div className="space-y-1 ml-5">
+                    {preTestResult.phases.map((phase, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[9px] tracking-wider">
+                        <span className={phase.status === "ok" ? "text-emerald-400" : phase.status === "error" ? "text-red-400" : "text-amber-400"}>
+                          {phase.status === "ok" ? "pass" : phase.status === "error" ? "fail" : phase.status}
+                        </span>
+                        <span className="text-[var(--color-text-dim)]">{phase.phase}:</span>
+                        <span className="text-[var(--color-text-muted)]">{phase.message}</span>
+                        {phase.duration_ms !== undefined && (
+                          <span className="text-[var(--color-text-dim)] opacity-50">{phase.duration_ms.toFixed(0)}ms</span>
+                        )}
+                      </div>
+                    ))}
+                    {preTestResult.phases.some(p => p.hint) && (
+                      <div className="mt-1.5 pl-2 border-l border-amber-500/30">
+                        {preTestResult.phases.filter(p => p.hint).map((p, i) => (
+                          <div key={i} className="text-[9px] text-amber-400/80 tracking-wider">
+                            hint: {p.hint}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex items-center gap-3 mt-5 pt-4 border-t border-[var(--color-border)]">
-              <button onClick={handleCreate} disabled={saving || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium tracking-wider uppercase transition-all hover:opacity-90 disabled:opacity-30">
+              <button onClick={handleCreate} disabled={saving || preTesting || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 bg-[var(--color-text)] text-[var(--color-bg)] text-xs font-medium tracking-wider uppercase transition-all hover:opacity-90 disabled:opacity-30">
                 {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 {editingConnection ? "update connection" : "save connection"}
               </button>
-              <button onClick={handleSaveAndTest} disabled={saving || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider">
-                <TestTube className="w-3.5 h-3.5" strokeWidth={1.5} />
+              <button onClick={handlePreTest} disabled={saving || preTesting} className="flex items-center gap-2 px-4 py-2 border border-emerald-500/30 text-xs text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50 transition-all tracking-wider">
+                {preTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TestTube className="w-3.5 h-3.5" strokeWidth={1.5} />}
+                test connection
+              </button>
+              <button onClick={handleSaveAndTest} disabled={saving || preTesting || (!editingConnection && !form.name)} className="flex items-center gap-2 px-4 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider">
                 {editingConnection ? "update & test" : "save & test"}
               </button>
-              <button onClick={() => { setShowForm(false); setEditingConnection(null); setForm({ ...defaultForm }); setShowAdvanced(false); }} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+              <button onClick={() => { setShowForm(false); setEditingConnection(null); setForm({ ...defaultForm }); setShowAdvanced(false); setPreTestResult(null); }} className="px-4 py-2 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
                 cancel
               </button>
               {editingConnection && (
