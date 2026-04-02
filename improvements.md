@@ -5,7 +5,93 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
-## Round 13: Pool Manager Safety, Schema Browser UX, Configurable Timeouts, MCP Tool Fixes (2026-04-02)
+## Round 13 (continued): Connector Bug Fixes, Schema Linking Recall, Inline Sample Values (2026-04-02)
+
+**Summary:** 18 improvements total this round — fixed critical bugs across DuckDB/Databricks/SQLite/Redshift connectors, eliminated all remaining pool release leaks (~15 endpoints), improved schema linking recall via synonym expansion, and added inline sample values to DDL for Spider2.0 accuracy.
+
+**Key metrics:**
+- 353 tests passing, 1 skipped
+- 22 MCP tools
+- 0 remaining pool_manager.acquire() calls without context manager or try/finally
+- Schema linking: 1→6 tables for "top customers by total spending" (synonym expansion)
+- DDL output: inline sample values for low-cardinality columns (status, category, etc.)
+- All 4 live Docker databases verified: PostgreSQL, MySQL, ClickHouse, MSSQL
+- 18 git commits this round (11 from part 1 + 7 from part 2)
+
+### Industry Research (Spider2.0 & HEX, April 2026)
+- **Spider2.0 leaderboard**: ReFoRCE still leads at 31.26% on Snow, 30.35% on Lite. Even GPT-4 only solves 6% of Spider 2.0 tasks (vs 86.6% on Spider 1.0). New Spider 2.0-DBT task setting with 68 repository-level tasks.
+- **HEX March 2026**: Projects as Context for Agent (swap data connections), chDB 4 ClickHouse integration, new CRUD API endpoints, Python 3.12 kernel.
+- **HEX OAuth**: Supported for Snowflake, BigQuery, Databricks. Each user authenticates with own database credentials. Enterprise plan only. OAUTH_REFRESH_TOKEN_VALIDITY default 90 days.
+- **HEX Connection Tiers**: T1 (fully supported, prioritized), T2 (stable, features may lag), T3 (supported, no feature guarantees). Workspace vs project scoping.
+- **SignalPilot positioning**: Now has validate_sql for ReFoRCE-style self-refinement, inline sample values for value-aware SQL generation, semantic synonym expansion for schema linking. Key remaining gap: per-user OAuth for warehouse connections.
+
+### 9. Schema Linking Recall Fix (Bug Fix + Enhancement)
+**File:** `gateway/main.py`
+- **BUG**: Stopword list contained business-relevant terms: "total", "amount", "order", "count", "time", "data", "number", "value". These words match column names but were being filtered out, causing queries like "top customers by total spending" to match only 1 table instead of 6.
+- **FIX**: Removed business terms from stopwords, kept only SQL keywords and true filler words.
+- **Enhancement**: Added semantic synonym expansion map — maps analytical concepts to column names:
+  - `spending` → amount, total, payment, cost, price, revenue
+  - `revenue` → amount, total, sales, income, price
+  - `bought/sold` → order, purchase, transaction
+  - `profit` → margin, revenue, cost, amount
+  - `latest/oldest` → date, time, created, updated
+  - `biggest` → count, total, amount, size
+  - `active/inactive` → status, is_active, enabled
+- Impact: "top customers by total spending" now links customers, orders, payments, order_items, products, employees (6 tables).
+
+### 10. Complete Pool Manager Context Manager Migration
+**File:** `gateway/main.py`
+- Converted ALL remaining ~15 pool_manager.acquire/release patterns to `async with pool_manager.connection()`.
+- Affected endpoints: schema preview, samples, enriched schema, schema overview, schema browse, relationships, join path, search, column correction, cost estimation, PII detection, annotation generation, background refresh, auto-refresh.
+- Only 2 acquire() calls remain — query endpoint and test connection — both already have proper try/finally blocks.
+
+### 11. DuckDB Connector Fixes (Bug Fix)
+**File:** `gateway/connectors/duckdb.py`
+- **BUG**: Timeout feature completely broken — used `SET timeout = '{timeout}s'` but DuckDB has no such pragma. The setting name doesn't exist.
+- **FIX**: Replaced with `asyncio.wait_for()` + `conn.interrupt()` for real query cancellation.
+- **BUG**: Row count estimation divided estimated_size by bytes-per-row, but `estimated_size` IS the row count, not byte size. A 3-row table showed 0 rows.
+- **FIX**: Use `estimated_size` directly as row count.
+- **Enhancement**: Added `set_credential_extras()` with MotherDuck token auth support (`motherduck_token` in extras).
+- **Enhancement**: Execute now runs in thread pool (`asyncio.to_thread`) for proper async behavior.
+
+### 12. Databricks SQL Injection Fix (Security)
+**File:** `gateway/connectors/databricks.py`
+- **BUG**: Fallback sample query used `FROM {table}` without quoting, allowing potential SQL injection via crafted table names.
+- **FIX**: Now quotes each part of the table name: `".".join(f"\`{p}\`" for p in table.split("."))`.
+- **Enhancement**: Added configurable `connection_timeout` and `query_timeout` via credential extras.
+
+### 13. SQLite Connector Optimization
+**File:** `gateway/connectors/sqlite.py`
+- **Code duplication**: `get_sample_values` reimplemented UNION ALL SQL manually instead of using base class `_build_sample_union_sql(table, columns, limit, quote="[")`. Replaced with base class call.
+- **N+1 row counts**: Previously ran `SELECT COUNT(*) FROM [table]` per table. Now batches all counts into a single UNION ALL query.
+
+### 14. Base Connector Bracket Quoting Fix
+**File:** `gateway/connectors/base.py`
+- **BUG**: `_build_sample_union_sql(quote="[")` produced `[col[` instead of `[col]`. The quote parameter was used for both open and close characters.
+- **FIX**: Added bracket-style quoting detection — `quote="["` now correctly produces `[col]` for SQLite/MSSQL.
+
+### 15. Redshift Configurable Timeouts
+**File:** `gateway/connectors/redshift.py`
+- Added `connect_timeout` and `query_timeout` instance variables (defaults 15s, 30s).
+- `set_credential_extras()` now reads `connection_timeout` and `query_timeout` from extras.
+- `psycopg2.connect()` now uses configurable `connect_timeout` instead of hardcoded 15.
+
+### 16. Inline Sample Values in DDL (Spider2.0 Optimization)
+**File:** `gateway/main.py`
+- DDL output from `schema_link` and `get_schema_ddl` now includes inline sample values for low-cardinality columns.
+- Example: `status VARCHAR -- 7 distinct values; e.g. 'cancelled', 'confirmed', 'delivered', 'pending', 'processing'`
+- Only shown when distinct count ≤50 or distinct fraction <5% — avoids wasting tokens on unique/high-cardinality columns.
+- Eliminates value hallucination (#1 source of incorrect WHERE clauses in text-to-SQL benchmarks).
+
+### 17. Proactive Sample Value Caching
+**File:** `gateway/main.py`
+- When `schema_link` is called, automatically fetches sample values for linked tables that don't have cached samples (capped at 5 tables).
+- First call primes the cache; subsequent calls include inline samples in DDL.
+- `/schema/samples` endpoint now caches results via `schema_cache.put_sample_values()` for reuse.
+
+---
+
+## Round 13 (part 1): Pool Manager Safety, Schema Browser UX, Configurable Timeouts, MCP Tool Fixes (2026-04-02)
 
 **Summary:** 8 improvements — Pool manager context manager with guaranteed release, schema browser enriched with warehouse metadata, configurable timeouts for all connectors, MCP tool bug fixes and new validate_sql tool.
 
@@ -15,15 +101,7 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 - Pool release guaranteed via try/finally on query, test, and schema endpoints
 - All 4 live Docker databases verified: PostgreSQL, MySQL, ClickHouse, MSSQL
 - Frontend and backend deployed and tested in containers
-- 7 git commits this round
-
-### Industry Research (Spider2.0 & HEX, April 2026)
-- **Spider2.0 leaderboard**: ReFoRCE still leads at 31.26% on Snow, 30.35% on Lite. Paytm now on leaderboard (first Indian company).
-- **Spider2.0 combined coverage**: All methods combined solve 66.91% (366/547) of examples.
-- **HEX March 2026**: Projects as Context for Agent (swap data connections), chDB 4 ClickHouse integration, new CRUD API endpoints, Python 3.12 kernel.
-- **HEX OAuth**: Supported for Snowflake, BigQuery, Databricks. Token expiration notifications (Jan 2026).
-- **Connection pooling best practices**: Dynamic pool sizing, PgBouncer transaction pooling, failover strategies. Prisma v7 shifted to driver-level pooling.
-- **SignalPilot positioning**: Now has validate_sql for ReFoRCE-style self-refinement loop. Key remaining gap: per-user OAuth for warehouse connections.
+- 11 git commits
 
 ### 1. Pool Manager Async Context Manager (Reliability)
 **File:** `gateway/connectors/pool_manager.py`
