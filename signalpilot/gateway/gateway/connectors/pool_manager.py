@@ -272,6 +272,34 @@ class PoolManager:
     def tunnel_count(self) -> int:
         return len(self._tunnels)
 
+    def stats(self) -> dict[str, Any]:
+        """Return pool manager statistics for monitoring."""
+        now = time.time()
+        pools = []
+        for key, (connector, last_used) in self._pools.items():
+            # Extract db_type from key
+            parts = key.split(":", 1)
+            db_type = parts[0] if parts else "unknown"
+            pools.append({
+                "key": key[:80],  # Truncate for security
+                "db_type": db_type,
+                "idle_seconds": round(now - last_used, 1),
+                "connector_type": type(connector).__name__,
+            })
+        tunnels = []
+        for key, tunnel in self._tunnels.items():
+            tunnels.append({
+                "key": key[:80],
+                "active": tunnel.is_active if hasattr(tunnel, "is_active") else True,
+            })
+        return {
+            "pool_count": len(self._pools),
+            "tunnel_count": len(self._tunnels),
+            "max_idle_seconds": self._max_idle,
+            "pools": pools,
+            "tunnels": tunnels,
+        }
+
 
 # Global pool manager singleton
 pool_manager = PoolManager()

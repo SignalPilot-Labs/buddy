@@ -2213,6 +2213,12 @@ async def detect_pii(name: str):
     }
 
 
+@app.get("/api/pool/stats")
+async def pool_stats():
+    """Get connection pool statistics for monitoring."""
+    return pool_manager.stats()
+
+
 @app.get("/api/schema-cache/stats")
 async def schema_cache_stats():
     """Get schema cache statistics (Feature #18)."""
