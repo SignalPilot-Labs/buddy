@@ -897,7 +897,8 @@ def _compress_schema(schema: dict) -> dict:
                 pk_cols.append(col["name"])
 
         # Build compact DDL string
-        ddl_parts = [f"CREATE TABLE {table.get('schema', '')}.{table['name']} ("]
+        overview_kw = "CREATE VIEW" if table.get("type") == "view" else "CREATE TABLE"
+        ddl_parts = [f"{overview_kw} {table.get('schema', '')}.{table['name']} ("]
         ddl_parts.append("  " + ", ".join(cols))
         if pk_cols:
             ddl_parts.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
@@ -1163,7 +1164,8 @@ async def get_enriched_schema(
                     if col.get("primary_key"):
                         pk_cols.append(col["name"])
 
-                ddl_parts = [f"CREATE TABLE {table.get('schema', '')}.{table['name']} ("]
+                browse_kw = "CREATE VIEW" if table.get("type") == "view" else "CREATE TABLE"
+                ddl_parts = [f"{browse_kw} {table.get('schema', '')}.{table['name']} ("]
                 ddl_parts.append("  " + ", ".join(cols))
                 if pk_cols:
                     ddl_parts.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
@@ -1527,7 +1529,8 @@ async def get_schema_ddl(
             comment_parts.append(f"CLUSTER BY({', '.join(clustering)})")
         row_comment = f" -- {', '.join(comment_parts)}" if comment_parts else ""
 
-        ddl = f"{table_header}CREATE TABLE {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
+        obj_keyword = "CREATE VIEW" if table.get("type") == "view" else "CREATE TABLE"
+        ddl = f"{table_header}{obj_keyword} {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
         ddl_statements.append(ddl)
 
     ddl_text = "\n\n".join(ddl_statements)
@@ -1842,7 +1845,8 @@ async def schema_link(
             meta_parts.append(f"CLUSTER BY({clustering_key})")
         meta_parts.append(f"relevance={table_scores.get(key, 0):.1f}")
         rc_comment = f" -- {', '.join(meta_parts)}"
-        ddl_lines.append(f"{header}CREATE TABLE {table_name} (\n{',\n'.join(col_parts)}\n);{rc_comment}")
+        obj_kw = "CREATE VIEW" if t.get("type") == "view" else "CREATE TABLE"
+        ddl_lines.append(f"{header}{obj_kw} {table_name} (\n{',\n'.join(col_parts)}\n);{rc_comment}")
 
     ddl_text = "\n\n".join(ddl_lines)
 
