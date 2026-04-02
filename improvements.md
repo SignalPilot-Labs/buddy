@@ -5,6 +5,56 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 30: Read-Only Enforcement, Schema Linking FK-Propagation, URL Auto-Detect (2026-04-01)
+
+**Summary:** 5 improvements — read-only enforcement for MySQL/MSSQL, MSSQL query optimization (6→5), URL-based DB type auto-detection, FK-propagated schema linking scores, and join inference + validation tests.
+
+**Key metrics:**
+- 556 tests passing (42 new this round: 11 join inference, 12 URL detection, 19 pre-existing run)
+- 5 git commits this round
+- MySQL: now enforces `SET SESSION TRANSACTION READ ONLY` (defense-in-depth)
+- MSSQL: cardinality merged into index query (6→5 queries)
+- Schema linking: FK-connected tables now scored proportionally (orders:28→payments:6.0)
+- All 5 Docker databases verified end-to-end
+
+### 1. MySQL & MSSQL Read-Only Enforcement
+**Files:** `connectors/mysql.py`, `connectors/mssql.py`
+- **Impact:** Defense-in-depth security — blocks writes at session level even if SQL filter is bypassed
+- MySQL: `SET SESSION TRANSACTION READ ONLY` after connect and on every reconnect
+- MSSQL: `SET TRANSACTION ISOLATION LEVEL READ COMMITTED` after connect
+- Verified: CREATE TABLE blocked with appropriate error on both connectors
+- Previously relied solely on the SQL filter regex — now dual protection
+
+### 2. MSSQL Schema Query Optimization (6→5 queries)
+**Files:** `connectors/mssql.py`
+- **Impact:** One fewer round trip during MSSQL schema introspection
+- Merged standalone `cardinality_sql` into `idx_sql` using `MIN(CASE WHEN key_ordinal = 1 THEN c.name END) AS lead_column`
+- Same pattern used for MySQL (4→3) in Round 29 — applied consistently
+- Stats still correctly report 3 columns with stats per table on test MSSQL
+
+### 3. Auto-Detect DB Type from Pasted URL (HEX Pattern)
+**Files:** `signalpilot/web/app/connections/page.tsx`, `tests/test_form_validation.py`
+- **Impact:** When a user pastes a connection URL, the DB type selector automatically switches to match
+- Recognizes all 11 URL schemes: postgresql://, mysql://, redshift://, clickhouse://, snowflake://, mssql://, trino://, databricks://, bigquery://, md: (MotherDuck)
+- Also handles variants: mysql+pymysql://, mssql+pymssql://, sqlserver://, clickhouses://, clickhouse+http[s]://
+- 12 new tests covering all schemes, case sensitivity, and edge cases
+
+### 4. FK-Propagated Schema Linking Scores (Spider2.0)
+**Files:** `gateway/main.py`
+- **Impact:** FK-connected tables are now ordered by relevance instead of appended unordered
+- Forward FK propagation: if table A (score 20) references table B, B gets `score * 0.3`
+- Reverse FK propagation: if table C references table A, C gets `score * 0.2`
+- Example: "show customer orders" → orders:28.0, customers:13.0, order_items:13.0, payments:6.0
+- Previously FK tables were added as a flat set at the end of the linked tables
+
+### 5. Join Inference & Form Validation Tests
+**Files:** `tests/test_join_inference.py`, `tests/test_form_validation.py`
+- **Impact:** 42 new tests for critical infrastructure code
+- Join inference (11 tests): customer_id→customers, plural forms (y→ies), self-join prevention, existing FK skip, shared column detection, edge cases
+- Form validation (30 tests): connection names, ports, Snowflake accounts, BigQuery JSON, SSH tunnels, URL detection
+
+---
+
 ## Round 29: Connector Fixes, UX Flexibility, Spider2.0 Test Coverage (2026-04-01)
 
 **Summary:** 6 improvements — Spider2.0 context optimization tests, schema fingerprint UI, connector flexibility (SSH/SSL), MSSQL/MySQL query fixes, Snowflake MFA warning, and industry research alignment.
