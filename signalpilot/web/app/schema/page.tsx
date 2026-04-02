@@ -216,6 +216,7 @@ export default function SchemaExplorerPage() {
       >
         <div className="flex items-center gap-6 text-xs">
           <span className="text-[var(--color-text-dim)]">tables: <code className="text-[10px] text-[var(--color-text)]">{schema ? Object.keys(schema.tables).length : "—"}</code></span>
+          <span className="text-[var(--color-text-dim)]">columns: <code className="text-[10px] text-[var(--color-text)]">{schema ? Object.values(schema.tables).reduce((sum, t) => sum + t.columns.length, 0) : "—"}</code></span>
           <span className="text-[var(--color-text-dim)]">db: <code className="text-[10px] text-[var(--color-text)]">{schema?.db_type || "—"}</code></span>
           {lastRefresh && (
             <span className="text-[var(--color-text-dim)]">
