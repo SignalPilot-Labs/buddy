@@ -27,9 +27,12 @@ class TrinoConnector(BaseConnector):
         self._conn = None
         self._connect_params: dict = {}
         self._credential_extras: dict = {}
+        self._request_timeout: int | None = None
 
     def set_credential_extras(self, extras: dict) -> None:
         self._credential_extras = extras
+        if extras.get("query_timeout"):
+            self._request_timeout = extras["query_timeout"]
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_TRINO:
@@ -71,9 +74,11 @@ class TrinoConnector(BaseConnector):
             if params.get("verify", "true").lower() in ("false", "0", "no"):
                 connect_kwargs["verify"] = False
 
-        # Request timeout for all queries
+        # Request timeout for all queries — from URL param or credential extras
         if params.get("request_timeout"):
             connect_kwargs["request_timeout"] = int(params["request_timeout"])
+        elif self._request_timeout:
+            connect_kwargs["request_timeout"] = self._request_timeout
 
         try:
             self._conn = trino_lib.dbapi.connect(**connect_kwargs)

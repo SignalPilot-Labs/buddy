@@ -26,10 +26,16 @@ class SnowflakeConnector(BaseConnector):
         self._conn = None
         self._connect_params: dict = {}
         self._credential_extras: dict = {}
+        self._login_timeout: int = 15
+        self._network_timeout: int = 30
 
     def set_credential_extras(self, extras: dict) -> None:
-        """Store structured credential data for connection."""
+        """Store structured credential data and timeout settings for connection."""
         self._credential_extras = extras
+        if extras.get("connection_timeout"):
+            self._login_timeout = extras["connection_timeout"]
+        if extras.get("query_timeout"):
+            self._network_timeout = extras["query_timeout"]
 
     def _load_private_key(self, key_pem: str, passphrase: str | None = None) -> bytes:
         """Load a PEM-encoded private key and return DER bytes for Snowflake key-pair auth."""
@@ -72,8 +78,8 @@ class SnowflakeConnector(BaseConnector):
         connect_args = {
             "account": params.get("account", ""),
             "user": params.get("user", ""),
-            "login_timeout": 15,
-            "network_timeout": 30,
+            "login_timeout": self._login_timeout,
+            "network_timeout": self._network_timeout,
         }
 
         # Key-pair auth takes precedence over password auth (HEX pattern)
