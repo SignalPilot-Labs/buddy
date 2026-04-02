@@ -45,16 +45,16 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
       {/* Mini toolbar */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]/80 frosted-glass">
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-[#555]">Events</span>
-          <span className="text-[10px] text-[#e8e8e8] font-semibold tabular-nums">{events.length}</span>
+          <span className="text-[10px] text-[#888]">Events</span>
+          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{events.length}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-[#555]">Tools</span>
-          <span className="text-[10px] text-[#e8e8e8] font-semibold tabular-nums">{toolCount}</span>
+          <span className="text-[10px] text-[#888]">Tools</span>
+          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{toolCount}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[9px] text-[#555]">Groups</span>
-          <span className="text-[10px] text-[#e8e8e8] font-semibold tabular-nums">{grouped.length}</span>
+          <span className="text-[10px] text-[#888]">Groups</span>
+          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{grouped.length}</span>
         </div>
       </div>
 

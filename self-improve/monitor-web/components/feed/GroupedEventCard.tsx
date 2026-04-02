@@ -27,7 +27,7 @@ function shortPath(p: string): string {
 /* ── Chevron ── */
 function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 10 10" fill="none" stroke="#444" strokeWidth="1.5" strokeLinecap="round"
+    <svg width={size} height={size} viewBox="0 0 10 10" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round"
       className={clsx("shrink-0 transition-transform duration-150", open && "rotate-90")}>
       <polyline points="3 2 7 5 3 8" />
     </svg>
@@ -38,7 +38,7 @@ function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
 
 function TerminalOutput({ stdout, stderr }: { stdout: string; stderr: string }) {
   const text = stdout || stderr;
-  if (!text) return <div className="text-[9px] text-[#444] italic py-1">no output</div>;
+  if (!text) return <div className="text-[9px] text-[#777] italic py-1">no output</div>;
   const lines = text.split("\n");
   return (
     <div className="font-mono text-[10px] leading-relaxed max-h-[300px] overflow-y-auto">
@@ -68,18 +68,18 @@ function FileContentPreview({ content, totalLines, filePath }: { content: string
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
         <span className="text-[9px] text-[#666] flex-1 truncate">{shortPath(filePath)}</span>
-        <span className="text-[8px] text-[#444] tabular-nums">{totalLines} lines</span>
-        {ext && <span className="text-[7px] text-[#555] bg-white/[0.04] rounded px-1 py-0.5 uppercase">{ext}</span>}
+        <span className="text-[9px] text-[#777] tabular-nums">{totalLines} lines</span>
+        {ext && <span className="text-[9px] text-[#888] bg-white/[0.04] rounded px-1 py-0.5 uppercase">{ext}</span>}
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[250px] overflow-y-auto">
         {lines.map((line, i) => (
           <div key={i} className="flex">
-            <span className="w-8 shrink-0 text-right pr-2 text-[#333] select-none">{i + 1}</span>
+            <span className="w-8 shrink-0 text-right pr-2 text-[#888] select-none">{i + 1}</span>
             <span className="text-[#888] whitespace-pre-wrap break-all">{line || "\u00A0"}</span>
           </div>
         ))}
         {totalLines > 30 && (
-          <div className="px-2 py-1 text-[9px] text-[#444] text-center">
+          <div className="px-2 py-1 text-[9px] text-[#777] text-center">
             … {totalLines - 30} more lines
           </div>
         )}
@@ -95,7 +95,7 @@ function DiffBlock({ patch }: { patch: Array<Record<string, unknown>> }) {
         const lines = (hunk.lines as string[]) || [];
         return (
           <div key={hi}>
-            <div className="text-[8px] text-[#555] px-3 py-1 bg-[#0a0a0a] border-b border-[#1a1a1a] font-semibold">
+            <div className="text-[9px] text-[#888] px-3 py-1 bg-[#0a0a0a] border-b border-[#1a1a1a] font-semibold">
               @@ -{String(hunk.oldStart)},{String(hunk.oldLines)} +{String(hunk.newStart)},{String(hunk.newLines)} @@
             </div>
             {lines.map((line, li) => {
@@ -108,14 +108,14 @@ function DiffBlock({ patch }: { patch: Array<Record<string, unknown>> }) {
                   isDel && "bg-[#ff4444]/[0.04]",
                 )}>
                   <span className={clsx(
-                    "w-5 shrink-0 text-center select-none text-[8px]",
-                    isAdd ? "text-[#00ff88]/40" : isDel ? "text-[#ff4444]/40" : "text-[#333]"
+                    "w-5 shrink-0 text-center select-none text-[9px]",
+                    isAdd ? "text-[#00ff88]/40" : isDel ? "text-[#ff4444]/40" : "text-[#888]"
                   )}>
                     {isAdd ? "+" : isDel ? "−" : " "}
                   </span>
                   <span className={clsx(
                     "whitespace-pre-wrap break-all flex-1 px-1",
-                    isAdd ? "text-[#88ffbb]" : isDel ? "text-[#ff8888]" : "text-[#555]"
+                    isAdd ? "text-[#88ffbb]" : isDel ? "text-[#ff8888]" : "text-[#888]"
                   )}>
                     {line.slice(1)}
                   </span>
@@ -140,7 +140,7 @@ function GrepResults({ tool }: { tool: ToolCall }) {
     <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
         <span className="text-[9px] text-[#88ffcc]">/{pattern}/</span>
-        <span className="text-[8px] text-[#444]">{lines.length} matches</span>
+        <span className="text-[9px] text-[#777]">{lines.length} matches</span>
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[200px] overflow-y-auto px-3 py-1.5">
         {lines.map((line, i) => (
@@ -168,7 +168,7 @@ function GlobResults({ tool }: { tool: ToolCall }) {
           <span className="text-[#888]">{p}</span>
         </div>
       ))}
-      {paths.length > 20 && <div className="text-[9px] text-[#444]">+{paths.length - 20} more</div>}
+      {paths.length > 20 && <div className="text-[9px] text-[#777]">+{paths.length - 20} more</div>}
     </div>
   );
 }
@@ -179,7 +179,7 @@ function TodoDisplay({ todos }: { todos: Array<{ status: string; content: string
       {todos.map((t, i) => (
         <div key={i} className="flex items-start gap-2 text-[10px]">
           <span className={clsx("mt-0.5 shrink-0",
-            t.status === "completed" ? "text-[#00ff88]" : t.status === "in_progress" ? "text-[#ffaa00]" : "text-[#444]"
+            t.status === "completed" ? "text-[#00ff88]" : t.status === "in_progress" ? "text-[#ffaa00]" : "text-[#777]"
           )}>
             {t.status === "completed" ? (
               <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="2.5 5.5 4.5 7.5 8.5 3.5" /></svg>
@@ -305,10 +305,10 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
         <span className={clsx("text-[11px] font-semibold", isCeo ? "text-[#ff8844]" : "text-[#ccc]")}>
           {isCeo ? "CEO" : "Worker Agent"}
         </span>
-        <span className="text-[9px] text-[#444] tabular-nums">{fmtTime(ts)}</span>
+        <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         {thinking && (
           <button onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[8px] text-[#555] hover:text-[#888] transition-colors flex items-center gap-1">
+            className="ml-auto text-[9px] text-[#888] hover:text-[#888] transition-colors flex items-center gap-1">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5" cy="5" r="3.5" /><circle cx="5" cy="5" r="1" /></svg>
             {showThinking ? "hide reasoning" : "show reasoning"}
           </button>
@@ -318,7 +318,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       {showThinking && thinking && (
         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden">
-          <div className="text-[9px] text-[#555] uppercase tracking-wider font-semibold mb-1">Reasoning</div>
+          <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">Reasoning</div>
           <div className="text-[10px] text-[#666] italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">{thinking}</div>
         </motion.div>
       )}
@@ -326,7 +326,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       {text && (
         <div className="relative">
           {isLong && (
-            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[8px] text-[#555] hover:text-[#888] transition-colors">
+            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#888] transition-colors">
               [{collapsed ? "expand" : "collapse"}]
             </button>
           )}
@@ -359,12 +359,12 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#88ccff]/8 shrink-0">{getToolIcon("read", "#88ccff")}</div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[#88ccff]">{label}</div>
-          <div className="text-[9px] text-[#555] mt-0.5 truncate">
+          <div className="text-[9px] text-[#888] mt-0.5 truncate">
             {paths.slice(0, 3).map(p => shortPath(p)).join(", ")}{paths.length > 3 && ` +${paths.length - 3} more`}
           </div>
         </div>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(ts)}</span>
-        {totalDuration > 0 && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
+        {totalDuration > 0 && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
         <Chevron open={expanded} />
       </button>
 
@@ -382,7 +382,7 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
                       <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
                     </svg>
                     <span className="text-[#888] truncate flex-1">{p}</span>
-                    {totalLines > 0 && <span className="text-[8px] text-[#555] shrink-0 tabular-nums">{totalLines} lines</span>}
+                    {totalLines > 0 && <span className="text-[9px] text-[#888] shrink-0 tabular-nums">{totalLines} lines</span>}
                     <Chevron open={previewIdx === i} size={8} />
                   </button>
                   {previewIdx === i && !!(fileObj?.content) && (
@@ -422,8 +422,8 @@ function EditGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
             {totalRemoved > 0 && <span className="text-[9px] text-[#ff4444]/60 tabular-nums">-{totalRemoved}</span>}
           </div>
         </div>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(ts)}</span>
-        {totalDuration > 0 && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
+        {totalDuration > 0 && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
         <Chevron open={expanded} />
       </button>
       {expanded && (
@@ -466,10 +466,10 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#00ff88]/8 shrink-0">{getToolIcon("bash", "#00ff88")}</div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[#00ff88]">Terminal · {commands.length} command{commands.length !== 1 ? "s" : ""}</div>
-          <div className="text-[9px] text-[#555] mt-0.5 truncate">{commands[0]?.cmd}{commands.length > 1 ? ` + ${commands.length - 1} more` : ""}</div>
+          <div className="text-[9px] text-[#888] mt-0.5 truncate">{commands[0]?.cmd}{commands.length > 1 ? ` + ${commands.length - 1} more` : ""}</div>
         </div>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(ts)}</span>
-        {totalDuration > 0 && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
+        {totalDuration > 0 && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
         <Chevron open={expanded} />
       </button>
       {expanded && (
@@ -480,7 +480,7 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
               <span className="h-2 w-2 rounded-full bg-[#ff4444]/30" />
               <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
               <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
-              <span className="text-[8px] text-[#444] ml-2">bash</span>
+              <span className="text-[9px] text-[#777] ml-2">bash</span>
             </div>
             <div className="bg-black/40 p-3 space-y-3 max-h-[500px] overflow-y-auto font-mono text-[10px]">
               {commands.map((cmd, i) => (
@@ -488,7 +488,7 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
                   <div className="flex items-center gap-1.5">
                     <span className="text-[#00ff88]/60">$</span>
                     <span className="text-[#ccc] flex-1">{cmd.cmd}</span>
-                    {cmd.duration > 0 && <span className="text-[8px] text-[#444]">{fmtDuration(cmd.duration)}</span>}
+                    {cmd.duration > 0 && <span className="text-[9px] text-[#777]">{fmtDuration(cmd.duration)}</span>}
                   </div>
                   {cmd.output && (
                     <div className="mt-1 ml-3.5 border-l border-white/[0.04] pl-2.5">
@@ -523,13 +523,13 @@ function AgentRunCard({ tool, ts }: { tool: ToolCall; ts: string }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-medium text-[#ff8844]">Agent: {description}</span>
-            <span className="text-[8px] text-[#ff8844]/40 bg-[#ff8844]/8 rounded px-1 py-0.5 uppercase tracking-wider">{subType}</span>
+            <span className="text-[9px] text-[#ff8844]/40 bg-[#ff8844]/8 rounded px-1 py-0.5 uppercase tracking-wider">{subType}</span>
           </div>
-          {!expanded && prompt && <div className="text-[9px] text-[#555] mt-0.5 truncate">{prompt.slice(0, 100)}</div>}
+          {!expanded && prompt && <div className="text-[9px] text-[#888] mt-0.5 truncate">{prompt.slice(0, 100)}</div>}
         </div>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(ts)}</span>
-        {!!tool.duration_ms && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
-        {isPending && <span className="text-[8px] text-[#ffaa00] animate-pulse">running</span>}
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
+        {!!tool.duration_ms && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
+        {isPending && <span className="text-[9px] text-[#ffaa00] animate-pulse">running</span>}
         <Chevron open={expanded} />
       </button>
       {expanded && (
@@ -537,13 +537,13 @@ function AgentRunCard({ tool, ts }: { tool: ToolCall; ts: string }) {
           <div className="p-4 space-y-3 max-h-[600px] overflow-y-auto">
             {prompt && (
               <div>
-                <div className="text-[8px] uppercase tracking-[0.15em] text-[#555] mb-1.5">Prompt</div>
+                <div className="text-[9px] uppercase tracking-[0.15em] text-[#888] mb-1.5">Prompt</div>
                 <div className="text-[10px] text-[#aaa] whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-white/[0.03]">{prompt}</div>
               </div>
             )}
             {tool.output_data && (
               <div>
-                <div className="text-[8px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
+                <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
                 <div className="text-[10px] text-[#888] whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[400px] overflow-y-auto leading-relaxed">
                   {JSON.stringify(tool.output_data, null, 2)}
                 </div>
@@ -567,12 +567,12 @@ function PlaywrightGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; 
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#66bbff]/8 shrink-0">{getToolIcon("playwright_navigate", "#66bbff")}</div>
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[#66bbff]">Browser · {tools.length} action{tools.length !== 1 ? "s" : ""}</div>
-          <div className="text-[9px] text-[#555] mt-0.5 truncate">
+          <div className="text-[9px] text-[#888] mt-0.5 truncate">
             {tools.map(t => getToolCategory(t.tool_name).replace("playwright_", "")).join(" → ")}
           </div>
         </div>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(ts)}</span>
-        {totalDuration > 0 && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
+        {totalDuration > 0 && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
         <Chevron open={expanded} />
       </button>
       {expanded && (
@@ -589,7 +589,7 @@ function PlaywrightGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; 
                     {!!inp.url && <span className="text-[#66bbff]/60 ml-1">{String(inp.url)}</span>}
                     {!!inp.filename && <span className="text-[#66bbff]/60 ml-1">{String(inp.filename)}</span>}
                   </span>
-                  {!!tc.duration_ms && <span className="text-[8px] text-[#444] tabular-nums">{fmtDuration(tc.duration_ms)}</span>}
+                  {!!tc.duration_ms && <span className="text-[9px] text-[#777] tabular-nums">{fmtDuration(tc.duration_ms)}</span>}
                 </div>
               );
             })}
@@ -631,11 +631,11 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
         <span className="opacity-60 shrink-0">{getToolIcon(cat, denied ? "#ff4444" : colors.iconColor)}</span>
         <span className={clsx("text-[10px] font-semibold shrink-0", denied ? "text-[#ff4444]" : colors.text)}>{tool.tool_name}</span>
-        {denied && <span className="text-[8px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">DENIED</span>}
-        {isPending && <span className="text-[8px] text-[#ffaa00] animate-pulse">running</span>}
-        <span className="text-[9px] text-[#555] truncate flex-1">{denied ? tool.deny_reason : summary}</span>
-        <span className="text-[9px] text-[#444] tabular-nums shrink-0">{fmtTime(tool.ts)}</span>
-        {tool.duration_ms != null && <span className="text-[8px] text-[#555] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
+        {denied && <span className="text-[9px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">DENIED</span>}
+        {isPending && <span className="text-[9px] text-[#ffaa00] animate-pulse">running</span>}
+        <span className="text-[9px] text-[#888] truncate flex-1">{denied ? tool.deny_reason : summary}</span>
+        <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(tool.ts)}</span>
+        {tool.duration_ms != null && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
         <Chevron open={expanded} size={8} />
       </button>
       {expanded && (
@@ -645,8 +645,8 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
             {/* Show raw input if no styled output rendered it */}
             {tool.input_data && cat !== "bash" && cat !== "todo" && (
               <details className="group">
-                <summary className="text-[8px] text-[#444] cursor-pointer hover:text-[#666] transition-colors">raw input</summary>
-                <pre className="mt-1 text-[9px] text-[#555] bg-black/20 rounded p-2 border border-[#1a1a1a] whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
+                <summary className="text-[9px] text-[#777] cursor-pointer hover:text-[#666] transition-colors">raw input</summary>
+                <pre className="mt-1 text-[9px] text-[#888] bg-black/20 rounded p-2 border border-[#1a1a1a] whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
                   {JSON.stringify(tool.input_data, null, 2)}
                 </pre>
               </details>
@@ -662,7 +662,7 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
 function UsageTick({ data, ts }: { data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }) {
   const fmt = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : String(n);
   return (
-    <div className="flex items-center gap-2 px-4 py-1 text-[8px] text-[#444]">
+    <div className="flex items-center gap-2 px-4 py-1 text-[9px] text-[#777]">
       <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#44ccdd" strokeWidth="1" opacity="0.3">
         <rect x="0.5" y="4" width="1.5" height="3.5" rx="0.3" /><rect x="3" y="2" width="1.5" height="5.5" rx="0.3" /><rect x="5.5" y="0.5" width="1.5" height="7" rx="0.3" />
       </svg>
@@ -681,7 +681,7 @@ function ControlMessage({ text, ts }: { text: string; ts: string }) {
       <div className="flex items-center gap-1.5 text-[9px] text-[#ffaa00]/70">
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="2 4 5 7 2 10" /><line x1="6" y1="10" x2="9" y2="10" /></svg>
         {text}
-        <span className="text-[#444] tabular-nums">{fmtTime(ts)}</span>
+        <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
     </div>
@@ -697,7 +697,7 @@ function MilestoneCard({ label, detail, color, ts }: { label: string; detail: st
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
         <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
         {detail && <span className="text-[9px] text-[#666] max-w-[300px] truncate">{detail}</span>}
-        <span className="text-[8px] text-[#444] tabular-nums">{fmtTime(ts)}</span>
+        <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
     </motion.div>
@@ -709,7 +709,7 @@ function DividerCard({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <div className="flex-1 terminal-hr" />
-      <span className="text-[8px] text-[#444] uppercase tracking-wider">{label}</span>
+      <span className="text-[9px] text-[#777] uppercase tracking-wider">{label}</span>
       <div className="flex-1 terminal-hr" />
     </div>
   );

@@ -1,4 +1,4 @@
-import type { Run, ToolCall, AuditEvent } from "./types";
+import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
 
 // FastAPI backend runs on port 3401 (same host)
 // SSE and all API calls go directly to FastAPI, not through Next.js rewrite
@@ -7,9 +7,29 @@ function getApiBase(): string {
   return `${window.location.protocol}//${window.location.hostname}:3401`;
 }
 
-export async function fetchRuns(): Promise<Run[]> {
-  const res = await fetch(`${getApiBase()}/api/runs`);
+export async function fetchRuns(repo?: string): Promise<Run[]> {
+  const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
+  const res = await fetch(`${getApiBase()}/api/runs${params}`);
   if (!res.ok) throw new Error("Failed to fetch runs");
+  return res.json();
+}
+
+export async function fetchRepos(): Promise<RepoInfo[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/repos`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function setActiveRepo(repo: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`${getApiBase()}/api/repos/active`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ repo }),
+  });
   return res.json();
 }
 
@@ -170,9 +190,9 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
 export async function fetchBranches(): Promise<string[]> {
   try {
     const res = await fetch(`${getApiBase()}/api/agent/branches`);
-    if (!res.ok) return ["main", "staging"];
+    if (!res.ok) return ["main"];
     return res.json();
   } catch {
-    return ["main", "staging"];
+    return ["main"];
   }
 }

@@ -23,9 +23,9 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[#444]">{icon}</span>
-      <span className="text-[9px] text-[#444]">{label}</span>
-      <span className={`text-[9px] font-semibold tabular-nums ${accent || "text-[#e8e8e8]"}`}>
+      <span className="text-[#777]">{icon}</span>
+      <span className="text-[10px] text-[#777]">{label}</span>
+      <span className={`text-[10px] font-semibold tabular-nums ${accent || "text-[#e8e8e8]"}`}>
         {value}
       </span>
     </div>
@@ -42,7 +42,7 @@ export function StatsBar({
   if (!run) {
     return (
       <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
-        <span className="text-[9px] text-[#444]">No run selected</span>
+        <span className="text-[10px] text-[#777]">No run selected</span>
       </div>
     );
   }
@@ -87,7 +87,7 @@ export function StatsBar({
           href={run.pr_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[9px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
+          className="flex items-center gap-1 text-[10px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="3" cy="3" r="1.5" />
@@ -109,7 +109,7 @@ export function StatsBar({
           }`}
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
-        <span className="text-[8px] text-[#555]">
+        <span className="text-[10px] text-[#888]">
           {connected ? "Live" : "Disconnected"}
         </span>
       </div>

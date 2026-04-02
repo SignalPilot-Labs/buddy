@@ -11,6 +11,12 @@ export interface Run {
   total_output_tokens: number | null;
   error_message: string | null;
   rate_limit_resets_at: number | null;
+  github_repo: string | null;
+}
+
+export interface RepoInfo {
+  repo: string;
+  run_count: number;
 }
 
 export type RunStatus =
@@ -277,4 +283,19 @@ export interface WorkTreeNode {
   children?: WorkTreeNode[];
   changes: FileChange[];
   depth: number;
+}
+
+/* ── Settings Types ── */
+export interface SettingsStatus {
+  configured: boolean;
+  has_claude_token: boolean;
+  has_git_token: boolean;
+  has_github_repo: boolean;
+}
+
+export interface Settings {
+  claude_token?: string;
+  git_token?: string;
+  github_repo?: string;
+  max_budget_usd?: string;
 }
