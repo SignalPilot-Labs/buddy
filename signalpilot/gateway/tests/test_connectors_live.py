@@ -742,6 +742,49 @@ class TestPoolManagerClosePool:
         assert closed == 0
 
 
+class TestPoolManagerContextManager:
+    """Test the async context manager for safe acquire/release."""
+
+    @pytest.mark.asyncio
+    async def test_context_manager_releases_on_success(self):
+        from gateway.connectors.pool_manager import PoolManager
+        pm = PoolManager()
+        conn_str = "postgresql://enterprise_admin:Ent3rpr1se!S3cur3@host.docker.internal:5601/enterprise_prod"
+        async with pm.connection("postgres", conn_str) as connector:
+            assert await connector.health_check() is True
+        # Pool should still have the connector cached
+        assert pm.pool_count == 1
+        await pm.close_all()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_releases_on_exception(self):
+        from gateway.connectors.pool_manager import PoolManager
+        pm = PoolManager()
+        conn_str = "postgresql://enterprise_admin:Ent3rpr1se!S3cur3@host.docker.internal:5601/enterprise_prod"
+        try:
+            async with pm.connection("postgres", conn_str) as connector:
+                assert await connector.health_check() is True
+                raise ValueError("test error")
+        except ValueError:
+            pass
+        # Pool should still have the connector cached (release called in finally)
+        assert pm.pool_count == 1
+        await pm.close_all()
+
+    @pytest.mark.asyncio
+    async def test_context_manager_reuses_connection(self):
+        from gateway.connectors.pool_manager import PoolManager
+        pm = PoolManager()
+        conn_str = "postgresql://enterprise_admin:Ent3rpr1se!S3cur3@host.docker.internal:5601/enterprise_prod"
+        async with pm.connection("postgres", conn_str) as c1:
+            id1 = id(c1)
+        async with pm.connection("postgres", conn_str) as c2:
+            id2 = id(c2)
+        # Same connector instance should be reused
+        assert id1 == id2
+        await pm.close_all()
+
+
 # ── Table Grouping ──────────────────────────────────────────────────
 
 class TestTableGrouping:
