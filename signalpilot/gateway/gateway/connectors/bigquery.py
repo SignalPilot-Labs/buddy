@@ -95,28 +95,69 @@ class BigQueryConnector(BaseConnector):
         if self._client is None:
             raise RuntimeError("Not connected")
 
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
         schema: dict[str, Any] = {}
 
-        # List all datasets in the project
-        datasets = list(self._client.list_datasets())
-        for ds in datasets:
-            dataset_ref = self._client.dataset(ds.dataset_id)
-            tables = list(self._client.list_tables(dataset_ref))
+        def _list_datasets():
+            return list(self._client.list_datasets())
 
+        def _list_tables(dataset_id: str):
+            dataset_ref = self._client.dataset(dataset_id)
+            return dataset_id, list(self._client.list_tables(dataset_ref))
+
+        def _get_table(table_ref):
+            return self._client.get_table(table_ref)
+
+        # Step 1: List datasets
+        datasets = await asyncio.to_thread(_list_datasets)
+        if not datasets:
+            return schema
+
+        # Step 2: List tables in all datasets concurrently
+        table_lists = await asyncio.gather(
+            *(asyncio.to_thread(_list_tables, ds.dataset_id) for ds in datasets)
+        )
+
+        # Step 3: Fetch full table metadata concurrently (batched for large schemas)
+        all_table_refs = []
+        for dataset_id, tables in table_lists:
             for table_ref in tables:
-                table = self._client.get_table(table_ref)
-                key = f"{ds.dataset_id}.{table.table_id}"
-                columns = []
-                for field in table.schema:
-                    columns.append({
-                        "name": field.name,
-                        "type": field.field_type,
-                        "nullable": field.mode != "REQUIRED",
-                        "primary_key": False,  # BigQuery doesn't have traditional PKs
-                        "description": field.description or "",
-                    })
+                all_table_refs.append((dataset_id, table_ref))
+
+        # Batch concurrent get_table calls (max 20 concurrent to respect API limits)
+        batch_size = 20
+        for i in range(0, len(all_table_refs), batch_size):
+            batch = all_table_refs[i : i + batch_size]
+            tables = await asyncio.gather(
+                *(asyncio.to_thread(_get_table, ref) for _, ref in batch)
+            )
+            for (dataset_id, _), table in zip(batch, tables):
+                key = f"{dataset_id}.{table.table_id}"
+
+                def _flatten_fields(fields, prefix=""):
+                    """Flatten nested STRUCT/RECORD fields for Spider2.0 compatibility."""
+                    cols = []
+                    for field in fields:
+                        full_name = f"{prefix}{field.name}" if not prefix else f"{prefix}.{field.name}"
+                        cols.append({
+                            "name": full_name if prefix else field.name,
+                            "type": field.field_type,
+                            "nullable": field.mode != "REQUIRED",
+                            "primary_key": False,
+                            "description": field.description or "",
+                            "mode": field.mode,
+                        })
+                        # Recursively flatten nested RECORD fields
+                        if field.field_type == "RECORD" and field.fields:
+                            cols.extend(_flatten_fields(field.fields, full_name))
+                    return cols
+
+                columns = _flatten_fields(table.schema)
+
                 table_meta: dict[str, Any] = {
-                    "schema": ds.dataset_id,
+                    "schema": dataset_id,
                     "name": table.table_id,
                     "columns": columns,
                     "row_count": table.num_rows,
@@ -130,6 +171,8 @@ class BigQueryConnector(BaseConnector):
                     }
                 if table.clustering_fields:
                     table_meta["clustering_fields"] = list(table.clustering_fields)
+                if table.description:
+                    table_meta["description"] = table.description
                 schema[key] = table_meta
 
         return schema
