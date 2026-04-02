@@ -2169,5 +2169,168 @@ class TestURLValidation:
         assert any("password" in w.lower() for w in result.get("warnings", []))
 
 
+# ── Connector Tier Classification ──────────────────────────────────────────
+
+class TestConnectorTierClassification:
+    """Tests for the HEX-style connector tier classification system."""
+
+    def test_capabilities_all_connectors(self):
+        """GET /api/connectors/capabilities returns all tiers."""
+        from gateway.main import get_connector_capabilities
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            get_connector_capabilities()
+        )
+        assert "tier_1" in result
+        assert "tier_2" in result
+        assert "tier_3" in result
+        assert result["total_connectors"] == 9
+        # Tier 1 has postgres, mysql, snowflake, bigquery
+        tier1_types = [c["db_type"] for c in result["tier_1"]]
+        assert "postgres" in tier1_types
+        assert "mysql" in tier1_types
+
+    def test_capabilities_single_connector(self):
+        """GET /api/connectors/capabilities?db_type=postgres returns detailed info."""
+        from gateway.main import get_connector_capabilities
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            get_connector_capabilities(db_type="postgres")
+        )
+        assert result["db_type"] == "postgres"
+        assert result["tier"] == 1
+        assert result["feature_score"] > 80  # Postgres has most features
+        assert result["features"]["foreign_keys"] is True
+        assert result["features"]["ssl"] is True
+        assert result["features"]["ssh_tunnel"] is True
+
+    def test_capabilities_unknown_db_type(self):
+        """Unknown db_type returns 404."""
+        from gateway.main import get_connector_capabilities
+        from fastapi import HTTPException
+        import asyncio
+        with pytest.raises(HTTPException) as exc_info:
+            asyncio.get_event_loop().run_until_complete(
+                get_connector_capabilities(db_type="invalid_db")
+            )
+        assert exc_info.value.status_code == 404
+
+    def test_tier_classification_consistency(self):
+        """All connectors have consistent tier assignments."""
+        from gateway.main import _CONNECTOR_TIERS
+        for db_type, info in _CONNECTOR_TIERS.items():
+            assert info["tier"] in (1, 2, 3), f"{db_type} has invalid tier"
+            assert "features" in info
+            assert info["features"]["schema_introspection"] is True, f"{db_type} must support schema introspection"
+
+    def test_feature_score_calculation(self):
+        """Feature scores are computed correctly."""
+        from gateway.main import get_connector_capabilities
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            get_connector_capabilities(db_type="duckdb")
+        )
+        # DuckDB is Tier 3 with minimal features
+        assert result["tier"] == 3
+        assert result["feature_score"] < 30  # Few features enabled
+
+    def test_tier_1_has_more_features_than_tier_3(self):
+        """Tier 1 connectors always have more features than Tier 3."""
+        from gateway.main import _CONNECTOR_TIERS
+        for db_type, info in _CONNECTOR_TIERS.items():
+            enabled = sum(1 for v in info["features"].values() if v)
+            if info["tier"] == 1:
+                assert enabled >= 8, f"Tier 1 {db_type} should have 8+ features"
+            elif info["tier"] == 3:
+                assert enabled <= 5, f"Tier 3 {db_type} should have 5 or fewer features"
+
+
+# ── Schema Diff ────────────────────────────────────────────────────────────
+
+class TestSchemaDiff:
+    """Tests for schema diff detection."""
+
+    def test_diff_no_cached_baseline(self):
+        """First diff call stores baseline and returns no-cached."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        result = cache.diff("test-conn", {"public.users": {"columns": []}})
+        assert result is None  # No cached schema to compare
+
+    def test_diff_no_changes(self):
+        """Identical schemas produce no diff."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        schema = {"public.users": {"columns": [{"name": "id", "type": "int"}]}}
+        cache.put("test-conn", schema)
+        diff = cache.diff("test-conn", schema)
+        assert diff is not None
+        assert diff["has_changes"] is False
+
+    def test_diff_added_table(self):
+        """Detects newly added tables."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        old = {"public.users": {"columns": [{"name": "id", "type": "int"}]}}
+        new = {**old, "public.orders": {"columns": [{"name": "id", "type": "int"}]}}
+        cache.put("test-conn", old)
+        diff = cache.diff("test-conn", new)
+        assert diff["has_changes"] is True
+        assert "public.orders" in diff["added_tables"]
+
+    def test_diff_removed_table(self):
+        """Detects removed tables."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        old = {"public.users": {"columns": []}, "public.tmp": {"columns": []}}
+        new = {"public.users": {"columns": []}}
+        cache.put("test-conn", old)
+        diff = cache.diff("test-conn", new)
+        assert diff["has_changes"] is True
+        assert "public.tmp" in diff["removed_tables"]
+
+    def test_diff_modified_column_type(self):
+        """Detects column type changes."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        old = {"public.users": {"columns": [{"name": "age", "type": "integer"}]}}
+        new = {"public.users": {"columns": [{"name": "age", "type": "bigint"}]}}
+        cache.put("test-conn", old)
+        diff = cache.diff("test-conn", new)
+        assert diff["has_changes"] is True
+        assert len(diff["modified_tables"]) == 1
+        assert diff["modified_tables"][0]["type_changes"][0]["old_type"] == "integer"
+        assert diff["modified_tables"][0]["type_changes"][0]["new_type"] == "bigint"
+
+    def test_diff_added_column(self):
+        """Detects newly added columns."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=300)
+        old = {"public.users": {"columns": [{"name": "id", "type": "int"}]}}
+        new = {"public.users": {"columns": [{"name": "id", "type": "int"}, {"name": "email", "type": "text"}]}}
+        cache.put("test-conn", old)
+        diff = cache.diff("test-conn", new)
+        assert diff["has_changes"] is True
+        assert "email" in diff["modified_tables"][0]["added_columns"]
+
+
+# ── MCP Capabilities and Diff Tools ───────────────────────────────────────
+
+class TestMCPCapabilitiesTools:
+    """Tests for MCP connector_capabilities and schema_diff tools."""
+
+    def test_connector_capabilities_tool_exists(self):
+        """connector_capabilities MCP tool is registered."""
+        from gateway.mcp_server import mcp
+        tools = mcp._tool_manager._tools
+        assert "connector_capabilities" in tools
+
+    def test_schema_diff_tool_exists(self):
+        """schema_diff MCP tool is registered."""
+        from gateway.mcp_server import mcp
+        tools = mcp._tool_manager._tools
+        assert "schema_diff" in tools
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -794,6 +794,114 @@ async def schema_overview(connection_name: str) -> str:
 
 
 @mcp.tool()
+async def connector_capabilities(connection_name: str = "") -> str:
+    """
+    Get connector tier classification and available features.
+
+    If connection_name is provided, returns capabilities for that specific connection.
+    Otherwise returns the full connector tier matrix.
+
+    Use this to understand what schema metadata is available before querying.
+    For example, if a connector doesn't support foreign_keys, you shouldn't
+    rely on FK-based join path discovery.
+    """
+    gw = _gateway_url()
+    async with httpx.AsyncClient(timeout=15) as client:
+        if connection_name:
+            if not _CONN_NAME_RE.match(connection_name):
+                return "Error: Invalid connection name"
+            r = await client.get(f"{gw}/api/connections/{connection_name}/capabilities")
+        else:
+            r = await client.get(f"{gw}/api/connectors/capabilities")
+    if r.status_code != 200:
+        return f"Error ({r.status_code}): {r.text[:200]}"
+
+    data = r.json()
+    lines = ["Connector Capabilities:"]
+
+    if connection_name:
+        lines.append(f"  Connection: {data.get('connection_name', connection_name)}")
+        lines.append(f"  DB Type: {data.get('db_type', 'unknown')}")
+        lines.append(f"  Tier: {data.get('tier_label', 'unknown')}")
+        lines.append(f"  Feature Score: {data.get('feature_score', 0)}%")
+        features = data.get("features", {})
+        enabled = [k for k, v in features.items() if v]
+        disabled = [k for k, v in features.items() if not v]
+        if enabled:
+            lines.append(f"  Enabled: {', '.join(enabled)}")
+        if disabled:
+            lines.append(f"  Not Available: {', '.join(disabled)}")
+        configured = data.get("configured", {})
+        active = [k for k, v in configured.items() if v]
+        if active:
+            lines.append(f"  Active Config: {', '.join(active)}")
+    else:
+        for tier_key in ["tier_1", "tier_2", "tier_3"]:
+            connectors = data.get(tier_key, [])
+            if connectors:
+                tier_num = tier_key.split("_")[1]
+                lines.append(f"\n  Tier {tier_num}:")
+                for c in connectors:
+                    lines.append(f"    {c['db_type']}: {c.get('feature_score', 0)}% features")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def schema_diff(connection_name: str) -> str:
+    """
+    Compare current database schema against the last cached version.
+
+    Returns added/removed/modified tables and columns. Use this after DDL changes
+    or migrations to verify what changed and update your understanding of the schema.
+    """
+    if not _CONN_NAME_RE.match(connection_name):
+        return "Error: Invalid connection name"
+
+    gw = _gateway_url()
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.get(f"{gw}/api/connections/{connection_name}/schema/diff")
+    if r.status_code != 200:
+        return f"Error ({r.status_code}): {r.text[:200]}"
+
+    data = r.json()
+    lines = [f"Schema Diff for {connection_name}:"]
+    lines.append(f"  Tables: {data.get('table_count', 0)}")
+
+    if not data.get("has_cached"):
+        lines.append(f"  {data.get('message', 'No cached schema — baseline stored.')}")
+        return "\n".join(lines)
+
+    diff = data.get("diff", {})
+    if not diff.get("has_changes"):
+        lines.append("  No changes detected")
+        return "\n".join(lines)
+
+    added = diff.get("added_tables", [])
+    removed = diff.get("removed_tables", [])
+    modified = diff.get("modified_tables", [])
+
+    if added:
+        lines.append(f"  Added tables ({len(added)}): {', '.join(added[:10])}")
+    if removed:
+        lines.append(f"  Removed tables ({len(removed)}): {', '.join(removed[:10])}")
+    if modified:
+        lines.append(f"  Modified tables ({len(modified)}):")
+        for m in modified[:5]:
+            parts = [m['table']]
+            if m.get('added_columns'):
+                parts.append(f"+cols: {', '.join(m['added_columns'][:5])}")
+            if m.get('removed_columns'):
+                parts.append(f"-cols: {', '.join(m['removed_columns'][:5])}")
+            if m.get('type_changes'):
+                for tc in m['type_changes'][:3]:
+                    parts.append(f"{tc['column']}: {tc['old_type']}→{tc['new_type']}")
+            lines.append(f"    {' | '.join(parts)}")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
 async def cache_status() -> str:
     """
     Check the query cache status and performance.

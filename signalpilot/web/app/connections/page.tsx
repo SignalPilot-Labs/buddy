@@ -170,6 +170,19 @@ const DB_TYPE_ORDER: DBType[] = [
   "clickhouse", "databricks", "duckdb", "sqlite",
 ];
 
+/* ── Connector tier classification (HEX pattern) ── */
+const CONNECTOR_TIERS: Record<DBType, { tier: number; label: string; color: string }> = {
+  postgres:   { tier: 1, label: "T1", color: "text-emerald-400 border-emerald-500/30" },
+  mysql:      { tier: 1, label: "T1", color: "text-emerald-400 border-emerald-500/30" },
+  snowflake:  { tier: 1, label: "T1", color: "text-emerald-400 border-emerald-500/30" },
+  bigquery:   { tier: 1, label: "T1", color: "text-emerald-400 border-emerald-500/30" },
+  redshift:   { tier: 2, label: "T2", color: "text-sky-400 border-sky-500/30" },
+  clickhouse: { tier: 2, label: "T2", color: "text-sky-400 border-sky-500/30" },
+  databricks: { tier: 2, label: "T2", color: "text-sky-400 border-sky-500/30" },
+  duckdb:     { tier: 3, label: "T3", color: "text-zinc-400 border-zinc-500/30" },
+  sqlite:     { tier: 3, label: "T3", color: "text-zinc-400 border-zinc-500/30" },
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
   relational: "relational databases",
   warehouse: "data warehouses",
@@ -1116,6 +1129,9 @@ export default function ConnectionsPage() {
                     >
                       <DbTypeIcon type={dbType} />
                       {cfg.label}
+                      <span className={`text-[8px] opacity-60 ${CONNECTOR_TIERS[dbType]?.tier === 1 ? "text-emerald-400" : CONNECTOR_TIERS[dbType]?.tier === 2 ? "text-sky-400" : "text-zinc-400"}`}>
+                        {CONNECTOR_TIERS[dbType]?.label}
+                      </span>
                     </button>
                   );
                 })}
@@ -1412,6 +1428,11 @@ export default function ConnectionsPage() {
                         <DbTypeIcon type={conn.db_type} />
                         {dbTypeLabels[conn.db_type] || conn.db_type}
                       </span>
+                      <Tooltip content={`Tier ${CONNECTOR_TIERS[conn.db_type as DBType]?.tier || 3}: ${CONNECTOR_TIERS[conn.db_type as DBType]?.tier === 1 ? "Full support" : CONNECTOR_TIERS[conn.db_type as DBType]?.tier === 2 ? "Stable" : "Basic"}`} position="top">
+                        <span className={`text-[9px] px-1 py-0.5 border tracking-wider cursor-default ${CONNECTOR_TIERS[conn.db_type as DBType]?.color || "text-zinc-400 border-zinc-500/30"}`}>
+                          {CONNECTOR_TIERS[conn.db_type as DBType]?.label || "T3"}
+                        </span>
+                      </Tooltip>
                       {conn.ssl && (
                         <span className="text-[9px] px-1 py-0.5 border border-[var(--color-success)]/30 text-[var(--color-success)] tracking-wider">ssl</span>
                       )}

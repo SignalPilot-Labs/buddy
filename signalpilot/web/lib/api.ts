@@ -229,6 +229,32 @@ export const validateConnectionUrl = (connection_string: string, db_type: string
     "/api/connections/validate-url", { method: "POST", body: JSON.stringify({ connection_string, db_type }) }
   );
 
+// Connector Capabilities
+export const getConnectorCapabilities = (dbType?: string) =>
+  request<{
+    tier_1?: { db_type: string; tier: number; label: string; feature_score: number }[];
+    tier_2?: { db_type: string; tier: number; label: string; feature_score: number }[];
+    tier_3?: { db_type: string; tier: number; label: string; feature_score: number }[];
+    total_connectors?: number;
+    db_type?: string; tier?: number; label?: string; feature_score?: number;
+    features?: Record<string, boolean>;
+  }>(dbType ? `/api/connectors/capabilities?db_type=${encodeURIComponent(dbType)}` : "/api/connectors/capabilities");
+
+export const getConnectionCapabilities = (name: string) =>
+  request<{
+    connection_name: string; db_type: string; tier: number; tier_label: string;
+    feature_score: number; features: Record<string, boolean>;
+    configured: Record<string, boolean>;
+  }>(`/api/connections/${name}/capabilities`);
+
+// Schema Diff
+export const getConnectionSchemaDiff = (name: string) =>
+  request<{
+    connection_name: string; has_cached: boolean; table_count: number;
+    diff?: { has_changes: boolean; added_tables: string[]; removed_tables: string[]; modified_tables: unknown[] };
+    message?: string;
+  }>(`/api/connections/${name}/schema/diff`);
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);
