@@ -1577,6 +1577,16 @@ async def schema_link(
                         score += 6.0  # Strong signal: question mentions actual data value
                         break  # One match per column is enough
 
+        # Boost tables with many FKs (hub tables are usually more relevant)
+        fk_count = len(table_data.get("foreign_keys", []))
+        if fk_count > 0 and score > 0:
+            score += min(fk_count * 0.5, 3.0)  # Up to +3 for hub tables
+
+        # Boost tables with column statistics (better schema = more useful for agent)
+        has_stats = sum(1 for c in table_data.get("columns", []) if c.get("stats") or c.get("has_statistics"))
+        if has_stats > 0 and score > 0:
+            score += 1.0  # Tables with stats are more informative
+
         table_scores[table_key] = score
 
     # Step 3: Select top tables by score
@@ -1620,10 +1630,16 @@ async def schema_link(
             if key not in filtered:
                 continue
             t = filtered[key]
-            cols = ", ".join(
-                f"{c['name']}{'*' if c.get('primary_key') else ''} {c.get('type', '').upper()}"
-                for c in t.get("columns", [])
-            )
+            col_strs = []
+            for c in t.get("columns", []):
+                pk_flag = "*" if c.get("primary_key") else ""
+                ct = c.get("type", "").upper()
+                s = f"{c['name']}{pk_flag} {ct}"
+                stats = c.get("stats", {})
+                if stats.get("distinct_count"):
+                    s += f"({stats['distinct_count']}d)"
+                col_strs.append(s)
+            cols = ", ".join(col_strs)
             rc = t.get("row_count", 0)
             rc_str = f" ({rc:,} rows)" if rc else ""
             score = table_scores.get(key, 0)
@@ -1670,9 +1686,23 @@ async def schema_link(
             parts = [f"  {col['name']} {ct}"]
             if not col.get("nullable", True):
                 parts.append("NOT NULL")
+            # Column annotations for agent context
+            annotations = []
             col_comment = col.get("comment", "")
             if col_comment:
-                parts.append(f"-- {col_comment}")
+                annotations.append(col_comment)
+            # Column statistics help agent understand data shape
+            stats = col.get("stats", {})
+            if stats.get("distinct_count"):
+                annotations.append(f"{stats['distinct_count']} distinct values")
+            elif stats.get("distinct_fraction"):
+                frac = abs(stats["distinct_fraction"])
+                if frac >= 0.99:
+                    annotations.append("unique")
+                elif frac >= 0.5:
+                    annotations.append("high cardinality")
+            if annotations:
+                parts.append(f"-- {'; '.join(annotations)}")
             col_parts.append(" ".join(parts))
             if col.get("primary_key"):
                 pk_cols.append(col["name"])
