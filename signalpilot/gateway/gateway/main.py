@@ -1777,6 +1777,15 @@ async def get_compact_schema(
                 comment = col.get("comment", "")
                 if comment:
                     entry["desc"] = comment
+                # Cardinality hints for Spider2.0 query planning
+                stats = col.get("stats", {})
+                if stats:
+                    dc = stats.get("distinct_count", 0)
+                    df = abs(stats.get("distinct_fraction", 0))
+                    if df == 1.0 or (dc and dc == table.get("row_count", 0) and dc > 100):
+                        entry["u"] = True  # unique column
+                    elif dc and dc <= 10:
+                        entry["lc"] = dc  # low-cardinality with exact count
                 cols.append(entry)
             compact[key] = {"c": cols, "r": table.get("row_count", 0)}
             if table.get("size_mb"):
@@ -1839,6 +1848,15 @@ async def get_compact_schema(
                 }
                 col_type = type_map.get(col_type, col_type)
                 name_str += f" {col_type}"
+            # Cardinality hints in text format
+            stats = col.get("stats", {})
+            if stats:
+                dc = stats.get("distinct_count", 0)
+                df = abs(stats.get("distinct_fraction", 0))
+                if df == 1.0 or (dc and dc == table.get("row_count", 0) and dc > 100):
+                    name_str += "!"  # unique marker
+                elif dc and dc <= 10:
+                    name_str += f"~{dc}"  # low-cardinality count
             col_parts.append(name_str)
 
         # Add partition annotation for deduplicated table families
