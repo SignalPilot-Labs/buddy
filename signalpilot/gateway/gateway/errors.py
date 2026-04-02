@@ -107,4 +107,40 @@ def query_error_hint(error: str, db_type: str) -> str | None:
     if db_type == "snowflake" and ("identifier" in err_lower and ("not exist" in err_lower or "invalid" in err_lower)):
         return "Snowflake identifiers are uppercase by default. Use double-quotes for case-sensitive names or convert to uppercase."
 
+    # EXCEPT/INTERSECT column count mismatch
+    if ("except" in err_lower or "intersect" in err_lower or "union" in err_lower) and ("column" in err_lower or "number" in err_lower):
+        return "UNION/EXCEPT/INTERSECT requires the same number and types of columns in all SELECT statements."
+
+    # MEDIAN/PERCENTILE differences
+    if "median" in err_lower or "percentile" in err_lower:
+        dialect_hints = {
+            "bigquery": "BigQuery uses PERCENTILE_CONT(column, 0.5) OVER() or APPROX_QUANTILES().",
+            "snowflake": "Snowflake supports MEDIAN() and PERCENTILE_CONT() natively.",
+            "postgres": "PostgreSQL uses PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY column).",
+            "redshift": "Redshift uses MEDIAN() or PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY column).",
+            "clickhouse": "ClickHouse uses median() or quantile(0.5)(column).",
+            "mssql": "SQL Server uses PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY column) OVER().",
+        }
+        return dialect_hints.get(db_type, "Median/percentile function syntax varies by dialect.")
+
+    # PIVOT/UNPIVOT differences
+    if "pivot" in err_lower:
+        dialect_hints = {
+            "bigquery": "BigQuery doesn't have native PIVOT. Use CASE WHEN with GROUP BY.",
+            "snowflake": "Snowflake supports PIVOT and UNPIVOT natively.",
+            "mssql": "SQL Server supports PIVOT/UNPIVOT natively.",
+        }
+        return dialect_hints.get(db_type, "PIVOT support varies. Use CASE WHEN with GROUP BY for portable SQL.")
+
+    # Array/JSON function differences
+    if "array" in err_lower or "json" in err_lower:
+        dialect_hints = {
+            "bigquery": "BigQuery uses UNNEST() for arrays, JSON_EXTRACT_SCALAR() for JSON.",
+            "snowflake": "Snowflake uses FLATTEN() for arrays, GET_PATH()/PARSE_JSON() for JSON.",
+            "postgres": "PostgreSQL uses unnest() for arrays, jsonb_extract_path() / -> / ->> for JSON.",
+            "clickhouse": "ClickHouse uses arrayJoin() for arrays, JSONExtract*() for JSON.",
+            "mysql": "MySQL uses JSON_EXTRACT() / ->> for JSON.",
+        }
+        return dialect_hints.get(db_type, "Array/JSON function names vary by dialect.")
+
     return None
