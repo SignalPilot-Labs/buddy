@@ -25,12 +25,26 @@ interface Column {
   type: string;
   nullable: boolean;
   primary_key?: boolean;
+  comment?: string;
+  stats?: { distinct_count?: number; distinct_fraction?: number };
+}
+
+interface ForeignKey {
+  column: string;
+  references_table: string;
+  references_column: string;
+  references_schema?: string;
 }
 
 interface TableSchema {
   schema: string;
   name: string;
   columns: Column[];
+  foreign_keys?: ForeignKey[];
+  row_count?: number;
+  description?: string;
+  engine?: string;
+  sorting_key?: string;
 }
 
 interface SchemaData {
@@ -428,7 +442,21 @@ export default function SchemaExplorerPage() {
                     </svg>
                     <span className="text-xs text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">{table.name}</span>
                     <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider">{table.schema}</span>
-                    <span className="ml-auto text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
+                    {(table.foreign_keys?.length ?? 0) > 0 && (
+                      <span className="text-[9px] px-1 py-0.5 border border-blue-500/20 text-blue-400 tracking-wider tabular-nums">
+                        {table.foreign_keys!.length} FK{table.foreign_keys!.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    <span className="ml-auto flex items-center gap-3 text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
+                      {table.row_count != null && table.row_count > 0 && (
+                        <span className="opacity-60">
+                          {table.row_count >= 1_000_000
+                            ? `${(table.row_count / 1_000_000).toFixed(1)}M`
+                            : table.row_count >= 1_000
+                              ? `${(table.row_count / 1_000).toFixed(0)}K`
+                              : table.row_count} rows
+                        </span>
+                      )}
                       {table.columns.length} cols
                     </span>
                   </button>
@@ -442,6 +470,7 @@ export default function SchemaExplorerPage() {
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">column</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">type</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-24">nullable</th>
+                            <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">references</th>
                             {piiDetections && (
                               <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-20">pii</th>
                             )}
@@ -469,6 +498,19 @@ export default function SchemaExplorerPage() {
                                 ) : (
                                   <span className="text-[var(--color-warning)]">NOT NULL</span>
                                 )}
+                              </td>
+                              <td className="px-4 py-1.5">
+                                {(() => {
+                                  const fk = table.foreign_keys?.find(f => f.column === col.name);
+                                  if (fk) {
+                                    return (
+                                      <span className="text-[9px] text-blue-400 tracking-wider">
+                                        → {fk.references_table}.{fk.references_column}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                               </td>
                               {piiDetections && (
                                 <td className="px-4 py-1.5">
