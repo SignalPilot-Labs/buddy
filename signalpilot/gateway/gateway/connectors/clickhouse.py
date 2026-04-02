@@ -1,7 +1,7 @@
-"""ClickHouse connector — clickhouse-driver (native TCP protocol) backed.
+"""ClickHouse connector — supports both native TCP (clickhouse-driver) and HTTP (clickhouse-connect).
 
 Supports ClickHouse Cloud, on-premise, and self-hosted instances.
-Uses the native TCP protocol for best performance.
+Falls back from native to HTTP protocol for maximum compatibility.
 """
 
 from __future__ import annotations
@@ -12,15 +12,24 @@ from .base import BaseConnector
 
 try:
     from clickhouse_driver import Client as CHClient
-
-    HAS_CLICKHOUSE = True
+    HAS_CLICKHOUSE_NATIVE = True
 except ImportError:
-    HAS_CLICKHOUSE = False
+    HAS_CLICKHOUSE_NATIVE = False
+
+try:
+    import clickhouse_connect
+    HAS_CLICKHOUSE_HTTP = True
+except ImportError:
+    HAS_CLICKHOUSE_HTTP = False
+
+HAS_CLICKHOUSE = HAS_CLICKHOUSE_NATIVE or HAS_CLICKHOUSE_HTTP
 
 
 class ClickHouseConnector(BaseConnector):
     def __init__(self):
-        self._client: CHClient | None = None
+        self._client = None  # Either CHClient or clickhouse_connect client
+        self._http_client = None  # clickhouse_connect client (HTTP)
+        self._use_http = False
         self._database: str = "default"
         self._ssl_config: dict | None = None
         self._temp_files: list[str] = []
@@ -93,19 +102,57 @@ class ClickHouseConnector(BaseConnector):
                 self._temp_files.append(key_file.name)
                 connect_args["keyfile"] = key_file.name
 
-        try:
-            self._client = CHClient(**connect_args)
-            # Verify connection immediately (clickhouse-driver is lazy)
-            self._client.execute("SELECT 1")
-        except Exception as e:
-            err_str = str(e).lower()
+        # Try native TCP first, fall back to HTTP (clickhouse-connect) for compatibility
+        native_error = None
+        if HAS_CLICKHOUSE_NATIVE:
+            try:
+                self._client = CHClient(**connect_args)
+                self._client.execute("SELECT 1")
+                self._use_http = False
+                return
+            except Exception as e:
+                native_error = e
+                self._client = None
+
+        # Fallback: try HTTP protocol (clickhouse-connect) — supports newer ClickHouse versions
+        if HAS_CLICKHOUSE_HTTP:
+            try:
+                http_port = connect_args.get("port", 9000)
+                # Map native port 9000 → HTTP port 8123 (common convention)
+                if http_port == 9000:
+                    http_port = 8123
+                elif http_port == 9100:
+                    http_port = 8124  # Our Docker mapping
+                self._http_client = clickhouse_connect.get_client(
+                    host=connect_args.get("host", "localhost"),
+                    port=http_port,
+                    username=connect_args.get("user", "default"),
+                    password=connect_args.get("password", ""),
+                    database=connect_args.get("database", "default"),
+                    connect_timeout=10,
+                )
+                self._http_client.query("SELECT 1")
+                self._use_http = True
+                return
+            except Exception as e:
+                if native_error:
+                    err_str = str(native_error).lower()
+                    if "authentication" in err_str or "wrong password" in err_str:
+                        first_line = str(native_error).split("\n")[0]
+                        raise RuntimeError(f"Authentication failed: {first_line}") from native_error
+                    elif "connection refused" in err_str or "timed out" in err_str:
+                        raise RuntimeError(f"Connection failed: {native_error}") from native_error
+                raise RuntimeError(f"ClickHouse connection error (HTTP fallback): {e}") from e
+
+        if native_error:
+            err_str = str(native_error).lower()
             if "authentication" in err_str or "wrong password" in err_str:
-                # Extract just the first line — ClickHouse includes long help text
-                first_line = str(e).split("\n")[0]
-                raise RuntimeError(f"Authentication failed: {first_line}") from e
+                first_line = str(native_error).split("\n")[0]
+                raise RuntimeError(f"Authentication failed: {first_line}") from native_error
             elif "connection refused" in err_str or "timed out" in err_str:
-                raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
-            raise RuntimeError(f"ClickHouse connection error: {e}") from e
+                raise RuntimeError(f"Connection failed: {native_error}") from native_error
+            raise RuntimeError(f"ClickHouse connection error: {native_error}") from native_error
+        raise RuntimeError("No ClickHouse driver available")
 
     def _parse_connection_string(self, conn_str: str) -> dict:
         """Parse ClickHouse connection strings.
@@ -154,21 +201,30 @@ class ClickHouseConnector(BaseConnector):
             result["secure"] = True
         return result
 
+    def _raw_execute(self, sql: str, params=None, settings=None):
+        """Execute a query using the active backend. Returns (rows_data, columns_info) tuple."""
+        if self._use_http and self._http_client:
+            result = self._http_client.query(sql, parameters=params, settings=settings or {})
+            col_names = result.column_names
+            return result.result_rows, [(name,) for name in col_names]
+        elif self._client:
+            execute_args = {"with_column_types": True}
+            if settings:
+                execute_args["settings"] = settings
+            if params:
+                return self._client.execute(sql, params, **execute_args)
+            return self._client.execute(sql, **execute_args)
+        raise RuntimeError("No active ClickHouse connection")
+
     async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
-        if self._client is None:
+        if self._client is None and self._http_client is None:
             raise RuntimeError("Not connected")
         try:
             settings = {}
             if timeout:
                 settings["max_execution_time"] = timeout
 
-            # clickhouse-driver treats empty tuple params as INSERT mode
-            # Only pass params when we actually have them
-            execute_args = {"with_column_types": True, "settings": settings}
-            if params:
-                result = self._client.execute(sql, params, **execute_args)
-            else:
-                result = self._client.execute(sql, **execute_args)
+            result = self._raw_execute(sql, params, settings)
             if isinstance(result, tuple) and len(result) == 2:
                 rows_data, columns_info = result
                 col_names = [c[0] for c in columns_info]
@@ -178,7 +234,7 @@ class ClickHouseConnector(BaseConnector):
             raise RuntimeError(f"ClickHouse query error: {e}") from e
 
     async def get_schema(self) -> dict[str, Any]:
-        if self._client is None:
+        if self._client is None and self._http_client is None:
             raise RuntimeError("Not connected")
 
         # ClickHouse uses system tables for metadata
@@ -220,18 +276,18 @@ class ClickHouseConnector(BaseConnector):
             GROUP BY database, table, column
         """
 
-        # Run all three queries concurrently via thread pool (clickhouse-driver is synchronous)
+        # Run queries sequentially — clickhouse-driver and clickhouse-connect
+        # are NOT thread-safe for concurrent queries on a single connection
         def _fetch(query: str):
             try:
-                return self._client.execute(query, with_column_types=True)
+                return self._raw_execute(query)
             except Exception:
                 return ([], [])
 
-        col_result, meta_result, stats_result = await asyncio.gather(
-            asyncio.to_thread(_fetch, sql),
-            asyncio.to_thread(_fetch, table_meta_sql),
-            asyncio.to_thread(_fetch, col_stats_sql),
-        )
+        def _fetch_all():
+            return _fetch(sql), _fetch(table_meta_sql), _fetch(col_stats_sql)
+
+        col_result, meta_result, stats_result = await asyncio.to_thread(_fetch_all)
 
         rows_data, columns_info = col_result
         col_names = [c[0] for c in columns_info]
@@ -304,14 +360,18 @@ class ClickHouseConnector(BaseConnector):
 
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:
         """Get sample distinct values for schema linking optimization."""
-        if self._client is None:
+        if self._client is None and self._http_client is None:
             return {}
         result: dict[str, list] = {}
         for col in columns[:20]:
             try:
-                rows = self._client.execute(
+                data = self._raw_execute(
                     f'SELECT DISTINCT `{col}` FROM {table} WHERE `{col}` IS NOT NULL LIMIT {limit}'
                 )
+                if isinstance(data, tuple) and len(data) == 2:
+                    rows = data[0]
+                else:
+                    rows = data
                 values = [str(row[0]) for row in rows]
                 if values:
                     result[col] = values
@@ -320,10 +380,10 @@ class ClickHouseConnector(BaseConnector):
         return result
 
     async def health_check(self) -> bool:
-        if self._client is None:
+        if self._client is None and self._http_client is None:
             return False
         try:
-            self._client.execute("SELECT 1")
+            self._raw_execute("SELECT 1")
             return True
         except Exception:
             return False
@@ -332,6 +392,10 @@ class ClickHouseConnector(BaseConnector):
         if self._client:
             self._client.disconnect()
             self._client = None
+        if self._http_client:
+            self._http_client.close()
+            self._http_client = None
+        self._use_http = False
         import os
         for f in self._temp_files:
             try:
