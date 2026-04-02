@@ -5,8 +5,10 @@ import pytest
 from signalpilot.gateway.gateway.governance.cost_estimator import (
     CostEstimate,
     CostEstimator,
-    _POSTGRES_USD_PER_ROW,
+    _COST_PER_ROW,
 )
+
+_POSTGRES_USD_PER_ROW = _COST_PER_ROW["postgres"]
 
 
 class TestCostEstimate:

@@ -28,6 +28,8 @@ class SnowflakeConnector(BaseConnector):
         self._credential_extras: dict = {}
         self._login_timeout: int = 15
         self._network_timeout: int = 30
+        self._keepalive: bool = True
+        self._keepalive_heartbeat: int = 900  # 15 min default
 
     def set_credential_extras(self, extras: dict) -> None:
         """Store structured credential data and timeout settings for connection."""
@@ -36,6 +38,8 @@ class SnowflakeConnector(BaseConnector):
             self._login_timeout = extras["connection_timeout"]
         if extras.get("query_timeout"):
             self._network_timeout = extras["query_timeout"]
+        if extras.get("keepalive_interval"):
+            self._keepalive_heartbeat = extras["keepalive_interval"]
 
     def _load_private_key(self, key_pem: str, passphrase: str | None = None) -> bytes:
         """Load a PEM-encoded private key and return DER bytes for Snowflake key-pair auth."""
@@ -80,6 +84,10 @@ class SnowflakeConnector(BaseConnector):
             "user": params.get("user", ""),
             "login_timeout": self._login_timeout,
             "network_timeout": self._network_timeout,
+            "client_session_keep_alive": self._keepalive,
+            "client_session_keep_alive_heartbeat_frequency": self._keepalive_heartbeat,
+            # Use disable_ocsp_checks instead of deprecated insecure_mode
+            "disable_ocsp_checks": params.get("disable_ocsp_checks", False),
         }
 
         # Key-pair auth takes precedence over password auth (HEX pattern)
@@ -152,7 +160,7 @@ class SnowflakeConnector(BaseConnector):
             path_parts = [p for p in (parsed.path or "").split("/") if p]
             query = parse_qs(parsed.query or "")
 
-            return {
+            result = {
                 "account": parsed.hostname or "",
                 "user": unquote(parsed.username or ""),
                 "password": unquote(parsed.password or ""),
@@ -161,19 +169,21 @@ class SnowflakeConnector(BaseConnector):
                 "warehouse": query.get("warehouse", [""])[0],
                 "role": query.get("role", [""])[0],
             }
+            # Optional: disable OCSP checks (for dev/testing environments)
+            if query.get("disable_ocsp_checks", [""])[0].lower() in ("true", "1", "yes"):
+                result["disable_ocsp_checks"] = True
+            return result
 
         # Fallback: treat as account identifier (credential_extras will fill the rest)
         return {"account": conn_str, "user": "", "password": ""}
 
     def _ensure_connected(self) -> None:
-        """Verify connection is alive; raise if lost."""
+        """Verify connection is alive using Snowflake's built-in is_valid() method."""
         if self._conn is None:
             raise RuntimeError("Not connected")
         try:
-            cursor = self._conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-            cursor.close()
+            if not self._conn.is_valid():
+                raise RuntimeError("Session invalid")
         except Exception:
             try:
                 self._conn.close()
@@ -245,7 +255,8 @@ class SnowflakeConnector(BaseConnector):
         # Run as a 5th parallel query
         cluster_sql = "SHOW TABLES IN DATABASE"
 
-        # Run all metadata queries concurrently via thread pool (5 parallel queries)
+        # snowflake-connector-python connections are NOT thread-safe —
+        # run all queries sequentially in a single background thread
         def _fetch(query: str, label: str = "") -> list:
             try:
                 cursor = self._conn.cursor(snowflake.connector.DictCursor)
@@ -257,13 +268,16 @@ class SnowflakeConnector(BaseConnector):
                 logger.info("Snowflake metadata query failed (%s): %s", label, e)
                 return []
 
-        rows, rc_rows, fk_rows_raw, pk_rows, cluster_rows = await asyncio.gather(
-            asyncio.to_thread(_fetch, col_sql, "columns"),
-            asyncio.to_thread(_fetch, rc_sql, "row_counts"),
-            asyncio.to_thread(_fetch, fk_sql, "foreign_keys"),
-            asyncio.to_thread(_fetch, pk_sql, "primary_keys"),
-            asyncio.to_thread(_fetch, cluster_sql, "clustering"),
-        )
+        def _fetch_all():
+            return (
+                _fetch(col_sql, "columns"),
+                _fetch(rc_sql, "row_counts"),
+                _fetch(fk_sql, "foreign_keys"),
+                _fetch(pk_sql, "primary_keys"),
+                _fetch(cluster_sql, "clustering"),
+            )
+
+        rows, rc_rows, fk_rows_raw, pk_rows, cluster_rows = await asyncio.to_thread(_fetch_all)
 
         # Build row count + type map
         row_counts: dict[str, int] = {}
@@ -365,13 +379,11 @@ class SnowflakeConnector(BaseConnector):
             return result
 
     async def health_check(self) -> bool:
+        """Use Snowflake's built-in is_valid() — sends heartbeat, no cursor overhead."""
         if self._conn is None:
             return False
         try:
-            cursor = self._conn.cursor()
-            cursor.execute("SELECT 1")
-            cursor.close()
-            return True
+            return self._conn.is_valid()
         except Exception:
             return False
 

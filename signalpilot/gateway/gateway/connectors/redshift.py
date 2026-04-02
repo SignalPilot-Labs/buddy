@@ -235,7 +235,8 @@ class RedshiftConnector(BaseConnector):
 
         import asyncio
 
-        # Run all metadata queries concurrently via thread pool
+        # psycopg2 connections are NOT thread-safe — run all queries
+        # sequentially in a single background thread to avoid corruption
         def _fetch(query: str, label: str = "") -> list:
             try:
                 with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -245,14 +246,17 @@ class RedshiftConnector(BaseConnector):
                 logger.info("Redshift metadata query failed (%s): %s", label, e)
                 return []
 
-        rows, fk_rows_raw, table_info_raw, stats_raw, views_raw, comments_raw = await asyncio.gather(
-            asyncio.to_thread(_fetch, sql, "columns"),
-            asyncio.to_thread(_fetch, fk_sql, "foreign_keys"),
-            asyncio.to_thread(_fetch, table_info_sql, "table_info"),
-            asyncio.to_thread(_fetch, stats_sql, "stats"),
-            asyncio.to_thread(_fetch, views_sql, "views"),
-            asyncio.to_thread(_fetch, comments_sql, "comments"),
-        )
+        def _fetch_all():
+            return (
+                _fetch(sql, "columns"),
+                _fetch(fk_sql, "foreign_keys"),
+                _fetch(table_info_sql, "table_info"),
+                _fetch(stats_sql, "stats"),
+                _fetch(views_sql, "views"),
+                _fetch(comments_sql, "comments"),
+            )
+
+        rows, fk_rows_raw, table_info_raw, stats_raw, views_raw, comments_raw = await asyncio.to_thread(_fetch_all)
 
         # Build views set for type classification
         view_keys: set[str] = set()
