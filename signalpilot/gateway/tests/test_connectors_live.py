@@ -1163,5 +1163,137 @@ class TestClickHouseSSLConfig:
         assert mock_connector._ssl_config == ssl_config
 
 
+class TestSchemaEndorsements:
+    """Tests for schema endorsement (HEX Data Browser pattern)."""
+
+    def test_default_endorsements(self):
+        from gateway.store import get_schema_endorsements
+        config = get_schema_endorsements("nonexistent-conn")
+        assert config["mode"] == "all"
+        assert config["endorsed"] == []
+        assert config["hidden"] == []
+
+    def test_set_and_get_endorsements(self):
+        from gateway.store import set_schema_endorsements, get_schema_endorsements
+        result = set_schema_endorsements("test-endorse", {
+            "endorsed": ["public.users", "public.orders"],
+            "hidden": ["public.internal_logs"],
+            "mode": "endorsed_only",
+        })
+        assert result["mode"] == "endorsed_only"
+        assert "public.users" in result["endorsed"]
+        assert "public.internal_logs" in result["hidden"]
+
+        # Verify retrieval
+        config = get_schema_endorsements("test-endorse")
+        assert config["mode"] == "endorsed_only"
+
+    def test_apply_endorsed_only_filter(self):
+        from gateway.store import set_schema_endorsements, apply_endorsement_filter
+        set_schema_endorsements("test-filter", {
+            "endorsed": ["public.users", "public.orders"],
+            "hidden": [],
+            "mode": "endorsed_only",
+        })
+        schema = {
+            "public.users": {"name": "users"},
+            "public.orders": {"name": "orders"},
+            "public.logs": {"name": "logs"},
+            "public.settings": {"name": "settings"},
+        }
+        filtered = apply_endorsement_filter("test-filter", schema)
+        assert set(filtered.keys()) == {"public.users", "public.orders"}
+
+    def test_apply_hidden_filter(self):
+        from gateway.store import set_schema_endorsements, apply_endorsement_filter
+        set_schema_endorsements("test-hidden", {
+            "endorsed": [],
+            "hidden": ["public.logs", "public.settings"],
+            "mode": "all",
+        })
+        schema = {
+            "public.users": {"name": "users"},
+            "public.orders": {"name": "orders"},
+            "public.logs": {"name": "logs"},
+            "public.settings": {"name": "settings"},
+        }
+        filtered = apply_endorsement_filter("test-hidden", schema)
+        assert set(filtered.keys()) == {"public.users", "public.orders"}
+
+    def test_no_filter_returns_all(self):
+        from gateway.store import apply_endorsement_filter
+        schema = {"a": {"name": "a"}, "b": {"name": "b"}}
+        filtered = apply_endorsement_filter("no-config", schema)
+        assert filtered == schema
+
+
+class TestCredentialExtrasStandardization:
+    """Tests that all connectors implement set_credential_extras correctly."""
+
+    def test_base_connector_has_method(self):
+        from gateway.connectors.base import BaseConnector
+        assert hasattr(BaseConnector, "set_credential_extras")
+
+    def test_postgres_extracts_ssl(self):
+        from gateway.connectors.postgres import PostgresConnector
+        c = PostgresConnector()
+        c.set_credential_extras({"ssl_config": {"enabled": True, "mode": "require"}})
+        assert c._ssl_config is not None
+        assert c._ssl_config["mode"] == "require"
+
+    def test_mysql_extracts_ssl(self):
+        from gateway.connectors.mysql import MySQLConnector
+        c = MySQLConnector()
+        c.set_credential_extras({"ssl_config": {"enabled": True, "ca_cert": "test"}})
+        assert c._ssl_config is not None
+        assert c._ssl_config["ca_cert"] == "test"
+
+    def test_clickhouse_extracts_ssl(self):
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        c.set_credential_extras({"ssl_config": {"enabled": True}})
+        assert c._ssl_config is not None
+
+    def test_redshift_extracts_ssl(self):
+        from gateway.connectors.redshift import RedshiftConnector
+        c = RedshiftConnector()
+        c.set_credential_extras({"ssl_config": {"enabled": True, "mode": "verify-ca"}})
+        assert c._ssl_config is not None
+        assert c._ssl_config["mode"] == "verify-ca"
+
+    def test_snowflake_extracts_credentials(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        c = SnowflakeConnector()
+        c.set_credential_extras({"account": "test-acct", "warehouse": "WH1"})
+        assert c._credential_extras["account"] == "test-acct"
+
+    def test_databricks_extracts_credentials(self):
+        from gateway.connectors.databricks import DatabricksConnector
+        c = DatabricksConnector()
+        c.set_credential_extras({"http_path": "/sql/1.0/warehouses/abc", "access_token": "tok"})
+        assert c._credential_extras["access_token"] == "tok"
+
+    def test_pool_manager_unified_call(self):
+        """Pool manager now uses a single set_credential_extras call for all DB types."""
+        from gateway.connectors.pool_manager import PoolManager
+        from gateway.connectors.postgres import PostgresConnector
+        from unittest.mock import patch, AsyncMock
+
+        pm = PoolManager()
+        mock_connector = PostgresConnector()
+        mock_connector.connect = AsyncMock()
+        mock_connector.health_check = AsyncMock(return_value=True)
+
+        credential_extras = {"ssl_config": {"enabled": True, "mode": "require"}}
+
+        with patch("gateway.connectors.pool_manager.get_connector", return_value=mock_connector):
+            asyncio.get_event_loop().run_until_complete(
+                pm.acquire("postgres", "postgresql://user:pass@localhost/db", credential_extras)
+            )
+
+        # Verify the unified set_credential_extras was called (ssl_config extracted)
+        assert mock_connector._ssl_config is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
