@@ -2588,11 +2588,20 @@ async def get_schema_overview(
         "tables_with_fks": len(tables_with_fks),
         "avg_columns_per_table": round(total_columns / total_tables, 1) if total_tables else 0,
         "largest_tables": largest_tables[:10],
+        # ReFoRCE-style: estimate token count and recommend schema format
+        "estimated_schema_tokens": total_columns * 8 + total_tables * 20,  # rough estimate
         "recommendation": (
             "compact" if total_columns > 200
             else "full" if total_columns < 50
             else "enriched"
         ),
+        "spider2_hints": {
+            "needs_compression": total_columns > 500,
+            "has_partitioned_tables": any(
+                "_20" in (t.get("name", "") or "") for t in filtered.values()
+            ),
+            "join_complexity": "high" if total_fks > 15 else "medium" if total_fks > 5 else "low",
+        },
     }
 
 
