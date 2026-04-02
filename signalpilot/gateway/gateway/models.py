@@ -106,6 +106,11 @@ class ConnectionCreate(BaseModel):
     # ─── Metadata ───────────────────────────────────────────────────
     description: str = Field(default="", max_length=500)
     tags: list[str] = Field(default_factory=list)  # organizational tags
+    # ─── Scheduled schema refresh (HEX pattern) ───────────────────
+    schema_refresh_interval: int | None = Field(
+        default=None, ge=60, le=86400,
+        description="Auto-refresh schema every N seconds (60-86400). None = disabled.",
+    )
 
 
 class ConnectionUpdate(BaseModel):
@@ -134,6 +139,8 @@ class ConnectionUpdate(BaseModel):
     private_key_passphrase: str | None = Field(default=None, max_length=1024)
     description: str | None = Field(default=None, max_length=500)
     tags: list[str] | None = None
+    schema_refresh_interval: int | None = Field(default=None, ge=60, le=86400)
+    last_schema_refresh: float | None = None  # internal — set by scheduler
 
 
 class ConnectionInfo(BaseModel):
@@ -161,6 +168,8 @@ class ConnectionInfo(BaseModel):
     # Metadata
     description: str = ""
     tags: list[str] = Field(default_factory=list)
+    schema_refresh_interval: int | None = None  # seconds, None = disabled
+    last_schema_refresh: float | None = None  # timestamp of last successful refresh
     created_at: float = Field(default_factory=time.time)
     last_used: float | None = None
     status: str = "unknown"  # healthy | error | unknown

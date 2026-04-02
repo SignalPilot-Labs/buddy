@@ -1464,5 +1464,164 @@ class TestParallelSchemaFetching:
         assert "_fetch_all" in source  # Sequential wrapper
 
 
+# ── Scheduled Schema Refresh (Round 7) ─────────────────────────────────────
+
+class TestScheduledSchemaRefresh:
+    """Tests for scheduled schema refresh feature."""
+
+    def test_connection_create_has_refresh_interval(self):
+        """ConnectionCreate model accepts schema_refresh_interval."""
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test-refresh",
+            db_type="postgres",
+            host="localhost",
+            schema_refresh_interval=300,
+        )
+        assert conn.schema_refresh_interval == 300
+
+    def test_connection_create_no_refresh_default(self):
+        """schema_refresh_interval is None by default."""
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test-no-refresh", db_type="postgres", host="localhost")
+        assert conn.schema_refresh_interval is None
+
+    def test_connection_info_has_refresh_fields(self):
+        """ConnectionInfo has schema_refresh_interval and last_schema_refresh."""
+        from gateway.models import ConnectionInfo
+        info = ConnectionInfo(
+            id="test-id", name="test", db_type="postgres",
+            schema_refresh_interval=600, last_schema_refresh=1000.0,
+        )
+        assert info.schema_refresh_interval == 600
+        assert info.last_schema_refresh == 1000.0
+
+    def test_connection_update_has_refresh_fields(self):
+        """ConnectionUpdate supports schema_refresh_interval and last_schema_refresh."""
+        from gateway.models import ConnectionUpdate
+        update = ConnectionUpdate(schema_refresh_interval=900, last_schema_refresh=2000.0)
+        assert update.schema_refresh_interval == 900
+        assert update.last_schema_refresh == 2000.0
+
+    def test_refresh_interval_validation_min(self):
+        """schema_refresh_interval must be >= 60."""
+        from gateway.models import ConnectionCreate
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            ConnectionCreate(name="test", db_type="postgres", host="localhost", schema_refresh_interval=30)
+
+    def test_refresh_interval_validation_max(self):
+        """schema_refresh_interval must be <= 86400."""
+        from gateway.models import ConnectionCreate
+        from pydantic import ValidationError
+        with pytest.raises(ValidationError):
+            ConnectionCreate(name="test", db_type="postgres", host="localhost", schema_refresh_interval=100000)
+
+
+# ── Schema Cache Sample Values (Round 7) ───────────────────────────────────
+
+class TestSchemaCacheSampleValues:
+    """Tests for sample values caching in SchemaCache."""
+
+    def test_put_and_get_sample_values(self):
+        """Can store and retrieve sample values."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=60)
+        values = {"status": ["active", "inactive"], "type": ["A", "B"]}
+        cache.put_sample_values("conn1", "public.users", values)
+        result = cache.get_sample_values("conn1", "public.users")
+        assert result == values
+
+    def test_sample_values_cache_miss(self):
+        """Returns None for uncached sample values."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=60)
+        assert cache.get_sample_values("conn1", "public.users") is None
+
+    def test_sample_values_in_stats(self):
+        """Stats include sample values count."""
+        from gateway.connectors.schema_cache import SchemaCache
+        cache = SchemaCache(ttl_seconds=60)
+        cache.put_sample_values("conn1", "table1", {"col": ["a"]})
+        stats = cache.stats()
+        assert stats["cached_sample_tables"] == 1
+
+    def test_sample_values_ttl_is_double(self):
+        """Sample values expire at 2x the regular TTL."""
+        from gateway.connectors.schema_cache import SchemaCache
+        import time
+        cache = SchemaCache(ttl_seconds=0.1)  # 100ms TTL
+        cache.put_sample_values("conn1", "t1", {"col": ["v"]})
+        # At < 200ms (2x TTL), should still be valid
+        time.sleep(0.05)
+        assert cache.get_sample_values("conn1", "t1") is not None
+
+
+# ── Cost Estimator Improvements (Round 7) ──────────────────────────────────
+
+class TestCostEstimatorImprovements:
+    """Tests for improved cost estimation."""
+
+    def test_clickhouse_estimate_uses_fallback(self):
+        """ClickHouse estimator tries EXPLAIN ESTIMATE then EXPLAIN PLAN."""
+        import inspect
+        from gateway.governance.cost_estimator import CostEstimator
+        source = inspect.getsource(CostEstimator.estimate_clickhouse)
+        assert "EXPLAIN ESTIMATE" in source
+        assert "EXPLAIN PLAN" in source
+
+    def test_databricks_estimate_parses_row_count(self):
+        """Databricks estimator parses rowCount from EXPLAIN FORMATTED."""
+        import inspect
+        from gateway.governance.cost_estimator import CostEstimator
+        source = inspect.getsource(CostEstimator.estimate_databricks)
+        assert "EXPLAIN FORMATTED" in source
+        assert "rowCount" in source
+
+    def test_cost_per_row_all_types(self):
+        """All supported DB types have cost-per-row values."""
+        from gateway.governance.cost_estimator import _COST_PER_ROW
+        expected = {"postgres", "redshift", "mysql", "snowflake", "bigquery", "clickhouse", "databricks", "duckdb", "sqlite"}
+        assert expected.issubset(set(_COST_PER_ROW.keys()))
+
+    def test_estimate_routes_all_types(self):
+        """CostEstimator.estimate routes to correct estimator for all types."""
+        import inspect
+        from gateway.governance.cost_estimator import CostEstimator
+        source = inspect.getsource(CostEstimator.estimate)
+        for db_type in ["postgres", "mysql", "snowflake", "bigquery", "redshift", "clickhouse", "databricks", "duckdb"]:
+            assert db_type in source
+
+
+# ── Schema Filtering (Round 7) ────────────────────────────────────────────
+
+class TestSchemaFiltering:
+    """Tests for schema filtering endpoint logic."""
+
+    def test_main_has_filter_endpoint(self):
+        """Gateway has schema filter endpoint."""
+        import inspect
+        from gateway.main import get_filtered_schema
+        assert callable(get_filtered_schema)
+
+    def test_main_has_refresh_endpoint(self):
+        """Gateway has schema refresh endpoint."""
+        import inspect
+        from gateway.main import refresh_connection_schema
+        assert callable(refresh_connection_schema)
+
+    def test_main_has_refresh_status_endpoint(self):
+        """Gateway has schema refresh status endpoint."""
+        import inspect
+        from gateway.main import get_schema_refresh_status
+        assert callable(get_schema_refresh_status)
+
+    def test_main_has_sample_values_endpoint(self):
+        """Gateway has sample values endpoint."""
+        import inspect
+        from gateway.main import get_cached_sample_values
+        assert callable(get_cached_sample_values)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -47,6 +47,7 @@ class SchemaCache:
     def __init__(self, ttl_seconds: float = 300.0):
         self._ttl = ttl_seconds
         self._cache: dict[str, _CachedSchema] = {}
+        self._sample_cache: dict[str, _CachedSchema] = {}
         self._lock = Lock()
 
     def get(self, connection_name: str) -> dict[str, Any] | None:
@@ -98,13 +99,36 @@ class SchemaCache:
             self._cache.clear()
             return count
 
+    # ─── Sample values cache ────────────────────────────────────────────
+    def get_sample_values(self, connection_name: str, table: str) -> dict[str, list] | None:
+        """Get cached sample values for a table. Returns None on miss."""
+        with self._lock:
+            entry = self._sample_cache.get(f"{connection_name}:{table}")
+            if entry is None:
+                return None
+            if entry.is_expired:
+                del self._sample_cache[f"{connection_name}:{table}"]
+                return None
+            return entry.data
+
+    def put_sample_values(self, connection_name: str, table: str, values: dict[str, list]) -> None:
+        """Cache sample values for a table."""
+        with self._lock:
+            self._sample_cache[f"{connection_name}:{table}"] = _CachedSchema(
+                data=values,
+                cached_at=time.monotonic(),
+                ttl_seconds=self._ttl * 2,  # Sample values expire slower
+            )
+
     def stats(self) -> dict[str, Any]:
         """Return cache statistics."""
         with self._lock:
             active = sum(1 for e in self._cache.values() if not e.is_expired)
+            sample_active = sum(1 for e in self._sample_cache.values() if not e.is_expired)
             return {
                 "cached_connections": active,
                 "total_entries": len(self._cache),
+                "cached_sample_tables": sample_active,
                 "ttl_seconds": self._ttl,
             }
 

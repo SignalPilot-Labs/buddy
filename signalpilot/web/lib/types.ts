@@ -66,6 +66,8 @@ export interface ConnectionInfo {
   // Meta
   description: string;
   tags: string[];
+  schema_refresh_interval: number | null;
+  last_schema_refresh: number | null;
   created_at: number;
   last_used: number | null;
   status: string;

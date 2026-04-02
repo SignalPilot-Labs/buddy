@@ -362,6 +362,9 @@ interface FormState {
   // Tags
   tags: string[];
   tagInput: string;
+  // Scheduled schema refresh
+  schema_refresh_enabled: boolean;
+  schema_refresh_interval: string; // seconds as string for form input
 }
 
 const defaultForm: FormState = {
@@ -376,6 +379,7 @@ const defaultForm: FormState = {
   ssh_password: "", ssh_private_key: "", ssh_key_passphrase: "",
   snowflake_auth_method: "password", sf_private_key: "", sf_private_key_passphrase: "",
   tags: [], tagInput: "",
+  schema_refresh_enabled: false, schema_refresh_interval: "300",
 };
 
 function buildConnectionPreview(form: FormState): string {
@@ -492,6 +496,14 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
   if (form.db_type === "snowflake" && form.snowflake_auth_method === "key_pair") {
     payload.private_key = form.sf_private_key;
     if (form.sf_private_key_passphrase) payload.private_key_passphrase = form.sf_private_key_passphrase;
+  }
+
+  // Scheduled schema refresh
+  if (form.schema_refresh_enabled) {
+    const interval = parseInt(form.schema_refresh_interval);
+    if (interval >= 60 && interval <= 86400) {
+      payload.schema_refresh_interval = interval;
+    }
   }
 
   // SSL
@@ -892,10 +904,12 @@ export default function ConnectionsPage() {
       ssh_username: conn.ssh_tunnel?.username || "",
       ssh_auth_method: conn.ssh_tunnel?.auth_method || "password",
       tags: conn.tags || [],
+      schema_refresh_enabled: !!(conn as any).schema_refresh_interval,
+      schema_refresh_interval: String((conn as any).schema_refresh_interval || 300),
     });
     setEditingConnection(conn.name);
     setShowForm(true);
-    setShowAdvanced(!!(conn.ssl || conn.ssh_tunnel?.enabled));
+    setShowAdvanced(!!(conn.ssl || conn.ssh_tunnel?.enabled || (conn as any).schema_refresh_interval));
   }
 
   async function handleTest(name: string) {
@@ -1187,6 +1201,49 @@ export default function ConnectionsPage() {
                           for cloud-hosted signalpilot, dedicated static ips are assigned per workspace. contact your admin for the exact ips.
                         </p>
                       </div>
+                    </div>
+
+                    {/* Scheduled Schema Refresh */}
+                    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+                      <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] tracking-wider mb-2">
+                        <RefreshCw className="w-3 h-3" strokeWidth={1.5} />
+                        <span>scheduled schema refresh</span>
+                      </div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.schema_refresh_enabled}
+                            onChange={(e) => setForm({ ...form, schema_refresh_enabled: e.target.checked })}
+                            className="accent-[var(--color-text)]"
+                          />
+                          <span className="text-[10px] text-[var(--color-text-muted)] tracking-wider">
+                            auto-refresh schema metadata
+                          </span>
+                        </label>
+                      </div>
+                      {form.schema_refresh_enabled && (
+                        <div className="flex items-center gap-2 animate-fade-in">
+                          <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">every</span>
+                          <select
+                            value={form.schema_refresh_interval}
+                            onChange={(e) => setForm({ ...form, schema_refresh_interval: e.target.value })}
+                            className="bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-[10px] px-2 py-1 tracking-wider"
+                          >
+                            <option value="60">1 min</option>
+                            <option value="300">5 min</option>
+                            <option value="900">15 min</option>
+                            <option value="1800">30 min</option>
+                            <option value="3600">1 hour</option>
+                            <option value="14400">4 hours</option>
+                            <option value="43200">12 hours</option>
+                            <option value="86400">24 hours</option>
+                          </select>
+                          <span className="text-[8px] text-[var(--color-text-dim)] tracking-wider opacity-60">
+                            keeps ai agent schema knowledge current
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

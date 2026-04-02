@@ -248,6 +248,7 @@ def create_connection(conn: ConnectionCreate) -> ConnectionInfo:
         catalog=conn.catalog,
         description=conn.description,
         tags=conn.tags,
+        schema_refresh_interval=conn.schema_refresh_interval,
         created_at=time.time(),
     )
 
@@ -316,7 +317,7 @@ def update_connection(name: str, update: ConnectionUpdate) -> ConnectionInfo | N
         db_type = update_fields.get("db_type", existing.get("db_type"))
         merged = {**existing, **update_fields, "name": name, "db_type": db_type}
         # Remove fields not in ConnectionCreate
-        for rm_key in ("id", "created_at", "last_used", "status"):
+        for rm_key in ("id", "created_at", "last_used", "status", "last_schema_refresh"):
             merged.pop(rm_key, None)
         try:
             create_obj = ConnectionCreate(**merged)

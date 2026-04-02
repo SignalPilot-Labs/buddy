@@ -199,19 +199,44 @@ class CostEstimator:
 
     @staticmethod
     async def estimate_clickhouse(connector: BaseConnector, sql: str) -> CostEstimate:
-        """Use EXPLAIN to estimate ClickHouse query cost."""
-        try:
-            explain_sql = f"EXPLAIN ESTIMATE {sql}"
-            rows = await connector.execute(explain_sql)
-            plan_text = str(rows) if rows else ""
+        """Use EXPLAIN to estimate ClickHouse query cost.
 
+        Tries EXPLAIN ESTIMATE first (gives rows/marks per part), falls back to
+        EXPLAIN PLAN for the query plan tree with row estimates.
+        """
+        try:
+            # Try EXPLAIN ESTIMATE first — most accurate for ClickHouse
             estimated_rows = 0
-            if rows:
-                # EXPLAIN ESTIMATE returns estimated rows/marks
-                for row in rows:
-                    for val in row.values():
-                        if isinstance(val, (int, float)) and val > estimated_rows:
-                            estimated_rows = int(val)
+            plan_text = ""
+            try:
+                explain_sql = f"EXPLAIN ESTIMATE {sql}"
+                rows = await connector.execute(explain_sql)
+                if rows:
+                    plan_text = str(rows)
+                    for row in rows:
+                        # EXPLAIN ESTIMATE columns: database, table, parts, rows, marks
+                        row_count = row.get("rows", 0)
+                        if isinstance(row_count, (int, float)):
+                            estimated_rows += int(row_count)
+            except Exception:
+                pass
+
+            # Fallback: EXPLAIN PLAN for query tree
+            if estimated_rows == 0:
+                try:
+                    explain_sql = f"EXPLAIN PLAN {sql}"
+                    rows = await connector.execute(explain_sql)
+                    if rows:
+                        plan_text = "\n".join(
+                            str(list(r.values())[0]) for r in rows if r
+                        )
+                        import re
+                        for line in plan_text.split("\n"):
+                            match = re.search(r"rows:\s*(\d+)", line, re.IGNORECASE)
+                            if match:
+                                estimated_rows = max(estimated_rows, int(match.group(1)))
+                except Exception:
+                    pass
 
             estimated_usd = estimated_rows * _COST_PER_ROW["clickhouse"]
             return CostEstimate(
@@ -225,13 +250,32 @@ class CostEstimator:
 
     @staticmethod
     async def estimate_databricks(connector: BaseConnector, sql: str) -> CostEstimate:
-        """Estimate Databricks query cost (heuristic-based)."""
+        """Estimate Databricks query cost using EXPLAIN FORMATTED.
+
+        Parses row estimates from the physical plan output.
+        """
         try:
-            explain_sql = f"EXPLAIN {sql}"
+            # EXPLAIN FORMATTED gives structured plan info on Databricks SQL
+            explain_sql = f"EXPLAIN FORMATTED {sql}"
             rows = await connector.execute(explain_sql)
             plan_text = "\n".join(str(list(r.values())) for r in rows) if rows else ""
 
-            estimated_rows = 10000  # Conservative default
+            estimated_rows = 0
+            if plan_text:
+                import re
+                # Look for 'Statistics(sizeInBytes=X, rowCount=Y)' in plan
+                row_match = re.search(r"rowCount=(\d+)", plan_text)
+                if row_match:
+                    estimated_rows = int(row_match.group(1))
+                # Also try 'numOutputRows=X'
+                if estimated_rows == 0:
+                    output_match = re.search(r"numOutputRows[=:]?\s*(\d+)", plan_text)
+                    if output_match:
+                        estimated_rows = int(output_match.group(1))
+
+            if estimated_rows == 0:
+                estimated_rows = 10000  # Conservative default
+
             estimated_usd = estimated_rows * _COST_PER_ROW["databricks"]
             return CostEstimate(
                 estimated_rows=estimated_rows,

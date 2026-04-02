@@ -145,11 +145,58 @@ async def lifespan(app: FastAPI):
             await asyncio.sleep(60)
             await pool_manager.cleanup_idle()
 
+    # Scheduled schema refresh (HEX pattern) — refreshes schema for connections
+    # that have schema_refresh_interval configured
+    async def _schema_refresh_loop():
+        import logging
+        logger = logging.getLogger(__name__)
+        while True:
+            await asyncio.sleep(30)  # Check every 30s
+            try:
+                connections = list_connections()
+                now = time.time()
+                for conn_info in connections:
+                    interval = conn_info.schema_refresh_interval
+                    if not interval:
+                        continue
+                    last_refresh = conn_info.last_schema_refresh or 0
+                    if now - last_refresh < interval:
+                        continue
+                    # Time to refresh
+                    try:
+                        conn_str = get_connection_string(conn_info.name)
+                        if not conn_str:
+                            continue
+                        extras = get_credential_extras(conn_info.name)
+                        connector = await pool_manager.acquire(
+                            conn_info.db_type, conn_str, credential_extras=extras,
+                        )
+                        schema = await connector.get_schema()
+                        await pool_manager.release(conn_info.db_type, conn_str)
+                        schema_cache.put(conn_info.name, schema)
+                        # Update last_schema_refresh timestamp
+                        update_connection(conn_info.name, ConnectionUpdate(
+                            last_schema_refresh=now,
+                        ))
+                        logger.info(
+                            "Scheduled schema refresh for '%s': %d tables",
+                            conn_info.name, len(schema),
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "Scheduled schema refresh failed for '%s': %s",
+                            conn_info.name, e,
+                        )
+            except Exception as e:
+                logger.warning("Schema refresh loop error: %s", e)
+
     cleanup_task = asyncio.create_task(_pool_cleanup_loop())
+    refresh_task = asyncio.create_task(_schema_refresh_loop())
     try:
         yield
     finally:
         cleanup_task.cancel()
+        refresh_task.cancel()
         await pool_manager.close_all()
         if _sandbox_client:
             await _sandbox_client.close()
@@ -438,7 +485,8 @@ async def refresh_connection_schema(name: str):
     """Force-refresh the cached schema for a connection.
 
     Invalidates the cached schema and fetches fresh metadata from the database.
-    Useful after migrations or DDL changes.
+    Useful after migrations or DDL changes. Also updates last_schema_refresh
+    timestamp for scheduled refresh tracking.
     """
     info = get_connection(name)
     if not info:
@@ -460,9 +508,14 @@ async def refresh_connection_schema(name: str):
         raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
 
     schema_cache.put(name, schema)
+    now = time.time()
+    update_connection(name, ConnectionUpdate(last_schema_refresh=now))
+
     return {
         "connection_name": name,
         "table_count": len(schema),
+        "refreshed_at": now,
+        "next_refresh_in": info.schema_refresh_interval,
         "message": "Schema refreshed successfully",
     }
 
@@ -1001,7 +1054,7 @@ async def get_compact_schema(
     max_tables: int = Query(default=50, ge=1, le=500, description="Maximum tables to include"),
     include_fk: bool = Query(default=True, description="Include foreign key relationships"),
     include_types: bool = Query(default=True, description="Include column type info"),
-    format: str = Query(default="text", regex="^(text|json)$", description="Output format"),
+    format: str = Query(default="text", pattern="^(text|json)$", description="Output format"),
 ):
     """Ultra-compact schema representation optimized for LLM context windows.
 
@@ -1167,6 +1220,170 @@ async def get_schema_diff(name: str):
         "diff": diff,
         "table_count": len(new_schema),
     }
+
+
+@app.get("/api/connections/{name}/schema/refresh-status")
+async def get_schema_refresh_status(name: str):
+    """Get schema refresh schedule status for a connection."""
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached_stats = schema_cache.get(name)
+    return {
+        "connection_name": name,
+        "schema_refresh_interval": info.schema_refresh_interval,
+        "last_schema_refresh": info.last_schema_refresh,
+        "next_refresh_at": (
+            info.last_schema_refresh + info.schema_refresh_interval
+            if info.last_schema_refresh and info.schema_refresh_interval
+            else None
+        ),
+        "cached": cached_stats is not None,
+        "cached_table_count": len(cached_stats) if cached_stats else 0,
+    }
+
+
+@app.get("/api/connections/{name}/schema/filter")
+async def get_filtered_schema(
+    name: str,
+    schema_prefix: str = Query(default="", description="Filter by schema/database prefix (e.g., 'public', 'analytics')"),
+    table_prefix: str = Query(default="", description="Filter by table name prefix"),
+    include_columns: bool = Query(default=True, description="Include column details"),
+    max_tables: int = Query(default=100, ge=1, le=1000, description="Maximum tables to return"),
+):
+    """Filter schema by database/schema prefix and table prefix.
+
+    Useful for large databases with hundreds of schemas — lets the AI agent
+    focus on relevant subsets without loading the entire schema into context.
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached = schema_cache.get(name)
+    if cached is None:
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="No credentials stored")
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            cached = await connector.get_schema()
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+        schema_cache.put(name, cached)
+
+    filtered = apply_endorsement_filter(name, cached)
+
+    # Apply prefix filters
+    result: dict[str, Any] = {}
+    for key, table in filtered.items():
+        tbl_schema = table.get("schema", "")
+        tbl_name = table.get("name", "")
+
+        if schema_prefix and not tbl_schema.lower().startswith(schema_prefix.lower()):
+            continue
+        if table_prefix and not tbl_name.lower().startswith(table_prefix.lower()):
+            continue
+
+        if include_columns:
+            result[key] = table
+        else:
+            result[key] = {k: v for k, v in table.items() if k != "columns"}
+            result[key]["column_count"] = len(table.get("columns", []))
+
+        if len(result) >= max_tables:
+            break
+
+    return {
+        "connection_name": name,
+        "filters": {
+            "schema_prefix": schema_prefix or None,
+            "table_prefix": table_prefix or None,
+        },
+        "table_count": len(result),
+        "total_tables": len(filtered),
+        "tables": result,
+    }
+
+
+@app.get("/api/connections/{name}/schema/sample-values")
+async def get_cached_sample_values(
+    name: str,
+    table: str = Query(..., description="Full table name (e.g., 'public.customers')"),
+    columns: str = Query(default="", description="Comma-separated column names. Empty = auto-select string/enum columns"),
+    limit: int = Query(default=5, ge=1, le=20, description="Max distinct values per column"),
+):
+    """Get cached sample values for schema linking optimization.
+
+    Sample values help AI agents understand the data domain and generate
+    more accurate SQL (e.g., knowing 'status' contains 'active', 'inactive', 'pending').
+    Results are cached to avoid repeated queries.
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    # Check sample cache first
+    cached_samples = schema_cache.get_sample_values(name, table)
+    if cached_samples is not None:
+        return {
+            "connection_name": name,
+            "table": table,
+            "cached": True,
+            "sample_values": cached_samples,
+        }
+
+    conn_str = get_connection_string(name)
+    if not conn_str:
+        raise HTTPException(status_code=400, detail="No credentials stored")
+
+    try:
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+
+        # Determine columns to sample
+        col_list: list[str] = []
+        if columns:
+            col_list = [c.strip() for c in columns.split(",") if c.strip()]
+        else:
+            # Auto-select: string/enum columns from schema
+            schema = schema_cache.get(name)
+            if schema and table in schema:
+                for col in schema[table].get("columns", []):
+                    col_type = col.get("type", "").lower()
+                    if any(t in col_type for t in ("varchar", "text", "char", "string", "enum", "category")):
+                        col_list.append(col["name"])
+                    if len(col_list) >= 10:
+                        break
+
+        if not col_list:
+            await pool_manager.release(info.db_type, conn_str)
+            return {
+                "connection_name": name,
+                "table": table,
+                "cached": False,
+                "sample_values": {},
+                "message": "No columns selected — provide column names or ensure schema is cached",
+            }
+
+        values = await connector.get_sample_values(table, col_list, limit=limit)
+        await pool_manager.release(info.db_type, conn_str)
+
+        # Cache the results
+        if values:
+            schema_cache.put_sample_values(name, table, values)
+
+        return {
+            "connection_name": name,
+            "table": table,
+            "cached": False,
+            "sample_values": values,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
 
 
 @app.get("/api/connections/{name}/schema/search")
