@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -837,21 +837,30 @@ export default function ConnectionsPage() {
     finally { setPiiLoading(null); }
   }
 
-  async function handleSchemaSearch(name: string, query: string) {
+  const searchTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  function handleSchemaSearch(name: string, query: string) {
     setSchemaSearch((prev) => ({ ...prev, [name]: query }));
+    // Clear previous debounce timer
+    if (searchTimerRef.current[name]) {
+      clearTimeout(searchTimerRef.current[name]);
+    }
     if (!query.trim()) {
       setSchemaSearchResults((prev) => { const n = { ...prev }; delete n[name]; return n; });
       return;
     }
-    setSchemaSearchLoading(name);
-    try {
-      const data = await searchConnectionSchema(name, query);
-      setSchemaSearchResults((prev) => ({ ...prev, [name]: { result_count: data.result_count, total_tables: data.total_tables, tables: data.tables } }));
-    } catch {
-      setSchemaSearchResults((prev) => ({ ...prev, [name]: { result_count: 0, total_tables: 0, tables: {} } }));
-    } finally {
-      setSchemaSearchLoading(null);
-    }
+    // Debounce 300ms to avoid excessive API calls
+    searchTimerRef.current[name] = setTimeout(async () => {
+      setSchemaSearchLoading(name);
+      try {
+        const data = await searchConnectionSchema(name, query);
+        setSchemaSearchResults((prev) => ({ ...prev, [name]: { result_count: data.result_count, total_tables: data.total_tables, tables: data.tables } }));
+      } catch {
+        setSchemaSearchResults((prev) => ({ ...prev, [name]: { result_count: 0, total_tables: 0, tables: {} } }));
+      } finally {
+        setSchemaSearchLoading(null);
+      }
+    }, 300);
   }
 
   const config = DB_CONFIGS[form.db_type];
