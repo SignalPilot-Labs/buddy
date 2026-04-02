@@ -5,6 +5,64 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 25: Auth Flexibility, Progressive Disclosure, Schema Warmup (2026-04-01)
+
+**Summary:** 6 improvements — Trino JWT/certificate/Kerberos auth, BigQuery OAuth/ADC/impersonation, HEX-style progressive disclosure tabs in advanced settings, parallel schema warmup endpoint, Trino auth tests, and all 5 Docker databases verified (34 total tables).
+
+**Key metrics:**
+- 400 tests passing (13 new Trino auth tests)
+- 7 git commits this round
+- Parallel warmup: 5 connections / 34 tables in 2.9s (re-warmup: 0.1ms)
+- All 5 Docker databases: enterprise-pg (10), warehouse-pg (12), test-mysql (7), test-mssql (3), test-clickhouse (2)
+- Spider2.0 SOTA: ReFoRCE 31.26% (Snow), Paytm entered leaderboard Jan 2026
+
+### 1. Trino Multi-Auth Support (JWT/Certificate/Kerberos)
+**Files:** `connectors/trino.py`, `web/app/connections/page.tsx`
+- **Impact:** Full auth parity with Starburst Galaxy and enterprise Trino deployments
+- JWT bearer token auth (for Okta, Auth0, etc.)
+- Client certificate mutual TLS auth
+- Kerberos auth with configurable service name and delegation
+- Auto-enables HTTPS when authenticated methods selected
+- Frontend auth method selector with per-method input fields
+
+### 2. BigQuery OAuth, ADC, and Impersonation
+**Files:** `connectors/bigquery.py`, `web/app/connections/page.tsx`
+- **Impact:** Full HEX parity for BigQuery auth — service account, OAuth, ADC, and cross-project impersonation
+- OAuth access token auth (user-based via Google Cloud OAuth flow)
+- Application Default Credentials (GKE workload identity / gcloud)
+- Service account impersonation for cross-project access via IAM delegation
+- Frontend auth method selector with setup guidance per method
+
+### 3. Progressive Disclosure Tabs
+**Files:** `web/app/connections/page.tsx`
+- **Impact:** HEX-style sub-tabs in advanced options: Security | Performance | Schema
+- Security tab: SSL, SSH tunnel, access controls, IP allowlisting
+- Performance tab: timeouts, keepalive, connection pool sizing
+- Schema tab: include/exclude filters, auto-refresh scheduling
+- Dot indicators show configured sections at a glance
+
+### 4. Parallel Schema Warmup
+**Files:** `gateway/main.py`, `web/lib/api.ts`
+- **Impact:** Single-call schema warmup across all connections for AI agent startup
+- POST `/api/connections/schema/warmup` — concurrent schema fetch for all connections
+- Skips already-cached connections (0.1ms re-warmup)
+- Per-connection status reporting (ok/cached/error)
+- First warmup: 5 connections, 34 tables in 2.9s
+
+### 5. Trino Auth Tests
+**Files:** `tests/test_trino_auth.py`
+- **Impact:** 13 tests covering URL parsing, auth config, and identifier quoting
+- URL parsing: basic, HTTPS, auth_method param, fallback host-only
+- Auth methods: JWT, certificate, Kerberos, password, query timeout
+- SQL injection prevention: identifier quoting tests
+
+### 6. Industry Standards Research
+- **HEX patterns adopted:** OAuth data connections (Snowflake, Databricks, BigQuery), tiered connectors, progressive disclosure, IP allowlisting
+- **Spider2.0 update:** ReFoRCE at 31.26% (Snow), Paytm first Indian company on leaderboard (Jan 2026), DBT variant added May 2025
+- **Snowflake key-pair:** Already implemented (Round 22) — RSA key pair with cryptography lib DER encoding
+
+---
+
 ## Round 24: Semantic Model, Databricks OAuth, Network Diagnostics (2026-04-01)
 
 **Summary:** 8 improvements — HEX-style semantic model API (CRUD + auto-generation), agent-context enrichment with semantic descriptions/glossary/joins, Databricks OAuth M2M auth, network diagnostics endpoint (DNS/TCP/TLS/Auth), IP whitelist helper, connection diagnostics frontend, semantic model tests, and glossary filtering for question-relevant terms.
@@ -2716,7 +2774,11 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~Databricks OAuth M2M~~ (Done: service principal auth with SDK fallback)
 - [x] ~~Semantic model API~~ (Done: HEX-style CRUD + auto-generation + agent-context enrichment)
 - [x] ~~Network diagnostics~~ (Done: DNS/TCP/TLS/Auth layered checks + IP whitelist helper)
-- [ ] OAuth support for Snowflake, BigQuery
+- [x] ~~BigQuery OAuth/ADC/impersonation~~ (Done: 3 auth methods + cross-project access)
+- [x] ~~Trino JWT/certificate/Kerberos~~ (Done: 4 auth methods + auto-HTTPS)
+- [x] ~~Progressive disclosure tabs~~ (Done: Security/Performance/Schema sub-tabs)
+- [x] ~~Parallel schema warmup~~ (Done: concurrent warmup across all connections)
+- [ ] OAuth support for Snowflake (external OAuth integration)
 - [ ] Claude MCP Connector integration (HEX pattern)
 - [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
 - [ ] Identity-Aware Proxy (IAP) support for zero-trust database access
