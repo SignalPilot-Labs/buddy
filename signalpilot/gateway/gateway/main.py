@@ -1779,6 +1779,8 @@ async def get_compact_schema(
                     entry["desc"] = comment
                 cols.append(entry)
             compact[key] = {"c": cols, "r": table.get("row_count", 0)}
+            if table.get("size_mb"):
+                compact[key]["mb"] = table["size_mb"]
             # Add partition info for deduplicated table families
             if key in partition_map:
                 compact[key]["_partitions"] = len(partition_map[key])
@@ -1798,14 +1800,21 @@ async def get_compact_schema(
     for key in table_keys:
         table = filtered[key]
         row_count = table.get("row_count", 0)
-        row_str = ""
+        size_mb = table.get("size_mb", 0)
+        meta_parts = []
         if row_count:
             if row_count >= 1_000_000:
-                row_str = f" ({row_count / 1_000_000:.1f}M rows)"
+                meta_parts.append(f"{row_count / 1_000_000:.1f}M rows")
             elif row_count >= 1_000:
-                row_str = f" ({row_count / 1_000:.0f}K rows)"
+                meta_parts.append(f"{row_count / 1_000:.0f}K rows")
             else:
-                row_str = f" ({row_count} rows)"
+                meta_parts.append(f"{row_count} rows")
+        if size_mb and size_mb >= 1:
+            if size_mb >= 1024:
+                meta_parts.append(f"{size_mb / 1024:.1f}GB")
+            else:
+                meta_parts.append(f"{size_mb:.0f}MB")
+        row_str = f" ({', '.join(meta_parts)})" if meta_parts else ""
 
         col_parts = []
         for col in table.get("columns", []):
@@ -1950,9 +1959,21 @@ async def get_schema_ddl(
         # Use schema-qualified name
         table_name = f"{table.get('schema', '')}.{table.get('name', '')}"
 
-        # Table-level comment (helps agent understand table purpose)
+        # Table-level comment with metadata (helps agent plan queries)
         table_desc = table.get("description", "")
-        table_header = f"-- {table_desc}\n" if table_desc else ""
+        meta_hints = []
+        if table.get("row_count"):
+            rc = table["row_count"]
+            meta_hints.append(f"{rc / 1_000_000:.1f}M rows" if rc >= 1_000_000
+                             else f"{rc / 1_000:.0f}K rows" if rc >= 1000
+                             else f"{rc} rows")
+        if table.get("size_mb") and table["size_mb"] >= 1:
+            sm = table["size_mb"]
+            meta_hints.append(f"{sm / 1024:.1f}GB" if sm >= 1024 else f"{sm:.0f}MB")
+        if table.get("engine"):
+            meta_hints.append(table["engine"])
+        header_parts = [p for p in [table_desc, ", ".join(meta_hints)] if p]
+        table_header = f"-- {' | '.join(header_parts)}\n" if header_parts else ""
 
         col_lines = []
         pk_cols = []
@@ -2662,6 +2683,7 @@ async def get_schema_overview(
     total_columns = 0
     total_rows = 0
     total_fks = 0
+    total_size_mb = 0.0
     schemas_set: set[str] = set()
     tables_with_fks: set[str] = set()
     largest_tables: list[dict] = []
@@ -2671,6 +2693,7 @@ async def get_schema_overview(
         total_columns += len(cols)
         row_count = table.get("row_count", 0) or 0
         total_rows += row_count
+        total_size_mb += table.get("size_mb", 0) or 0
         schemas_set.add(table.get("schema", ""))
         fks = table.get("foreign_keys", [])
         total_fks += len(fks)
@@ -2702,6 +2725,7 @@ async def get_schema_overview(
         "table_count": total_tables,
         "total_columns": total_columns,
         "total_rows": total_rows,
+        "total_size_mb": round(total_size_mb, 2),
         "total_foreign_keys": total_fks,
         "tables_with_fks": len(tables_with_fks),
         "avg_columns_per_table": round(total_columns / total_tables, 1) if total_tables else 0,
