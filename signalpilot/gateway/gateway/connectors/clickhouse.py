@@ -102,9 +102,13 @@ class ClickHouseConnector(BaseConnector):
                 self._temp_files.append(key_file.name)
                 connect_args["keyfile"] = key_file.name
 
+        # If explicit HTTP mode requested (clickhouse+http:// or clickhouse+https://),
+        # skip native TCP and go directly to HTTP
+        force_http = params.get("use_http", False)
+
         # Try native TCP first, fall back to HTTP (clickhouse-connect) for compatibility
         native_error = None
-        if HAS_CLICKHOUSE_NATIVE:
+        if HAS_CLICKHOUSE_NATIVE and not force_http:
             try:
                 self._client = CHClient(**connect_args)
                 self._client.execute("SELECT 1")
@@ -211,6 +215,8 @@ class ClickHouseConnector(BaseConnector):
         }
         if secure:
             result["secure"] = True
+        if use_http:
+            result["use_http"] = True
         return result
 
     def _raw_execute(self, sql: str, params=None, settings=None):

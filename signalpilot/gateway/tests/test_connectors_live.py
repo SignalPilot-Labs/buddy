@@ -1436,6 +1436,30 @@ class TestClickHouseHTTPFallback:
         with pytest.raises(RuntimeError, match="No active ClickHouse connection"):
             c._raw_execute("SELECT 1")
 
+    def test_parse_http_url_sets_use_http(self):
+        """clickhouse+http:// URL sets use_http flag in parsed params."""
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        params = c._parse_connection_string("clickhouse+http://default:pass@host:8123/mydb")
+        assert params.get("use_http") is True
+        assert params["port"] == 8123
+
+    def test_parse_https_url_sets_secure(self):
+        """clickhouse+https:// URL sets both use_http and secure flags."""
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        params = c._parse_connection_string("clickhouse+https://user:pass@host:8443/mydb")
+        assert params.get("use_http") is True
+        assert params.get("secure") is True
+        assert params["port"] == 8443
+
+    def test_parse_native_url_no_use_http(self):
+        """clickhouse:// URL does not set use_http flag."""
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        params = c._parse_connection_string("clickhouse://default:pass@host:9000/mydb")
+        assert params.get("use_http") is None
+
 
 # ── Parallel Schema Fetching (Round 6) ────────────────────────────────────
 
