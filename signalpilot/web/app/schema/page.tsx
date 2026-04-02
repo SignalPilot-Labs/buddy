@@ -13,7 +13,7 @@ import {
   Key,
   Shield,
 } from "lucide-react";
-import { getConnections, getConnectionSchema, detectPII } from "@/lib/api";
+import { getConnections, getConnectionSchema, getSchemaRefreshStatus, detectPII } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
@@ -90,6 +90,8 @@ export default function SchemaExplorerPage() {
   const [search, setSearch] = useState("");
   const [piiDetections, setPiiDetections] = useState<Record<string, string> | null>(null);
   const [scanningPii, setScanningPii] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<number | null>(null);
 
   useEffect(() => {
     getConnections()
@@ -112,6 +114,11 @@ export default function SchemaExplorerPage() {
       setSchema(data);
       const keys = Object.keys(data.tables).slice(0, 5);
       setExpandedTables(new Set(keys));
+      // Fetch refresh status
+      getSchemaRefreshStatus(selectedConn).then((status) => {
+        setLastRefresh(status.last_schema_refresh);
+        setRefreshInterval(status.schema_refresh_interval);
+      }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -210,6 +217,12 @@ export default function SchemaExplorerPage() {
         <div className="flex items-center gap-6 text-xs">
           <span className="text-[var(--color-text-dim)]">tables: <code className="text-[10px] text-[var(--color-text)]">{schema ? Object.keys(schema.tables).length : "—"}</code></span>
           <span className="text-[var(--color-text-dim)]">db: <code className="text-[10px] text-[var(--color-text)]">{schema?.db_type || "—"}</code></span>
+          {lastRefresh && (
+            <span className="text-[var(--color-text-dim)]">
+              refreshed: <code className="text-[10px] text-[var(--color-text)]">{new Date(lastRefresh * 1000).toLocaleTimeString()}</code>
+              {refreshInterval && <span className="ml-1 opacity-60">(every {refreshInterval >= 3600 ? `${Math.round(refreshInterval / 3600)}h` : `${Math.round(refreshInterval / 60)}m`})</span>}
+            </span>
+          )}
         </div>
       </TerminalBar>
 

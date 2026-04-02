@@ -48,9 +48,18 @@ export const updateConnection = (name: string, updates: Record<string, unknown>)
 export const deleteConnection = (name: string) =>
   request<void>(`/api/connections/${name}`, { method: "DELETE" });
 export const refreshConnectionSchema = (name: string) =>
-  request<{ connection_name: string; table_count: number; message: string }>(
+  request<{ connection_name: string; table_count: number; message: string; refreshed_at?: number; next_refresh_in?: number | null }>(
     `/api/connections/${name}/schema/refresh`, { method: "POST" }
   );
+export const getSchemaRefreshStatus = (name: string) =>
+  request<{
+    connection_name: string;
+    schema_refresh_interval: number | null;
+    last_schema_refresh: number | null;
+    next_refresh_at: number | null;
+    cached: boolean;
+    cached_table_count: number;
+  }>(`/api/connections/${name}/schema/refresh-status`);
 export const testConnection = (name: string) =>
   request<{
     status: string;
