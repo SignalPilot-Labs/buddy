@@ -575,16 +575,35 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
       snowflake: "snowflake://user:pass@account/db/schema?warehouse=WH&role=ROLE",
       databricks: "databricks://token@host.databricks.com/sql/1.0/warehouses/abc?catalog=main",
     };
+    const parsed = form.connection_string ? parseConnectionUrl(form.connection_string, form.db_type) : null;
+    const hasValidUrl = parsed && Object.values(parsed).some(v => v);
     return (
-      <FormInput
-        label="connection string"
-        value={form.connection_string}
-        onChange={(v) => setForm({ ...form, connection_string: v })}
-        type="password"
-        placeholder={urlHints[form.db_type] || "connection string"}
-        hint={form.db_type === "clickhouse" ? "native: clickhouse://... | HTTP: clickhouse+http://..." : "full connection URL including credentials"}
-        className="col-span-2"
-      />
+      <>
+        <FormInput
+          label="connection string"
+          value={form.connection_string}
+          onChange={(v) => setForm({ ...form, connection_string: v })}
+          type="password"
+          placeholder={urlHints[form.db_type] || "connection string"}
+          hint={form.db_type === "clickhouse" ? "native: clickhouse://... | HTTP: clickhouse+http://..." : "full connection URL including credentials"}
+          className="col-span-2"
+        />
+        {hasValidUrl && (
+          <div className="col-span-2 -mt-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed">
+            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">parsed components:</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+              {parsed.host && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">host:</span> <span className="text-[var(--color-text)]">{parsed.host}</span></span>}
+              {parsed.port && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">port:</span> <span className="text-[var(--color-text)]">{parsed.port}</span></span>}
+              {parsed.database && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">db:</span> <span className="text-[var(--color-text)]">{parsed.database}</span></span>}
+              {parsed.username && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">user:</span> <span className="text-[var(--color-text)]">{parsed.username}</span></span>}
+              {parsed.account && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">account:</span> <span className="text-[var(--color-text)]">{parsed.account}</span></span>}
+              {parsed.warehouse && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">warehouse:</span> <span className="text-[var(--color-text)]">{parsed.warehouse}</span></span>}
+              {parsed.catalog && <span className="text-[9px] tracking-wider"><span className="text-[var(--color-text-dim)]">catalog:</span> <span className="text-[var(--color-text)]">{parsed.catalog}</span></span>}
+              {parsed.password && <span className="text-[9px] tracking-wider text-[var(--color-success)]">password: ****</span>}
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
