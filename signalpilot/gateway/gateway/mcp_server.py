@@ -1341,11 +1341,12 @@ async def schema_statistics(connection_name: str) -> str:
         ]
 
         # Show top tables by row count
-        top = data.get("top_tables_by_rows", [])
+        top = data.get("largest_tables", [])
         if top:
             lines.append("Largest tables:")
             for t in top[:10]:
-                meta_parts = [f"{t.get('row_count', 0):,} rows", f"{t.get('column_count', 0)} cols"]
+                name = t.get("table", "?")
+                meta_parts = [f"{t.get('rows', 0):,} rows", f"{t.get('columns', 0)} cols"]
                 if t.get("engine"):
                     meta_parts.append(f"engine={t['engine']}")
                 if t.get("sorting_key"):
@@ -1359,15 +1360,17 @@ async def schema_statistics(connection_name: str) -> str:
                 if t.get("size_bytes") and t["size_bytes"] > 0:
                     mb = t["size_bytes"] / (1024 * 1024)
                     meta_parts.append(f"size={mb:.1f}MB")
-                lines.append(f"  {t['name']}: {', '.join(meta_parts)}")
+                elif t.get("size_mb") and t["size_mb"] > 0:
+                    meta_parts.append(f"size={t['size_mb']}MB")
+                lines.append(f"  {name}: {', '.join(meta_parts)}")
 
-        # Hub tables (most FK connections)
-        hub = data.get("hub_tables", [])
+        # Hub tables (most FK connections — derived from largest_tables)
+        hub = sorted([t for t in top if t.get("fks", 0) > 0], key=lambda t: -t.get("fks", 0))
         if hub:
             lines.append("")
             lines.append("Hub tables (most relationships):")
             for t in hub[:5]:
-                lines.append(f"  {t['name']}: {t.get('fk_count', 0)} FKs")
+                lines.append(f"  {t.get('table', '?')}: {t.get('fks', 0)} FKs")
 
         return "\n".join(lines)
 
