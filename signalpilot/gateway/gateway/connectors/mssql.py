@@ -301,7 +301,7 @@ class MSSQLConnector(BaseConnector):
             JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
         """
 
-        # Indexes with included columns
+        # Indexes with included columns + lead column cardinality (merged to reduce queries)
         idx_sql = """
             SELECT
                 OBJECT_SCHEMA_NAME(i.object_id) AS table_schema,
@@ -309,7 +309,8 @@ class MSSQLConnector(BaseConnector):
                 i.name AS index_name,
                 i.is_unique,
                 i.type_desc AS index_type,
-                STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) AS columns
+                STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) AS columns,
+                MIN(CASE WHEN ic.key_ordinal = 1 THEN c.name END) AS lead_column
             FROM sys.indexes i
             JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
             JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
@@ -339,22 +340,6 @@ class MSSQLConnector(BaseConnector):
                 AND OBJECT_SCHEMA_NAME(s.object_id) NOT IN ('sys', 'INFORMATION_SCHEMA')
         """
 
-        # Column-level cardinality via unique indexes
-        cardinality_sql = """
-            SELECT
-                OBJECT_SCHEMA_NAME(i.object_id) AS table_schema,
-                OBJECT_NAME(i.object_id) AS table_name,
-                c.name AS column_name,
-                i.is_unique
-            FROM sys.indexes i
-            JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-            JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-            WHERE i.name IS NOT NULL
-                AND ic.is_included_column = 0
-                AND ic.key_ordinal = 1
-                AND OBJECT_SCHEMA_NAME(i.object_id) NOT IN ('sys', 'INFORMATION_SCHEMA')
-        """
-
         def _fetch(query: str) -> list:
             try:
                 cursor = self._conn.cursor(as_dict=True)
@@ -366,20 +351,20 @@ class MSSQLConnector(BaseConnector):
                 return []
 
         def _fetch_all_sequential() -> tuple:
-            """Run all metadata queries sequentially — pymssql uses a single connection."""
+            """Run all metadata queries sequentially — pymssql uses a single connection.
+            5 queries (down from 6): cardinality merged into idx_sql via lead_column."""
             return (
                 _fetch(col_sql),
                 _fetch(rowcount_sql),
                 _fetch(fk_sql),
                 _fetch(idx_sql),
                 _fetch(stats_sql),
-                _fetch(cardinality_sql),
             )
 
         # Run the synchronous queries in a thread pool to avoid blocking the event loop
         import asyncio
         loop = asyncio.get_event_loop()
-        rows, rowcount_rows, fk_rows, idx_rows, stat_rows, card_rows = await loop.run_in_executor(
+        rows, rowcount_rows, fk_rows, idx_rows, stat_rows = await loop.run_in_executor(
             None, _fetch_all_sequential
         )
 
@@ -427,11 +412,11 @@ class MSSQLConnector(BaseConnector):
             if stat_rows_count and stat_key not in col_stat_info:
                 col_stat_info[stat_key] = {"stat_rows": int(stat_rows_count)}
 
-        # Build unique column set from indexes
+        # Build unique column set from indexes (lead_column from merged idx query)
         unique_cols: set[str] = set()
-        for r in card_rows:
-            if r.get("is_unique"):
-                card_key = f"{r['table_schema']}.{r['table_name']}.{r['column_name']}"
+        for r in idx_rows:
+            if r.get("is_unique") and r.get("lead_column"):
+                card_key = f"{r['table_schema']}.{r['table_name']}.{r['lead_column']}"
                 unique_cols.add(card_key)
 
         schema: dict[str, Any] = {}
