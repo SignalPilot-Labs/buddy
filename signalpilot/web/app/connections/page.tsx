@@ -827,13 +827,50 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
     );
   }
 
-  // Standard host/port (Postgres, MySQL, Redshift)
+  // MSSQL — instance name, trust cert, encrypt option
+  if (form.db_type === "mssql") {
+    return (
+      <>
+        <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="sqlserver.example.com" hint="hostname or IP — for named instances: host\\INSTANCE" required />
+        <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder="1433" hint="default 1433 — Azure SQL uses 1433" />
+        <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="master" required />
+        <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="sa" hint="SQL Server login" required />
+        <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+        <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider">
+          <span className="text-[var(--color-text-muted)]">azure sql:</span> Use &lt;server&gt;.database.windows.net as host. Ensure firewall rule allows this server&apos;s IP. For named instances, include instance in host: host\SQLEXPRESS
+        </div>
+      </>
+    );
+  }
+
+  // Redshift — cluster endpoint guidance
+  if (form.db_type === "redshift") {
+    return (
+      <>
+        <FormInput label="cluster endpoint" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="my-cluster.abc123xyz.us-east-1.redshift.amazonaws.com" hint="Redshift console → Clusters → Properties → Endpoint" required />
+        <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder="5439" />
+        <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="dev" hint="default database is 'dev'" required />
+        <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="awsuser" required />
+        <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+        <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider">
+          <span className="text-[var(--color-text-muted)]">access:</span> Ensure this server&apos;s IP is allowed in the Redshift security group. For VPC clusters, use SSH tunnel or VPC peering. Redshift Serverless uses the same connection format.
+        </div>
+      </>
+    );
+  }
+
+  // Standard host/port (Postgres, MySQL)
+  const placeholders: Record<string, Record<string, string>> = {
+    postgres: { host: "localhost", db: "mydb", user: "postgres" },
+    mysql: { host: "localhost", db: "mydb", user: "root" },
+  };
+  const ph = placeholders[form.db_type] || { host: "localhost", db: "mydb", user: "user" };
   return (
     <>
-      <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="localhost" required />
+      <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder={ph.host} required />
       <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder={String(config.defaultPort)} />
-      <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" required />
-      <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="postgres" required />
+      <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder={ph.db} required />
+      <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder={ph.user} required />
       <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
     </>
   );
