@@ -993,6 +993,116 @@ def _connection_error_hint(db_type: str, error_msg: str) -> str:
     return "Check connection parameters, credentials, and network access"
 
 
+@app.post("/api/connections/parse-url")
+async def parse_connection_url(request: Request):
+    """Parse a database connection URL into individual credential fields.
+
+    HEX pattern: users paste a connection string and the UI auto-fills
+    the individual fields (host, port, database, username, etc.).
+    Supports all DB types: PostgreSQL, MySQL, MSSQL, Redshift, ClickHouse,
+    Snowflake, Databricks, Trino, DuckDB, SQLite.
+    """
+    from urllib.parse import urlparse, unquote, parse_qs
+
+    body = await request.json()
+    url = body.get("url", "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    # Auto-detect DB type from URL scheme
+    db_type = body.get("db_type", "")
+    _scheme_map = {
+        "postgresql": "postgres", "postgres": "postgres",
+        "mysql": "mysql", "mysql+pymysql": "mysql",
+        "mssql": "mssql", "mssql+pymssql": "mssql", "sqlserver": "mssql",
+        "redshift": "redshift",
+        "clickhouse": "clickhouse", "clickhouse+http": "clickhouse", "clickhouse+https": "clickhouse",
+        "clickhouses": "clickhouse",
+        "snowflake": "snowflake",
+        "databricks": "databricks",
+        "trino": "trino", "trino+https": "trino",
+    }
+
+    # Normalize the URL for parsing
+    normalized = url
+    original_scheme = url.split("://")[0] if "://" in url else ""
+
+    if not db_type and original_scheme:
+        db_type = _scheme_map.get(original_scheme, "")
+
+    # Replace custom schemes with http:// for urlparse
+    if "://" in normalized:
+        scheme_part = normalized.split("://")[0]
+        normalized = "http://" + normalized[len(scheme_part) + 3:]
+
+    try:
+        parsed = urlparse(normalized)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not parse URL")
+
+    # Extract path segments (for Trino: /catalog/schema, for Snowflake: /db/schema)
+    path_parts = [p for p in (parsed.path or "").split("/") if p]
+    query_params = parse_qs(parsed.query or "")
+
+    result: dict[str, Any] = {
+        "db_type": db_type,
+        "host": parsed.hostname or "",
+        "port": parsed.port,
+        "username": unquote(parsed.username or ""),
+        "password": unquote(parsed.password or ""),
+    }
+
+    # DB-specific field extraction
+    if db_type == "postgres" or db_type == "redshift":
+        result["database"] = path_parts[0] if path_parts else ""
+        sslmode = query_params.get("sslmode", [""])[0]
+        if sslmode:
+            result["ssl"] = sslmode != "disable"
+            result["ssl_mode"] = sslmode
+
+    elif db_type == "mysql":
+        result["database"] = path_parts[0] if path_parts else ""
+
+    elif db_type == "mssql":
+        result["database"] = path_parts[0] if path_parts else "master"
+
+    elif db_type == "snowflake":
+        result["account"] = parsed.hostname or ""
+        result["host"] = ""  # Snowflake uses account, not host
+        result["database"] = path_parts[0] if len(path_parts) > 0 else ""
+        result["schema_name"] = path_parts[1] if len(path_parts) > 1 else ""
+        result["warehouse"] = query_params.get("warehouse", [""])[0]
+        result["role"] = query_params.get("role", [""])[0]
+
+    elif db_type == "clickhouse":
+        result["database"] = path_parts[0] if path_parts else "default"
+        if "http" in original_scheme:
+            result["protocol"] = "http"
+        else:
+            result["protocol"] = "native"
+
+    elif db_type == "databricks":
+        result["host"] = parsed.hostname or ""
+        result["access_token"] = unquote(parsed.username or "")
+        result["username"] = ""
+        result["password"] = ""
+        result["http_path"] = "/".join(path_parts) if path_parts else ""
+        result["catalog"] = query_params.get("catalog", [""])[0]
+        result["schema_name"] = query_params.get("schema", [""])[0]
+
+    elif db_type == "trino":
+        result["catalog"] = path_parts[0] if len(path_parts) > 0 else ""
+        result["schema_name"] = path_parts[1] if len(path_parts) > 1 else ""
+
+    else:
+        result["database"] = path_parts[0] if path_parts else ""
+
+    # Clean up empty values
+    result = {k: v for k, v in result.items() if v is not None and v != ""}
+
+    return result
+
+
 @app.post("/api/connections/test-credentials")
 async def test_credentials(request: Request):
     """Test connection credentials without saving (HEX pre-save validation pattern).
