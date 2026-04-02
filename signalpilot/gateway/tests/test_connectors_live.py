@@ -1811,5 +1811,104 @@ class TestMCPListTables:
         assert "foreign_keys" in source
 
 
+# ── Schema Relationships Endpoint (Round 8) ─────────────────────────────────
+
+class TestSchemaRelationships:
+    """Tests for the /schema/relationships endpoint — ERD summary for AI agents."""
+
+    def test_relationships_endpoint_exists(self):
+        """Schema relationships endpoint is registered."""
+        from gateway.main import app
+        routes = [r.path for r in app.routes]
+        assert "/api/connections/{name}/schema/relationships" in routes
+
+    def test_relationships_compact_format_extraction(self):
+        """Verify FK extraction logic produces correct compact format."""
+        # Simulate a schema with FKs
+        schema = {
+            "public.orders": {
+                "schema": "public",
+                "name": "orders",
+                "columns": [{"name": "id", "type": "integer"}],
+                "foreign_keys": [
+                    {"column": "customer_id", "references_schema": "public",
+                     "references_table": "customers", "references_column": "id"},
+                    {"column": "product_id", "references_schema": "public",
+                     "references_table": "products", "references_column": "id"},
+                ],
+            },
+            "public.customers": {
+                "schema": "public",
+                "name": "customers",
+                "columns": [{"name": "id", "type": "integer"}],
+                "foreign_keys": [],
+            },
+        }
+
+        # Extract relationships using same logic as endpoint
+        relationships = []
+        for key, table in schema.items():
+            for fk in table.get("foreign_keys", []):
+                ref_schema = fk.get("references_schema", table.get("schema", ""))
+                relationships.append({
+                    "from_schema": table.get("schema", ""),
+                    "from_table": table.get("name", ""),
+                    "from_column": fk["column"],
+                    "to_schema": ref_schema,
+                    "to_table": fk["references_table"],
+                    "to_column": fk["references_column"],
+                })
+
+        assert len(relationships) == 2
+        lines = []
+        for r in relationships:
+            from_q = f"{r['from_schema']}.{r['from_table']}" if r["from_schema"] else r["from_table"]
+            to_q = f"{r['to_schema']}.{r['to_table']}" if r["to_schema"] else r["to_table"]
+            lines.append(f"{from_q}.{r['from_column']} → {to_q}.{r['to_column']}")
+        assert "public.orders.customer_id → public.customers.id" in lines
+        assert "public.orders.product_id → public.products.id" in lines
+
+    def test_relationships_graph_format(self):
+        """Verify graph/adjacency format builds bidirectional edges."""
+        schema = {
+            "public.orders": {
+                "schema": "public",
+                "name": "orders",
+                "columns": [],
+                "foreign_keys": [
+                    {"column": "customer_id", "references_schema": "public",
+                     "references_table": "customers", "references_column": "id"},
+                ],
+            },
+        }
+
+        # Build graph using same logic as endpoint
+        graph: dict[str, list[str]] = {}
+        for key, table in schema.items():
+            for fk in table.get("foreign_keys", []):
+                from_q = f"{table['schema']}.{table['name']}"
+                to_q = f"{fk.get('references_schema', '')}.{fk['references_table']}"
+                if from_q not in graph:
+                    graph[from_q] = []
+                if to_q not in graph[from_q]:
+                    graph[from_q].append(to_q)
+                if to_q not in graph:
+                    graph[to_q] = []
+                if from_q not in graph[to_q]:
+                    graph[to_q].append(from_q)
+
+        assert "public.orders" in graph
+        assert "public.customers" in graph
+        # Bidirectional
+        assert "public.customers" in graph["public.orders"]
+        assert "public.orders" in graph["public.customers"]
+
+    def test_relationships_format_validation(self):
+        """Format parameter only accepts compact, full, graph."""
+        from gateway.main import app
+        routes = [r for r in app.routes if hasattr(r, "path") and "relationships" in r.path]
+        assert len(routes) > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

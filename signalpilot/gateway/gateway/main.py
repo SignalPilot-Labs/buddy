@@ -1309,6 +1309,102 @@ async def get_filtered_schema(
     }
 
 
+@app.get("/api/connections/{name}/schema/relationships")
+async def get_schema_relationships(
+    name: str,
+    format: str = Query(default="compact", pattern=r"^(compact|full|graph)$",
+                        description="Output format: compact (one-line per FK), full (detailed JSON), graph (adjacency list)"),
+):
+    """Extract all foreign key relationships from schema — ERD summary for AI agents.
+
+    Critical for Spider2.0 join-path discovery: the agent needs to understand
+    which tables can be joined and through which columns. Three formats:
+    - compact: "orders.customer_id → customers.id" (one line per FK, minimal tokens)
+    - full: detailed JSON with schema, table, column, referenced info
+    - graph: adjacency list showing all tables reachable from each table
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached = schema_cache.get(name)
+    if cached is None:
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="No credentials stored")
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            cached = await connector.get_schema()
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+        schema_cache.put(name, cached)
+
+    filtered = apply_endorsement_filter(name, cached)
+
+    # Extract all FK relationships
+    relationships: list[dict] = []
+    for key, table in filtered.items():
+        tbl_schema = table.get("schema", "")
+        tbl_name = table.get("name", "")
+        for fk in table.get("foreign_keys", []):
+            ref_schema = fk.get("references_schema", tbl_schema)
+            relationships.append({
+                "from_schema": tbl_schema,
+                "from_table": tbl_name,
+                "from_column": fk["column"],
+                "to_schema": ref_schema,
+                "to_table": fk["references_table"],
+                "to_column": fk["references_column"],
+            })
+
+    if format == "compact":
+        # One-line-per-FK — minimal token usage for LLM context
+        lines = []
+        for r in relationships:
+            from_qual = f"{r['from_schema']}.{r['from_table']}" if r["from_schema"] else r["from_table"]
+            to_qual = f"{r['to_schema']}.{r['to_table']}" if r["to_schema"] else r["to_table"]
+            lines.append(f"{from_qual}.{r['from_column']} → {to_qual}.{r['to_column']}")
+        return {
+            "connection_name": name,
+            "format": "compact",
+            "relationship_count": len(relationships),
+            "relationships": lines,
+        }
+
+    elif format == "graph":
+        # Adjacency list — shows all tables reachable via FK joins from each table
+        graph: dict[str, list[str]] = {}
+        for r in relationships:
+            from_qual = f"{r['from_schema']}.{r['from_table']}" if r["from_schema"] else r["from_table"]
+            to_qual = f"{r['to_schema']}.{r['to_table']}" if r["to_schema"] else r["to_table"]
+            if from_qual not in graph:
+                graph[from_qual] = []
+            if to_qual not in graph[from_qual]:
+                graph[from_qual].append(to_qual)
+            # Bidirectional — reverse lookups are useful for join planning
+            if to_qual not in graph:
+                graph[to_qual] = []
+            if from_qual not in graph[to_qual]:
+                graph[to_qual].append(from_qual)
+        return {
+            "connection_name": name,
+            "format": "graph",
+            "table_count": len(graph),
+            "relationship_count": len(relationships),
+            "adjacency": graph,
+        }
+
+    else:  # full
+        return {
+            "connection_name": name,
+            "format": "full",
+            "relationship_count": len(relationships),
+            "relationships": relationships,
+        }
+
+
 @app.get("/api/connections/{name}/schema/sample-values")
 async def get_cached_sample_values(
     name: str,
