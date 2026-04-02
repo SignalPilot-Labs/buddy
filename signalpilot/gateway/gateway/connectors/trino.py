@@ -29,6 +29,16 @@ class TrinoConnector(BaseConnector):
         self._credential_extras: dict = {}
         self._request_timeout: int | None = None
 
+    @staticmethod
+    def _quote_ident(name: str) -> str:
+        """Quote a Trino identifier to prevent SQL injection.
+
+        Trino uses double-quote quoting for identifiers. Any embedded
+        double-quote is escaped by doubling it.
+        """
+        safe = name.replace('"', '""')
+        return f'"{safe}"'
+
     def set_credential_extras(self, extras: dict) -> None:
         self._credential_extras = extras
         if extras.get("query_timeout"):
@@ -149,7 +159,8 @@ class TrinoConnector(BaseConnector):
             # Set session-level query timeout if supported
             if timeout:
                 try:
-                    cursor.execute(f"SET SESSION query_max_run_time = '{timeout}s'")
+                    safe_timeout = int(timeout)  # Ensure integer to prevent injection
+                    cursor.execute(f"SET SESSION query_max_run_time = '{safe_timeout}s'")
                 except Exception:
                     pass  # Older Trino versions may not support this
                 cursor = self._conn.cursor()  # Fresh cursor after SET
@@ -199,6 +210,7 @@ class TrinoConnector(BaseConnector):
     def _fetch_schema_via_information_schema(self, catalog: str) -> dict[str, Any]:
         """Fast batch schema introspection via information_schema."""
         cursor = self._conn.cursor()
+        qcat = self._quote_ident(catalog)
 
         # Columns + table metadata in one query (with column comment if available)
         col_sql = f"""
@@ -212,8 +224,8 @@ class TrinoConnector(BaseConnector):
                 c.ordinal_position,
                 t.table_type,
                 c.comment
-            FROM {catalog}.information_schema.columns c
-            JOIN {catalog}.information_schema.tables t
+            FROM {qcat}.information_schema.columns c
+            JOIN {qcat}.information_schema.tables t
                 ON c.table_schema = t.table_schema
                 AND c.table_name = t.table_name
             WHERE c.table_schema NOT IN ('information_schema')
@@ -236,8 +248,8 @@ class TrinoConnector(BaseConnector):
                     c.column_default,
                     c.ordinal_position,
                     t.table_type
-                FROM {catalog}.information_schema.columns c
-                JOIN {catalog}.information_schema.tables t
+                FROM {qcat}.information_schema.columns c
+                JOIN {qcat}.information_schema.tables t
                     ON c.table_schema = t.table_schema
                     AND c.table_name = t.table_name
                 WHERE c.table_schema NOT IN ('information_schema')
@@ -256,8 +268,8 @@ class TrinoConnector(BaseConnector):
                     tc.table_schema,
                     tc.table_name,
                     kcu.column_name
-                FROM {catalog}.information_schema.table_constraints tc
-                JOIN {catalog}.information_schema.key_column_usage kcu
+                FROM {qcat}.information_schema.table_constraints tc
+                JOIN {qcat}.information_schema.key_column_usage kcu
                     ON tc.constraint_name = kcu.constraint_name
                     AND tc.table_schema = kcu.table_schema
                 WHERE tc.constraint_type = 'PRIMARY KEY'
@@ -275,11 +287,11 @@ class TrinoConnector(BaseConnector):
                     ccu.table_schema AS ref_schema,
                     ccu.table_name AS ref_table,
                     ccu.column_name AS ref_column
-                FROM {catalog}.information_schema.table_constraints tc
-                JOIN {catalog}.information_schema.key_column_usage kcu
+                FROM {qcat}.information_schema.table_constraints tc
+                JOIN {qcat}.information_schema.key_column_usage kcu
                     ON tc.constraint_name = kcu.constraint_name
                     AND tc.table_schema = kcu.table_schema
-                JOIN {catalog}.information_schema.constraint_column_usage ccu
+                JOIN {qcat}.information_schema.constraint_column_usage ccu
                     ON tc.constraint_name = ccu.constraint_name
                 WHERE tc.constraint_type = 'FOREIGN KEY'
             """
@@ -311,6 +323,7 @@ class TrinoConnector(BaseConnector):
                     "type": "view" if table_type == "VIEW" else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
+                    "row_count": 0,
                 }
             schema[key]["columns"].append({
                 "name": col_name,
@@ -321,31 +334,51 @@ class TrinoConnector(BaseConnector):
                 "comment": col_comment or "",
             })
 
+        # Fetch row counts via SHOW STATS (best-effort, capped at 50 tables)
+        tables_to_stat = list(schema.keys())[:50]
+        for tkey in tables_to_stat:
+            entry = schema[tkey]
+            qualified = f"{qcat}.{self._quote_ident(entry['schema'].split('.')[-1])}.{self._quote_ident(entry['name'])}"
+            try:
+                cursor.execute(f"SHOW STATS FOR {qualified}")
+                stat_rows = cursor.fetchall()
+                # Last row of SHOW STATS has row_count in column index 6
+                if stat_rows:
+                    last_row = stat_rows[-1]
+                    row_count = last_row[6] if len(last_row) > 6 else None
+                    if row_count is not None and row_count != "NULL":
+                        entry["row_count"] = int(float(row_count))
+            except Exception:
+                pass  # SHOW STATS not supported by this catalog connector
+
         return schema
 
     def _fetch_schema_via_show(self, catalog: str) -> dict[str, Any]:
         """Fallback schema introspection via SHOW commands."""
         cursor = self._conn.cursor()
         schema: dict[str, Any] = {}
+        qcat = self._quote_ident(catalog)
 
         try:
-            cursor.execute(f"SHOW SCHEMAS IN {catalog}")
+            cursor.execute(f"SHOW SCHEMAS IN {qcat}")
             schemas = [row[0] for row in cursor.fetchall()
                       if row[0] not in ("information_schema",)]
         except Exception:
             return schema
 
         for schema_name in schemas:
+            qschema = self._quote_ident(schema_name)
             try:
-                cursor.execute(f"SHOW TABLES IN {catalog}.{schema_name}")
+                cursor.execute(f"SHOW TABLES IN {qcat}.{qschema}")
                 tables = [row[0] for row in cursor.fetchall()]
             except Exception:
                 continue
 
             for table_name in tables:
                 key = f"{catalog}.{schema_name}.{table_name}"
+                qtable = self._quote_ident(table_name)
                 try:
-                    cursor.execute(f"SHOW COLUMNS IN {catalog}.{schema_name}.{table_name}")
+                    cursor.execute(f"SHOW COLUMNS IN {qcat}.{qschema}.{qtable}")
                     columns = []
                     for row in cursor.fetchall():
                         columns.append({

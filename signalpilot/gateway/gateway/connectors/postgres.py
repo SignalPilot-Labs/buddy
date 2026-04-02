@@ -197,13 +197,14 @@ class PostgresConnector(BaseConnector):
                 AND tc.table_schema NOT IN ('pg_catalog', 'information_schema')
         """
 
-        # Row count estimates (fast, from pg_stat)
+        # Row count estimates and table sizes (fast, from pg_stat + pg_class)
         row_count_sql = """
             SELECT
-                schemaname AS table_schema,
-                relname AS table_name,
-                n_live_tup AS estimated_row_count
-            FROM pg_stat_user_tables
+                s.schemaname AS table_schema,
+                s.relname AS table_name,
+                s.n_live_tup AS estimated_row_count,
+                pg_total_relation_size(s.relid) AS total_bytes
+            FROM pg_stat_user_tables s
         """
 
         # Index metadata — helps Spider2.0 agent plan optimal queries
@@ -243,11 +244,14 @@ class PostgresConnector(BaseConnector):
             _fetch(stats_sql),
         )
 
-        # Build row count map
+        # Build row count and table size maps
         row_counts: dict[str, int] = {}
+        table_sizes: dict[str, float] = {}
         for r in count_rows:
             key = f"{r['table_schema']}.{r['table_name']}"
             row_counts[key] = r["estimated_row_count"]
+            total_bytes = r.get("total_bytes") or 0
+            table_sizes[key] = round(total_bytes / (1024 * 1024), 2)  # bytes → MB
 
         # Build foreign key map
         foreign_keys: dict[str, list[dict]] = {}
@@ -301,6 +305,7 @@ class PostgresConnector(BaseConnector):
                     "foreign_keys": foreign_keys.get(key, []),
                     "indexes": indexes.get(key, []),
                     "row_count": row_counts.get(key, 0),
+                    "size_mb": table_sizes.get(key, 0),
                     "description": row["table_comment"] or "",
                 }
             stat_key = f"{row['table_schema']}.{row['table_name']}.{row['column_name']}"

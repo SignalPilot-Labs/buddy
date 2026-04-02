@@ -66,3 +66,32 @@ class TestTrinoConnectorParsing:
         connector = TrinoConnector()
         connector.set_credential_extras({"query_timeout": 120})
         assert connector._request_timeout == 120
+
+
+class TestTrinoIdentifierQuoting:
+    """Ensure catalog/schema/table names are properly quoted to prevent SQL injection."""
+
+    def test_simple_name(self):
+        from gateway.connectors.trino import TrinoConnector
+        assert TrinoConnector._quote_ident("hive") == '"hive"'
+
+    def test_name_with_special_chars(self):
+        from gateway.connectors.trino import TrinoConnector
+        assert TrinoConnector._quote_ident("my-catalog") == '"my-catalog"'
+
+    def test_name_with_double_quotes(self):
+        """Embedded double quotes should be escaped by doubling."""
+        from gateway.connectors.trino import TrinoConnector
+        assert TrinoConnector._quote_ident('cat"alog') == '"cat""alog"'
+
+    def test_sql_injection_attempt(self):
+        """SQL injection via catalog name should be neutralized."""
+        from gateway.connectors.trino import TrinoConnector
+        malicious = 'hive"; DROP TABLE users; --'
+        quoted = TrinoConnector._quote_ident(malicious)
+        assert quoted == '"hive""; DROP TABLE users; --"'
+        # The entire string is a single quoted identifier, not executable SQL
+
+    def test_empty_name(self):
+        from gateway.connectors.trino import TrinoConnector
+        assert TrinoConnector._quote_ident("") == '""'

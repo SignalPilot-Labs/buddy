@@ -160,6 +160,8 @@ class MySQLConnector(BaseConnector):
                 t.TABLE_TYPE,
                 t.TABLE_COMMENT,
                 t.TABLE_ROWS,
+                t.DATA_LENGTH,
+                t.INDEX_LENGTH,
                 c.COLUMN_NAME,
                 c.DATA_TYPE,
                 c.IS_NULLABLE,
@@ -258,6 +260,9 @@ class MySQLConnector(BaseConnector):
             key = f"{row['TABLE_SCHEMA']}.{row['TABLE_NAME']}"
             if key not in schema:
                 is_view = row.get("TABLE_TYPE") == "VIEW"
+                data_len = row.get("DATA_LENGTH") or 0
+                idx_len = row.get("INDEX_LENGTH") or 0
+                size_mb = round((data_len + idx_len) / (1024 * 1024), 2)
                 schema[key] = {
                     "schema": row["TABLE_SCHEMA"],
                     "name": row["TABLE_NAME"],
@@ -266,6 +271,7 @@ class MySQLConnector(BaseConnector):
                     "foreign_keys": foreign_keys.get(key, []),
                     "indexes": indexes.get(key, []),
                     "row_count": row.get("TABLE_ROWS", 0),
+                    "size_mb": size_mb,
                     "description": row.get("TABLE_COMMENT", ""),
                 }
             col_entry: dict[str, Any] = {
