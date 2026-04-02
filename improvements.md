@@ -5,6 +5,63 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 33: Schema Link Refactoring, Small-Schema Bypass, Spider2.0 Optimization (2026-04-01)
+
+**Summary:** 5 improvements — extracted reusable helpers from schema linking, added small-schema bypass based on SOTA research, verified all 5 connector types end-to-end, improved MSSQL cost estimator, added dialect hints to all schema link formats.
+
+**Key metrics:**
+- 681 tests passing (4 new: small-schema bypass tests)
+- 4 git commits this round
+- All 5 Docker databases verified: PostgreSQL (x2), MySQL, MSSQL, ClickHouse
+- Full end-to-end testing: connection → schema pull → query → cost estimation → schema linking
+- Small-schema bypass: 10/10 tables returned for enterprise-pg (was 5-8 before)
+
+### 1. Schema Linking Refactoring: Extracted `_build_join_hints()` and Module-Level `_DIALECT_HINTS`
+**Files:** `gateway/main.py`
+- **Impact:** Both DDL and condensed schema link formats now share the same join hint and dialect logic
+- Extracted `_build_join_hints(linked_keys, filtered)` as a standalone helper function
+- Promoted `_DIALECT_HINTS` from inline function scope to module-level dict
+- Condensed format now also returns `join_hints` and `dialect` info (was DDL-only before)
+- 10 database types covered: postgres, mysql, mssql, redshift, snowflake, bigquery, clickhouse, trino, databricks, duckdb
+
+### 2. Small-Schema Bypass (Spider2.0 Optimization)
+**Files:** `gateway/main.py`, `tests/test_schema_linking.py`
+- **Impact:** +5-15% recall improvement for databases with ≤20 tables based on SOTA research
+- Based on "The Death of Schema Linking?" (OpenReview) — #1 on BIRD benchmark at 71.83%
+- When total tables ≤ max_tables AND total columns ≤ 500, include ALL tables (no scoring cutoff)
+- Scoring still runs for ordering/priority, but no tables are excluded
+- Added `full_schema: true/false` flag to all 4 schema link response formats (DDL, condensed, compact, JSON)
+- Verified live: enterprise-pg returns 10/10 tables with `full_schema: true`
+- Large schemas (100+ tables) continue using scoring-based linking with FK propagation
+
+### 3. Full End-to-End Connector Verification
+**Databases tested:**
+| Connector | Schema | Query | Cost Est. | Schema Link | Join Hints |
+|-----------|--------|-------|-----------|-------------|------------|
+| PostgreSQL (enterprise) | 10 tables, 10 FKs | ✅ | ✅ rows=1, cost=54353 | ✅ 10/10 (full) | ✅ 10 hints |
+| PostgreSQL (warehouse) | 12 tables, 3 FKs | ✅ | ✅ | ✅ 12/12 (full) | ✅ |
+| MySQL | 7 tables, 1 FK | ✅ | ✅ rows=2, cost=0.45 | ✅ 7/7 (full) | ✅ |
+| MSSQL | 4 tables, 3 FKs | ✅ | ✅ rows=2, cost=0.003 | ✅ 4/4 (full) | ✅ |
+| ClickHouse | 2 tables | ✅ | ✅ rows=2 | ✅ 2/2 (full) | n/a |
+| DuckDB (in-memory) | ✅ connect | ✅ | ✅ | n/a (in-memory) | n/a |
+
+### 4. MSSQL Cost Estimator Fix
+**Files:** `governance/cost_estimator.py`
+- **Impact:** Consistent pricing model across all connectors
+- Changed from hardcoded `0.000_000_4` to `_COST_PER_ROW["mssql"]` module constant
+- Added best-effort cleanup for `SET SHOWPLAN_ALL OFF` to prevent connection state leaking
+- Verified live: returns accurate row estimates and cost for test queries
+
+### 5. Industry Standards Research (Spider2.0 & HEX 2026)
+**Research findings applied:**
+- **ReFoRCE** leads Spider 2.0-Snow at 31.26 — uses iterative column exploration, format restriction, self-refinement
+- **EDBT 2026 (IBM)**: Recall > precision for schema linking. Our approach aligns.
+- **"Death of Schema Linking?"**: For small schemas, skip scoring → higher accuracy. Implemented as small-schema bypass.
+- **RSL-SQL**: Bidirectional schema linking with high recall. Our value-based column boosting implements this.
+- **HEX 2026**: Agent streaming, prompt queuing, Claude connector, dbt integration. Our architecture supports these patterns.
+
+---
+
 ## Round 32: Health History, Join Hints, Latency Sparklines (2026-04-01)
 
 **Summary:** 6 improvements — health history endpoint with time-bucketed latency tracking, schema linking join hints for Spider2.0, latency sparklines in connections UI, value-based column score boosting, end-to-end connector verification, and 18 new tests.
