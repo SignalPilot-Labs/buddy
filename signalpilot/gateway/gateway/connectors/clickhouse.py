@@ -54,7 +54,9 @@ class ClickHouseConnector(BaseConnector):
         except Exception as e:
             err_str = str(e).lower()
             if "authentication" in err_str or "wrong password" in err_str:
-                raise RuntimeError(f"Authentication failed: {e}") from e
+                # Extract just the first line — ClickHouse includes long help text
+                first_line = str(e).split("\n")[0]
+                raise RuntimeError(f"Authentication failed: {first_line}") from e
             elif "connection refused" in err_str or "timed out" in err_str:
                 raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
             raise RuntimeError(f"ClickHouse connection error: {e}") from e
