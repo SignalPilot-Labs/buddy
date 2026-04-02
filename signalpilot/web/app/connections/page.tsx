@@ -413,6 +413,8 @@ interface FormState {
   snowflake_auth_method: "password" | "key_pair";
   sf_private_key: string;
   sf_private_key_passphrase: string;
+  // Trino HTTPS
+  trino_https: boolean;
   // DuckDB / MotherDuck
   motherduck_token: string;
   // Tags
@@ -444,7 +446,7 @@ const defaultForm: FormState = {
   ssl_enabled: false, ssl_mode: "require", ssl_ca_cert: "", ssl_client_cert: "", ssl_client_key: "",
   ssh_enabled: false, ssh_host: "", ssh_port: "22", ssh_username: "", ssh_auth_method: "password",
   ssh_password: "", ssh_private_key: "", ssh_key_passphrase: "",
-  snowflake_auth_method: "password", sf_private_key: "", sf_private_key_passphrase: "", motherduck_token: "",
+  snowflake_auth_method: "password", sf_private_key: "", sf_private_key_passphrase: "", trino_https: false, motherduck_token: "",
   tags: [], tagInput: "",
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
@@ -478,8 +480,11 @@ function buildConnectionPreview(form: FormState): string {
       return `databricks://****@${form.host || "host"}/${form.http_path || "sql/..."}${form.catalog ? `?catalog=${form.catalog}` : ""}`;
     case "mssql":
       return `mssql://${form.username || "sa"}:****@${form.host || "host"}:${form.port || "1433"}/${form.database || "master"}`;
-    case "trino":
-      return `trino://${form.username || "trino"}@${form.host || "host"}:${form.port || "8080"}/${form.catalog || "catalog"}${form.schema_name ? `/${form.schema_name}` : ""}`;
+    case "trino": {
+      const trinoScheme = form.trino_https ? "trino+https" : "trino";
+      const trinoPort = form.port || (form.trino_https ? "443" : "8080");
+      return `${trinoScheme}://${form.username || "trino"}${form.password ? ":****" : ""}@${form.host || "host"}:${trinoPort}/${form.catalog || "catalog"}${form.schema_name ? `/${form.schema_name}` : ""}`;
+    }
     case "duckdb":
     case "sqlite":
       return form.database || ":memory:";
@@ -581,6 +586,16 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
   // ClickHouse protocol
   if (form.db_type === "clickhouse" && form.ch_protocol === "http") {
     payload.protocol = "http";
+  }
+
+  // Trino HTTPS — build connection string with trino+https:// scheme
+  if (form.db_type === "trino" && form.trino_https && form.connectionMode !== "url") {
+    const trinoPort = form.port || "443";
+    const userPart = form.password
+      ? `${form.username || "trino"}:${form.password}@`
+      : `${form.username || "trino"}@`;
+    const pathPart = form.catalog ? `/${form.catalog}${form.schema_name ? `/${form.schema_name}` : ""}` : "";
+    payload.connection_string = `trino+https://${userPart}${form.host}:${trinoPort}${pathPart}`;
   }
 
   // Tags
@@ -790,16 +805,32 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
     );
   }
 
-  // Trino — host/port + catalog/schema
+  // Trino — host/port + catalog/schema + HTTPS toggle
   if (form.db_type === "trino") {
     return (
       <>
         <FormInput label="host" value={form.host} onChange={(v) => setForm({ ...form, host: v })} placeholder="trino.example.com" required />
-        <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder="8080" />
+        <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder={form.trino_https ? "443" : "8080"} />
         <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder="trino" />
         <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" hint="optional — for authenticated clusters" />
         <FormInput label="catalog" value={form.catalog} onChange={(v) => setForm({ ...form, catalog: v })} placeholder="hive" hint="default catalog for queries" />
         <FormInput label="schema" value={form.schema_name} onChange={(v) => setForm({ ...form, schema_name: v })} placeholder="default" hint="optional — default schema" />
+        <div className="col-span-2">
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, trino_https: !form.trino_https, port: !form.trino_https ? "443" : "8080" })}
+            className="flex items-center gap-2 text-[10px] tracking-wider transition-colors"
+          >
+            <div className={`w-3 h-3 border flex items-center justify-center transition-colors ${form.trino_https ? "border-emerald-500 bg-emerald-500/20" : "border-[var(--color-border)]"}`}>
+              {form.trino_https && <div className="w-1.5 h-1.5 bg-emerald-400" />}
+            </div>
+            <span className={form.trino_https ? "text-[var(--color-text)]" : "text-[var(--color-text-dim)]"}>use HTTPS</span>
+            {form.trino_https && <Lock className="w-3 h-3 text-emerald-400" strokeWidth={1.5} />}
+          </button>
+          <p className="text-[9px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60 ml-5">
+            {form.trino_https ? "encrypted connection — required for Starburst Galaxy and password auth" : "plain HTTP — for local/development clusters only"}
+          </p>
+        </div>
         <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider">
           <span className="text-[var(--color-text-muted)]">note:</span> Trino supports federated queries across multiple catalogs (Hive, Iceberg, MySQL, PostgreSQL, etc.). Each catalog maps to a data source configured in Trino.
         </div>
