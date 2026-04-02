@@ -5,6 +5,62 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 32: Health History, Join Hints, Latency Sparklines (2026-04-01)
+
+**Summary:** 6 improvements — health history endpoint with time-bucketed latency tracking, schema linking join hints for Spider2.0, latency sparklines in connections UI, value-based column score boosting, end-to-end connector verification, and 18 new tests.
+
+**Key metrics:**
+- 669 tests passing (18 new: 10 health history, 8 join hints)
+- 4 git commits this round
+- All 4 Docker databases verified: PG, MySQL, MSSQL, ClickHouse
+- Join hints now return 6 FK-based join paths for enterprise-pg schema
+- Schema linking covers: term matching, n-gram, FK-propagation, value-based, column boosting, join hints
+
+### 1. Connection Health History Endpoint
+**Files:** `connectors/health_monitor.py`, `gateway/main.py`
+- **Impact:** Enables sparkline/chart rendering of connection health over time in the UI
+- New `ConnectionHealth.history()` method returns time-bucketed latency data
+- Each bucket: timestamp, avg_latency_ms, max_latency_ms, successes, failures, total
+- New `GET /api/connections/{name}/health/history?window=3600&bucket=60` endpoint
+- Configurable: window 300-86400s, bucket 10-3600s
+
+### 2. Schema Linking Join Hints (Spider2.0)
+**Files:** `gateway/main.py`
+- **Impact:** Agent now knows exactly how to join linked tables — reduces hallucinated join conditions
+- DDL format response includes `join_hints` array with FK-based join paths
+- Example: `["orders.customer_id = customers.id", "payments.order_id = orders.id"]`
+- Also includes inferred joins (name-pattern based) for tables without declared FKs
+- Inferred hints marked with `(inferred)` suffix for transparency
+- Verified on enterprise-pg: 6 join hints between 5 linked tables
+
+### 3. Latency Sparklines in Connections UI
+**Files:** `signalpilot/web/app/connections/page.tsx`, `signalpilot/web/lib/api.ts`, `signalpilot/web/components/ui/data-viz.tsx`
+- **Impact:** Visual latency trend per connection in the connections list (HEX pattern)
+- Fetches 1h history with 120s buckets per connection on page load
+- Renders inline `<Sparkline>` component next to p50/p95 latency numbers
+- Color-coded: green (<50ms), warning (50-150ms), neutral (>150ms)
+- Tooltip: "latency trend (1h)"
+
+### 4. Value-Based Column Score Boosting (RSL-SQL)
+**Files:** `gateway/main.py`
+- **Impact:** When a sample value matches the question, the specific column gets boosted too — not just the table
+- Ensures column pruning step preserves the column the user is filtering by
+- Example: "show orders from California" → state column gets +4.0 score from matching "California" value
+- Combined with table boost (+6.0) for bidirectional value-based linking
+
+### 5. End-to-End Connector Verification
+**Tested:** All 4 Docker databases (PG:5601, MySQL:3307, MSSQL:1434, ClickHouse:9100)
+- All connectors: connect, health check, schema pull, query execution verified
+- Schema link tested: 5/10 tables linked for "total order amounts per customer"
+- Join hints verified: 6 FK-based paths returned correctly
+
+### 6. Health History & Join Hint Tests (18 new)
+**Files:** `tests/test_health_history.py`, `tests/test_join_hints.py`
+- Health history (10 tests): empty history, single/multiple events, failure handling, bucket count, empty buckets, timestamp ordering, multi-connection independence
+- Join hints (8 tests): customer_id→customers inference, false positive prevention, explicit FK dedup, plural matching, FK-between-linked construction, self-referencing FKs
+
+---
+
 ## Round 31: Diagnostics, Validation, Schema Optimization, Async Execute (2026-04-01)
 
 **Summary:** 10 improvements — diagnostics URL parsing fix, frontend form validation hardening, Redshift query optimization (6→5), compact schema sample value inlining, async execute for ALL 7 sync connectors, FK-target column preservation, cloud provider presets, schema dedup tests, and 92 new tests.
