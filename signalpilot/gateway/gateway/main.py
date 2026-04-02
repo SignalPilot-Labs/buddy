@@ -1554,6 +1554,16 @@ async def schema_link(
             if term in desc:
                 score += 2.0
 
+        # Check cached sample values for value-based linking (RSL-SQL bidirectional approach)
+        cached_samples = schema_cache.get_sample_values(name, table_key)
+        if cached_samples:
+            for col_name, sample_vals in cached_samples.items():
+                for sv in sample_vals:
+                    sv_lower = str(sv).lower()
+                    if len(sv_lower) >= 3 and sv_lower in question_lower:
+                        score += 6.0  # Strong signal: question mentions actual data value
+                        break  # One match per column is enough
+
         table_scores[table_key] = score
 
     # Step 3: Select top tables by score
