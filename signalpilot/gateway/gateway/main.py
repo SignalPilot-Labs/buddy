@@ -1463,11 +1463,21 @@ async def get_schema_ddl(
                 elif frac > 0 and frac <= 0.01:
                     annotations.append("low_cardinality")
             # Inline sample values for low-cardinality columns
-            cached_samples = schema_cache.get_sample_values(name, key)
-            if cached_samples and col["name"] in cached_samples:
-                sample_vals = cached_samples[col["name"]]
-                if len(sample_vals) <= 10:
-                    annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
+            is_low_card = False
+            dc = stats.get("distinct_count", 0) if stats else 0
+            df = abs(stats.get("distinct_fraction", 0)) if stats else 0
+            if dc and dc <= 50:
+                is_low_card = True
+            elif df and df < 0.05:
+                is_low_card = True
+            elif not stats:
+                is_low_card = True
+            if is_low_card:
+                cached_samples = schema_cache.get_sample_values(name, key)
+                if cached_samples and col["name"] in cached_samples:
+                    sample_vals = cached_samples[col["name"]]
+                    if len(sample_vals) <= 10:
+                        annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
             if annotations:
                 parts.append(f"-- {'; '.join(annotations)}")
             col_lines.append(" ".join(parts))
@@ -1784,12 +1794,23 @@ async def schema_link(
             if col.get("low_cardinality"):
                 annotations.append("low cardinality")
             # Inline sample values for low-cardinality string columns (Spider2.0 key technique)
-            # Helps agent pick correct WHERE values without hallucinating
-            cached_samples = schema_cache.get_sample_values(name, key)
-            if cached_samples and col["name"] in cached_samples:
-                sample_vals = cached_samples[col["name"]]
-                if len(sample_vals) <= 10:
-                    annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
+            # Only for columns with <=50 distinct values — avoids wasting tokens on unique/high-card columns
+            is_low_card = False
+            dc = stats.get("distinct_count", 0) if stats else 0
+            df = abs(stats.get("distinct_fraction", 0)) if stats else 0
+            if dc and dc <= 50:
+                is_low_card = True
+            elif df and df < 0.05:
+                is_low_card = True
+            elif not stats:
+                is_low_card = True  # No stats = show samples as hint
+
+            if is_low_card:
+                cached_samples = schema_cache.get_sample_values(name, key)
+                if cached_samples and col["name"] in cached_samples:
+                    sample_vals = cached_samples[col["name"]]
+                    if len(sample_vals) <= 10:
+                        annotations.append(f"e.g. {', '.join(repr(v) for v in sample_vals[:5])}")
             if annotations:
                 parts.append(f"-- {'; '.join(annotations)}")
             col_parts.append(" ".join(parts))
