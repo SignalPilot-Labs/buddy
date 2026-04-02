@@ -10,12 +10,14 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 **Summary:** 8 features — Smart schema linking endpoint (EDBT 2026 high-recall approach), MCP explain_query tool for pre-execution analysis, structured error hints for agent self-correction, pool manager bug fix, connection test diagnostics with tooltips, schema explorer enhancements (column comments, table descriptions, engine badges).
 
 **Key metrics:**
-- 210 tests passing (up from 196 in Round 9)
+- 211 tests passing (up from 196 in Round 9)
 - Schema linking: tokenizes questions, scores tables by name/column/comment matching, expands via FKs
+- Value-based linking: cached sample values matched against questions (RSL-SQL bidirectional approach)
 - Error hints: 8 common SQL error patterns with DB-specific guidance (BigQuery, Snowflake, ClickHouse)
-- MCP tools: 12 total (added schema_link, explain_query)
+- MCP tools: 14 total (added schema_link, explain_query, query_history)
+- Schema context panel: query page now shows relevant DDL while writing SQL
 - Industry research: Spider2.0 leaderboard checked, EDBT 2026 schema linking paper integrated
-- 7 git commits this round
+- 11 git commits this round
 
 ### 1. Smart Schema Linking (EDBT 2026)
 
@@ -62,7 +64,31 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 **Why:** Column comments provide semantic context critical for Spider2.0 schema linking accuracy.
 
-### 7. Industry Research Summary (2026-04-02)
+### 7. Value-Based Schema Linking (RSL-SQL Bidirectional)
+
+**What:** When the question mentions actual data values that match cached sample values, the table gets a 6-point score boost.
+
+**Example:** "orders from California" → if "California" appears in cached `region` column values for the `customers` table, that table gets prioritized.
+
+**Why:** Bidirectional linking (matching schema→question AND question→data values) improves recall for queries referencing specific entities. Only checks already-cached values, so no additional DB queries.
+
+### 8. Query History MCP Tool
+
+**What:** `query_history` MCP tool returns recent successful queries for a connection.
+
+**Why:** Spider2.0 SOTA insight — agents that reference prior successful queries have higher accuracy on follow-up questions. Helps the agent learn query patterns and avoid repeating failures.
+
+### 9. Schema Context Panel in Query Page
+
+**What:** "Schema" button on the query page fetches relevant DDL tables for the current SQL query and displays them in a collapsible panel.
+
+**Why:** HEX-style schema assistance directly in the query editor — reduces context switching between schema explorer and query pages.
+
+### 10. MySQL Reconnect Safety
+
+**What:** Each schema introspection query now pings the connection before execution to prevent stale connection errors.
+
+### 11. Industry Research Summary (2026-04-02)
 
 **Spider2.0 leaderboard:** Genloop Sentinel Agent v2 Pro leads Snow at 96.70, JetBrains Databao Agent leads Lite at 69.65. All top methods use agent-based architectures with multi-turn reasoning.
 
@@ -1472,6 +1498,10 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~Connection test diagnostics~~ (Done: tooltips, Auth label, total duration)
 - [x] ~~Column comments in schema explorer~~ (Done: italic display with truncation)
 - [x] ~~Table description + engine badges~~ (Done: header display for semantic context)
+- [x] ~~Value-based schema linking~~ (Done: RSL-SQL bidirectional approach with cached sample values)
+- [x] ~~Query history MCP tool~~ (Done: recent successful queries for agent learning)
+- [x] ~~Schema context panel~~ (Done: query page shows relevant DDL while writing SQL)
+- [x] ~~MySQL reconnect safety~~ (Done: ping before each schema introspection query)
 - [ ] OAuth support for Snowflake, BigQuery, Databricks
 - [ ] Claude MCP Connector integration (HEX pattern)
 - [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
