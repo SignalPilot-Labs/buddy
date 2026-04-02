@@ -1217,6 +1217,8 @@ async def explore_columns(
                 flags.append(f"SORTKEY#{col['sort_key_position']}")
             if col.get("encoding"):
                 flags.append(f"ENC={col['encoding']}")
+            if flags:
+                parts.append(f"[{', '.join(flags)}]")
             if col.get("comment"):
                 parts.append(f"-- {col['comment']}")
             lines.append(" ".join(parts))
@@ -1296,7 +1298,21 @@ async def schema_statistics(connection_name: str) -> str:
         if top:
             lines.append("Largest tables:")
             for t in top[:10]:
-                lines.append(f"  {t['name']}: {t.get('row_count', 0):,} rows, {t.get('column_count', 0)} cols")
+                meta_parts = [f"{t.get('row_count', 0):,} rows", f"{t.get('column_count', 0)} cols"]
+                if t.get("engine"):
+                    meta_parts.append(f"engine={t['engine']}")
+                if t.get("sorting_key"):
+                    meta_parts.append(f"order_by={t['sorting_key']}")
+                if t.get("diststyle"):
+                    meta_parts.append(f"dist={t['diststyle']}")
+                if t.get("sortkey"):
+                    meta_parts.append(f"sort={t['sortkey']}")
+                if t.get("clustering_key"):
+                    meta_parts.append(f"cluster={t['clustering_key']}")
+                if t.get("size_bytes") and t["size_bytes"] > 0:
+                    mb = t["size_bytes"] / (1024 * 1024)
+                    meta_parts.append(f"size={mb:.1f}MB")
+                lines.append(f"  {t['name']}: {', '.join(meta_parts)}")
 
         # Hub tables (most FK connections)
         hub = data.get("hub_tables", [])
