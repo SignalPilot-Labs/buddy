@@ -1102,7 +1102,16 @@ async def validate_sql(connection_name: str, sql: str) -> str:
         else:
             # Extract error details
             error_text = r.text[:500]
-            hint = query_error_hint(error_text, "")
+            # Get db_type for dialect-specific hints
+            db_type = ""
+            try:
+                async with httpx.AsyncClient(timeout=5) as client2:
+                    r2 = await client2.get(f"{gw}/api/connections/{connection_name}")
+                    if r2.status_code == 200:
+                        db_type = r2.json().get("db_type", "")
+            except Exception:
+                pass
+            hint = query_error_hint(error_text, db_type)
             parts = [f"INVALID ✗\n{error_text}"]
             if hint:
                 parts.append(f"\nSuggested fix: {hint}")

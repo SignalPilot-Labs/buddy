@@ -1568,13 +1568,19 @@ async def get_schema_ddl(
             if stats.get("distinct_count") is not None and stats["distinct_count"] > 0:
                 dc = stats["distinct_count"]
                 if dc <= 10:
-                    annotations.append(f"~{dc} values")
+                    annotations.append(f"{dc} distinct values")
+                elif dc <= 1000:
+                    annotations.append(f"{dc} distinct values")
+                else:
+                    annotations.append("high cardinality")
             elif stats.get("distinct_fraction") is not None:
                 frac = abs(stats["distinct_fraction"])
                 if frac == 1.0:
-                    annotations.append("UNIQUE")
+                    annotations.append("unique")
+                elif frac > 0.5:
+                    annotations.append("high cardinality")
                 elif frac > 0 and frac <= 0.01:
-                    annotations.append("low_cardinality")
+                    annotations.append("low cardinality")
             # Inline sample values for low-cardinality columns
             is_low_card = False
             dc = stats.get("distinct_count", 0) if stats else 0
