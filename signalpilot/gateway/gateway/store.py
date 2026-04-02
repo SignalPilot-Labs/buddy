@@ -249,6 +249,9 @@ def create_connection(conn: ConnectionCreate) -> ConnectionInfo:
         description=conn.description,
         tags=conn.tags,
         schema_refresh_interval=conn.schema_refresh_interval,
+        connection_timeout=conn.connection_timeout,
+        query_timeout=conn.query_timeout,
+        keepalive_interval=conn.keepalive_interval,
         created_at=time.time(),
     )
 
@@ -454,6 +457,13 @@ def _extract_credential_extras(conn: ConnectionCreate) -> dict:
         extras["access_token"] = conn.access_token
         extras["catalog"] = conn.catalog
         extras["schema_name"] = conn.schema_name
+    # Timeout configuration (applies to all connectors)
+    if conn.connection_timeout is not None:
+        extras["connection_timeout"] = conn.connection_timeout
+    if conn.query_timeout is not None:
+        extras["query_timeout"] = conn.query_timeout
+    if conn.keepalive_interval is not None and conn.keepalive_interval > 0:
+        extras["keepalive_interval"] = conn.keepalive_interval
     return extras
 
 

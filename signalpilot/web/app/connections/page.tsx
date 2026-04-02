@@ -421,6 +421,10 @@ interface FormState {
   // Connection scoping (HEX pattern)
   scope: "workspace" | "project";
   read_only: boolean;
+  // Timeouts
+  connection_timeout: string; // seconds
+  query_timeout: string; // seconds
+  keepalive_interval: string; // seconds (0 = disabled)
 }
 
 const defaultForm: FormState = {
@@ -438,6 +442,7 @@ const defaultForm: FormState = {
   tags: [], tagInput: "",
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
+  connection_timeout: "15", query_timeout: "120", keepalive_interval: "0",
 };
 
 function buildConnectionPreview(form: FormState): string {
@@ -615,6 +620,14 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
       private_key_passphrase: form.ssh_auth_method === "key" ? form.ssh_key_passphrase : null,
     };
   }
+
+  // Timeouts (pass as numbers if non-default)
+  const connTimeout = parseInt(form.connection_timeout);
+  if (connTimeout && connTimeout !== 15) payload.connection_timeout = connTimeout;
+  const qTimeout = parseInt(form.query_timeout);
+  if (qTimeout && qTimeout !== 120) payload.query_timeout = qTimeout;
+  const keepalive = parseInt(form.keepalive_interval);
+  if (keepalive && keepalive > 0) payload.keepalive_interval = keepalive;
 
   return payload;
 }
@@ -1384,9 +1397,9 @@ export default function ConnectionsPage() {
               >
                 {showAdvanced ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 advanced options
-                {(form.ssl_enabled || form.ssh_enabled || !form.read_only || form.schema_refresh_enabled) && (
+                {(form.ssl_enabled || form.ssh_enabled || !form.read_only || form.schema_refresh_enabled || form.connection_timeout !== "15" || form.query_timeout !== "120") && (
                   <span className="text-[var(--color-success)] text-[9px] ml-1">
-                    {[form.ssl_enabled && "ssl", form.ssh_enabled && "ssh", !form.read_only && "read-write", form.schema_refresh_enabled && "auto-refresh"].filter(Boolean).join(" + ")}
+                    {[form.ssl_enabled && "ssl", form.ssh_enabled && "ssh", !form.read_only && "read-write", form.schema_refresh_enabled && "auto-refresh", (form.connection_timeout !== "15" || form.query_timeout !== "120") && "custom timeouts"].filter(Boolean).join(" + ")}
                   </span>
                 )}
               </button>
@@ -1496,6 +1509,63 @@ export default function ConnectionsPage() {
                           </span>
                         </div>
                       )}
+                    </div>
+
+                    {/* Connection Timeouts */}
+                    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+                      <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] tracking-wider mb-3">
+                        <Clock className="w-3 h-3" strokeWidth={1.5} />
+                        <span>timeouts & keepalive</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">connection timeout</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="1"
+                              max="300"
+                              value={form.connection_timeout}
+                              onChange={(e) => setForm({ ...form, connection_timeout: e.target.value })}
+                              className="w-20 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tabular-nums"
+                            />
+                            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">sec</span>
+                          </div>
+                          <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">max time to establish connection</p>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">query timeout</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min="1"
+                              max="3600"
+                              value={form.query_timeout}
+                              onChange={(e) => setForm({ ...form, query_timeout: e.target.value })}
+                              className="w-20 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tabular-nums"
+                            />
+                            <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">sec</span>
+                          </div>
+                          <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">max query execution time</p>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">keepalive interval</label>
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={form.keepalive_interval}
+                              onChange={(e) => setForm({ ...form, keepalive_interval: e.target.value })}
+                              className="bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-[10px] px-2 py-2 tracking-wider"
+                            >
+                              <option value="0">disabled</option>
+                              <option value="30">30 sec</option>
+                              <option value="60">1 min</option>
+                              <option value="120">2 min</option>
+                              <option value="300">5 min</option>
+                            </select>
+                          </div>
+                          <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">ping to prevent idle disconnect</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

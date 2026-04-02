@@ -115,6 +115,19 @@ class ConnectionCreate(BaseModel):
         default=None, ge=60, le=86400,
         description="Auto-refresh schema every N seconds (60-86400). None = disabled.",
     )
+    # ─── Timeout configuration ──────────────────────────────────────
+    connection_timeout: int | None = Field(
+        default=None, ge=1, le=300,
+        description="Connection timeout in seconds (1-300). Default varies by connector.",
+    )
+    query_timeout: int | None = Field(
+        default=None, ge=1, le=3600,
+        description="Query timeout in seconds (1-3600). Default: 120.",
+    )
+    keepalive_interval: int | None = Field(
+        default=None, ge=0, le=600,
+        description="Keepalive ping interval in seconds. 0 = disabled.",
+    )
 
 
 class ConnectionUpdate(BaseModel):
@@ -145,6 +158,9 @@ class ConnectionUpdate(BaseModel):
     tags: list[str] | None = None
     schema_refresh_interval: int | None = Field(default=None, ge=60, le=86400)
     last_schema_refresh: float | None = None  # internal — set by scheduler
+    connection_timeout: int | None = Field(default=None, ge=1, le=300)
+    query_timeout: int | None = Field(default=None, ge=1, le=3600)
+    keepalive_interval: int | None = Field(default=None, ge=0, le=600)
 
 
 class ConnectionInfo(BaseModel):
@@ -174,6 +190,9 @@ class ConnectionInfo(BaseModel):
     tags: list[str] = Field(default_factory=list)
     schema_refresh_interval: int | None = None  # seconds, None = disabled
     last_schema_refresh: float | None = None  # timestamp of last successful refresh
+    connection_timeout: int | None = None
+    query_timeout: int | None = None
+    keepalive_interval: int | None = None
     created_at: float = Field(default_factory=time.time)
     last_used: float | None = None
     status: str = "unknown"  # healthy | error | unknown

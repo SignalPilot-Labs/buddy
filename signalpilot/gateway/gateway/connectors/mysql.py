@@ -26,15 +26,21 @@ class MySQLConnector(BaseConnector):
         self._connect_params: dict = {}
         self._ssl_config: dict | None = None
         self._temp_files: list[str] = []
+        self._connection_timeout: int = 10
+        self._read_timeout: int = 30
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         """Set SSL configuration for the connection."""
         self._ssl_config = ssl_config
 
     def set_credential_extras(self, extras: dict) -> None:
-        """Extract SSL config from credential extras."""
+        """Extract SSL config and timeout settings from credential extras."""
         if extras.get("ssl_config"):
             self.set_ssl_config(extras["ssl_config"])
+        if extras.get("connection_timeout"):
+            self._connection_timeout = extras["connection_timeout"]
+        if extras.get("query_timeout"):
+            self._read_timeout = extras["query_timeout"]
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_PYMYSQL:
@@ -51,8 +57,8 @@ class MySQLConnector(BaseConnector):
             "database": params.get("database", ""),
             "charset": "utf8mb4",
             "cursorclass": pymysql.cursors.DictCursor,
-            "connect_timeout": 10,
-            "read_timeout": 30,
+            "connect_timeout": self._connection_timeout,
+            "read_timeout": self._read_timeout,
             "autocommit": True,
         }
 

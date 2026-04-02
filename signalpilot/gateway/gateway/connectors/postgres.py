@@ -19,15 +19,21 @@ class PostgresConnector(BaseConnector):
         self._pool = None
         self._ssl_config: dict | None = None
         self._temp_files: list[str] = []
+        self._connection_timeout: int = 15
+        self._command_timeout: int = 30
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         """Set SSL configuration (CA cert, client cert, client key as PEM strings)."""
         self._ssl_config = ssl_config
 
     def set_credential_extras(self, extras: dict) -> None:
-        """Extract SSL config from credential extras."""
+        """Extract SSL config and timeout settings from credential extras."""
         if extras.get("ssl_config"):
             self.set_ssl_config(extras["ssl_config"])
+        if extras.get("connection_timeout"):
+            self._connection_timeout = extras["connection_timeout"]
+        if extras.get("query_timeout"):
+            self._command_timeout = extras["query_timeout"]
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_ASYNCPG:
@@ -42,8 +48,8 @@ class PostgresConnector(BaseConnector):
             connect_kwargs: dict[str, Any] = {
                 "min_size": 1,
                 "max_size": 5,
-                "timeout": 15,
-                "command_timeout": 30,
+                "timeout": self._connection_timeout,
+                "command_timeout": self._command_timeout,
             }
             if ssl_ctx is not None:
                 connect_kwargs["ssl"] = ssl_ctx

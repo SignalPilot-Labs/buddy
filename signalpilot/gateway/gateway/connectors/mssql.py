@@ -27,6 +27,8 @@ class MSSQLConnector(BaseConnector):
         self._conn: pymssql.Connection | None = None
         self._connect_params: dict = {}
         self._ssl_config: dict | None = None
+        self._login_timeout: int = 15
+        self._query_timeout: int = 30
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         self._ssl_config = ssl_config
@@ -34,6 +36,10 @@ class MSSQLConnector(BaseConnector):
     def set_credential_extras(self, extras: dict) -> None:
         if extras.get("ssl_config"):
             self.set_ssl_config(extras["ssl_config"])
+        if extras.get("connection_timeout"):
+            self._login_timeout = extras["connection_timeout"]
+        if extras.get("query_timeout"):
+            self._query_timeout = extras["query_timeout"]
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_PYMSSQL:
@@ -48,8 +54,8 @@ class MSSQLConnector(BaseConnector):
             "user": params.get("user", ""),
             "password": params.get("password", ""),
             "database": params.get("database", "master"),
-            "login_timeout": 15,
-            "timeout": 30,
+            "login_timeout": self._login_timeout,
+            "timeout": self._query_timeout,
             "as_dict": True,
             "charset": "UTF-8",
         }
