@@ -25,6 +25,9 @@ class BigQueryConnector(BaseConnector):
         self._client: bigquery.Client | None = None
         self._project: str = ""
         self._dataset: str = ""
+        self._location: str = ""  # e.g. "US", "EU", "us-east1"
+        self._maximum_bytes_billed: int | None = None  # safety limit — query fails if exceeded
+        self._last_job_stats: dict | None = None  # stats from most recent query job
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_BIGQUERY:
@@ -47,7 +50,8 @@ class BigQueryConnector(BaseConnector):
                 raise RuntimeError(f"GCP project not found: '{self._project}'") from e
             raise RuntimeError(f"BigQuery connection error: {e}") from e
 
-    def set_credentials(self, credentials_json: str, project: str = "", dataset: str = ""):
+    def set_credentials(self, credentials_json: str, project: str = "", dataset: str = "",
+                        location: str = "", maximum_bytes_billed: int | None = None):
         """Set credentials from a service account JSON string."""
         if not HAS_BIGQUERY:
             raise RuntimeError("google-cloud-bigquery not installed")
@@ -63,18 +67,32 @@ class BigQueryConnector(BaseConnector):
         creds = service_account.Credentials.from_service_account_info(info)
         self._project = project or info.get("project_id", "")
         self._dataset = dataset
+        self._location = location
+        if maximum_bytes_billed is not None:
+            self._maximum_bytes_billed = maximum_bytes_billed
         self._client = bigquery.Client(
             project=self._project,
             credentials=creds,
+            location=self._location or None,
         )
 
     def set_credential_extras(self, extras: dict) -> None:
         """Extract BigQuery credentials from credential extras."""
+        # Parse maximum_bytes_billed from extras (safety limit)
+        if extras.get("maximum_bytes_billed"):
+            try:
+                self._maximum_bytes_billed = int(extras["maximum_bytes_billed"])
+            except (ValueError, TypeError):
+                pass
+        if extras.get("location"):
+            self._location = extras["location"]
         if extras.get("credentials_json"):
             self.set_credentials(
                 credentials_json=extras["credentials_json"],
                 project=extras.get("project", self._project),
                 dataset=extras.get("dataset", self._dataset),
+                location=extras.get("location", self._location),
+                maximum_bytes_billed=self._maximum_bytes_billed,
             )
 
     async def _ensure_connected(self) -> None:
@@ -95,12 +113,77 @@ class BigQueryConnector(BaseConnector):
             job_config = bigquery.QueryJobConfig()
             if self._dataset:
                 job_config.default_dataset = f"{self._project}.{self._dataset}"
+            # Safety limit: fail query before execution if it would scan too many bytes
+            if self._maximum_bytes_billed is not None:
+                job_config.maximum_bytes_billed = self._maximum_bytes_billed
 
             query_job = self._client.query(sql, job_config=job_config, timeout=timeout)
             results = query_job.result(timeout=timeout)
-            return [dict(row) for row in results]
+            rows = [dict(row) for row in results]
+
+            # Capture job stats for cost reporting
+            self._last_job_stats = {
+                "total_bytes_processed": query_job.total_bytes_processed,
+                "total_bytes_billed": query_job.total_bytes_billed,
+                "cache_hit": query_job.cache_hit,
+                "estimated_cost_usd": round(
+                    (query_job.total_bytes_billed or 0) / (1024**4) * 6.25, 6
+                ),
+                "slot_millis": getattr(query_job, "slot_millis", None),
+                "job_id": query_job.job_id,
+            }
+            return rows
         except Exception as e:
+            err_str = str(e).lower()
+            if "exceeded" in err_str and "bytes" in err_str:
+                raise RuntimeError(
+                    f"Query would scan more than the safety limit "
+                    f"({self._maximum_bytes_billed:,} bytes). "
+                    f"Reduce query scope or increase maximum_bytes_billed."
+                ) from e
             raise RuntimeError(f"BigQuery query error: {e}") from e
+
+    async def dry_run(self, sql: str) -> dict[str, Any]:
+        """Estimate query cost without executing (dry run).
+
+        Returns bytes that would be processed and estimated cost in USD.
+        """
+        if self._client is None:
+            raise RuntimeError("Not connected")
+        try:
+            job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
+            if self._dataset:
+                job_config.default_dataset = f"{self._project}.{self._dataset}"
+
+            import asyncio
+            def _run():
+                return self._client.query(sql, job_config=job_config)
+
+            query_job = await asyncio.to_thread(_run)
+            total_bytes = query_job.total_bytes_processed or 0
+            return {
+                "total_bytes_processed": total_bytes,
+                "estimated_cost_usd": round(total_bytes / (1024**4) * 6.25, 6),
+                "human_readable": self._format_bytes(total_bytes),
+                "would_exceed_limit": (
+                    self._maximum_bytes_billed is not None
+                    and total_bytes > self._maximum_bytes_billed
+                ),
+            }
+        except Exception as e:
+            raise RuntimeError(f"BigQuery dry run error: {e}") from e
+
+    def get_last_job_stats(self) -> dict | None:
+        """Return stats from the most recently executed query job."""
+        return self._last_job_stats
+
+    @staticmethod
+    def _format_bytes(n: int) -> str:
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if abs(n) < 1024:
+                return f"{n:.1f} {unit}"
+            n /= 1024
+        return f"{n:.1f} PB"
 
     async def get_schema(self) -> dict[str, Any]:
         if self._client is None:

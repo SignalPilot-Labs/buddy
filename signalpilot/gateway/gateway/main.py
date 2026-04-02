@@ -502,6 +502,7 @@ async def export_connections(
         # Copy configuration fields
         for field in ("host", "port", "database", "username", "account", "warehouse",
                        "schema_name", "role", "project", "dataset", "http_path", "catalog",
+                       "location", "maximum_bytes_billed",
                        "schema_filter_include", "schema_filter_exclude",
                        "schema_refresh_interval", "connection_timeout", "query_timeout",
                        "keepalive_interval"):
@@ -3723,6 +3724,16 @@ async def query_database(req: DirectQueryRequest):
             "estimated_usd": round(cost_estimate.estimated_usd, 8),
             "is_expensive": cost_estimate.is_expensive,
         }
+    # BigQuery: include actual job stats (bytes billed, cost, cache hit)
+    if info.db_type == "bigquery":
+        try:
+            from .connectors.bigquery import BigQueryConnector
+            if isinstance(connector, BigQueryConnector):
+                job_stats = connector.get_last_job_stats()
+                if job_stats:
+                    response["bigquery_stats"] = job_stats
+        except Exception:
+            pass
     return response
 
 

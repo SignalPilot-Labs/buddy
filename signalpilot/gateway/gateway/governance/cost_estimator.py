@@ -36,7 +36,7 @@ _COST_PER_ROW = {
     "redshift": 0.000_000_5,       # ~$0.25/hr per node, higher throughput
     "mysql": 0.000_000_3,          # ~$0.10/hr RDS
     "snowflake": 0.000_001_0,      # ~$2/credit, credits burn per-query
-    "bigquery": 0.000_005_0,       # $5/TB scanned, ~1KB/row average
+    "bigquery": 0.000_006_25,      # $6.25/TB scanned (2026 pricing), ~1KB/row average
     "clickhouse": 0.000_000_1,     # Very efficient columnar storage
     "databricks": 0.000_001_0,     # Similar to Snowflake pricing model
     "duckdb": 0.0,                 # Local/free
@@ -149,24 +149,33 @@ class CostEstimator:
 
     @staticmethod
     async def estimate_bigquery(connector: BaseConnector, sql: str) -> CostEstimate:
-        """Use dry_run to estimate BigQuery query cost (bytes processed)."""
+        """Use dry_run to estimate BigQuery query cost (bytes processed).
+
+        Uses the connector's dry_run() method which respects location settings.
+        Also checks against maximum_bytes_billed safety limit if configured.
+        """
         try:
-            # BigQuery has a special dry_run mode via the client
-            # We access the underlying client for dry_run
             from ..connectors.bigquery import BigQueryConnector
-            if isinstance(connector, BigQueryConnector) and connector._client:
-                from google.cloud import bigquery
-                job_config = bigquery.QueryJobConfig(dry_run=True, use_query_cache=False)
-                query_job = connector._client.query(sql, job_config=job_config)
-                bytes_processed = query_job.total_bytes_processed or 0
-                # BigQuery charges $5/TB for on-demand queries
-                estimated_usd = (bytes_processed / (1024**4)) * 5.0
+            if isinstance(connector, BigQueryConnector):
+                dry_result = await connector.dry_run(sql)
+                bytes_processed = dry_result.get("total_bytes_processed", 0)
+                estimated_usd = dry_result.get("estimated_cost_usd", 0.0)
                 estimated_rows = bytes_processed // 100  # ~100 bytes per row heuristic
+
+                warning = None
+                if dry_result.get("would_exceed_limit"):
+                    limit = connector._maximum_bytes_billed or 0
+                    warning = (
+                        f"Query would scan {dry_result['human_readable']} — "
+                        f"exceeds safety limit of {connector._format_bytes(limit)}"
+                    )
+
                 return CostEstimate(
                     estimated_rows=estimated_rows,
                     estimated_cost=bytes_processed,
                     estimated_usd=estimated_usd,
-                    raw_plan=f"Bytes to process: {bytes_processed:,}",
+                    warning=warning,
+                    raw_plan=f"Bytes to process: {bytes_processed:,} ({dry_result.get('human_readable', '')})",
                 )
             return CostEstimate(warning="BigQuery dry_run not available")
         except Exception as e:

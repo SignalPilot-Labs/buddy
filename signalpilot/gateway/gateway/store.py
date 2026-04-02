@@ -455,6 +455,16 @@ def _extract_credential_extras(conn: ConnectionCreate) -> dict:
         extras["ssl_config"] = conn.ssl_config.model_dump()
     if conn.credentials_json:
         extras["credentials_json"] = conn.credentials_json
+    # BigQuery-specific extras
+    if conn.db_type == DBType.bigquery:
+        if getattr(conn, "location", None):
+            extras["location"] = conn.location
+        if getattr(conn, "maximum_bytes_billed", None) is not None:
+            extras["maximum_bytes_billed"] = conn.maximum_bytes_billed
+        if getattr(conn, "project", None):
+            extras["project"] = conn.project
+        if getattr(conn, "dataset", None):
+            extras["dataset"] = conn.dataset
     if conn.access_token:
         extras["access_token"] = conn.access_token
     if conn.password:

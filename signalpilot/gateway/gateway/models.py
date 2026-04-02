@@ -98,6 +98,12 @@ class ConnectionCreate(BaseModel):
     project: str | None = Field(default=None, max_length=255)  # GCP project ID
     dataset: str | None = Field(default=None, max_length=255)  # default dataset
     credentials_json: str | None = Field(default=None, max_length=65536)  # service account JSON
+    location: str | None = Field(default=None, max_length=64)  # BQ location: US, EU, us-east1, etc.
+    maximum_bytes_billed: int | None = Field(
+        default=None, ge=0,
+        description="BigQuery safety limit: query fails if estimated scan exceeds this (bytes). "
+                    "Recommended: 10GB = 10737418240 for dev, 100GB for prod.",
+    )
     # ─── Databricks-specific ────────────────────────────────────────
     http_path: str | None = Field(default=None, max_length=512)  # SQL endpoint path
     access_token: str | None = Field(default=None, max_length=1024)  # PAT token
@@ -160,6 +166,8 @@ class ConnectionUpdate(BaseModel):
     project: str | None = Field(default=None, max_length=255)
     dataset: str | None = Field(default=None, max_length=255)
     credentials_json: str | None = Field(default=None, max_length=65536)
+    location: str | None = Field(default=None, max_length=64)
+    maximum_bytes_billed: int | None = Field(default=None, ge=0)
     http_path: str | None = Field(default=None, max_length=512)
     access_token: str | None = Field(default=None, max_length=1024)
     catalog: str | None = Field(default=None, max_length=128)
@@ -195,6 +203,8 @@ class ConnectionInfo(BaseModel):
     # BigQuery
     project: str | None = None
     dataset: str | None = None
+    location: str | None = None  # BQ region
+    maximum_bytes_billed: int | None = None  # BQ safety limit
     # Databricks
     http_path: str | None = None
     catalog: str | None = None
