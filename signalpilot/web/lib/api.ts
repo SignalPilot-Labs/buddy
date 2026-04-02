@@ -262,6 +262,14 @@ export const getConnectionSchemaDDL = (name: string, maxTables = 50) =>
     token_estimate: number; ddl: string;
   }>(`/api/connections/${name}/schema/ddl?max_tables=${maxTables}`);
 
+export const getConnectionSchemaLink = (name: string, question: string, format = "ddl", maxTables = 20) =>
+  request<{
+    connection_name: string; question: string; format: string;
+    linked_tables: number; total_tables: number;
+    token_estimate?: number; ddl?: string; schema?: string;
+    scores?: Record<string, number>; tables?: Record<string, unknown>;
+  }>(`/api/connections/${name}/schema/link?question=${encodeURIComponent(question)}&format=${format}&max_tables=${maxTables}`);
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);

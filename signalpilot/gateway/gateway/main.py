@@ -1465,6 +1465,208 @@ async def get_schema_ddl(
     }
 
 
+@app.get("/api/connections/{name}/schema/link")
+async def schema_link(
+    name: str,
+    question: str = Query(..., description="Natural language question to link schema for"),
+    format: str = Query(default="ddl", pattern="^(ddl|compact|json)$", description="Output format"),
+    max_tables: int = Query(default=20, ge=1, le=100, description="Max tables in linked schema"),
+):
+    """Smart schema linking — find tables and columns relevant to a natural language question.
+
+    Implements high-recall schema linking optimized for Spider2.0:
+    1. Tokenizes the question into meaningful terms
+    2. Matches terms against table names, column names, and comments
+    3. Includes FK-connected tables for join path completeness
+    4. Returns linked schema in DDL format (preferred by SOTA systems)
+
+    Based on EDBT 2026 research: recall matters more than precision for schema linking.
+    Better to include extra tables than miss a relevant one.
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached = schema_cache.get(name)
+    if cached is None:
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="No credentials stored")
+        extras = get_credential_extras(name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+        cached = await connector.get_schema()
+        schema_cache.put(name, cached)
+        await pool_manager.release(info.db_type, conn_str)
+
+    filtered = apply_endorsement_filter(name, cached)
+
+    # Step 1: Tokenize question into search terms
+    import re as _re_link
+    # Extract meaningful words (3+ chars, not common SQL/English stopwords)
+    stopwords = {
+        "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+        "her", "was", "one", "our", "out", "has", "how", "man", "new", "now",
+        "old", "see", "way", "who", "did", "get", "has", "him", "his", "let",
+        "say", "she", "too", "use", "what", "which", "show", "find", "list",
+        "give", "tell", "many", "much", "each", "every", "from", "with", "that",
+        "this", "have", "will", "your", "they", "been", "more", "when", "make",
+        "like", "time", "very", "just", "than", "them", "some", "would", "could",
+        "select", "where", "order", "group", "having", "limit", "count",
+        "average", "total", "number", "amount", "value", "result", "data",
+        "table", "column", "database", "query", "display", "retrieve",
+    }
+    question_lower = question.lower()
+    terms = [w for w in _re_link.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question_lower) if len(w) >= 3 and w not in stopwords]
+
+    # Step 2: Score each table by relevance
+    table_scores: dict[str, float] = {}
+    for table_key, table_data in filtered.items():
+        score = 0.0
+        table_name_lower = table_data.get("name", "").lower()
+        schema_name_lower = table_data.get("schema", "").lower()
+
+        for term in terms:
+            # Exact table name match (highest signal)
+            if term == table_name_lower or term == table_name_lower.rstrip("s"):
+                score += 10.0
+            elif term in table_name_lower:
+                score += 5.0
+            # Singular/plural matching
+            elif term + "s" == table_name_lower or term + "es" == table_name_lower:
+                score += 8.0
+            elif table_name_lower + "s" == term or table_name_lower + "es" == term:
+                score += 8.0
+
+            # Column name matching
+            for col in table_data.get("columns", []):
+                col_name_lower = col.get("name", "").lower()
+                if term == col_name_lower:
+                    score += 4.0
+                elif term in col_name_lower:
+                    score += 2.0
+                # Check column comments
+                comment = (col.get("comment") or "").lower()
+                if term in comment:
+                    score += 1.0
+
+            # Table description/comment matching
+            desc = (table_data.get("description") or "").lower()
+            if term in desc:
+                score += 2.0
+
+        table_scores[table_key] = score
+
+    # Step 3: Select top tables by score
+    scored_tables = sorted(table_scores.items(), key=lambda x: (-x[1], x[0]))
+    linked_keys = set()
+
+    # Always include tables with score > 0
+    for key, score in scored_tables:
+        if score > 0 and len(linked_keys) < max_tables:
+            linked_keys.add(key)
+
+    # Step 4: Add FK-connected tables (high-recall — EDBT 2026 finding)
+    fk_additions = set()
+    for key in list(linked_keys):
+        table_data = filtered.get(key, {})
+        for fk in table_data.get("foreign_keys", []):
+            ref_table = fk.get("references_table", "")
+            # Find the full key for the referenced table
+            for candidate_key in filtered:
+                if filtered[candidate_key].get("name", "") == ref_table:
+                    fk_additions.add(candidate_key)
+                    break
+
+    for key in fk_additions:
+        if len(linked_keys) < max_tables:
+            linked_keys.add(key)
+
+    # If no matches found, fall back to first N tables sorted by FK relevance
+    if not linked_keys:
+        def _fb_relevance(key: str) -> tuple:
+            t = filtered[key]
+            return (-len(t.get("foreign_keys", [])), -t.get("row_count", 0), key)
+        linked_keys = set(sorted(filtered.keys(), key=_fb_relevance)[:min(max_tables, 10)])
+
+    # Build response
+    linked_schema = {k: filtered[k] for k in sorted(linked_keys) if k in filtered}
+
+    if format == "compact":
+        lines = []
+        for key in sorted(linked_keys):
+            if key not in filtered:
+                continue
+            t = filtered[key]
+            cols = ", ".join(
+                f"{c['name']}{'*' if c.get('primary_key') else ''} {c.get('type', '').upper()}"
+                for c in t.get("columns", [])
+            )
+            rc = t.get("row_count", 0)
+            rc_str = f" ({rc:,} rows)" if rc else ""
+            score = table_scores.get(key, 0)
+            lines.append(f"{key}{rc_str} [score={score:.1f}]: {cols}")
+        return {
+            "connection_name": name,
+            "question": question,
+            "format": "compact",
+            "linked_tables": len(linked_keys),
+            "total_tables": len(filtered),
+            "schema": "\n".join(lines),
+        }
+
+    if format == "json":
+        return {
+            "connection_name": name,
+            "question": question,
+            "format": "json",
+            "linked_tables": len(linked_keys),
+            "total_tables": len(filtered),
+            "scores": {k: table_scores.get(k, 0) for k in sorted(linked_keys)},
+            "tables": linked_schema,
+        }
+
+    # DDL format (default — preferred by Spider2.0 SOTA)
+    ddl_lines = []
+    for key in sorted(linked_keys):
+        if key not in filtered:
+            continue
+        t = filtered[key]
+        table_name = f"{t.get('schema', '')}.{t.get('name', '')}"
+        col_parts = []
+        pk_cols = []
+        for col in t.get("columns", []):
+            ct = col.get("type", "TEXT").upper()
+            type_map = {
+                "CHARACTER VARYING": "VARCHAR", "TIMESTAMP WITHOUT TIME ZONE": "TIMESTAMP",
+                "TIMESTAMP WITH TIME ZONE": "TIMESTAMPTZ", "DOUBLE PRECISION": "DOUBLE",
+            }
+            ct = type_map.get(ct, ct)
+            parts = [f"  {col['name']} {ct}"]
+            if not col.get("nullable", True):
+                parts.append("NOT NULL")
+            col_parts.append(" ".join(parts))
+            if col.get("primary_key"):
+                pk_cols.append(col["name"])
+        if pk_cols:
+            col_parts.append(f"  PRIMARY KEY ({', '.join(pk_cols)})")
+        for fk in t.get("foreign_keys", []):
+            col_parts.append(f"  FOREIGN KEY ({fk['column']}) REFERENCES {fk.get('references_table', '')}({fk.get('references_column', '')})")
+        rc = t.get("row_count", 0)
+        rc_comment = f" -- {rc:,} rows, relevance={table_scores.get(key, 0):.1f}" if rc else f" -- relevance={table_scores.get(key, 0):.1f}"
+        ddl_lines.append(f"CREATE TABLE {table_name} (\n{',\n'.join(col_parts)}\n);{rc_comment}")
+
+    ddl_text = "\n\n".join(ddl_lines)
+    return {
+        "connection_name": name,
+        "question": question,
+        "format": "ddl",
+        "linked_tables": len(linked_keys),
+        "total_tables": len(filtered),
+        "token_estimate": len(ddl_text) // 4,
+        "ddl": ddl_text,
+    }
+
+
 @app.get("/api/connections/{name}/schema/explore-table")
 async def explore_table(
     name: str,

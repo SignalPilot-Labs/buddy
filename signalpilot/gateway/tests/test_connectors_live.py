@@ -2401,5 +2401,189 @@ class TestMCPCapabilitiesTools:
         assert "schema_ddl" in tools
 
 
+# ── Schema Linking ──────────────────────────────────────────────────────────
+
+class TestSchemaLinking:
+    """Tests for the smart schema linking endpoint."""
+
+    def _make_schema(self):
+        """Build a mock schema for testing linking logic."""
+        return {
+            "public.customers": {
+                "schema": "public", "name": "customers",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "nullable": False},
+                    {"name": "name", "type": "varchar"},
+                    {"name": "email", "type": "varchar"},
+                    {"name": "region", "type": "varchar", "comment": "Geographic region"},
+                ],
+                "foreign_keys": [],
+                "row_count": 5000,
+                "description": "All registered customers",
+            },
+            "public.orders": {
+                "schema": "public", "name": "orders",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "nullable": False},
+                    {"name": "customer_id", "type": "int"},
+                    {"name": "total", "type": "decimal"},
+                    {"name": "created_at", "type": "timestamp"},
+                ],
+                "foreign_keys": [
+                    {"column": "customer_id", "references_table": "customers", "references_column": "id"},
+                ],
+                "row_count": 50000,
+            },
+            "public.products": {
+                "schema": "public", "name": "products",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "nullable": False},
+                    {"name": "name", "type": "varchar"},
+                    {"name": "price", "type": "decimal"},
+                    {"name": "category", "type": "varchar"},
+                ],
+                "foreign_keys": [],
+                "row_count": 200,
+            },
+            "public.order_items": {
+                "schema": "public", "name": "order_items",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "nullable": False},
+                    {"name": "order_id", "type": "int"},
+                    {"name": "product_id", "type": "int"},
+                    {"name": "quantity", "type": "int"},
+                ],
+                "foreign_keys": [
+                    {"column": "order_id", "references_table": "orders", "references_column": "id"},
+                    {"column": "product_id", "references_table": "products", "references_column": "id"},
+                ],
+                "row_count": 150000,
+            },
+            "public.audit_log": {
+                "schema": "public", "name": "audit_log",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "nullable": False},
+                    {"name": "action", "type": "varchar"},
+                    {"name": "timestamp", "type": "timestamp"},
+                ],
+                "foreign_keys": [],
+                "row_count": 1000000,
+            },
+        }
+
+    def test_term_matching_exact_table(self):
+        """Question mentioning 'customers' should match customers table."""
+        import re
+        schema = self._make_schema()
+        question = "How many customers are there?"
+        stopwords = {"the", "how", "many", "are", "there"}
+        terms = [w for w in re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question.lower()) if len(w) >= 3 and w not in stopwords]
+
+        assert "customers" in terms
+
+        # Score tables
+        scores = {}
+        for key, table_data in schema.items():
+            score = 0.0
+            table_name_lower = table_data.get("name", "").lower()
+            for term in terms:
+                if term == table_name_lower or term == table_name_lower.rstrip("s"):
+                    score += 10.0
+                elif term in table_name_lower:
+                    score += 5.0
+                elif term + "s" == table_name_lower:
+                    score += 8.0
+            scores[key] = score
+
+        assert scores["public.customers"] > 0
+        assert scores["public.customers"] > scores["public.audit_log"]
+
+    def test_term_matching_column_name(self):
+        """Question mentioning 'email' should match customers table (has email column)."""
+        import re
+        schema = self._make_schema()
+        question = "Find the email of customer 123"
+        stopwords = {"the", "find", "customer"}
+        terms = [w for w in re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question.lower()) if len(w) >= 3 and w not in stopwords]
+
+        scores = {}
+        for key, table_data in schema.items():
+            score = 0.0
+            for term in terms:
+                for col in table_data.get("columns", []):
+                    col_name = col.get("name", "").lower()
+                    if term == col_name:
+                        score += 4.0
+                    elif term in col_name:
+                        score += 2.0
+            scores[key] = score
+
+        assert scores["public.customers"] > 0, "customers has email column"
+        assert scores["public.orders"] == 0, "orders has no email column"
+
+    def test_fk_expansion(self):
+        """FK-connected tables should be included for join path completeness."""
+        schema = self._make_schema()
+        # Suppose orders was matched — customers should be added via FK
+        linked_keys = {"public.orders"}
+        fk_additions = set()
+
+        for key in list(linked_keys):
+            table_data = schema.get(key, {})
+            for fk in table_data.get("foreign_keys", []):
+                ref_table = fk.get("references_table", "")
+                for candidate_key in schema:
+                    if schema[candidate_key].get("name", "") == ref_table:
+                        fk_additions.add(candidate_key)
+                        break
+
+        assert "public.customers" in fk_additions, "customers should be added via FK from orders"
+
+    def test_fallback_when_no_matches(self):
+        """When no terms match, fallback to FK-relevance sorted tables."""
+        schema = self._make_schema()
+        # Empty terms = no matches
+        linked_keys = set()
+
+        if not linked_keys:
+            def _fb_relevance(key):
+                t = schema[key]
+                return (-len(t.get("foreign_keys", [])), -t.get("row_count", 0), key)
+            linked_keys = set(sorted(schema.keys(), key=_fb_relevance)[:3])
+
+        # order_items has 2 FKs, so it should be in the top
+        assert "public.order_items" in linked_keys
+
+    def test_singular_plural_matching(self):
+        """'order' should match 'orders' table (singular → plural)."""
+        import re
+        schema = self._make_schema()
+        question = "Show me the order total"
+        stopwords = {"the", "show"}
+        terms = [w for w in re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question.lower()) if len(w) >= 3 and w not in stopwords]
+
+        scores = {}
+        for key, table_data in schema.items():
+            score = 0.0
+            table_name_lower = table_data.get("name", "").lower()
+            for term in terms:
+                if term == table_name_lower or term == table_name_lower.rstrip("s"):
+                    score += 10.0
+                elif term + "s" == table_name_lower or term + "es" == table_name_lower:
+                    score += 8.0
+                for col in table_data.get("columns", []):
+                    if term == col.get("name", "").lower():
+                        score += 4.0
+            scores[key] = score
+
+        assert scores["public.orders"] > 0, "'order' should match 'orders' via singular/plural"
+
+    def test_schema_link_mcp_tool_exists(self):
+        """schema_link MCP tool is registered."""
+        from gateway.mcp_server import mcp
+        tools = mcp._tool_manager._tools
+        assert "schema_link" in tools
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

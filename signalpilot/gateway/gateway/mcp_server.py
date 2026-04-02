@@ -941,6 +941,56 @@ async def schema_ddl(connection_name: str, max_tables: int = 50) -> str:
 
 
 @mcp.tool()
+async def schema_link(connection_name: str, question: str, format: str = "ddl", max_tables: int = 20) -> str:
+    """
+    Smart schema linking — find tables relevant to a natural language question.
+
+    This is the recommended tool for writing SQL queries. Instead of loading the
+    full schema, describe what you want to query and this tool returns only the
+    relevant tables with their DDL, scored by relevance.
+
+    Uses high-recall linking (EDBT 2026): matches question terms against table
+    names, column names, and comments, then expands via foreign keys to ensure
+    join paths are available.
+
+    Args:
+        connection_name: Name of the database connection
+        question: Natural language question (e.g., "total revenue by customer last month")
+        format: Output format — "ddl" (default, best for SQL gen), "compact", or "json"
+        max_tables: Maximum tables to include (default 20)
+    """
+    if not _CONN_NAME_RE.match(connection_name):
+        return "Error: Invalid connection name"
+
+    gw = _gateway_url()
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.get(
+            f"{gw}/api/connections/{connection_name}/schema/link",
+            params={"question": question, "format": format, "max_tables": max_tables},
+        )
+    if r.status_code != 200:
+        return f"Error ({r.status_code}): {r.text[:200]}"
+
+    data = r.json()
+    linked = data.get("linked_tables", 0)
+    total = data.get("total_tables", 0)
+    header = (
+        f"-- Schema linked for: {question}\n"
+        f"-- Linked {linked}/{total} tables\n"
+    )
+
+    if format == "compact":
+        return header + "\n" + data.get("schema", "")
+    elif format == "json":
+        import json as _json
+        return header + "\n" + _json.dumps(data.get("tables", {}), indent=2, default=str)
+    else:
+        tokens = data.get("token_estimate", 0)
+        header += f"-- Est. tokens: {tokens}\n\n"
+        return header + data.get("ddl", "")
+
+
+@mcp.tool()
 async def cache_status() -> str:
     """
     Check the query cache status and performance.
