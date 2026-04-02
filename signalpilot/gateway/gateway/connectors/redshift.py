@@ -66,30 +66,26 @@ class RedshiftConnector(BaseConnector):
         if self._conn is None:
             raise RuntimeError("Not connected")
 
-        # Columns with types
+        # Combined columns + primary key query (reduces round trips)
         sql = """
             SELECT
-                schemaname AS table_schema,
-                tablename AS table_name,
-                "column" AS column_name,
-                type AS data_type,
-                CASE WHEN notnull THEN 'NO' ELSE 'YES' END AS is_nullable
-            FROM pg_table_def
-            WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
-            ORDER BY schemaname, tablename, colnum
-        """
-        # Primary keys
-        pk_sql = """
-            SELECT
-                n.nspname AS table_schema,
-                cl.relname AS table_name,
-                a.attname AS column_name
-            FROM pg_constraint con
-            JOIN pg_class cl ON con.conrelid = cl.oid
-            JOIN pg_namespace n ON cl.relnamespace = n.oid
-            JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
-            WHERE con.contype = 'p'
-                AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                td.schemaname AS table_schema,
+                td.tablename AS table_name,
+                td."column" AS column_name,
+                td.type AS data_type,
+                CASE WHEN td.notnull THEN 'NO' ELSE 'YES' END AS is_nullable,
+                CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END AS is_primary_key
+            FROM pg_table_def td
+            LEFT JOIN (
+                SELECT n.nspname AS table_schema, cl.relname AS table_name, a.attname AS column_name
+                FROM pg_constraint con
+                JOIN pg_class cl ON con.conrelid = cl.oid
+                JOIN pg_namespace n ON cl.relnamespace = n.oid
+                JOIN pg_attribute a ON a.attrelid = cl.oid AND a.attnum = ANY(con.conkey)
+                WHERE con.contype = 'p' AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+            ) pk ON td.schemaname = pk.table_schema AND td.tablename = pk.table_name AND td."column" = pk.column_name
+            WHERE td.schemaname NOT IN ('pg_catalog', 'information_schema', 'pg_internal')
+            ORDER BY td.schemaname, td.tablename, td.colnum
         """
         # Foreign keys (critical for Spider2.0 join path discovery)
         fk_sql = """
@@ -135,16 +131,8 @@ class RedshiftConnector(BaseConnector):
             rows = cursor.fetchall()
 
         # Best-effort metadata enrichment
-        pk_set: set[tuple] = set()
         foreign_keys: dict[str, list[dict]] = {}
         row_counts: dict[str, int] = {}
-
-        try:
-            with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
-                cursor.execute(pk_sql)
-                pk_set = {(r["table_schema"], r["table_name"], r["column_name"]) for r in cursor.fetchall()}
-        except Exception:
-            pass
 
         try:
             with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cursor:
@@ -202,7 +190,7 @@ class RedshiftConnector(BaseConnector):
                 "name": row["column_name"],
                 "type": row["data_type"],
                 "nullable": row["is_nullable"] == "YES",
-                "primary_key": (row["table_schema"], row["table_name"], row["column_name"]) in pk_set,
+                "primary_key": bool(row.get("is_primary_key", False)),
             })
 
         return schema
