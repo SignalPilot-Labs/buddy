@@ -62,6 +62,8 @@ export interface ConnectionInfo {
   // BigQuery
   project: string | null;
   dataset: string | null;
+  location: string | null;
+  maximum_bytes_billed: number | null;
   // Databricks
   http_path: string | null;
   catalog: string | null;

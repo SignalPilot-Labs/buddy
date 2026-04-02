@@ -162,7 +162,7 @@ const DB_CONFIGS: Record<DBType, DBTypeConfig> = {
     shortLabel: "trino",
     defaultPort: 8080,
     category: "warehouse",
-    supportsSSH: false,
+    supportsSSH: true,
     supportsSSL: true,
     connectionModes: ["fields", "url"],
     fields: ["host", "port", "username", "password", "catalog", "schema_name"],
@@ -392,6 +392,8 @@ interface FormState {
   project: string;
   dataset: string;
   credentials_json: string;
+  bq_location: string;
+  bq_max_bytes_billed: string;
   // ClickHouse
   ch_protocol: "native" | "http";
   // Databricks
@@ -444,7 +446,7 @@ const defaultForm: FormState = {
   connection_string: "", host: "localhost", port: "5432",
   database: "", username: "", password: "", description: "",
   account: "", warehouse: "", schema_name: "", role: "",
-  project: "", dataset: "", credentials_json: "",
+  project: "", dataset: "", credentials_json: "", bq_location: "", bq_max_bytes_billed: "",
   ch_protocol: "native",
   http_path: "", access_token: "", catalog: "",
   ssl_enabled: false, ssl_mode: "require", ssl_ca_cert: "", ssl_client_cert: "", ssl_client_key: "",
@@ -583,6 +585,11 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
   if (config.fields.includes("project")) payload.project = form.project;
   if (config.fields.includes("dataset")) payload.dataset = form.dataset;
   if (config.fields.includes("credentials_json")) payload.credentials_json = form.credentials_json;
+  if (form.db_type === "bigquery") {
+    if (form.bq_location) payload.location = form.bq_location;
+    const maxBytes = parseInt(form.bq_max_bytes_billed);
+    if (maxBytes > 0) payload.maximum_bytes_billed = maxBytes;
+  }
 
   // Databricks
   if (config.fields.includes("http_path")) payload.http_path = form.http_path;
@@ -788,8 +795,22 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
           rows={6}
           className="col-span-2"
         />
+        <FormInput
+          label="location"
+          value={form.bq_location}
+          onChange={(v) => setForm({ ...form, bq_location: v })}
+          placeholder="US"
+          hint="optional — dataset location (US, EU, us-east1, europe-west1, etc.)"
+        />
+        <FormInput
+          label="max bytes billed"
+          value={form.bq_max_bytes_billed}
+          onChange={(v) => setForm({ ...form, bq_max_bytes_billed: v })}
+          placeholder="10737418240"
+          hint="safety limit — query fails if scan exceeds this (10GB = 10737418240)"
+        />
         <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider">
-          <span className="text-[var(--color-text-muted)]">setup:</span> GCP Console → IAM → Service Accounts → Create Key (JSON). The service account needs BigQuery Data Viewer + BigQuery Job User roles.
+          <span className="text-[var(--color-text-muted)]">setup:</span> GCP Console → IAM → Service Accounts → Create Key (JSON). The service account needs BigQuery Data Viewer + BigQuery Job User roles. Set max bytes billed to prevent runaway query costs ($6.25/TB).
         </div>
       </>
     );
@@ -1184,6 +1205,8 @@ export default function ConnectionsPage() {
       role: conn.role || "",
       project: conn.project || "",
       dataset: conn.dataset || "",
+      bq_location: (conn as any).location || "",
+      bq_max_bytes_billed: (conn as any).maximum_bytes_billed ? String((conn as any).maximum_bytes_billed) : "",
       http_path: conn.http_path || "",
       catalog: conn.catalog || "",
       ssl_enabled: conn.ssl || false,
