@@ -1460,10 +1460,23 @@ async def get_schema_ddl(
                 ref_col = fk.get("references_column", "")
                 col_lines.append(f"  FOREIGN KEY ({fk['column']}) REFERENCES {ref_table}({ref_col})")
 
-        row_comment = ""
+        # Build row comment with metadata
+        comment_parts = []
         rc = table.get("row_count", 0)
         if rc:
-            row_comment = f" -- {rc:,} rows" if rc < 1_000_000 else f" -- {rc/1_000_000:.1f}M rows"
+            comment_parts.append(f"{rc:,} rows" if rc < 1_000_000 else f"{rc/1_000_000:.1f}M rows")
+        # ClickHouse-specific: engine and sorting key (critical for query optimization)
+        engine = table.get("engine", "")
+        if engine:
+            comment_parts.append(f"ENGINE={engine}")
+        sorting_key = table.get("sorting_key", "")
+        if sorting_key:
+            comment_parts.append(f"ORDER BY({sorting_key})")
+        # Redshift-specific: distribution style
+        dist_style = table.get("dist_style", "")
+        if dist_style:
+            comment_parts.append(f"DISTSTYLE={dist_style}")
+        row_comment = f" -- {', '.join(comment_parts)}" if comment_parts else ""
 
         ddl = f"{table_header}CREATE TABLE {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
         ddl_statements.append(ddl)
