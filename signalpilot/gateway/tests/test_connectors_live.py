@@ -1329,5 +1329,140 @@ class TestLevenshteinDistance:
         assert _levenshtein("", "") == 0
 
 
+# ── Connection Tags (Round 6) ──────────────────────────────────────────────
+
+class TestConnectionTags:
+    """Test the tags field on ConnectionCreate/Update/Info models."""
+
+    def test_create_with_tags(self):
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="tag-test", db_type="postgres", host="localhost",
+            username="test", tags=["prod", "analytics", "team-data"]
+        )
+        assert conn.tags == ["prod", "analytics", "team-data"]
+
+    def test_create_default_empty_tags(self):
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="no-tags", db_type="postgres", host="localhost", username="test")
+        assert conn.tags == []
+
+    def test_update_with_tags(self):
+        from gateway.models import ConnectionUpdate
+        update = ConnectionUpdate(tags=["staging", "test"])
+        assert update.tags == ["staging", "test"]
+
+    def test_info_with_tags(self):
+        from gateway.models import ConnectionInfo
+        info = ConnectionInfo(
+            id="test-id", name="tagged-conn", db_type="postgres",
+            tags=["prod", "critical"]
+        )
+        assert info.tags == ["prod", "critical"]
+
+    def test_info_default_empty_tags(self):
+        from gateway.models import ConnectionInfo
+        info = ConnectionInfo(id="test-id", name="untagged", db_type="postgres")
+        assert info.tags == []
+
+
+# ── Snowflake Key-Pair Auth (Round 6) ─────────────────────────────────────
+
+class TestSnowflakeKeyPairAuth:
+    """Test Snowflake key-pair auth configuration."""
+
+    def test_private_key_in_connection_create(self):
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="snow-kp", db_type="snowflake", account="test-account",
+            username="SVC_USER", private_key="-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----",
+            private_key_passphrase="mysecret"
+        )
+        assert conn.private_key is not None
+        assert conn.private_key_passphrase == "mysecret"
+
+    def test_credential_extras_include_private_key(self):
+        from gateway.models import ConnectionCreate, DBType
+        from gateway.store import _extract_credential_extras
+        conn = ConnectionCreate(
+            name="snow-kp2", db_type="snowflake", account="test-account",
+            username="SVC_USER", private_key="---KEY---"
+        )
+        extras = _extract_credential_extras(conn)
+        assert extras["private_key"] == "---KEY---"
+        assert extras["account"] == "test-account"
+
+    def test_snowflake_connector_load_private_key_method_exists(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        connector = SnowflakeConnector()
+        assert hasattr(connector, "_load_private_key")
+
+    def test_set_credential_extras_with_private_key(self):
+        from gateway.connectors.snowflake import SnowflakeConnector
+        connector = SnowflakeConnector()
+        connector.set_credential_extras({
+            "account": "my-account",
+            "username": "user1",
+            "private_key": "---KEY---",
+            "private_key_passphrase": "pass",
+        })
+        assert connector._credential_extras["private_key"] == "---KEY---"
+
+
+# ── ClickHouse HTTP Fallback (Round 6) ────────────────────────────────────
+
+class TestClickHouseHTTPFallback:
+    """Test ClickHouse connector with HTTP fallback support."""
+
+    def test_has_http_import(self):
+        from gateway.connectors.clickhouse import HAS_CLICKHOUSE_HTTP
+        # Should be True or False — just verify the flag exists
+        assert isinstance(HAS_CLICKHOUSE_HTTP, bool)
+
+    def test_has_native_import(self):
+        from gateway.connectors.clickhouse import HAS_CLICKHOUSE_NATIVE
+        assert isinstance(HAS_CLICKHOUSE_NATIVE, bool)
+
+    def test_connector_has_http_client_attr(self):
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        assert hasattr(c, "_http_client")
+        assert hasattr(c, "_use_http")
+        assert c._use_http is False
+
+    def test_raw_execute_raises_when_disconnected(self):
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        c = ClickHouseConnector()
+        with pytest.raises(RuntimeError, match="No active ClickHouse connection"):
+            c._raw_execute("SELECT 1")
+
+
+# ── Parallel Schema Fetching (Round 6) ────────────────────────────────────
+
+class TestParallelSchemaFetching:
+    """Verify that connectors with parallel schema fetching still work."""
+
+    def test_redshift_has_asyncio_import(self):
+        """Redshift get_schema uses asyncio.to_thread for parallel queries."""
+        import inspect
+        from gateway.connectors.redshift import RedshiftConnector
+        source = inspect.getsource(RedshiftConnector.get_schema)
+        assert "asyncio.gather" in source or "asyncio.to_thread" in source
+
+    def test_snowflake_has_asyncio_import(self):
+        """Snowflake get_schema uses asyncio.to_thread for parallel queries."""
+        import inspect
+        from gateway.connectors.snowflake import SnowflakeConnector
+        source = inspect.getsource(SnowflakeConnector.get_schema)
+        assert "asyncio.gather" in source
+
+    def test_clickhouse_schema_sequential(self):
+        """ClickHouse uses sequential fetch for thread-safety."""
+        import inspect
+        from gateway.connectors.clickhouse import ClickHouseConnector
+        source = inspect.getsource(ClickHouseConnector.get_schema)
+        assert "_fetch_all" in source  # Sequential wrapper
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
