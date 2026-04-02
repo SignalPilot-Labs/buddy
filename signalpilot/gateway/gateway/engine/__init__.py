@@ -21,6 +21,13 @@ try:
     HAS_SQLGLOT = True
 except ImportError:
     HAS_SQLGLOT = False
+    import warnings
+    warnings.warn(
+        "sqlglot is not installed — SQL validation is DISABLED. "
+        "Install it with: pip install sqlglot>=25.0.0",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 # DDL/DML statement types that must be blocked
 _BLOCKED_STATEMENT_TYPES = {
@@ -29,8 +36,17 @@ _BLOCKED_STATEMENT_TYPES = {
     "Command",  # catches COPY, VACUUM, etc.
 }
 
-# Statement stacking detection (simple regex for belt-and-suspenders)
+# Statement stacking detection — strip SQL comments first, then check (HIGH-04 fix)
+_SINGLE_LINE_COMMENT = re.compile(r"--[^\n]*")
+_MULTI_LINE_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _STACKING_PATTERN = re.compile(r";\s*\w", re.IGNORECASE)
+
+
+def _strip_sql_comments(sql: str) -> str:
+    """Remove SQL comments to prevent stacking detection bypass."""
+    result = _MULTI_LINE_COMMENT.sub(" ", sql)
+    result = _SINGLE_LINE_COMMENT.sub(" ", result)
+    return result
 
 
 @dataclass
@@ -50,14 +66,28 @@ def validate_sql(
     if not sql:
         return ValidationResult(ok=False, blocked_reason="Empty query")
 
-    if _STACKING_PATTERN.search(sql.rstrip(";")):
+    # Strip null bytes which could bypass stacking detection (HIGH-04 defense)
+    if "\x00" in sql:
+        return ValidationResult(ok=False, blocked_reason="Null bytes are not allowed in SQL queries")
+
+    # Input length limit (MED-07)
+    if len(sql) > 100_000:
+        return ValidationResult(ok=False, blocked_reason="Query exceeds maximum length (100KB)")
+
+    # Strip comments before stacking check (HIGH-04 fix)
+    stripped = _strip_sql_comments(sql)
+    if _STACKING_PATTERN.search(stripped.rstrip(";")):
         return ValidationResult(
             ok=False,
             blocked_reason="Statement stacking detected (multiple statements separated by ';')",
         )
 
+    # Fail-closed: if sqlglot is not installed, block all queries (HIGH-03 fix)
     if not HAS_SQLGLOT:
-        return ValidationResult(ok=True, tables=[], columns=[])
+        return ValidationResult(
+            ok=False,
+            blocked_reason="SQL validation engine (sqlglot) is not available. Cannot safely execute queries.",
+        )
 
     try:
         statements = sqlglot.parse(sql, dialect=dialect)
@@ -108,10 +138,10 @@ def inject_limit(sql: str, max_rows: int = 10_000, dialect: str = "postgres") ->
     sql = sql.strip().rstrip(";")
 
     if not HAS_SQLGLOT:
-        upper = sql.upper()
-        if "LIMIT" not in upper:
-            return f"{sql} LIMIT {max_rows}"
-        return sql
+        # Fail-closed: refuse to process SQL without proper AST parsing.
+        # validate_sql() already blocks queries when sqlglot is missing,
+        # so this should never be reached in normal operation.
+        raise RuntimeError("SQL validation engine (sqlglot) is not available. Cannot safely inject LIMIT.")
 
     try:
         parsed = sqlglot.parse_one(sql, dialect=dialect)
@@ -124,12 +154,17 @@ def inject_limit(sql: str, max_rows: int = 10_000, dialect: str = "postgres") ->
     existing_limit = parsed.args.get("limit")
     if existing_limit:
         try:
-            current = int(existing_limit.this.this)
-            if current > max_rows:
-                existing_limit.this.this = str(max_rows)
+            # sqlglot stores limit value as either .this.this or .expression.this
+            limit_expr = existing_limit.expression or existing_limit.this
+            current = int(limit_expr.this) if limit_expr else None
+            if current is not None and current > max_rows:
+                parsed.set(
+                    "limit",
+                    exp.Limit(expression=exp.Literal.number(max_rows)),
+                )
         except Exception:
             pass
     else:
-        parsed.set("limit", exp.Limit(this=exp.Literal.number(max_rows)))
+        parsed.set("limit", exp.Limit(expression=exp.Literal.number(max_rows)))
 
     return parsed.sql(dialect=dialect)
