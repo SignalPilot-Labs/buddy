@@ -183,7 +183,8 @@ class DatabricksConnector(BaseConnector):
                     for row in cursor2.fetchall():
                         key = f"{row[0]}.{row[1]}"
                         if key in schema:
-                            schema[key]["table_type"] = row[2] or "TABLE"
+                            tt = (row[2] or "TABLE").upper()
+                            schema[key]["type"] = "view" if "VIEW" in tt else "table"
                     cursor2.close()
                 except Exception:
                     pass
@@ -234,6 +235,7 @@ class DatabricksConnector(BaseConnector):
                     schema[key] = {
                         "schema": schema_name,
                         "name": table_name,
+                        "type": "table",
                         "columns": columns,
                     }
                 except Exception:

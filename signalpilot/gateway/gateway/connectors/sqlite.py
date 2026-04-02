@@ -52,9 +52,11 @@ class SQLiteConnector(BaseConnector):
         if self._conn is None:
             raise RuntimeError("Not connected")
         cursor = self._conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'"
         )
-        tables = [row[0] for row in cursor.fetchall()]
+        table_rows = cursor.fetchall()
+        tables = [row[0] for row in table_rows]
+        table_type_map = {row[0]: row[1] for row in table_rows}
 
         # Batch row counts in a single query (avoids N per-table COUNT(*) queries)
         row_counts: dict[str, int] = {}
@@ -99,6 +101,7 @@ class SQLiteConnector(BaseConnector):
             schema[table] = {
                 "schema": "main",
                 "name": table,
+                "type": table_type_map.get(table, "table"),
                 "columns": columns,
                 "foreign_keys": foreign_keys,
                 "row_count": row_counts.get(table, 0),

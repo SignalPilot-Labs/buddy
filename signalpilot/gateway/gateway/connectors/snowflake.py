@@ -200,10 +200,10 @@ class SnowflakeConnector(BaseConnector):
             ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
         """
         rc_sql = """
-            SELECT TABLE_SCHEMA, TABLE_NAME, ROW_COUNT
+            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ROW_COUNT
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA')
-                AND TABLE_TYPE = 'BASE TABLE'
+                AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
         """
         fk_sql = """
             SELECT
@@ -248,11 +248,13 @@ class SnowflakeConnector(BaseConnector):
             asyncio.to_thread(_fetch, cluster_sql, "clustering"),
         )
 
-        # Build row count map
+        # Build row count + type map
         row_counts: dict[str, int] = {}
+        table_types: dict[str, str] = {}
         for r in rc_rows:
             key = f"{r['TABLE_SCHEMA']}.{r['TABLE_NAME']}"
             row_counts[key] = r.get("ROW_COUNT", 0) or 0
+            table_types[key] = "view" if r.get("TABLE_TYPE") == "VIEW" else "table"
 
         # Build FK map
         foreign_keys: dict[str, list[dict]] = {}
@@ -284,6 +286,7 @@ class SnowflakeConnector(BaseConnector):
                 table_entry: dict[str, Any] = {
                     "schema": row["TABLE_SCHEMA"],
                     "name": row["TABLE_NAME"],
+                    "type": table_types.get(key, "table"),
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": row_counts.get(key, 0),

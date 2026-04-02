@@ -158,23 +158,32 @@ class ClickHouseConnector(BaseConnector):
                 return
             except Exception as e:
                 if native_error:
-                    err_str = str(native_error).lower()
-                    if "authentication" in err_str or "wrong password" in err_str:
-                        first_line = str(native_error).split("\n")[0]
-                        raise RuntimeError(f"Authentication failed: {first_line}") from native_error
-                    elif "connection refused" in err_str or "timed out" in err_str:
-                        raise RuntimeError(f"Connection failed: {native_error}") from native_error
+                    raise self._classify_connect_error(native_error) from native_error
                 raise RuntimeError(f"ClickHouse connection error (HTTP fallback): {e}") from e
 
         if native_error:
-            err_str = str(native_error).lower()
-            if "authentication" in err_str or "wrong password" in err_str:
-                first_line = str(native_error).split("\n")[0]
-                raise RuntimeError(f"Authentication failed: {first_line}") from native_error
-            elif "connection refused" in err_str or "timed out" in err_str:
-                raise RuntimeError(f"Connection failed: {native_error}") from native_error
-            raise RuntimeError(f"ClickHouse connection error: {native_error}") from native_error
+            raise self._classify_connect_error(native_error) from native_error
         raise RuntimeError("No ClickHouse driver available")
+
+    @staticmethod
+    def _classify_connect_error(err: Exception) -> RuntimeError:
+        """Extract a human-readable error from ClickHouse driver exceptions."""
+        err_str = str(err)
+        err_lower = err_str.lower()
+        # Extract DB::Exception message line (e.g., "DB::Exception: default: Authentication failed: ...")
+        msg = err_str
+        for line in err_str.split("\n"):
+            if "DB::Exception" in line:
+                # Strip "Code: NNN. " prefix and stack trace reference
+                msg = line.split("DB::Exception: ", 1)[-1].rstrip(". ")
+                break
+        if "authentication" in err_lower or "wrong password" in err_lower:
+            return RuntimeError(f"Authentication failed: {msg}")
+        elif "connection refused" in err_lower or "timed out" in err_lower:
+            return RuntimeError(f"Connection failed: {msg}")
+        elif "unknown database" in err_lower or "database .* doesn't exist" in err_lower:
+            return RuntimeError(f"Database not found: {msg}")
+        return RuntimeError(f"ClickHouse connection error: {msg}")
 
     def _parse_connection_string(self, conn_str: str) -> dict:
         """Parse ClickHouse connection strings.
@@ -349,11 +358,14 @@ class ClickHouseConnector(BaseConnector):
             key = f"{row['database']}.{row['table']}"
             if key not in schema:
                 meta = table_meta.get(key, {})
+                engine = meta.get("engine", "")
+                is_view = engine in ("View", "MaterializedView", "LiveView", "WindowView")
                 schema[key] = {
                     "schema": row["database"],
                     "name": row["table"],
+                    "type": "view" if is_view else "table",
                     "columns": [],
-                    "engine": meta.get("engine", ""),
+                    "engine": engine,
                     "sorting_key": meta.get("sorting_key", ""),
                     "row_count": meta.get("row_count", 0),
                     "total_bytes": meta.get("total_bytes", 0),

@@ -155,6 +155,7 @@ class MySQLConnector(BaseConnector):
             SELECT
                 t.TABLE_SCHEMA,
                 t.TABLE_NAME,
+                t.TABLE_TYPE,
                 t.TABLE_COMMENT,
                 t.TABLE_ROWS,
                 c.COLUMN_NAME,
@@ -168,7 +169,7 @@ class MySQLConnector(BaseConnector):
                 ON t.TABLE_SCHEMA = c.TABLE_SCHEMA
                 AND t.TABLE_NAME = c.TABLE_NAME
             WHERE t.TABLE_SCHEMA NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')
-                AND t.TABLE_TYPE = 'BASE TABLE'
+                AND t.TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ORDER BY t.TABLE_SCHEMA, t.TABLE_NAME, c.ORDINAL_POSITION
         """
         # Foreign keys — critical for Spider2.0 join path discovery
@@ -254,9 +255,11 @@ class MySQLConnector(BaseConnector):
         for row in rows:
             key = f"{row['TABLE_SCHEMA']}.{row['TABLE_NAME']}"
             if key not in schema:
+                is_view = row.get("TABLE_TYPE") == "VIEW"
                 schema[key] = {
                     "schema": row["TABLE_SCHEMA"],
                     "name": row["TABLE_NAME"],
+                    "type": "view" if is_view else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "indexes": indexes.get(key, []),

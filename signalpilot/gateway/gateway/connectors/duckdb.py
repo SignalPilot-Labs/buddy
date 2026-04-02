@@ -96,12 +96,13 @@ class DuckDBConnector(BaseConnector):
         cols_sql = """
             SELECT
                 c.table_schema, c.table_name, c.column_name,
-                c.data_type, c.is_nullable, c.column_default
+                c.data_type, c.is_nullable, c.column_default,
+                t.table_type
             FROM information_schema.columns c
             JOIN information_schema.tables t
                 ON c.table_schema = t.table_schema AND c.table_name = t.table_name
             WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema')
-                AND t.table_type = 'BASE TABLE'
+                AND t.table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY c.table_schema, c.table_name, c.ordinal_position
         """
         cols_result = self._conn.execute(cols_sql)
@@ -174,12 +175,15 @@ class DuckDBConnector(BaseConnector):
             pass
 
         schema: dict[str, Any] = {}
-        for table_schema, table_name, col_name, data_type, is_nullable, col_default in all_cols:
+        for row in all_cols:
+            table_schema, table_name, col_name, data_type, is_nullable, col_default = row[:6]
+            table_type = row[6] if len(row) > 6 else "BASE TABLE"
             key = f"{table_schema}.{table_name}"
             if key not in schema:
                 schema[key] = {
                     "schema": table_schema,
                     "name": table_name,
+                    "type": "view" if table_type == "VIEW" else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": row_counts.get(key, 0),

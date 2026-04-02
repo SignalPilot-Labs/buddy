@@ -156,9 +156,13 @@ class BigQueryConnector(BaseConnector):
 
                 columns = _flatten_fields(table.schema)
 
+                # BigQuery table_type: TABLE, VIEW, MATERIALIZED_VIEW, EXTERNAL, SNAPSHOT
+                bq_type = getattr(table, "table_type", "TABLE") or "TABLE"
+                obj_type = "view" if "VIEW" in bq_type else "table"
                 table_meta: dict[str, Any] = {
                     "schema": dataset_id,
                     "name": table.table_id,
+                    "type": obj_type,
                     "columns": columns,
                     "row_count": table.num_rows,
                     "size_bytes": table.num_bytes,

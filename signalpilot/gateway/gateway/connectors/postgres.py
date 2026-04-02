@@ -131,6 +131,7 @@ class PostgresConnector(BaseConnector):
             SELECT
                 t.table_schema,
                 t.table_name,
+                t.table_type,
                 c.column_name,
                 c.data_type,
                 c.is_nullable,
@@ -157,7 +158,7 @@ class PostgresConnector(BaseConnector):
                 AND c.table_name = pk.table_name
                 AND c.column_name = pk.column_name
             WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
-                AND t.table_type = 'BASE TABLE'
+                AND t.table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY t.table_schema, t.table_name, c.ordinal_position
         """
 
@@ -276,9 +277,11 @@ class PostgresConnector(BaseConnector):
         for row in rows:
             key = f"{row['table_schema']}.{row['table_name']}"
             if key not in schema:
+                is_view = row["table_type"] == "VIEW"
                 schema[key] = {
                     "schema": row["table_schema"],
                     "name": row["table_name"],
+                    "type": "view" if is_view else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "indexes": indexes.get(key, []),
@@ -300,29 +303,32 @@ class PostgresConnector(BaseConnector):
         return schema
 
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:
-        """Get sample distinct values for schema linking optimization."""
-        if self._pool is None:
+        """Get sample distinct values via single UNION ALL query (1 round trip)."""
+        if self._pool is None or not columns:
             return {}
-
-        result: dict[str, list] = {}
-        # Run sample queries concurrently
-        async def _sample(col: str):
-            try:
-                async with self._pool.acquire() as conn:
-                    rows = await conn.fetch(
-                        f'SELECT DISTINCT "{col}" FROM {table} WHERE "{col}" IS NOT NULL LIMIT {limit}'
-                    )
-                    return col, [r[col] for r in rows]
-            except Exception:
-                return col, []
-
-        tasks = [_sample(c) for c in columns[:20]]  # Cap at 20 columns
-        results = await asyncio.gather(*tasks)
-        for col, values in results:
-            if values:
-                # Convert to strings for JSON serialization
-                result[col] = [str(v) for v in values]
-        return result
+        try:
+            sql = self._build_sample_union_sql(table, columns, limit, quote='"')
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(sql)
+            return self._parse_sample_union_result([dict(r) for r in rows])
+        except Exception:
+            # Fallback to per-column queries if UNION ALL fails
+            result: dict[str, list] = {}
+            async def _sample(col: str):
+                try:
+                    async with self._pool.acquire() as conn:
+                        rows = await conn.fetch(
+                            f'SELECT DISTINCT "{col}" FROM {table} WHERE "{col}" IS NOT NULL LIMIT {limit}'
+                        )
+                        return col, [str(r[col]) for r in rows]
+                except Exception:
+                    return col, []
+            tasks = [_sample(c) for c in columns[:20]]
+            results = await asyncio.gather(*tasks)
+            for col, values in results:
+                if values:
+                    result[col] = values
+            return result
 
     async def health_check(self) -> bool:
         if self._pool is None:

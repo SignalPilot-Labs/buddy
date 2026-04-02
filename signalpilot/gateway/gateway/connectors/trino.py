@@ -203,7 +203,7 @@ class TrinoConnector(BaseConnector):
                 ON c.table_schema = t.table_schema
                 AND c.table_name = t.table_name
             WHERE c.table_schema NOT IN ('information_schema')
-                AND t.table_type = 'BASE TABLE'
+                AND t.table_type IN ('BASE TABLE', 'VIEW')
             ORDER BY c.table_schema, c.table_name, c.ordinal_position
         """
 
@@ -262,7 +262,7 @@ class TrinoConnector(BaseConnector):
 
         schema: dict[str, Any] = {}
         for row in rows:
-            table_schema, table_name, col_name, data_type, nullable, default, ordinal, _ = row
+            table_schema, table_name, col_name, data_type, nullable, default, ordinal, table_type = row
             key = f"{catalog}.{table_schema}.{table_name}"
             pk_key = f"{table_schema}.{table_name}.{col_name}"
 
@@ -270,6 +270,7 @@ class TrinoConnector(BaseConnector):
                 schema[key] = {
                     "schema": f"{catalog}.{table_schema}",
                     "name": table_name,
+                    "type": "view" if table_type == "VIEW" else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                 }

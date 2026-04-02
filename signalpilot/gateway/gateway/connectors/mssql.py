@@ -96,10 +96,46 @@ class MSSQLConnector(BaseConnector):
             "database": parsed.path.lstrip("/") if parsed.path else "master",
         }
 
+    def _ensure_connected(self) -> None:
+        """Ensure connection is alive, reconnect if needed."""
+        if self._conn is None:
+            if self._connect_params:
+                # Rebuild connect kwargs from stored params
+                self._conn = pymssql.connect(
+                    server=self._connect_params.get("host", "localhost"),
+                    port=str(self._connect_params.get("port", "1433")),
+                    user=self._connect_params.get("user", ""),
+                    password=self._connect_params.get("password", ""),
+                    database=self._connect_params.get("database", "master"),
+                    login_timeout=self._login_timeout,
+                    timeout=self._query_timeout,
+                    as_dict=True,
+                    charset="UTF-8",
+                )
+            else:
+                raise RuntimeError("Not connected")
+            return
+        try:
+            cursor = self._conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchall()
+            cursor.close()
+        except Exception:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+            if self._connect_params:
+                self._ensure_connected()  # Recursive reconnect
+            else:
+                raise RuntimeError("Connection lost and cannot reconnect")
+
     async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._conn is None:
             raise RuntimeError("Not connected")
         try:
+            self._ensure_connected()
             cursor = self._conn.cursor(as_dict=True)
             if timeout:
                 # SET LOCK_TIMEOUT for blocking waits + query governor for CPU time
@@ -116,12 +152,14 @@ class MSSQLConnector(BaseConnector):
     async def get_schema(self) -> dict[str, Any]:
         if self._conn is None:
             raise RuntimeError("Not connected")
+        self._ensure_connected()
 
-        # Columns + primary keys + row counts from dm_db_partition_stats (accurate)
+        # Columns + primary keys from tables AND views
         col_sql = """
             SELECT
                 s.name AS table_schema,
-                t.name AS table_name,
+                o.name AS table_name,
+                o.type AS object_type,
                 c.name AS column_name,
                 tp.name AS data_type,
                 c.max_length,
@@ -133,9 +171,9 @@ class MSSQLConnector(BaseConnector):
                 CASE WHEN pk.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
                 ep.value AS column_comment,
                 ep_t.value AS table_comment
-            FROM sys.tables t
-            JOIN sys.schemas s ON t.schema_id = s.schema_id
-            JOIN sys.columns c ON t.object_id = c.object_id
+            FROM sys.objects o
+            JOIN sys.schemas s ON o.schema_id = s.schema_id
+            JOIN sys.columns c ON o.object_id = c.object_id
             JOIN sys.types tp ON c.user_type_id = tp.user_type_id
             LEFT JOIN (
                 SELECT ic.object_id, ic.column_id
@@ -146,9 +184,10 @@ class MSSQLConnector(BaseConnector):
             LEFT JOIN sys.extended_properties ep
                 ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
             LEFT JOIN sys.extended_properties ep_t
-                ON ep_t.major_id = t.object_id AND ep_t.minor_id = 0 AND ep_t.name = 'MS_Description'
-            WHERE s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
-            ORDER BY s.name, t.name, c.column_id
+                ON ep_t.major_id = o.object_id AND ep_t.minor_id = 0 AND ep_t.name = 'MS_Description'
+            WHERE o.type IN ('U', 'V')
+                AND s.name NOT IN ('sys', 'INFORMATION_SCHEMA', 'guest')
+            ORDER BY s.name, o.name, c.column_id
         """
 
         # Row counts from dm_db_partition_stats (accurate, no table scan)
@@ -269,9 +308,11 @@ class MSSQLConnector(BaseConnector):
         for row in rows:
             key = f"{row['table_schema']}.{row['table_name']}"
             if key not in schema:
+                is_view = row.get("object_type", "U").strip() == "V"
                 schema[key] = {
                     "schema": row["table_schema"],
                     "name": row["table_name"],
+                    "type": "view" if is_view else "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "indexes": indexes.get(key, []),
@@ -313,6 +354,7 @@ class MSSQLConnector(BaseConnector):
         """Get sample distinct values via single UNION ALL query (1 round trip)."""
         if self._conn is None or not columns:
             return {}
+        self._ensure_connected()
         try:
             # MSSQL uses TOP N instead of LIMIT, and [] quoting
             parts = []
@@ -349,6 +391,7 @@ class MSSQLConnector(BaseConnector):
         if self._conn is None:
             return False
         try:
+            self._ensure_connected()
             cursor = self._conn.cursor(as_dict=True)
             cursor.execute("SELECT 1 AS ok")
             cursor.fetchall()

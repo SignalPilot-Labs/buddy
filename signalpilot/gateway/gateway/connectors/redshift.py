@@ -260,6 +260,7 @@ class RedshiftConnector(BaseConnector):
                 schema[key] = {
                     "schema": row["table_schema"],
                     "name": row["table_name"],
+                    "type": "table",
                     "columns": [],
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": ti.get("row_count", 0),
