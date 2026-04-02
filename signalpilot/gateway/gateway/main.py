@@ -3511,29 +3511,10 @@ async def schema_link(
         table_scores[table_key] = score
         column_scores[table_key] = col_scores
 
-    # Step 3: Select top tables by score
-    scored_tables = sorted(table_scores.items(), key=lambda x: (-x[1], x[0]))
-    linked_keys = set()
-
-    # Always include tables with score > 0
-    for key, score in scored_tables:
-        if score > 0 and len(linked_keys) < max_tables:
-            linked_keys.add(key)
-
-    # Step 4: Add FK-connected tables (high-recall — EDBT 2026 finding)
-    # Forward FK: linked table → table it references
-    fk_additions = set()
-    for key in list(linked_keys):
-        table_data = filtered.get(key, {})
-        for fk in table_data.get("foreign_keys", []):
-            ref_table = fk.get("references_table", "")
-            for candidate_key in filtered:
-                if filtered[candidate_key].get("name", "") == ref_table:
-                    fk_additions.add(candidate_key)
-                    break
-
-    # Reverse FK: find tables that reference a linked table (critical for join tables)
-    # Build reverse FK index: table_name → [keys of tables that reference it]
+    # Step 3: FK-propagated scoring (Spider2.0 optimization)
+    # Tables FK-connected to high-scoring tables get a fraction of that score.
+    # This ensures join-path tables are included AND ordered by relevance.
+    # Build reverse FK index first: table_name → [keys of tables that reference it]
     reverse_fk_index: dict[str, list[str]] = {}
     for key, table_data in filtered.items():
         for fk in table_data.get("foreign_keys", []):
@@ -3542,14 +3523,39 @@ async def schema_link(
                 reverse_fk_index[ref_table] = []
             reverse_fk_index[ref_table].append(key)
 
-    for key in list(linked_keys):
-        table_name = filtered[key].get("name", "")
+    # Forward FK propagation: if table A (score 20) → references table B, B gets +20*0.3
+    # Reverse FK propagation: if table C references table A, C gets +20*0.2
+    fk_boost: dict[str, float] = {}
+    for key, score in table_scores.items():
+        if score <= 0:
+            continue
+        table_data = filtered.get(key, {})
+        # Forward: A.customer_id → customers — boost customers
+        for fk in table_data.get("foreign_keys", []):
+            ref_table = fk.get("references_table", "")
+            for candidate_key in filtered:
+                if filtered[candidate_key].get("name", "") == ref_table and candidate_key != key:
+                    fk_boost[candidate_key] = max(fk_boost.get(candidate_key, 0), score * 0.3)
+                    break
+        # Reverse: tables that reference this table — boost them
+        table_name = table_data.get("name", "")
         for referring_key in reverse_fk_index.get(table_name, []):
-            if referring_key in filtered:
-                fk_additions.add(referring_key)
+            if referring_key in filtered and referring_key != key:
+                fk_boost[referring_key] = max(fk_boost.get(referring_key, 0), score * 0.2)
 
-    for key in fk_additions:
-        if len(linked_keys) < max_tables:
+    # Apply FK boosts to scores
+    for key, boost in fk_boost.items():
+        if table_scores.get(key, 0) == 0:
+            table_scores[key] = boost  # FK-only tables get the boost as their score
+        # Don't increase already-scored tables — they earned their score directly
+
+    # Step 4: Select top tables by score
+    scored_tables = sorted(table_scores.items(), key=lambda x: (-x[1], x[0]))
+    linked_keys = set()
+
+    # Include tables with score > 0 (now includes FK-propagated scores)
+    for key, score in scored_tables:
+        if score > 0 and len(linked_keys) < max_tables:
             linked_keys.add(key)
 
     # If no matches found, fall back to first N tables sorted by FK relevance
