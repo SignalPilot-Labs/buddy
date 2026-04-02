@@ -5,6 +5,62 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 20: Implicit Join Detection, Connector Metadata Enrichment (2026-04-02)
+
+**Summary:** 6 improvements — added implicit join detection for FK-less databases (critical for Spider2.0 on data lakes), enriched Databricks with PK/FK/row count metadata, added Snowflake table sizes and comments, improved Snowflake cost estimation, fixed Redshift SSL resource leak.
+
+**Key metrics:**
+- 281 tests passing (8 new tests for implicit join detection)
+- All 4 live Docker databases verified with implicit joins
+- Implicit joins found: ClickHouse (1 inferred, 0 explicit), MySQL (1 inferred, 1 explicit)
+
+### 1. Implicit Join Detection via Column Name Pattern Matching
+**Files:** `main.py`
+- **Impact:** Critical for Spider2.0 on data lakes/warehouses that lack FK declarations (Databricks, ClickHouse, etc.)
+- Detects joinable columns by naming convention: `customer_id` → `customers.id`, `product_id` → `products.id`
+- Handles plural forms: singular, +s, +es, +ies (e.g., `category_id` → `categories`)
+- Deduplicates against existing explicit FKs — no double counting
+- Integrated into both `/schema/relationships` and `/schema/join-paths` endpoints
+- New `include_implicit=true` query parameter (default on)
+- Compact format marks inferred joins: `events.user_id → users.user_id [inferred]`
+- Response includes `explicit_count` and `inferred_count` for transparency
+
+### 2. Databricks PK/FK/Row Count Metadata
+**Files:** `connectors/databricks.py`
+- **Impact:** Databricks was missing ALL relationship metadata — now has PKs, FKs, and table sizes
+- Primary keys via `information_schema.table_constraints` + `constraint_column_usage` (Unity Catalog)
+- Foreign keys via `information_schema.referential_constraints` (Unity Catalog)
+- Table sizes via `DESCRIBE DETAIL` (Delta tables — numFiles, sizeInBytes)
+- Graceful fallback for legacy Hive metastore (no crash if queries unsupported)
+- Schema entries now initialize `foreign_keys: []` and `row_count: 0`
+
+### 3. Snowflake Table Size and Comments
+**Files:** `connectors/snowflake.py`
+- Added `BYTES` and `COMMENT` extraction from `INFORMATION_SCHEMA.TABLES`
+- Table size stored as `size_mb` (human-readable MB value)
+- Table comments stored as `description` field
+- Enriches schema for cost modeling and documentation
+
+### 4. Snowflake Cost Estimator — JSON EXPLAIN Parsing
+**Files:** `governance/cost_estimator.py`
+- **Before:** Hardcoded 10K row estimate (useless for cost awareness)
+- **After:** `EXPLAIN USING JSON` → parse `outputRows`, `partitionsTotal`, `partitionsAssigned`
+- Reports partition scan percentage (e.g., "Partitions: 3/100 (3% scanned)")
+- Falls back to TEXT EXPLAIN if JSON unavailable
+
+### 5. Redshift SSL Temp File Cleanup on Connection Failure
+**Files:** `connectors/redshift.py`
+- **Before:** SSL cert temp files leaked to disk if `connect()` raised an exception
+- **After:** `_cleanup_temp_files()` called in exception handlers before re-raise
+- Extracted cleanup into reusable method shared by `close()` and error paths
+
+### 6. Test Coverage
+**Files:** `tests/test_implicit_joins.py` (new, 8 tests)
+- Tests: basic _id pattern, plural matching, skip existing FKs, no self-reference,
+  multiple inferred joins, confidence field, no match without target, empty schema
+
+---
+
 ## Round 19: BigQuery Cost Controls, Trino SSH, Schema Optimization (2026-04-02)
 
 **Summary:** 5 improvements — added BigQuery cost safety controls (maximum_bytes_billed, location, job stats), enabled Trino SSH tunnel support, updated BQ pricing to 2026 rates, added frontend fields for new BQ features, added 9 new tests.
