@@ -24,6 +24,8 @@ import {
   RefreshCw,
   Search,
   Copy,
+  EyeOff,
+  Star,
 } from "lucide-react";
 import {
   getConnections,
@@ -37,6 +39,8 @@ import {
   getConnectionsHealth,
   detectPII,
   refreshConnectionSchema,
+  getSchemaEndorsements,
+  setSchemaEndorsements,
 } from "@/lib/api";
 import type { ConnectionInfo, ConnectionHealthStats, DBType, SSHTunnelConfig, SSLConfig } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
@@ -670,6 +674,7 @@ export default function ConnectionsPage() {
   const [schemaSearch, setSchemaSearch] = useState<Record<string, string>>({});
   const [schemaSearchResults, setSchemaSearchResults] = useState<Record<string, { result_count: number; total_tables: number; tables: Record<string, any> }>>({});
   const [schemaSearchLoading, setSchemaSearchLoading] = useState<string | null>(null);
+  const [endorsements, setEndorsements] = useState<Record<string, { endorsed: string[]; hidden: string[]; mode: "all" | "endorsed_only" }>>({});
   const [form, setForm] = useState<FormState>({ ...defaultForm });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -839,6 +844,13 @@ export default function ConnectionsPage() {
         setSchemaData((prev) => ({ ...prev, [name]: { tables: data.tables } }));
       } catch { setSchemaData((prev) => ({ ...prev, [name]: { tables: {} } })); }
       finally { setSchemaLoading(null); }
+    }
+    // Load endorsements if not cached
+    if (!endorsements[name]) {
+      try {
+        const e = await getSchemaEndorsements(name);
+        setEndorsements(prev => ({ ...prev, [name]: e }));
+      } catch {}
     }
   }
 
@@ -1247,6 +1259,31 @@ export default function ConnectionsPage() {
                             );
                           })()}
                           <div className="flex-1" />
+                          {/* Endorsement mode toggle */}
+                          <button
+                            onClick={async () => {
+                              const current = endorsements[conn.name] || { endorsed: [], hidden: [], mode: "all" as const };
+                              const nextMode = current.mode === "all" ? "endorsed_only" as const : "all" as const;
+                              const updated = { ...current, mode: nextMode };
+                              try {
+                                await setSchemaEndorsements(conn.name, updated);
+                                setEndorsements(prev => ({ ...prev, [conn.name]: updated }));
+                                // Re-fetch schema with new endorsements applied
+                                const data = await getConnectionSchema(conn.name);
+                                setSchemaData(prev => ({ ...prev, [conn.name]: data }));
+                                toast(`Schema filter: ${nextMode === "endorsed_only" ? "endorsed only" : "all tables"}`, "success");
+                              } catch { toast("Failed to update endorsements", "error"); }
+                            }}
+                            className={`px-2 py-0.5 text-[9px] border tracking-wider transition-all ${
+                              endorsements[conn.name]?.mode === "endorsed_only"
+                                ? "border-[var(--color-success)]/30 text-[var(--color-success)] bg-[var(--color-success)]/5"
+                                : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+                            }`}
+                            title="Toggle between showing all tables or only endorsed tables"
+                          >
+                            <Star className="w-2.5 h-2.5 inline mr-1" strokeWidth={1.5} />
+                            {endorsements[conn.name]?.mode === "endorsed_only" ? "endorsed only" : "all tables"}
+                          </button>
                           <div className="relative">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--color-text-dim)]" strokeWidth={1.5} />
                             <input
@@ -1278,6 +1315,63 @@ export default function ConnectionsPage() {
                                     score: {t._relevance_score}
                                   </span>
                                 )}
+                                <div className="flex-1" />
+                                {/* Endorsement toggle per table */}
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const current = endorsements[conn.name] || { endorsed: [], hidden: [], mode: "all" as const };
+                                    const isEndorsed = current.endorsed.includes(key);
+                                    const isHidden = current.hidden.includes(key);
+                                    let updated = { ...current };
+                                    if (isEndorsed) {
+                                      updated.endorsed = current.endorsed.filter(k => k !== key);
+                                    } else if (isHidden) {
+                                      updated.hidden = current.hidden.filter(k => k !== key);
+                                      updated.endorsed = [...current.endorsed, key];
+                                    } else {
+                                      updated.endorsed = [...current.endorsed, key];
+                                    }
+                                    try {
+                                      await setSchemaEndorsements(conn.name, updated);
+                                      setEndorsements(prev => ({ ...prev, [conn.name]: updated }));
+                                    } catch {}
+                                  }}
+                                  className={`p-0.5 transition-all ${
+                                    endorsements[conn.name]?.endorsed?.includes(key)
+                                      ? "text-[var(--color-success)]"
+                                      : "text-[var(--color-text-dim)] opacity-30 hover:opacity-60"
+                                  }`}
+                                  title={endorsements[conn.name]?.endorsed?.includes(key) ? "Endorsed — click to remove" : "Click to endorse for AI agents"}
+                                >
+                                  <Star className="w-2.5 h-2.5" strokeWidth={1.5} />
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const current = endorsements[conn.name] || { endorsed: [], hidden: [], mode: "all" as const };
+                                    const isHidden = current.hidden.includes(key);
+                                    let updated = { ...current };
+                                    if (isHidden) {
+                                      updated.hidden = current.hidden.filter(k => k !== key);
+                                    } else {
+                                      updated.hidden = [...current.hidden, key];
+                                      updated.endorsed = current.endorsed.filter(k => k !== key);
+                                    }
+                                    try {
+                                      await setSchemaEndorsements(conn.name, updated);
+                                      setEndorsements(prev => ({ ...prev, [conn.name]: updated }));
+                                    } catch {}
+                                  }}
+                                  className={`p-0.5 transition-all ${
+                                    endorsements[conn.name]?.hidden?.includes(key)
+                                      ? "text-[var(--color-error)]"
+                                      : "text-[var(--color-text-dim)] opacity-30 hover:opacity-60"
+                                  }`}
+                                  title={endorsements[conn.name]?.hidden?.includes(key) ? "Hidden — click to show" : "Click to hide from AI agents"}
+                                >
+                                  <EyeOff className="w-2.5 h-2.5" strokeWidth={1.5} />
+                                </button>
                               </div>
                               <div className="space-y-0.5">
                                 {(t.columns || []).slice(0, 8).map((col: any) => {

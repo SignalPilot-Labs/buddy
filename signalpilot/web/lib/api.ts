@@ -108,6 +108,17 @@ export const searchConnectionSchema = (name: string, query: string) =>
     }>;
   }>(`/api/connections/${name}/schema/search?q=${encodeURIComponent(query)}`);
 
+// Schema Endorsements
+export const getSchemaEndorsements = (name: string) =>
+  request<{ endorsed: string[]; hidden: string[]; mode: "all" | "endorsed_only" }>(
+    `/api/connections/${name}/schema/endorsements`
+  );
+export const setSchemaEndorsements = (name: string, endorsements: { endorsed: string[]; hidden: string[]; mode: "all" | "endorsed_only" }) =>
+  request<{ endorsed: string[]; hidden: string[]; mode: "all" | "endorsed_only" }>(
+    `/api/connections/${name}/schema/endorsements`,
+    { method: "PUT", body: JSON.stringify(endorsements) }
+  );
+
 // Sandboxes
 export const getSandboxes = () => request<import("./types").SandboxInfo[]>("/api/sandboxes");
 export const createSandbox = (s: Record<string, unknown>) =>
