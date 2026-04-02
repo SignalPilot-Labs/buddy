@@ -5,6 +5,77 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 17: Connector Best Practices, Thread Safety, Schema Linking, Error Hints (2026-04-02)
+
+**Summary:** 9 improvements — fixed Snowflake connector to use latest API, fixed thread-safety bugs in Snowflake/Redshift schema queries, improved schema linking with reverse FK following and expanded synonyms, added Trino HTTPS toggle, expanded query error hints for Spider2.0 dialects, and fixed MCP tool API mismatches.
+
+**Key metrics:**
+- 251 tests passing (fixed 2 pre-existing test failures)
+- All 4 live Docker databases verified healthy (PostgreSQL, MySQL, ClickHouse, MSSQL)
+- Schema linking now follows FK relationships bidirectionally
+- 5 git commits this round
+
+### 1. Snowflake Connector Best Practices
+**File:** `connectors/snowflake.py`
+- Use `Connection.is_valid()` for health_check — native heartbeat instead of cursor-based `SELECT 1`
+- Add `client_session_keep_alive=True` + configurable heartbeat frequency to prevent idle session expiry
+- Use `disable_ocsp_checks` instead of deprecated `insecure_mode` parameter
+- Support `disable_ocsp_checks` as URL query parameter for dev/test environments
+- Key-pair auth correctly documented as RSA-only (ECDSA not supported by Snowflake)
+
+### 2. Thread-Safety Fix (Snowflake + Redshift)
+**Files:** `connectors/snowflake.py`, `connectors/redshift.py`
+- **Bug:** Both connectors used `asyncio.gather` with `asyncio.to_thread` to run concurrent schema queries on the same connection — psycopg2 and snowflake-connector-python connections are NOT thread-safe
+- **Fix:** Batch all metadata queries into a single `_fetch_all()` function run in one background thread
+- Prevents potential data corruption when multiple schema queries run concurrently
+
+### 3. Connector-Specific Improvements
+**Files:** `connectors/mysql.py`, `connectors/mssql.py`, `connectors/clickhouse.py`
+- **MySQL:** Added `write_timeout` parameter for balanced timeout control
+- **MSSQL:** Upgraded to TDS 7.4 (SQL Server 2019+/Azure SQL), support URL query params (`encrypt`, `instance`), proper TLS cert verification modes
+- **ClickHouse:** Improved native→HTTP port mapping (added 9440→8443 for TLS)
+
+### 4. Schema Linking: Reverse FK Following
+**File:** `main.py` (schema_link endpoint)
+- **Before:** FK following was one-directional (linked table → referenced table)
+- **After:** Bidirectional FK following — if table B is linked, find all tables that reference B
+- Critical for bridge/join tables in Spider2.0 (e.g., `order_items` is now included when `orders` is linked)
+- Builds a reverse FK index for O(1) lookup of referring tables
+
+### 5. Schema Linking: Expanded Synonym Dictionary
+**File:** `main.py` (schema_link endpoint)
+- Added 12 new business domain synonym groups: department, salary, quantity, supplier, order, stock, invoice, email, phone, created, updated, deleted
+- Improves recall when questions use different terminology than the schema column names
+- Total synonym groups: ~30 (covering most common business analytics terms)
+
+### 6. Trino HTTPS Toggle (Frontend)
+**File:** `web/app/connections/page.tsx`
+- Added HTTPS toggle button in Trino connection form with visual feedback (lock icon)
+- Auto-switches default port between 8080 (HTTP) and 443 (HTTPS)
+- Builds `trino+https://` connection string when HTTPS enabled
+- Required for Starburst Galaxy and authenticated Trino clusters
+
+### 7. Query Error Hints Expansion
+**File:** `errors.py`
+- Added hints for UNION/EXCEPT/INTERSECT column count mismatches
+- Added MEDIAN/PERCENTILE function differences across 6 dialects
+- Added PIVOT/UNPIVOT support differences across dialects
+- Added Array/JSON function name differences across 5 dialects
+- These are common error patterns in Spider2.0 cross-database benchmarks
+
+### 8. MCP Tool schema_statistics Fix
+**File:** `mcp_server.py`
+- Fixed field name mismatch: tool read `top_tables_by_rows` but API returns `largest_tables`
+- Fixed key names: `name`/`row_count`/`column_count` → `table`/`rows`/`columns`
+- Hub tables now derived from FK count in `largest_tables` instead of expecting separate field
+
+### 9. Test Fixes
+**Files:** `tests/test_cost_estimator.py`, `tests/test_schema_cache.py`
+- Fixed `_POSTGRES_USD_PER_ROW` import (renamed to `_COST_PER_ROW` dict)
+- Fixed `test_stats_expired_entries` assertion (stats() now purges expired entries before reporting)
+
+---
+
 ## Round 16: Retry Logic, Keepalive, _ensure_connected, Frontend UX (2026-04-02)
 
 **Summary:** 6 improvements — added exponential backoff retry logic to PoolManager, enforced keepalive intervals via background health-check loop, completed `_ensure_connected()` on all 11 connectors, and improved frontend connection form UX (edit timeouts, schema refresh button, column comments display).
