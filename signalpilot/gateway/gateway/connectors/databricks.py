@@ -54,7 +54,19 @@ class DatabricksConnector(BaseConnector):
         if params.get("schema"):
             connect_args["schema"] = params["schema"]
 
-        self._conn = databricks_sql.connect(**connect_args)
+        try:
+            self._conn = databricks_sql.connect(**connect_args)
+        except Exception as e:
+            err_str = str(e).lower()
+            if "unauthorized" in err_str or "403" in err_str or "401" in err_str:
+                raise RuntimeError(f"Authentication failed: invalid access token") from e
+            elif "not found" in err_str or "404" in err_str:
+                raise RuntimeError(f"Warehouse not found: verify http_path '{params.get('http_path', '')}'") from e
+            elif "timeout" in err_str or "timed out" in err_str:
+                raise RuntimeError(f"Connection timed out: {e}") from e
+            elif "connection" in err_str and ("refused" in err_str or "failed" in err_str):
+                raise RuntimeError(f"Connection failed: verify hostname '{params.get('host', '')}'") from e
+            raise RuntimeError(f"Databricks connection error: {e}") from e
 
     def _parse_connection(self, conn_str: str) -> dict:
         """Parse Databricks connection strings.

@@ -34,9 +34,18 @@ class BigQueryConnector(BaseConnector):
             )
         # connection_string is the project ID
         self._project = connection_string
-        # Credentials are set via set_credentials() before connect
+        # Credentials are set via set_credentials() / set_credential_extras() before connect
         # or fall back to ADC
-        self._client = bigquery.Client(project=self._project)
+        try:
+            if self._client is None:
+                self._client = bigquery.Client(project=self._project)
+        except Exception as e:
+            err_str = str(e).lower()
+            if "credentials" in err_str or "authentication" in err_str:
+                raise RuntimeError(f"Authentication failed: {e}") from e
+            elif "project" in err_str and ("not found" in err_str or "invalid" in err_str):
+                raise RuntimeError(f"GCP project not found: '{self._project}'") from e
+            raise RuntimeError(f"BigQuery connection error: {e}") from e
 
     def set_credentials(self, credentials_json: str, project: str = "", dataset: str = ""):
         """Set credentials from a service account JSON string."""
