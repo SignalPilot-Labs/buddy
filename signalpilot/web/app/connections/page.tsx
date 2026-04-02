@@ -1391,6 +1391,21 @@ export default function ConnectionsPage() {
       connection_timeout: String(conn.connection_timeout || 15),
       query_timeout: String(conn.query_timeout || 120),
       keepalive_interval: String(conn.keepalive_interval || 0),
+      // Pool size (PostgreSQL)
+      pool_min_size: String((conn as any).pool_min_size || 1),
+      pool_max_size: String((conn as any).pool_max_size || 5),
+      // IAM auth
+      iam_auth: (conn as any).auth_method === "iam",
+      aws_region: (conn as any).aws_region || "us-east-1",
+      aws_access_key_id: "", // Never pre-fill secrets
+      aws_secret_access_key: "",
+      redshift_cluster_id: (conn as any).cluster_id || "",
+      redshift_workgroup: (conn as any).workgroup || "",
+      // Azure AD auth
+      azure_ad_auth: (conn as any).auth_method === "azure_ad",
+      azure_tenant_id: (conn as any).azure_tenant_id || "",
+      azure_client_id: (conn as any).azure_client_id || "",
+      azure_client_secret: "", // Never pre-fill secrets
     });
     setEditingConnection(conn.name);
     setShowForm(true);
