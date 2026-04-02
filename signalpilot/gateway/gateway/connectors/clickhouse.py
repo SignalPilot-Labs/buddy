@@ -178,6 +178,33 @@ class ClickHouseConnector(BaseConnector):
         except Exception:
             pass
 
+        # Column-level statistics from system.parts_columns (data size per column)
+        col_stats: dict[str, dict] = {}
+        try:
+            col_stats_sql = """
+                SELECT
+                    database, table, column,
+                    sum(rows) AS total_rows,
+                    sum(data_uncompressed_bytes) AS uncompressed_bytes,
+                    sum(data_compressed_bytes) AS compressed_bytes
+                FROM system.parts_columns
+                WHERE active
+                    AND database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')
+                GROUP BY database, table, column
+            """
+            stats_result = self._client.execute(col_stats_sql, with_column_types=True)
+            stats_rows, stats_cols = stats_result
+            stats_col_names = [c[0] for c in stats_cols]
+            for r in stats_rows:
+                rd = dict(zip(stats_col_names, r))
+                stat_key = f"{rd['database']}.{rd['table']}.{rd['column']}"
+                col_stats[stat_key] = {
+                    "data_bytes": rd.get("uncompressed_bytes", 0),
+                    "compressed_bytes": rd.get("compressed_bytes", 0),
+                }
+        except Exception:
+            pass
+
         schema: dict[str, Any] = {}
         for row_vals in rows_data:
             row = dict(zip(col_names, row_vals))
@@ -196,16 +223,25 @@ class ClickHouseConnector(BaseConnector):
             # ClickHouse Nullable types contain 'Nullable(' wrapper
             data_type = row["data_type"]
             nullable = "Nullable" in data_type
+            low_cardinality = "LowCardinality" in data_type
             if nullable:
                 data_type = data_type.replace("Nullable(", "").rstrip(")")
+            if low_cardinality:
+                data_type = data_type.replace("LowCardinality(", "").rstrip(")")
 
-            schema[key]["columns"].append({
+            col_entry: dict[str, Any] = {
                 "name": row["column_name"],
                 "type": data_type,
                 "nullable": nullable,
                 "primary_key": bool(row.get("is_in_primary_key", 0)),
                 "comment": row.get("comment", ""),
-            })
+            }
+            if low_cardinality:
+                col_entry["low_cardinality"] = True
+            stat_key = f"{row['database']}.{row['table']}.{row['column_name']}"
+            if stat_key in col_stats:
+                col_entry["stats"] = col_stats[stat_key]
+            schema[key]["columns"].append(col_entry)
         return schema
 
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:
