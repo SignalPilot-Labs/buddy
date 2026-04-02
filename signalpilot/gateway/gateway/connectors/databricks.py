@@ -178,6 +178,8 @@ class DatabricksConnector(BaseConnector):
                         "schema": s_name,
                         "name": t_name,
                         "columns": [],
+                        "foreign_keys": [],
+                        "row_count": 0,
                     }
                 schema[key]["columns"].append({
                     "name": row[2],
@@ -188,7 +190,7 @@ class DatabricksConnector(BaseConnector):
                 })
             cursor.close()
 
-            # Try to get table-level metadata (row counts, etc.)
+            # Try to get table-level metadata (type, row counts)
             if schema:
                 try:
                     cursor2 = self._conn.cursor()
@@ -203,6 +205,94 @@ class DatabricksConnector(BaseConnector):
                             tt = (row[2] or "TABLE").upper()
                             schema[key]["type"] = "view" if "VIEW" in tt else "table"
                     cursor2.close()
+                except Exception:
+                    pass
+
+            # Primary keys via table_constraints + constraint_column_usage (Unity Catalog)
+            try:
+                pk_cursor = self._conn.cursor()
+                pk_cursor.execute("""
+                    SELECT
+                        tc.table_schema,
+                        tc.table_name,
+                        ccu.column_name
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.constraint_column_usage ccu
+                        ON tc.constraint_catalog = ccu.constraint_catalog
+                        AND tc.constraint_schema = ccu.constraint_schema
+                        AND tc.constraint_name = ccu.constraint_name
+                    WHERE tc.constraint_type = 'PRIMARY KEY'
+                        AND tc.table_schema NOT IN ('information_schema')
+                """)
+                for row in pk_cursor.fetchall():
+                    key = f"{row[0]}.{row[1]}"
+                    pk_col = row[2]
+                    if key in schema:
+                        for col in schema[key]["columns"]:
+                            if col["name"] == pk_col:
+                                col["primary_key"] = True
+                pk_cursor.close()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).debug("PK query not supported: %s", e)
+
+            # Foreign keys via referential_constraints (Unity Catalog)
+            try:
+                fk_cursor = self._conn.cursor()
+                fk_cursor.execute("""
+                    SELECT
+                        tc.table_schema AS fk_schema,
+                        tc.table_name AS fk_table,
+                        kcu.column_name AS fk_column,
+                        ccu.table_schema AS pk_schema,
+                        ccu.table_name AS pk_table,
+                        ccu.column_name AS pk_column
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.key_column_usage kcu
+                        ON tc.constraint_name = kcu.constraint_name
+                        AND tc.constraint_schema = kcu.constraint_schema
+                    JOIN information_schema.constraint_column_usage ccu
+                        ON tc.constraint_name = ccu.constraint_name
+                        AND tc.constraint_schema = ccu.constraint_schema
+                    WHERE tc.constraint_type = 'FOREIGN KEY'
+                        AND tc.table_schema NOT IN ('information_schema')
+                """)
+                for row in fk_cursor.fetchall():
+                    key = f"{row[0]}.{row[1]}"
+                    if key in schema:
+                        if "foreign_keys" not in schema[key]:
+                            schema[key]["foreign_keys"] = []
+                        schema[key]["foreign_keys"].append({
+                            "column": row[2],
+                            "references_schema": row[3],
+                            "references_table": row[4],
+                            "references_column": row[5],
+                        })
+                fk_cursor.close()
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).debug("FK query not supported: %s", e)
+
+            # Row counts via DESCRIBE DETAIL (Delta tables — batch up to 50 tables)
+            tables_to_detail = [
+                (k, v) for k, v in schema.items()
+                if v.get("type") != "view"
+            ][:50]
+            for key, table_data in tables_to_detail:
+                try:
+                    rc_cursor = self._conn.cursor()
+                    safe_table = f"`{table_data['schema']}`.`{table_data['name']}`"
+                    rc_cursor.execute(f"DESCRIBE DETAIL {safe_table}")
+                    col_names = [d[0] for d in rc_cursor.description] if rc_cursor.description else []
+                    detail = rc_cursor.fetchone()
+                    rc_cursor.close()
+                    if detail and col_names:
+                        row_dict = dict(zip(col_names, detail))
+                        if "numFiles" in row_dict:
+                            table_data["num_files"] = row_dict["numFiles"]
+                        if "sizeInBytes" in row_dict:
+                            size_bytes = row_dict["sizeInBytes"] or 0
+                            table_data["size_mb"] = round(size_bytes / (1024 * 1024), 2)
                 except Exception:
                     pass
 

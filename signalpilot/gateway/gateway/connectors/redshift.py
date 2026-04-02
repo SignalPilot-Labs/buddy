@@ -60,11 +60,15 @@ class RedshiftConnector(BaseConnector):
             self._conn = psycopg2.connect(dsn, connect_timeout=self._connect_timeout, **ssl_kwargs)
             self._conn.set_session(readonly=True, autocommit=True)
         except psycopg2.OperationalError as e:
+            self._cleanup_temp_files()
             err_str = str(e).lower()
             if "password authentication failed" in err_str:
                 raise RuntimeError(f"Authentication failed: {e}") from e
             elif "could not connect" in err_str or "connection refused" in err_str:
                 raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
+            raise RuntimeError(f"Redshift connection error: {e}") from e
+        except Exception as e:
+            self._cleanup_temp_files()
             raise RuntimeError(f"Redshift connection error: {e}") from e
 
     def _build_ssl_kwargs(self) -> dict:
@@ -413,10 +417,8 @@ class RedshiftConnector(BaseConnector):
         except Exception:
             return False
 
-    async def close(self) -> None:
-        if self._conn:
-            self._conn.close()
-            self._conn = None
+    def _cleanup_temp_files(self) -> None:
+        """Remove any temporary SSL certificate files."""
         import os
         for f in self._temp_files:
             try:
@@ -424,3 +426,9 @@ class RedshiftConnector(BaseConnector):
             except OSError:
                 pass
         self._temp_files.clear()
+
+    async def close(self) -> None:
+        if self._conn:
+            self._conn.close()
+            self._conn = None
+        self._cleanup_temp_files()

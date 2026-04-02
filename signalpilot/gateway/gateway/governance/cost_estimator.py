@@ -126,23 +126,77 @@ class CostEstimator:
 
     @staticmethod
     async def estimate_snowflake(connector: BaseConnector, sql: str) -> CostEstimate:
-        """Use EXPLAIN to estimate Snowflake query cost."""
-        try:
-            # Snowflake supports EXPLAIN but with limited output
-            explain_sql = f"EXPLAIN USING TEXT {sql}"
-            rows = await connector.execute(explain_sql)
-            plan_text = "\n".join(str(list(r.values())) for r in rows) if rows else ""
+        """Use EXPLAIN USING JSON to estimate Snowflake query cost.
 
-            # Snowflake doesn't give row estimates in EXPLAIN easily
-            # Use a heuristic based on the number of operations
-            estimated_rows = 10000  # Conservative default
+        Parses partitionsTotal, partitionsAssigned, and row estimates from
+        the JSON execution plan to calculate cost based on Snowflake credits.
+        """
+        try:
+            explain_sql = f"EXPLAIN USING JSON {sql}"
+            rows = await connector.execute(explain_sql)
+            if not rows:
+                return CostEstimate(warning="EXPLAIN returned no data")
+
+            plan_text = ""
+            plan_json = None
+            for val in rows[0].values():
+                if isinstance(val, str):
+                    plan_text = val
+                    try:
+                        plan_json = json.loads(val)
+                    except (json.JSONDecodeError, ValueError):
+                        pass
+                    break
+
+            estimated_rows = 0
+            partitions_total = 0
+            partitions_assigned = 0
+
+            if plan_json:
+                # Walk the plan tree to extract row estimates and partition info
+                def _walk_plan(node: dict) -> None:
+                    nonlocal estimated_rows, partitions_total, partitions_assigned
+                    if isinstance(node, dict):
+                        er = node.get("outputRows") or node.get("estimatedRowCount") or node.get("rowCount", 0)
+                        if er:
+                            estimated_rows = max(estimated_rows, int(er))
+                        pt = node.get("partitionsTotal", 0)
+                        pa = node.get("partitionsAssigned", 0)
+                        if pt:
+                            partitions_total = max(partitions_total, int(pt))
+                        if pa:
+                            partitions_assigned = max(partitions_assigned, int(pa))
+                        for v in node.values():
+                            if isinstance(v, dict):
+                                _walk_plan(v)
+                            elif isinstance(v, list):
+                                for item in v:
+                                    if isinstance(item, dict):
+                                        _walk_plan(item)
+
+                _walk_plan(plan_json)
+
+            if estimated_rows == 0:
+                # Fallback: try TEXT format
+                try:
+                    text_rows = await connector.execute(f"EXPLAIN USING TEXT {sql}")
+                    plan_text = "\n".join(str(list(r.values())) for r in text_rows) if text_rows else plan_text
+                except Exception:
+                    pass
+                estimated_rows = 10000  # Conservative fallback
+
             estimated_usd = estimated_rows * _COST_PER_ROW["snowflake"]
+
+            partition_info = ""
+            if partitions_total > 0:
+                pct = round(partitions_assigned / partitions_total * 100, 1) if partitions_total else 0
+                partition_info = f" | Partitions: {partitions_assigned}/{partitions_total} ({pct}% scanned)"
 
             return CostEstimate(
                 estimated_rows=estimated_rows,
                 estimated_cost=0,
                 estimated_usd=estimated_usd,
-                raw_plan=plan_text[:2000],
+                raw_plan=(plan_text[:1900] + partition_info) if plan_text else partition_info,
             )
         except Exception as e:
             return CostEstimate(warning=f"Cost estimation failed: {e}")

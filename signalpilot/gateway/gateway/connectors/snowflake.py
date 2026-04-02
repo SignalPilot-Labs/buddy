@@ -227,7 +227,8 @@ class SnowflakeConnector(BaseConnector):
             ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION
         """
         rc_sql = """
-            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ROW_COUNT
+            SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ROW_COUNT,
+                   BYTES, COMMENT
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA')
                 AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
@@ -279,13 +280,21 @@ class SnowflakeConnector(BaseConnector):
 
         rows, rc_rows, fk_rows_raw, pk_rows, cluster_rows = await asyncio.to_thread(_fetch_all)
 
-        # Build row count + type map
+        # Build row count + type + size + comment map
         row_counts: dict[str, int] = {}
         table_types: dict[str, str] = {}
+        table_sizes: dict[str, float] = {}
+        table_comments_map: dict[str, str] = {}
         for r in rc_rows:
             key = f"{r['TABLE_SCHEMA']}.{r['TABLE_NAME']}"
             row_counts[key] = r.get("ROW_COUNT", 0) or 0
             table_types[key] = "view" if r.get("TABLE_TYPE") == "VIEW" else "table"
+            bytes_val = r.get("BYTES", 0) or 0
+            if bytes_val:
+                table_sizes[key] = round(bytes_val / (1024 * 1024), 2)
+            comment = r.get("COMMENT", "")
+            if comment:
+                table_comments_map[key] = comment
 
         # Build FK map
         foreign_keys: dict[str, list[dict]] = {}
@@ -322,6 +331,10 @@ class SnowflakeConnector(BaseConnector):
                     "foreign_keys": foreign_keys.get(key, []),
                     "row_count": row_counts.get(key, 0),
                 }
+                if key in table_sizes:
+                    table_entry["size_mb"] = table_sizes[key]
+                if key in table_comments_map:
+                    table_entry["description"] = table_comments_map[key]
                 cluster_key = clustering_keys.get(key, "")
                 if cluster_key:
                     table_entry["clustering_key"] = cluster_key

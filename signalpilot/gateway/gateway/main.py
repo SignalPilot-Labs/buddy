@@ -104,6 +104,101 @@ _SENSITIVE_PATTERNS = [
 ]
 
 
+def _infer_implicit_joins(schema: dict[str, Any]) -> list[dict]:
+    """Detect implicit join relationships via column name pattern matching.
+
+    For databases without FK declarations (common in data lakes, Databricks, etc.),
+    this finds joinable columns by matching patterns like:
+      - orders.customer_id → customers.id
+      - order_items.product_id → products.id
+      - payments.order_id → orders.order_id OR orders.id
+
+    Returns list of inferred FK-like relationships with confidence scores.
+    Only returns high-confidence matches (exact name conventions).
+    """
+    # Build lookup: table_name (lowered) → (full_key, table_data)
+    table_lookup: dict[str, tuple[str, dict]] = {}
+    # Also build: column_name → list of (full_key, table_data) that have it
+    pk_columns: dict[str, list[tuple[str, dict]]] = {}
+
+    for key, table in schema.items():
+        tbl_name = table.get("name", "").lower()
+        tbl_schema = table.get("schema", "")
+        full_name = f"{tbl_schema}.{table.get('name', '')}" if tbl_schema else table.get("name", "")
+        table_lookup[tbl_name] = (full_name, table)
+
+        # Track PK/id columns for matching
+        for col in table.get("columns", []):
+            cn = col["name"].lower()
+            if col.get("primary_key") or cn == "id":
+                if cn not in pk_columns:
+                    pk_columns[cn] = []
+                pk_columns[cn].append((full_name, table))
+
+    inferred: list[dict] = []
+    seen = set()
+
+    for key, table in schema.items():
+        tbl_schema = table.get("schema", "")
+        tbl_name = table.get("name", "").lower()
+        full_from = f"{tbl_schema}.{table.get('name', '')}" if tbl_schema else table.get("name", "")
+
+        # Skip if table already has explicit FKs — don't duplicate
+        existing_fk_cols = {fk["column"].lower() for fk in table.get("foreign_keys", [])}
+
+        for col in table.get("columns", []):
+            cn = col["name"].lower()
+            if cn in existing_fk_cols:
+                continue
+
+            # Pattern 1: column ends with _id → look for table with matching prefix
+            # e.g., customer_id → customers.id
+            if cn.endswith("_id") and cn != "id":
+                prefix = cn[:-3]  # "customer"
+                # Try plural forms: customer → customers, category → categories
+                candidates = [prefix, prefix + "s", prefix + "es"]
+                if prefix.endswith("i"):
+                    candidates.append(prefix[:-1] + "ies")  # e.g., categori → categories
+                elif prefix.endswith("ie"):
+                    candidates.append(prefix[:-2] + "ies")
+
+                for candidate in candidates:
+                    if candidate in table_lookup and candidate != tbl_name:
+                        ref_full, ref_table = table_lookup[candidate]
+                        # Find the matching PK/id column in the target table
+                        ref_col = None
+                        for rc in ref_table.get("columns", []):
+                            rcn = rc["name"].lower()
+                            if rc.get("primary_key") and rcn in ("id", cn):
+                                ref_col = rc["name"]
+                                break
+                            if rcn == "id":
+                                ref_col = rc["name"]
+                        if not ref_col:
+                            # Try matching the exact column name
+                            for rc in ref_table.get("columns", []):
+                                if rc["name"].lower() == cn:
+                                    ref_col = rc["name"]
+                                    break
+                        if ref_col:
+                            edge_key = (full_from, col["name"], ref_full, ref_col)
+                            if edge_key not in seen:
+                                seen.add(edge_key)
+                                inferred.append({
+                                    "from_schema": tbl_schema,
+                                    "from_table": table.get("name", ""),
+                                    "from_column": col["name"],
+                                    "to_schema": ref_table.get("schema", ""),
+                                    "to_table": ref_table.get("name", ""),
+                                    "to_column": ref_col,
+                                    "inferred": True,
+                                    "confidence": "high",
+                                })
+                            break
+
+    return inferred
+
+
 def _sanitize_db_error(error: str, db_type: str | None = None) -> str:
     """Remove connection strings, passwords, and host info from error messages.
 
@@ -2744,6 +2839,8 @@ async def get_schema_relationships(
     name: str,
     format: str = Query(default="compact", pattern=r"^(compact|full|graph)$",
                         description="Output format: compact (one-line per FK), full (detailed JSON), graph (adjacency list)"),
+    include_implicit: bool = Query(default=True,
+                                   description="Include inferred joins from column name patterns (e.g., customer_id → customers.id)"),
 ):
     """Extract all foreign key relationships from schema — ERD summary for AI agents.
 
@@ -2752,6 +2849,9 @@ async def get_schema_relationships(
     - compact: "orders.customer_id → customers.id" (one line per FK, minimal tokens)
     - full: detailed JSON with schema, table, column, referenced info
     - graph: adjacency list showing all tables reachable from each table
+
+    When include_implicit=true (default), also detects joins via column naming
+    conventions for databases without FK declarations (common in data lakes).
     """
     info = get_connection(name)
     if not info:
@@ -2774,8 +2874,9 @@ async def get_schema_relationships(
     sf_include, sf_exclude = _get_schema_filters(name)
     filtered = _apply_schema_filter(filtered, sf_include, sf_exclude)
 
-    # Extract all FK relationships
+    # Extract all FK relationships (explicit)
     relationships: list[dict] = []
+    explicit_count = 0
     for key, table in filtered.items():
         tbl_schema = table.get("schema", "")
         tbl_name = table.get("name", "")
@@ -2789,6 +2890,24 @@ async def get_schema_relationships(
                 "to_table": fk["references_table"],
                 "to_column": fk["references_column"],
             })
+    explicit_count = len(relationships)
+
+    # Add implicit/inferred joins from column name patterns
+    implicit_count = 0
+    if include_implicit:
+        inferred = _infer_implicit_joins(filtered)
+        # Deduplicate against explicit FKs
+        explicit_set = {
+            (r["from_table"].lower(), r["from_column"].lower(),
+             r["to_table"].lower(), r["to_column"].lower())
+            for r in relationships
+        }
+        for inf in inferred:
+            edge = (inf["from_table"].lower(), inf["from_column"].lower(),
+                    inf["to_table"].lower(), inf["to_column"].lower())
+            if edge not in explicit_set:
+                relationships.append(inf)
+                implicit_count += 1
 
     if format == "compact":
         # One-line-per-FK — minimal token usage for LLM context
@@ -2796,11 +2915,14 @@ async def get_schema_relationships(
         for r in relationships:
             from_qual = f"{r['from_schema']}.{r['from_table']}" if r["from_schema"] else r["from_table"]
             to_qual = f"{r['to_schema']}.{r['to_table']}" if r["to_schema"] else r["to_table"]
-            lines.append(f"{from_qual}.{r['from_column']} → {to_qual}.{r['to_column']}")
+            suffix = " [inferred]" if r.get("inferred") else ""
+            lines.append(f"{from_qual}.{r['from_column']} → {to_qual}.{r['to_column']}{suffix}")
         return {
             "connection_name": name,
             "format": "compact",
             "relationship_count": len(relationships),
+            "explicit_count": explicit_count,
+            "inferred_count": implicit_count,
             "relationships": lines,
         }
 
@@ -2842,12 +2964,14 @@ async def get_join_paths(
     from_table: str = Query(..., description="Source table (e.g., 'public.orders')"),
     to_table: str = Query(..., description="Target table (e.g., 'public.products')"),
     max_hops: int = Query(default=4, ge=1, le=6, description="Maximum FK hops to search"),
+    include_implicit: bool = Query(default=True, description="Include inferred joins from column naming conventions"),
 ):
-    """Find all FK join paths between two tables — critical for Spider2.0 multi-hop queries.
+    """Find all join paths between two tables — critical for Spider2.0 multi-hop queries.
 
-    Uses BFS over the FK graph to discover all paths from source to target table,
-    returning the exact join columns at each hop. This enables AI agents to construct
-    correct multi-table JOINs without hallucinating join conditions.
+    Uses BFS over the FK graph (plus inferred joins) to discover all paths from
+    source to target table, returning the exact join columns at each hop. This
+    enables AI agents to construct correct multi-table JOINs without hallucinating
+    join conditions.
 
     Example: orders → order_items → products (2 hops via order_items.order_id and order_items.product_id)
     """
@@ -2893,6 +3017,19 @@ async def get_join_paths(
             if ref_full not in edges:
                 edges[ref_full] = []
             edges[ref_full].append((ref_full, fk["references_column"], full_name, fk["column"]))
+
+    # Add inferred join edges
+    if include_implicit:
+        inferred = _infer_implicit_joins(filtered)
+        for inf in inferred:
+            inf_from = f"{inf['from_schema']}.{inf['from_table']}" if inf["from_schema"] else inf["from_table"]
+            inf_to = f"{inf['to_schema']}.{inf['to_table']}" if inf["to_schema"] else inf["to_table"]
+            if inf_from not in edges:
+                edges[inf_from] = []
+            edges[inf_from].append((inf_from, inf["from_column"], inf_to, inf["to_column"]))
+            if inf_to not in edges:
+                edges[inf_to] = []
+            edges[inf_to].append((inf_to, inf["to_column"], inf_from, inf["from_column"]))
 
     # Normalize table names for matching (try with and without schema prefix)
     def resolve_table(name_input: str) -> str | None:
