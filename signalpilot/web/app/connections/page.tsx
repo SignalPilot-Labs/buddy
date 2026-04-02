@@ -478,7 +478,7 @@ interface FormState {
   http_path: string;
   access_token: string;
   catalog: string;
-  databricks_auth_method: "pat" | "oauth_m2m";
+  databricks_auth_method: "pat" | "oauth_m2m" | "oauth_u2m";
   dbx_oauth_client_id: string;
   dbx_oauth_client_secret: string;
   // SSL
@@ -1157,8 +1157,8 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
         {/* Auth method selector */}
         <div className="col-span-2 mb-1">
           <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">authentication method</label>
-          <div className="flex gap-2">
-            {(["pat", "oauth_m2m"] as const).map((method) => (
+          <div className="flex flex-wrap gap-2">
+            {(["pat", "oauth_m2m", "oauth_u2m"] as const).map((method) => (
               <button
                 key={method}
                 type="button"
@@ -1169,14 +1169,14 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
                     : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)]"
                 }`}
               >
-                {method === "pat" ? "personal access token" : "OAuth M2M (service principal)"}
+                {method === "pat" ? "personal access token" : method === "oauth_m2m" ? "OAuth M2M (service principal)" : "OAuth U2M (browser)"}
               </button>
             ))}
           </div>
         </div>
         {form.databricks_auth_method === "pat" ? (
           <FormInput label="access token" value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} type="password" hint="personal access token (PAT)" required className="col-span-2" />
-        ) : (
+        ) : form.databricks_auth_method === "oauth_m2m" ? (
           <div className="col-span-2 grid grid-cols-2 gap-3 p-3 border border-amber-500/20 bg-amber-500/5">
             <FormInput label="client ID" value={form.dbx_oauth_client_id} onChange={(v) => setForm({ ...form, dbx_oauth_client_id: v })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" hint="service principal application (client) ID" required />
             <FormInput label="client secret" value={form.dbx_oauth_client_secret} onChange={(v) => setForm({ ...form, dbx_oauth_client_secret: v })} type="password" hint="service principal client secret" required />
@@ -1184,6 +1184,12 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
               <div><span className="text-[var(--color-text-muted)]">setup:</span> Account Console → User Management → Service Principals → Add. Grant CAN USE on the SQL Warehouse and data access on Unity Catalog.</div>
               <div><span className="text-[var(--color-text-muted)]">recommended:</span> OAuth M2M is the production-grade auth method. PATs are workspace-scoped and expire.</div>
             </div>
+          </div>
+        ) : (
+          <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
+            <div><span className="text-[var(--color-text-muted)]">browser auth:</span> OAuth U2M opens a browser window for authentication. Best for interactive development — the token is automatically refreshed.</div>
+            <div><span className="text-[var(--color-text-muted)]">setup:</span> Ensure your Databricks workspace has OAuth configured (Admin Console → App Connections) and your user has access to the SQL Warehouse.</div>
+            <div><span className="text-[var(--color-text-muted)]">note:</span> OAuth U2M requires the server to have browser access. For headless/server environments, use OAuth M2M instead.</div>
           </div>
         )}
         <FormInput label="catalog" value={form.catalog} onChange={(v) => setForm({ ...form, catalog: v })} placeholder="main" hint="optional — Unity Catalog name" />
