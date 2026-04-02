@@ -68,6 +68,7 @@ class SQLiteConnector(BaseConnector):
                     "nullable": not row[3],
                     "primary_key": bool(row[5]),
                     "default": row[4],
+                    "comment": "",
                 })
 
             # Foreign keys — critical for Spider2.0-Lite join path discovery
@@ -101,21 +102,35 @@ class SQLiteConnector(BaseConnector):
         return schema
 
     async def get_sample_values(self, table: str, columns: list[str], limit: int = 5) -> dict[str, list]:
-        """Get sample distinct values for schema linking optimization."""
-        if self._conn is None:
+        """Get sample distinct values via single UNION ALL query (1 round trip)."""
+        if self._conn is None or not columns:
             return {}
-        result: dict[str, list] = {}
-        for col in columns[:20]:
-            try:
-                cursor = self._conn.execute(
-                    f'SELECT DISTINCT [{col}] FROM [{table}] WHERE [{col}] IS NOT NULL LIMIT {limit}'
+        try:
+            # SQLite uses [] quoting like MSSQL
+            parts = []
+            for i, col in enumerate(columns[:20]):
+                parts.append(
+                    f"SELECT '{col}' AS _col, CAST([{col}] AS TEXT) AS _val "
+                    f"FROM (SELECT DISTINCT [{col}] FROM [{table}] WHERE [{col}] IS NOT NULL LIMIT {limit})"
                 )
-                values = [str(row[0]) for row in cursor.fetchall()]
-                if values:
-                    result[col] = values
-            except Exception:
-                continue
-        return result
+            sql = "\n UNION ALL \n".join(parts)
+            cursor = self._conn.execute(sql)
+            rows = cursor.fetchall()
+            return self._parse_sample_union_result(rows)
+        except Exception:
+            # Fallback to per-column queries
+            result: dict[str, list] = {}
+            for col in columns[:20]:
+                try:
+                    cursor = self._conn.execute(
+                        f'SELECT DISTINCT [{col}] FROM [{table}] WHERE [{col}] IS NOT NULL LIMIT {limit}'
+                    )
+                    values = [str(row[0]) for row in cursor.fetchall()]
+                    if values:
+                        result[col] = values
+                except Exception:
+                    continue
+            return result
 
     async def health_check(self) -> bool:
         if self._conn is None:

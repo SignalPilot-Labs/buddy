@@ -2953,9 +2953,12 @@ class TestSampleValuesBatching:
         from gateway.connectors.mssql import MSSQLConnector
         from gateway.connectors.trino import TrinoConnector
         from gateway.connectors.databricks import DatabricksConnector
+        from gateway.connectors.sqlite import SQLiteConnector
+        from gateway.connectors.bigquery import BigQueryConnector
 
         for cls in [MySQLConnector, ClickHouseConnector, DuckDBConnector,
-                    MSSQLConnector, TrinoConnector, DatabricksConnector]:
+                    MSSQLConnector, TrinoConnector, DatabricksConnector,
+                    SQLiteConnector, BigQueryConnector]:
             source = inspect.getsource(cls.get_sample_values)
             assert "_build_sample_union_sql" in source or "UNION ALL" in source, \
                 f"{cls.__name__} should use batched sample query"
