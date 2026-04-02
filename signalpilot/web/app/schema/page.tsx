@@ -26,7 +26,11 @@ interface Column {
   nullable: boolean;
   primary_key?: boolean;
   comment?: string;
-  stats?: { distinct_count?: number; distinct_fraction?: number };
+  stats?: { distinct_count?: number; distinct_fraction?: number; data_bytes?: number; compressed_bytes?: number };
+  encoding?: string;
+  dist_key?: boolean;
+  sort_key_position?: number;
+  low_cardinality?: boolean;
 }
 
 interface ForeignKey {
@@ -45,6 +49,11 @@ interface TableSchema {
   description?: string;
   engine?: string;
   sorting_key?: string;
+  diststyle?: string;
+  sortkey?: string;
+  clustering_key?: string;
+  size_mb?: number;
+  total_bytes?: number;
 }
 
 interface SchemaData {
@@ -457,6 +466,26 @@ export default function SchemaExplorerPage() {
                         {table.engine}
                       </span>
                     )}
+                    {table.diststyle && (
+                      <span className="text-[9px] px-1 py-0.5 border border-orange-500/20 text-orange-400 tracking-wider">
+                        DIST:{table.diststyle}
+                      </span>
+                    )}
+                    {table.sortkey && (
+                      <span className="text-[9px] px-1 py-0.5 border border-amber-500/20 text-amber-400 tracking-wider">
+                        SORT:{table.sortkey}
+                      </span>
+                    )}
+                    {table.clustering_key && (
+                      <span className="text-[9px] px-1 py-0.5 border border-cyan-500/20 text-cyan-400 tracking-wider">
+                        CLUSTER:{table.clustering_key}
+                      </span>
+                    )}
+                    {table.sorting_key && (
+                      <span className="text-[9px] px-1 py-0.5 border border-violet-500/20 text-violet-400 tracking-wider">
+                        ORDER:{table.sorting_key}
+                      </span>
+                    )}
                     <span className="ml-auto flex items-center gap-3 text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
                       {table.row_count != null && table.row_count > 0 && (
                         <span className="opacity-60">
@@ -465,6 +494,22 @@ export default function SchemaExplorerPage() {
                             : table.row_count >= 1_000
                               ? `${(table.row_count / 1_000).toFixed(0)}K`
                               : table.row_count} rows
+                        </span>
+                      )}
+                      {table.size_mb != null && table.size_mb > 0 && (
+                        <span className="opacity-60">
+                          {table.size_mb >= 1024
+                            ? `${(table.size_mb / 1024).toFixed(1)}GB`
+                            : `${table.size_mb.toFixed(0)}MB`}
+                        </span>
+                      )}
+                      {!table.size_mb && table.total_bytes != null && table.total_bytes > 0 && (
+                        <span className="opacity-60">
+                          {table.total_bytes >= 1_073_741_824
+                            ? `${(table.total_bytes / 1_073_741_824).toFixed(1)}GB`
+                            : table.total_bytes >= 1_048_576
+                              ? `${(table.total_bytes / 1_048_576).toFixed(0)}MB`
+                              : `${(table.total_bytes / 1024).toFixed(0)}KB`}
                         </span>
                       )}
                       {table.columns.length} cols
@@ -481,6 +526,9 @@ export default function SchemaExplorerPage() {
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">type</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-24">nullable</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">references</th>
+                            {table.columns.some(c => c.stats) && (
+                              <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-24">cardinality</th>
+                            )}
                             {table.columns.some(c => c.comment) && (
                               <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">comment</th>
                             )}
@@ -497,12 +545,24 @@ export default function SchemaExplorerPage() {
                                 <span className="flex items-center gap-2">
                                   {col.primary_key && <Key className="w-2.5 h-2.5 text-[var(--color-warning)]" />}
                                   <span className="text-[var(--color-text-muted)]">{col.name}</span>
+                                  {col.dist_key && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-orange-500/30 text-orange-400 tracking-wider leading-none">DK</span>
+                                  )}
+                                  {col.sort_key_position != null && col.sort_key_position > 0 && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-amber-500/30 text-amber-400 tracking-wider leading-none">SK{col.sort_key_position}</span>
+                                  )}
+                                  {col.low_cardinality && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-teal-500/30 text-teal-400 tracking-wider leading-none">LC</span>
+                                  )}
                                 </span>
                               </td>
                               <td className="px-4 py-1.5">
                                 <span className={`${getTypeColor(col.type)} flex items-center gap-1.5`}>
                                   <span className={`w-1 h-1 ${getTypeColor(col.type).replace("text-", "bg-")}`} />
                                   {col.type}
+                                  {col.encoding && col.encoding !== "none" && (
+                                    <span className="text-[8px] text-[var(--color-text-dim)] opacity-60">{col.encoding}</span>
+                                  )}
                                 </span>
                               </td>
                               <td className="px-4 py-1.5">
@@ -525,6 +585,21 @@ export default function SchemaExplorerPage() {
                                   return null;
                                 })()}
                               </td>
+                              {table.columns.some(c => c.stats) && (
+                                <td className="px-4 py-1.5">
+                                  {col.stats && (
+                                    <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider tabular-nums">
+                                      {col.stats.distinct_count != null
+                                        ? col.stats.distinct_count >= 1000
+                                          ? `${(col.stats.distinct_count / 1000).toFixed(0)}K`
+                                          : col.stats.distinct_count
+                                        : col.stats.distinct_fraction != null
+                                          ? `${(col.stats.distinct_fraction * 100).toFixed(0)}%`
+                                          : ""}
+                                    </span>
+                                  )}
+                                </td>
+                              )}
                               {table.columns.some(c => c.comment) && (
                                 <td className="px-4 py-1.5">
                                   {col.comment && (
