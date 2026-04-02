@@ -47,7 +47,17 @@ class ClickHouseConnector(BaseConnector):
             connect_args["secure"] = True
             connect_args["verify"] = True
 
-        self._client = CHClient(**connect_args)
+        try:
+            self._client = CHClient(**connect_args)
+            # Verify connection immediately (clickhouse-driver is lazy)
+            self._client.execute("SELECT 1")
+        except Exception as e:
+            err_str = str(e).lower()
+            if "authentication" in err_str or "wrong password" in err_str:
+                raise RuntimeError(f"Authentication failed: {e}") from e
+            elif "connection refused" in err_str or "timed out" in err_str:
+                raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
+            raise RuntimeError(f"ClickHouse connection error: {e}") from e
 
     def _parse_connection_string(self, conn_str: str) -> dict:
         """Parse ClickHouse connection strings.

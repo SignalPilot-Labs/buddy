@@ -33,8 +33,16 @@ class RedshiftConnector(BaseConnector):
         if dsn.startswith("redshift://"):
             dsn = "postgresql://" + dsn[len("redshift://"):]
 
-        self._conn = psycopg2.connect(dsn, connect_timeout=15)
-        self._conn.set_session(readonly=True, autocommit=True)
+        try:
+            self._conn = psycopg2.connect(dsn, connect_timeout=15)
+            self._conn.set_session(readonly=True, autocommit=True)
+        except psycopg2.OperationalError as e:
+            err_str = str(e).lower()
+            if "password authentication failed" in err_str:
+                raise RuntimeError(f"Authentication failed: {e}") from e
+            elif "could not connect" in err_str or "connection refused" in err_str:
+                raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
+            raise RuntimeError(f"Redshift connection error: {e}") from e
 
     async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._conn is None:

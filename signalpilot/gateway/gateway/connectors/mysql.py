@@ -81,7 +81,17 @@ class MySQLConnector(BaseConnector):
                 # SSL enabled but no certs — use basic SSL
                 connect_kwargs["ssl"] = {"ssl": True}
 
-        self._conn = pymysql.connect(**connect_kwargs)
+        try:
+            self._conn = pymysql.connect(**connect_kwargs)
+        except pymysql.err.OperationalError as e:
+            code = e.args[0] if e.args else 0
+            if code == 1045:
+                raise RuntimeError(f"Authentication failed: Access denied for user '{connect_kwargs.get('user', '')}'") from e
+            elif code == 2003:
+                raise RuntimeError(f"Connection failed: Can't connect to MySQL server on '{connect_kwargs.get('host', '')}:{connect_kwargs.get('port', 3306)}'") from e
+            elif code == 1049:
+                raise RuntimeError(f"Database not found: Unknown database '{connect_kwargs.get('database', '')}'") from e
+            raise RuntimeError(f"MySQL connection error: {e}") from e
 
     def _parse_connection_string(self, conn_str: str) -> dict:
         """Parse mysql+pymysql://user:pass@host:port/db or mysql://... format."""

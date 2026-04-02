@@ -21,7 +21,20 @@ class PostgresConnector(BaseConnector):
     async def connect(self, connection_string: str) -> None:
         if not HAS_ASYNCPG:
             raise RuntimeError("asyncpg not installed. Run: pip install asyncpg")
-        self._pool = await asyncpg.create_pool(connection_string, min_size=1, max_size=5)
+        try:
+            self._pool = await asyncpg.create_pool(
+                connection_string,
+                min_size=1,
+                max_size=5,
+                timeout=15,
+                command_timeout=30,
+            )
+        except asyncpg.InvalidCatalogNameError as e:
+            raise RuntimeError(f"Database not found: {e}") from e
+        except asyncpg.InvalidAuthorizationSpecificationError as e:
+            raise RuntimeError(f"Authentication failed: {e}") from e
+        except (OSError, asyncio.TimeoutError) as e:
+            raise RuntimeError(f"Connection failed (host unreachable or timeout): {e}") from e
 
     async def execute(self, sql: str, params: list | None = None, timeout: int | None = None) -> list[dict[str, Any]]:
         if self._pool is None:
