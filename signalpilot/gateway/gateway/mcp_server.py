@@ -77,8 +77,8 @@ def _query_error_hint(error: str, db_type: str) -> str | None:
     if "column" in err_lower and ("not found" in err_lower or "does not exist" in err_lower or "unknown" in err_lower):
         return "Column name may be misspelled or from the wrong table. Use schema_link or compact_schema to verify exact column names."
 
-    # Table not found
-    if "table" in err_lower and ("not found" in err_lower or "does not exist" in err_lower or "doesn't exist" in err_lower):
+    # Table/relation not found
+    if ("table" in err_lower or "relation" in err_lower) and ("not found" in err_lower or "does not exist" in err_lower or "doesn't exist" in err_lower):
         return "Table may not exist or needs schema prefix. Use schema_link to find the correct table name (e.g., schema.table_name)."
 
     # Ambiguous column
@@ -1042,6 +1042,55 @@ async def schema_link(connection_name: str, question: str, format: str = "ddl", 
         tokens = data.get("token_estimate", 0)
         header += f"-- Est. tokens: {tokens}\n\n"
         return header + data.get("ddl", "")
+
+
+@mcp.tool()
+async def explain_query(connection_name: str, sql: str) -> str:
+    """
+    Get the execution plan for a SQL query without running it.
+
+    Returns the query plan, estimated rows, and cost estimate.
+    Use this to validate a query before execution — catches errors,
+    shows estimated cost, and reveals potential performance issues.
+
+    This enables the "generate → explain → fix → execute" workflow
+    used by Spider2.0 SOTA systems for higher accuracy.
+
+    Args:
+        connection_name: Name of the database connection
+        sql: SQL query to explain
+    """
+    if not _CONN_NAME_RE.match(connection_name):
+        return "Error: Invalid connection name"
+    if err := _validate_sql(sql):
+        return f"Error: {err}"
+
+    gw = _gateway_url()
+    async with httpx.AsyncClient(timeout=60) as client:
+        r = await client.post(
+            f"{gw}/api/query/explain",
+            json={"connection_name": connection_name, "sql": sql},
+        )
+    if r.status_code != 200:
+        return f"Error ({r.status_code}): {r.text[:300]}"
+
+    data = r.json()
+    parts = [f"-- EXPLAIN for: {connection_name}"]
+
+    if data.get("estimated_rows"):
+        parts.append(f"-- Estimated rows: {data['estimated_rows']:,}")
+    if data.get("estimated_usd") and data["estimated_usd"] > 0:
+        parts.append(f"-- Estimated cost: ${data['estimated_usd']:.6f}")
+    if data.get("is_expensive"):
+        parts.append("-- ⚠ WARNING: This query is estimated to be expensive")
+    if data.get("warning"):
+        parts.append(f"-- Note: {data['warning']}")
+
+    plan = data.get("plan", "")
+    if plan:
+        parts.append(f"\n{plan}")
+
+    return "\n".join(parts)
 
 
 @mcp.tool()
