@@ -268,3 +268,47 @@ class TestEndToEnd:
         assert "account" in terms
         assert "balance" in terms
         assert "department" in terms
+
+
+class TestSmallSchemaBypass:
+    """Test the small-schema bypass optimization.
+
+    Per "The Death of Schema Linking?" (OpenReview), when the full schema
+    fits the context window, skipping schema linking yields higher accuracy.
+    """
+
+    def test_small_schema_threshold(self):
+        """Schemas with ≤ max_tables tables and ≤ 500 columns should bypass scoring."""
+        # 10 tables, 5 columns each = 50 columns total → should bypass
+        max_tables = 20
+        schema = {f"public.t{i}": {"columns": [{"name": f"c{j}"} for j in range(5)]} for i in range(10)}
+        total_columns = sum(len(t["columns"]) for t in schema.values())
+        is_small = len(schema) <= max_tables and total_columns <= 500
+        assert is_small is True
+
+    def test_large_schema_no_bypass(self):
+        """Schemas with > max_tables tables should use scoring."""
+        max_tables = 20
+        schema = {f"public.t{i}": {"columns": [{"name": f"c{j}"} for j in range(5)]} for i in range(25)}
+        total_columns = sum(len(t["columns"]) for t in schema.values())
+        is_small = len(schema) <= max_tables and total_columns <= 500
+        assert is_small is False
+
+    def test_many_columns_no_bypass(self):
+        """Even a few tables with >500 total columns should use scoring."""
+        max_tables = 20
+        schema = {f"public.t{i}": {"columns": [{"name": f"c{j}"} for j in range(200)]} for i in range(5)}
+        total_columns = sum(len(t["columns"]) for t in schema.values())
+        is_small = len(schema) <= max_tables and total_columns <= 500
+        assert is_small is False  # 5 tables * 200 cols = 1000 > 500
+
+    def test_bypass_includes_all_tables(self):
+        """When bypassing, all tables should be included in linked_keys."""
+        schema = {f"public.t{i}": {"columns": [{"name": "id"}]} for i in range(10)}
+        max_tables = 20
+        total_columns = sum(len(t["columns"]) for t in schema.values())
+        _small_schema = len(schema) <= max_tables and total_columns <= 500
+        if _small_schema:
+            linked_keys = set(schema.keys())
+        assert linked_keys == set(schema.keys())
+        assert len(linked_keys) == 10

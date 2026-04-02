@@ -3539,6 +3539,13 @@ async def schema_link(
     sf_include, sf_exclude = _get_schema_filters(name)
     filtered = _apply_schema_filter(filtered, sf_include, sf_exclude)
 
+    # ── Small-schema bypass (OpenReview "Death of Schema Linking?" finding) ──
+    # When the full schema is small enough to fit the context window, skip scoring
+    # and include all tables. SOTA systems achieve higher accuracy this way because
+    # they can never miss a relevant table. Threshold: ≤ max_tables tables.
+    total_columns = sum(len(t.get("columns", [])) for t in filtered.values())
+    _small_schema = len(filtered) <= max_tables and total_columns <= 500
+
     # Step 1: Tokenize question into search terms
     import re as _re_link
     # Extract meaningful words (3+ chars, not common SQL/English stopwords)
@@ -3854,10 +3861,17 @@ async def schema_link(
     scored_tables = sorted(table_scores.items(), key=lambda x: (-x[1], x[0]))
     linked_keys = set()
 
-    # Include tables with score > 0 (now includes FK-propagated scores)
-    for key, score in scored_tables:
-        if score > 0 and len(linked_keys) < max_tables:
-            linked_keys.add(key)
+    # Small-schema bypass: include ALL tables when schema is small enough.
+    # Per "The Death of Schema Linking?" (OpenReview): for schemas that fit
+    # the context window, skipping schema linking yields higher accuracy
+    # because no relevant table can be missed. #1 on BIRD benchmark (71.83%).
+    if _small_schema:
+        linked_keys = set(filtered.keys())
+    else:
+        # Include tables with score > 0 (now includes FK-propagated scores)
+        for key, score in scored_tables:
+            if score > 0 and len(linked_keys) < max_tables:
+                linked_keys.add(key)
 
     # If no matches found, fall back to first N tables sorted by FK relevance
     if not linked_keys:
@@ -3973,6 +3987,7 @@ async def schema_link(
             "connection_name": name,
             "question": question,
             "format": "condensed",
+            "full_schema": _small_schema,
             "linked_tables": len(linked_keys),
             "total_tables": len(filtered),
             "columns_original": total_cols_original,
@@ -4018,6 +4033,7 @@ async def schema_link(
             "connection_name": name,
             "question": question,
             "format": "compact",
+            "full_schema": _small_schema,
             "linked_tables": len(linked_keys),
             "total_tables": len(filtered),
             "scores": {k: round(table_scores.get(k, 0), 1) for k in sorted(linked_keys) if table_scores.get(k, 0) > 0},
@@ -4029,6 +4045,7 @@ async def schema_link(
             "connection_name": name,
             "question": question,
             "format": "json",
+            "full_schema": _small_schema,
             "linked_tables": len(linked_keys),
             "total_tables": len(filtered),
             "scores": {k: table_scores.get(k, 0) for k in sorted(linked_keys)},
@@ -4181,6 +4198,7 @@ async def schema_link(
         "connection_name": name,
         "question": question,
         "format": "ddl",
+        "full_schema": _small_schema,
         "linked_tables": len(linked_keys),
         "total_tables": len(filtered),
         "token_estimate": len(ddl_text) // 4,
