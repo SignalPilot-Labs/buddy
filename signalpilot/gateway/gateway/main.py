@@ -1151,7 +1151,10 @@ def _compress_schema(schema: dict) -> dict:
             stats = col.get("stats", {})
             if stats.get("distinct_fraction") == -1.0:
                 unique_hint = " UNIQUE"
-            cols.append(f"{col['name']} {col_type}{nullable}{unique_hint}")
+            # Column comments help Spider2.0 agents understand column semantics
+            comment = col.get("comment", "")
+            comment_str = f" -- {comment}" if comment else ""
+            cols.append(f"{col['name']} {col_type}{nullable}{unique_hint}{comment_str}")
             if col.get("primary_key"):
                 pk_cols.append(col["name"])
 
@@ -1765,6 +1768,9 @@ async def get_compact_schema(
                 fk_ref = fk_map.get(f"{key}.{col['name']}")
                 if fk_ref:
                     entry["fk"] = fk_ref
+                comment = col.get("comment", "")
+                if comment:
+                    entry["desc"] = comment
                 cols.append(entry)
             compact[key] = {"c": cols, "r": table.get("row_count", 0)}
             # Add partition info for deduplicated table families
