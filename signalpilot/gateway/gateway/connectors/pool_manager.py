@@ -7,10 +7,11 @@ Now with SSH tunnel support for bastion-host connections.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import re
 import time
-from typing import Any
+from typing import Any, AsyncIterator
 from urllib.parse import urlparse, urlunparse
 
 from .base import BaseConnector
@@ -207,6 +208,25 @@ class PoolManager:
             if key in self._pools:
                 connector, _ = self._pools[key]
                 self._pools[key] = (connector, time.monotonic())
+
+    @contextlib.asynccontextmanager
+    async def connection(
+        self,
+        db_type: str,
+        connection_string: str,
+        credential_extras: dict | None = None,
+    ) -> AsyncIterator[BaseConnector]:
+        """Context manager that acquires a connector and guarantees release.
+
+        Usage:
+            async with pool_manager.connection("postgres", conn_str) as connector:
+                rows = await connector.execute(sql)
+        """
+        connector = await self.acquire(db_type, connection_string, credential_extras=credential_extras)
+        try:
+            yield connector
+        finally:
+            await self.release(db_type, connection_string)
 
     async def cleanup_idle(self) -> int:
         """Close connectors that have been idle longer than timeout. Returns count closed."""

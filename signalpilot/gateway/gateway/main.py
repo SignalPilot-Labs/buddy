@@ -696,90 +696,90 @@ async def test_connection(name: str):
     t1 = time.monotonic()
     try:
         connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
-        ok = await connector.health_check()
-
-        # Fetch database version for diagnostic info
-        db_version = ""
         try:
-            version_queries = {
-                "postgres": "SELECT version()",
-                "mysql": "SELECT version()",
-                "redshift": "SELECT version()",
-                "clickhouse": "SELECT version()",
-                "snowflake": "SELECT CURRENT_VERSION()",
-                "mssql": "SELECT @@VERSION",
-                "trino": "SELECT version()",
-                "databricks": "SELECT current_version()",
-                "duckdb": "SELECT version()",
-                "sqlite": "SELECT sqlite_version()",
-            }
-            vq = version_queries.get(info.db_type)
-            if vq:
-                vrows = await connector.execute(vq)
-                if vrows:
-                    raw = str(list(vrows[0].values())[0]).split("\n")[0]
-                    # Extract just the product name and version number
-                    import re as _re_ver
-                    ver_match = _re_ver.match(r"([\w\s]+?\d+[\d.]+)", raw)
-                    db_version = ver_match.group(1).strip() if ver_match else raw[:60]
-        except Exception:
-            pass
+            ok = await connector.health_check()
 
-        phase2_duration = round((time.monotonic() - t1) * 1000, 1)
-        if ok:
-            msg = "Authentication and query test passed"
-            if db_version:
-                msg += f" ({db_version})"
-            phases.append({
-                "phase": "database",
-                "status": "ok",
-                "message": msg,
-                "duration_ms": phase2_duration,
-            })
-        else:
-            await pool_manager.release(info.db_type, conn_str)
-            phases.append({
-                "phase": "database",
-                "status": "error",
-                "message": "Health check failed after connection",
-                "duration_ms": phase2_duration,
-            })
-            return {"status": "error", "phases": phases, "message": "Health check failed"}
+            # Fetch database version for diagnostic info
+            db_version = ""
+            try:
+                version_queries = {
+                    "postgres": "SELECT version()",
+                    "mysql": "SELECT version()",
+                    "redshift": "SELECT version()",
+                    "clickhouse": "SELECT version()",
+                    "snowflake": "SELECT CURRENT_VERSION()",
+                    "mssql": "SELECT @@VERSION",
+                    "trino": "SELECT version()",
+                    "databricks": "SELECT current_version()",
+                    "duckdb": "SELECT version()",
+                    "sqlite": "SELECT sqlite_version()",
+                }
+                vq = version_queries.get(info.db_type)
+                if vq:
+                    vrows = await connector.execute(vq)
+                    if vrows:
+                        raw = str(list(vrows[0].values())[0]).split("\n")[0]
+                        # Extract just the product name and version number
+                        import re as _re_ver
+                        ver_match = _re_ver.match(r"([\w\s]+?\d+[\d.]+)", raw)
+                        db_version = ver_match.group(1).strip() if ver_match else raw[:60]
+            except Exception:
+                pass
 
-        # Phase 3: Schema access — verify we can read metadata (HEX pattern)
-        t2 = time.monotonic()
-        try:
-            schema = await connector.get_schema()
-            table_count = len(schema) if schema else 0
-            phase3_duration = round((time.monotonic() - t2) * 1000, 1)
-            if table_count > 0:
-                # Sample first few table names for confirmation
-                sample_tables = list(schema.keys())[:5]
+            phase2_duration = round((time.monotonic() - t1) * 1000, 1)
+            if ok:
+                msg = "Authentication and query test passed"
+                if db_version:
+                    msg += f" ({db_version})"
                 phases.append({
-                    "phase": "schema_access",
+                    "phase": "database",
                     "status": "ok",
-                    "message": f"Schema readable: {table_count} tables found",
-                    "sample_tables": sample_tables,
-                    "duration_ms": phase3_duration,
+                    "message": msg,
+                    "duration_ms": phase2_duration,
                 })
-                # Cache the schema since we already fetched it
-                schema_cache.put(name, schema)
             else:
+                phases.append({
+                    "phase": "database",
+                    "status": "error",
+                    "message": "Health check failed after connection",
+                    "duration_ms": phase2_duration,
+                })
+                return {"status": "error", "phases": phases, "message": "Health check failed"}
+
+            # Phase 3: Schema access — verify we can read metadata (HEX pattern)
+            t2 = time.monotonic()
+            try:
+                schema = await connector.get_schema()
+                table_count = len(schema) if schema else 0
+                phase3_duration = round((time.monotonic() - t2) * 1000, 1)
+                if table_count > 0:
+                    # Sample first few table names for confirmation
+                    sample_tables = list(schema.keys())[:5]
+                    phases.append({
+                        "phase": "schema_access",
+                        "status": "ok",
+                        "message": f"Schema readable: {table_count} tables found",
+                        "sample_tables": sample_tables,
+                        "duration_ms": phase3_duration,
+                    })
+                    # Cache the schema since we already fetched it
+                    schema_cache.put(name, schema)
+                else:
+                    phases.append({
+                        "phase": "schema_access",
+                        "status": "warning",
+                        "message": "Connected but no tables found — check permissions or database contents",
+                        "duration_ms": phase3_duration,
+                    })
+            except Exception as e:
                 phases.append({
                     "phase": "schema_access",
                     "status": "warning",
-                    "message": "Connected but no tables found — check permissions or database contents",
-                    "duration_ms": phase3_duration,
+                    "message": f"Schema access limited: {_sanitize_db_error(str(e))}",
+                    "duration_ms": round((time.monotonic() - t2) * 1000, 1),
                 })
-        except Exception as e:
-            phases.append({
-                "phase": "schema_access",
-                "status": "warning",
-                "message": f"Schema access limited: {_sanitize_db_error(str(e))}",
-                "duration_ms": round((time.monotonic() - t2) * 1000, 1),
-            })
-
-        await pool_manager.release(info.db_type, conn_str)
+        finally:
+            await pool_manager.release(info.db_type, conn_str)
     except Exception as e:
         phases.append({
             "phase": "database",
@@ -843,9 +843,8 @@ async def get_connection_schema(
     if cached is None:
         try:
             extras = get_credential_extras(name)
-            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
-            cached = await connector.get_schema()
-            await pool_manager.release(info.db_type, conn_str)
+            async with pool_manager.connection(info.db_type, conn_str, credential_extras=extras) as connector:
+                cached = await connector.get_schema()
         except Exception as e:
             raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
         schema_cache.put(name, cached)
@@ -1830,9 +1829,8 @@ async def explore_table(
             raise HTTPException(status_code=400, detail="No credentials stored")
         try:
             extras = get_credential_extras(name)
-            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
-            cached = await connector.get_schema()
-            await pool_manager.release(info.db_type, conn_str)
+            async with pool_manager.connection(info.db_type, conn_str, credential_extras=extras) as connector:
+                cached = await connector.get_schema()
         except Exception as e:
             raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
         schema_cache.put(name, cached)
@@ -2890,42 +2888,44 @@ async def query_database(req: DirectQueryRequest):
     extras = get_credential_extras(req.connection_name)
     connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
 
-    # Cost estimation (Feature #13) — run EXPLAIN before execution
-    cost_estimate = None
     try:
-        from .governance.cost_estimator import CostEstimator
-        cost_estimate = await CostEstimator.estimate(connector, safe_sql, info.db_type)
+        # Cost estimation (Feature #13) — run EXPLAIN before execution
+        cost_estimate = None
+        try:
+            from .governance.cost_estimator import CostEstimator
+            cost_estimate = await CostEstimator.estimate(connector, safe_sql, info.db_type)
 
-        # Check budget before executing expensive queries
-        if cost_estimate.is_expensive and cost_estimate.estimated_usd > 0:
-            # Warn in audit log but don't block (policy-based blocking is a future feature)
-            await append_audit(AuditEntry(
-                id=str(uuid.uuid4()),
-                timestamp=time.time(),
-                event_type="query",
-                connection_name=req.connection_name,
-                sql=req.sql,
-                metadata={"cost_warning": True, "estimated_usd": cost_estimate.estimated_usd, "estimated_rows": cost_estimate.estimated_rows},
-            ))
-    except Exception:
-        pass  # Cost estimation is best-effort
+            # Check budget before executing expensive queries
+            if cost_estimate.is_expensive and cost_estimate.estimated_usd > 0:
+                # Warn in audit log but don't block (policy-based blocking is a future feature)
+                await append_audit(AuditEntry(
+                    id=str(uuid.uuid4()),
+                    timestamp=time.time(),
+                    event_type="query",
+                    connection_name=req.connection_name,
+                    sql=req.sql,
+                    metadata={"cost_warning": True, "estimated_usd": cost_estimate.estimated_usd, "estimated_rows": cost_estimate.estimated_rows},
+                ))
+        except Exception:
+            pass  # Cost estimation is best-effort
 
-    start = time.monotonic()
-    try:
-        rows = await connector.execute(safe_sql, timeout=timeout)
+        start = time.monotonic()
+        try:
+            rows = await connector.execute(safe_sql, timeout=timeout)
+        except asyncio.TimeoutError:
+            health_monitor.record(req.connection_name, (time.monotonic() - start) * 1000, False, "timeout", info.db_type)
+            raise HTTPException(
+                status_code=408,
+                detail=f"Query timed out after {timeout}s. Consider adding more specific WHERE clauses or reducing the scope.",
+            )
+        except Exception as e:
+            health_monitor.record(req.connection_name, (time.monotonic() - start) * 1000, False, str(e)[:200], info.db_type)
+            sanitized = _sanitize_db_error(str(e))
+            hint = query_error_hint(str(e), info.db_type)
+            detail = {"error": sanitized, "hint": hint} if hint else sanitized
+            raise HTTPException(status_code=500, detail=detail)
+    finally:
         await pool_manager.release(info.db_type, conn_str)
-    except asyncio.TimeoutError:
-        health_monitor.record(req.connection_name, (time.monotonic() - start) * 1000, False, "timeout", info.db_type)
-        raise HTTPException(
-            status_code=408,
-            detail=f"Query timed out after {timeout}s. Consider adding more specific WHERE clauses or reducing the scope.",
-        )
-    except Exception as e:
-        health_monitor.record(req.connection_name, (time.monotonic() - start) * 1000, False, str(e)[:200], info.db_type)
-        sanitized = _sanitize_db_error(str(e))
-        hint = query_error_hint(str(e), info.db_type)
-        detail = {"error": sanitized, "hint": hint} if hint else sanitized
-        raise HTTPException(status_code=500, detail=detail)
 
     elapsed_ms = (time.monotonic() - start) * 1000
     health_monitor.record(req.connection_name, elapsed_ms, True, db_type=info.db_type)
