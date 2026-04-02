@@ -5,6 +5,53 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 27: DDL Compression, Column Pruning, DB-Specific Error Hints (2026-04-01)
+
+**Summary:** 3 improvements — DDL compression with column pruning (54% token reduction), DB-specific actionable error hints for connection testing, and per-column relevance scoring for schema linking.
+
+**Key metrics:**
+- 458 tests passing (16 new this round)
+- 3 git commits this round
+- DDL compression: enterprise-pg 1,664 → 765 tokens (54% reduction) with condensed+pruning
+- Column pruning: 136 → 81 columns (40% reduction) on enterprise-pg
+- All 5 Docker databases verified: PostgreSQL ×2, MySQL, MSSQL, ClickHouse
+
+### 1. DDL Compression with Column Pruning
+**Files:** `gateway/main.py`
+- **Impact:** 30-54% token reduction in schema context — directly enables more few-shot examples and reasoning space for Spider2.0
+- Per-column relevance scoring: each column gets a score based on question term matching
+- Column pruning: low-scoring tables keep only PKs, FK columns, and question-matched columns
+- New `condensed` format: minimal DDL with compressed types (TSZ, BOOL, INT), no annotations
+- `prune_columns=true` query param: works with all formats (DDL, compact, condensed)
+- Safety: high-score tables (≥5.0) always keep all columns; empty pruning falls back to full schema
+- Results: enterprise-pg — DDL 1,664→1,150 tokens (pruned), 1,664→765 tokens (condensed+pruned)
+
+### 2. DB-Specific Actionable Error Hints
+**Files:** `gateway/main.py`
+- **Impact:** Users get step-by-step troubleshooting specific to their database type
+- Network errors: DB-specific port/config/firewall guidance (pg_hba.conf, bind-address, TCP/IP Protocol, listen_host, etc.)
+- Auth errors: DB-specific credential checks (e.g., MySQL: "Check GRANT for this host", MSSQL: "SQL auth enabled?", ClickHouse: "users.xml", Snowflake: "case-sensitive username")
+- Schema access: DB-specific GRANT statements needed for introspection
+- SSL/TLS: Certificate chain validation steps
+- DNS resolution: Added "Name or service not known", "getaddrinfo" patterns
+- Covers: postgres, mysql, mssql, clickhouse, snowflake, bigquery, databricks, redshift
+
+### 3. Comprehensive Test Suite
+**Files:** `tests/test_ddl_compression.py` (16 tests)
+- TestColumnPruning: high-score keeps all, low-score prunes, relevant columns kept, empty-relevance safety
+- TestTypeCompression: verbose types compressed, precision stripping, passthrough
+- TestErrorHints: DB-specific hints for network/auth/DNS errors, unknown error fallback
+- TestCondensedFormat: shorter than DDL, retains structural elements, reduction calculation
+
+### 4. Industry Research Update (Spider2.0 SOTA)
+- **CHESS** uses column filtering and schema pruning via LLM-based relevance classifier — our column pruning mirrors this approach without the LLM overhead
+- **DIN-SQL** decomposes into schema linking first, then generation — our 2-pass approach (link → refine) matches
+- **DAIL-SQL** uses question-aware schema serialization — our n-gram + abbreviation + synonym expansion covers this
+- **Best practice for 100+ tables:** Two-stage retrieval (embedding recall → LLM rerank), FK graph traversal (we do this), column-level filtering (new this round), metadata enrichment with sample values (done in Round 26)
+- **Token reduction trends:** Compact DDL, schema graphs, progressive disclosure (agentic), learned column pruning
+
+---
+
 ## Round 26: Schema Linking Enhancement, Pre-Save Testing, Connection Presets (2026-04-01)
 
 **Summary:** 4 improvements — Enhanced schema linking with n-gram matching and question-type scoring (targets 27.6% of Spider2.0 errors), HEX-style pre-save connection testing (test before commit), connection preset templates, and scores in all schema link response formats.
