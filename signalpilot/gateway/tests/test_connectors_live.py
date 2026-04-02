@@ -2425,50 +2425,50 @@ class TestQueryErrorHints:
     """Tests for structured error feedback in MCP query_database."""
 
     def test_column_not_found_hint(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("column 'foobar' does not exist", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("column 'foobar' does not exist", "postgres")
         assert hint is not None
         assert "column" in hint.lower()
 
     def test_table_not_found_hint(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("relation 'xyz' does not exist", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("relation 'xyz' does not exist", "postgres")
         assert hint is not None
         assert "table" in hint.lower() or "schema" in hint.lower()
 
     def test_ambiguous_column_hint(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("column reference 'id' is ambiguous", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("column reference 'id' is ambiguous", "postgres")
         assert hint is not None
         assert "ambiguous" in hint.lower()
 
     def test_syntax_error_bigquery(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("Syntax error at position 10", "bigquery")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("Syntax error at position 10", "bigquery")
         assert hint is not None
         assert "bigquery" in hint.lower()
 
     def test_syntax_error_snowflake(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("SQL compilation error: syntax error", "snowflake")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("SQL compilation error: syntax error", "snowflake")
         assert hint is not None
         assert "snowflake" in hint.lower()
 
     def test_division_by_zero_hint(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("division by zero", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("division by zero", "postgres")
         assert hint is not None
         assert "nullif" in hint.lower()
 
     def test_timeout_hint(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("statement timeout: query timed out", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("statement timeout: query timed out", "postgres")
         assert hint is not None
         assert "timed out" in hint.lower() or "where" in hint.lower()
 
     def test_no_hint_for_unknown_error(self):
-        from gateway.mcp_server import _query_error_hint
-        hint = _query_error_hint("some random internal error occurred", "postgres")
+        from gateway.errors import query_error_hint
+        hint = query_error_hint("some random internal error occurred", "postgres")
         assert hint is None
 
 

@@ -61,6 +61,7 @@ from .models import (
 from .connectors.pool_manager import pool_manager
 from .connectors.health_monitor import health_monitor
 from .connectors.schema_cache import schema_cache
+from .errors import query_error_hint
 from .sandbox_client import SandboxClient
 from .store import (
     append_audit,
@@ -2795,7 +2796,9 @@ async def query_database(req: DirectQueryRequest):
     except Exception as e:
         health_monitor.record(req.connection_name, (time.monotonic() - start) * 1000, False, str(e)[:200], info.db_type)
         sanitized = _sanitize_db_error(str(e))
-        raise HTTPException(status_code=500, detail=sanitized)
+        hint = query_error_hint(str(e), info.db_type)
+        detail = {"error": sanitized, "hint": hint} if hint else sanitized
+        raise HTTPException(status_code=500, detail=detail)
 
     elapsed_ms = (time.monotonic() - start) * 1000
     health_monitor.record(req.connection_name, elapsed_ms, True, db_type=info.db_type)

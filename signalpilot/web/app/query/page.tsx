@@ -76,6 +76,7 @@ export default function QueryExplorerPage() {
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
   const [history, setHistory] = useState<
     { sql: string; connection: string; ts: number; duration_ms: number; row_count?: number; cache_hit?: boolean }[]
   >([]);
@@ -110,6 +111,7 @@ export default function QueryExplorerPage() {
     if (!sql.trim() || !selectedConn) return;
     setExecuting(true);
     setError(null);
+    setErrorHint(null);
     setResult(null);
 
     try {
@@ -129,7 +131,27 @@ export default function QueryExplorerPage() {
       setHistory(newHistory);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory)); } catch {}
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      const msg = String(e instanceof Error ? e.message : e);
+      // Parse structured error with hint from gateway
+      try {
+        const jsonMatch = msg.match(/\d+:\s*(\{.*\})\s*$/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.detail?.error) {
+            setError(parsed.detail.error);
+            setErrorHint(parsed.detail.hint || null);
+          } else if (parsed.error) {
+            setError(parsed.error);
+            setErrorHint(parsed.hint || null);
+          } else {
+            setError(msg);
+          }
+        } else {
+          setError(msg);
+        }
+      } catch {
+        setError(msg);
+      }
     } finally {
       setExecuting(false);
     }
@@ -393,6 +415,12 @@ export default function QueryExplorerPage() {
           <div>
             <p className="text-xs text-[var(--color-error)] mb-1 tracking-wider">query error</p>
             <p className="text-[10px] text-[var(--color-text-muted)]">{error}</p>
+            {errorHint && (
+              <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/20">
+                <Zap className="w-3 h-3 text-[var(--color-warning)] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                <p className="text-[10px] text-[var(--color-warning)]">{errorHint}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
