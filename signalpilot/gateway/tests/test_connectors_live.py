@@ -2650,5 +2650,178 @@ class TestSchemaLinking:
         assert scores["public.orders"] > 0, "'order' should match 'orders' via singular/plural"
 
 
+# ── MSSQL Connector ────────────────────────────────────────────────────────
+
+class TestMSSQLConnector:
+    CONN_STR = "mssql://sa:Test%4012345@host.docker.internal:1434/testdb"
+
+    @pytest.fixture
+    def connector(self):
+        from gateway.connectors.mssql import MSSQLConnector
+        return MSSQLConnector()
+
+    @pytest.mark.asyncio
+    async def test_connect_and_health(self, connector):
+        try:
+            await connector.connect(self.CONN_STR)
+            assert await connector.health_check() is True
+            await connector.close()
+        except Exception as e:
+            pytest.skip(f"MSSQL not available: {e}")
+
+    @pytest.mark.asyncio
+    async def test_execute_query(self, connector):
+        try:
+            await connector.connect(self.CONN_STR)
+        except Exception:
+            pytest.skip("MSSQL not available")
+        rows = await connector.execute("SELECT 1 AS value")
+        assert len(rows) == 1
+        assert rows[0]["value"] == 1
+        await connector.close()
+
+    @pytest.mark.asyncio
+    async def test_get_schema(self, connector):
+        try:
+            await connector.connect(self.CONN_STR)
+        except Exception:
+            pytest.skip("MSSQL not available")
+        schema = await connector.get_schema()
+        assert isinstance(schema, dict)
+        if len(schema) > 0:
+            first_table = list(schema.values())[0]
+            assert "columns" in first_table
+            assert "foreign_keys" in first_table
+            assert "indexes" in first_table
+            assert "row_count" in first_table
+            # Check MSSQL-specific metadata
+            col = first_table["columns"][0]
+            assert "name" in col
+            assert "type" in col
+            # Type should include precision for numeric types
+            types = [c["type"] for c in first_table["columns"]]
+            has_precision = any("(" in t for t in types)
+            assert has_precision, f"MSSQL types should include precision: {types}"
+        await connector.close()
+
+    @pytest.mark.asyncio
+    async def test_sample_values(self, connector):
+        try:
+            await connector.connect(self.CONN_STR)
+        except Exception:
+            pytest.skip("MSSQL not available")
+        schema = await connector.get_schema()
+        if schema:
+            first_table_key = list(schema.keys())[0]
+            cols = [c["name"] for c in schema[first_table_key]["columns"][:3]]
+            samples = await connector.get_sample_values(first_table_key, cols, limit=3)
+            assert isinstance(samples, dict)
+        await connector.close()
+
+
+class TestMSSQLURLParsing:
+    """Test MSSQL connection string parsing for all supported formats."""
+
+    def test_standard_mssql_url(self):
+        from gateway.connectors.mssql import MSSQLConnector
+        c = MSSQLConnector()
+        params = c._parse_connection_string("mssql://admin:pass@myhost:1434/mydb")
+        assert params["host"] == "myhost"
+        assert params["port"] == 1434
+        assert params["user"] == "admin"
+        assert params["password"] == "pass"
+        assert params["database"] == "mydb"
+
+    def test_pymssql_url(self):
+        from gateway.connectors.mssql import MSSQLConnector
+        c = MSSQLConnector()
+        params = c._parse_connection_string("mssql+pymssql://sa:pw@localhost:1433/master")
+        assert params["host"] == "localhost"
+        assert params["user"] == "sa"
+        assert params["database"] == "master"
+
+    def test_sqlserver_url(self):
+        from gateway.connectors.mssql import MSSQLConnector
+        c = MSSQLConnector()
+        params = c._parse_connection_string("sqlserver://user:p%40ss@server.example.com/proddb")
+        assert params["host"] == "server.example.com"
+        assert params["password"] == "p@ss"
+        assert params["database"] == "proddb"
+
+    def test_default_port(self):
+        from gateway.connectors.mssql import MSSQLConnector
+        c = MSSQLConnector()
+        params = c._parse_connection_string("mssql://sa:pass@myhost/mydb")
+        assert params["port"] == 1433
+
+
+class TestTrinoURLParsing:
+    """Test Trino connection string parsing."""
+
+    def test_standard_trino_url(self):
+        from gateway.connectors.trino import TrinoConnector
+        c = TrinoConnector()
+        params = c._parse_connection("trino://admin@trinohost:8080/hive/default")
+        assert params["host"] == "trinohost"
+        assert params["port"] == 8080
+        assert params["username"] == "admin"
+        assert params["catalog"] == "hive"
+        assert params["schema"] == "default"
+
+    def test_trino_https_url(self):
+        from gateway.connectors.trino import TrinoConnector
+        c = TrinoConnector()
+        params = c._parse_connection("trino+https://user@secure.trino.io:443/catalog")
+        assert params["host"] == "secure.trino.io"
+        assert params["port"] == 443
+        assert params["https"] is True
+        assert params["catalog"] == "catalog"
+
+    def test_trino_with_password(self):
+        from gateway.connectors.trino import TrinoConnector
+        c = TrinoConnector()
+        params = c._parse_connection("trino://user:secret@host:8443/cat/sch")
+        assert params["username"] == "user"
+        assert params["password"] == "secret"
+        assert params["catalog"] == "cat"
+        assert params["schema"] == "sch"
+
+    def test_trino_with_query_params(self):
+        from gateway.connectors.trino import TrinoConnector
+        c = TrinoConnector()
+        params = c._parse_connection("trino://user@host:8080/cat?verify=false&request_timeout=30")
+        assert params["verify"] == "false"
+        assert params["request_timeout"] == "30"
+
+    def test_trino_default_port(self):
+        from gateway.connectors.trino import TrinoConnector
+        c = TrinoConnector()
+        params = c._parse_connection("trino://user@myhost/catalog")
+        assert params["port"] == 8080
+
+
+class TestMSSQLCostEstimation:
+    """Test MSSQL cost estimation via SHOWPLAN."""
+
+    @pytest.mark.asyncio
+    async def test_cost_estimator_routes_mssql(self):
+        """Verify MSSQL is in the cost estimator routing table."""
+        from gateway.governance.cost_estimator import CostEstimator, CostEstimate
+        # Calling estimate with a None connector should still route to MSSQL estimator
+        # (it will fail gracefully since no real connection)
+        result = await CostEstimator.estimate(None, "SELECT 1", "mssql")
+        assert isinstance(result, CostEstimate)
+        # Should get a warning since connector is None
+        assert result.warning is not None
+
+    @pytest.mark.asyncio
+    async def test_cost_estimator_routes_trino(self):
+        """Verify Trino is in the cost estimator routing table."""
+        from gateway.governance.cost_estimator import CostEstimator, CostEstimate
+        result = await CostEstimator.estimate(None, "SELECT 1", "trino")
+        assert isinstance(result, CostEstimate)
+        assert result.warning is not None
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
