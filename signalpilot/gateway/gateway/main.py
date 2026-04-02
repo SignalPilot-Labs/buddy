@@ -1728,6 +1728,19 @@ async def schema_link(
         "biggest": ["count", "total", "amount", "size"],
         "active": ["status", "is_active", "enabled"],
         "inactive": ["status", "is_active", "enabled"],
+        "location": ["city", "state", "country", "region", "address", "zip"],
+        "address": ["city", "state", "country", "zip", "address_line"],
+        "employee": ["staff", "worker", "user", "agent"],
+        "customer": ["client", "buyer", "account", "user"],
+        "product": ["item", "sku", "goods", "inventory"],
+        "category": ["type", "group", "segment", "class"],
+        "average": ["avg", "mean"],
+        "monthly": ["month", "date"],
+        "yearly": ["year", "date", "annual"],
+        "daily": ["day", "date"],
+        "payment": ["amount", "transaction", "charge", "invoice"],
+        "shipping": ["shipment", "delivery", "tracking", "freight"],
+        "discount": ["promo", "coupon", "rebate", "reduction"],
     }
     question_lower = question.lower()
     terms = [w for w in _re_link.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question_lower) if len(w) >= 3 and w not in stopwords]
@@ -1748,6 +1761,9 @@ async def schema_link(
         table_name_lower = table_data.get("name", "").lower()
         schema_name_lower = table_data.get("schema", "").lower()
 
+        # Split table name into parts for compound matching (order_items -> ["order", "items"])
+        table_name_parts = set(table_name_lower.split("_"))
+
         for term in terms:
             # Exact table name match (highest signal)
             if term == table_name_lower or term == table_name_lower.rstrip("s"):
@@ -1759,6 +1775,9 @@ async def schema_link(
                 score += 8.0
             elif table_name_lower + "s" == term or table_name_lower + "es" == term:
                 score += 8.0
+            # Match against individual parts of compound table names
+            elif term in table_name_parts or term.rstrip("s") in table_name_parts:
+                score += 4.0
 
             # Column name matching
             for col in table_data.get("columns", []):
