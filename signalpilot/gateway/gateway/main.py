@@ -1472,10 +1472,13 @@ async def get_schema_ddl(
         sorting_key = table.get("sorting_key", "")
         if sorting_key:
             comment_parts.append(f"ORDER BY({sorting_key})")
-        # Redshift-specific: distribution style
-        dist_style = table.get("dist_style", "")
+        # Redshift-specific: distribution style + sort key
+        dist_style = table.get("diststyle", "")
         if dist_style:
             comment_parts.append(f"DISTSTYLE={dist_style}")
+        sort_key = table.get("sortkey", "")
+        if sort_key:
+            comment_parts.append(f"SORTKEY({sort_key})")
         row_comment = f" -- {', '.join(comment_parts)}" if comment_parts else ""
 
         ddl = f"{table_header}CREATE TABLE {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
@@ -1724,7 +1727,21 @@ async def schema_link(
         for fk in t.get("foreign_keys", []):
             col_parts.append(f"  FOREIGN KEY ({fk['column']}) REFERENCES {fk.get('references_table', '')}({fk.get('references_column', '')})")
         rc = t.get("row_count", 0)
-        rc_comment = f" -- {rc:,} rows, relevance={table_scores.get(key, 0):.1f}" if rc else f" -- relevance={table_scores.get(key, 0):.1f}"
+        # Build metadata comment
+        meta_parts = []
+        if rc:
+            meta_parts.append(f"{rc:,} rows" if rc < 1_000_000 else f"{rc/1_000_000:.1f}M rows")
+        engine = t.get("engine", "")
+        if engine:
+            meta_parts.append(f"ENGINE={engine}")
+        sorting = t.get("sorting_key", "")
+        if sorting:
+            meta_parts.append(f"ORDER BY({sorting})")
+        diststyle = t.get("diststyle", "")
+        if diststyle:
+            meta_parts.append(f"DISTSTYLE={diststyle}")
+        meta_parts.append(f"relevance={table_scores.get(key, 0):.1f}")
+        rc_comment = f" -- {', '.join(meta_parts)}"
         ddl_lines.append(f"{header}CREATE TABLE {table_name} (\n{',\n'.join(col_parts)}\n);{rc_comment}")
 
     ddl_text = "\n\n".join(ddl_lines)
