@@ -11,19 +11,77 @@ export interface GatewaySettings {
   api_key: string | null;
 }
 
+export type DBType =
+  | "postgres"
+  | "duckdb"
+  | "mysql"
+  | "snowflake"
+  | "bigquery"
+  | "redshift"
+  | "clickhouse"
+  | "databricks"
+  | "mssql"
+  | "trino"
+  | "sqlite";
+
+export interface SSHTunnelConfig {
+  enabled: boolean;
+  host: string | null;
+  port: number;
+  username: string | null;
+  auth_method: "password" | "key";
+  password: string | null;
+  private_key: string | null;
+  private_key_passphrase: string | null;
+}
+
+export interface SSLConfig {
+  enabled: boolean;
+  mode: "disable" | "allow" | "prefer" | "require" | "verify-ca" | "verify-full";
+  ca_cert: string | null;
+  client_cert: string | null;
+  client_key: string | null;
+}
+
 export interface ConnectionInfo {
   id: string;
   name: string;
-  db_type: "postgres" | "duckdb" | "mysql" | "snowflake";
+  db_type: DBType;
   host: string | null;
   port: number | null;
   database: string | null;
   username: string | null;
   ssl: boolean;
+  ssl_config: SSLConfig | null;
+  ssh_tunnel: SSHTunnelConfig | null;
+  // Snowflake
+  account: string | null;
+  warehouse: string | null;
+  schema_name: string | null;
+  role: string | null;
+  // BigQuery
+  project: string | null;
+  dataset: string | null;
+  location: string | null;
+  maximum_bytes_billed: number | null;
+  // Databricks
+  http_path: string | null;
+  catalog: string | null;
+  // Meta
   description: string;
+  tags: string[];
+  schema_refresh_interval: number | null;
+  last_schema_refresh: number | null;
   created_at: number;
   last_used: number | null;
   status: string;
+  // Timeouts
+  connection_timeout: number | null;
+  query_timeout: number | null;
+  keepalive_interval: number | null;
+  // Schema filtering
+  schema_filter_include: string[] | null;
+  schema_filter_exclude: string[] | null;
 }
 
 export interface SandboxInfo {

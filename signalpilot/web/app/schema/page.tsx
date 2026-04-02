@@ -13,7 +13,7 @@ import {
   Key,
   Shield,
 } from "lucide-react";
-import { getConnections, getConnectionSchema, detectPII } from "@/lib/api";
+import { getConnections, getConnectionSchema, getSchemaRefreshStatus, detectPII, getConnectionSchemaDDL } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
@@ -25,12 +25,35 @@ interface Column {
   type: string;
   nullable: boolean;
   primary_key?: boolean;
+  comment?: string;
+  stats?: { distinct_count?: number; distinct_fraction?: number; data_bytes?: number; compressed_bytes?: number };
+  encoding?: string;
+  dist_key?: boolean;
+  sort_key_position?: number;
+  low_cardinality?: boolean;
+}
+
+interface ForeignKey {
+  column: string;
+  references_table: string;
+  references_column: string;
+  references_schema?: string;
 }
 
 interface TableSchema {
   schema: string;
   name: string;
   columns: Column[];
+  foreign_keys?: ForeignKey[];
+  row_count?: number;
+  description?: string;
+  engine?: string;
+  sorting_key?: string;
+  diststyle?: string;
+  sortkey?: string;
+  clustering_key?: string;
+  size_mb?: number;
+  total_bytes?: number;
 }
 
 interface SchemaData {
@@ -90,6 +113,12 @@ export default function SchemaExplorerPage() {
   const [search, setSearch] = useState("");
   const [piiDetections, setPiiDetections] = useState<Record<string, string> | null>(null);
   const [scanningPii, setScanningPii] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null);
+  const [refreshInterval, setRefreshInterval] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "ddl">("table");
+  const [ddlContent, setDdlContent] = useState<string>("");
+  const [ddlLoading, setDdlLoading] = useState(false);
+  const [ddlTokens, setDdlTokens] = useState(0);
 
   useEffect(() => {
     getConnections()
@@ -112,6 +141,11 @@ export default function SchemaExplorerPage() {
       setSchema(data);
       const keys = Object.keys(data.tables).slice(0, 5);
       setExpandedTables(new Set(keys));
+      // Fetch refresh status
+      getSchemaRefreshStatus(selectedConn).then((status) => {
+        setLastRefresh(status.last_schema_refresh);
+        setRefreshInterval(status.schema_refresh_interval);
+      }).catch(() => {});
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -136,9 +170,26 @@ export default function SchemaExplorerPage() {
     }
   }, [selectedConn]);
 
+  const loadDDL = useCallback(async () => {
+    if (!selectedConn) return;
+    setDdlLoading(true);
+    try {
+      const data = await getConnectionSchemaDDL(selectedConn);
+      setDdlContent(data.ddl);
+      setDdlTokens(data.token_estimate);
+    } catch {
+      setDdlContent("-- Failed to load DDL");
+    } finally {
+      setDdlLoading(false);
+    }
+  }, [selectedConn]);
+
   useEffect(() => {
-    if (selectedConn) loadSchema();
-  }, [selectedConn, loadSchema]);
+    if (selectedConn) {
+      loadSchema();
+      if (viewMode === "ddl") loadDDL();
+    }
+  }, [selectedConn, loadSchema, viewMode, loadDDL]);
 
   function toggleTable(key: string) {
     setExpandedTables((prev) => {
@@ -209,7 +260,14 @@ export default function SchemaExplorerPage() {
       >
         <div className="flex items-center gap-6 text-xs">
           <span className="text-[var(--color-text-dim)]">tables: <code className="text-[10px] text-[var(--color-text)]">{schema ? Object.keys(schema.tables).length : "—"}</code></span>
+          <span className="text-[var(--color-text-dim)]">columns: <code className="text-[10px] text-[var(--color-text)]">{schema ? Object.values(schema.tables).reduce((sum, t) => sum + t.columns.length, 0) : "—"}</code></span>
           <span className="text-[var(--color-text-dim)]">db: <code className="text-[10px] text-[var(--color-text)]">{schema?.db_type || "—"}</code></span>
+          {lastRefresh && (
+            <span className="text-[var(--color-text-dim)]">
+              refreshed: <code className="text-[10px] text-[var(--color-text)]">{new Date(lastRefresh * 1000).toLocaleTimeString()}</code>
+              {refreshInterval && <span className="ml-1 opacity-60">(every {refreshInterval >= 3600 ? `${Math.round(refreshInterval / 3600)}h` : `${Math.round(refreshInterval / 60)}m`})</span>}
+            </span>
+          )}
         </div>
       </TerminalBar>
 
@@ -238,6 +296,21 @@ export default function SchemaExplorerPage() {
               </span>
             </div>
             <div className="flex items-center gap-1">
+              {/* View mode toggle */}
+              <div className="flex items-center border border-[var(--color-border)] mr-2">
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`px-2 py-1 text-[10px] tracking-wider transition-colors ${viewMode === "table" ? "bg-[var(--color-text)]/10 text-[var(--color-text)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}
+                >
+                  table
+                </button>
+                <button
+                  onClick={() => { setViewMode("ddl"); if (!ddlContent) loadDDL(); }}
+                  className={`px-2 py-1 text-[10px] tracking-wider transition-colors ${viewMode === "ddl" ? "bg-[var(--color-text)]/10 text-[var(--color-text)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}
+                >
+                  DDL
+                </button>
+              </div>
               <button
                 onClick={scanPii}
                 disabled={scanningPii}
@@ -246,12 +319,16 @@ export default function SchemaExplorerPage() {
                 {scanningPii ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" strokeWidth={1.5} />}
                 {piiDetections ? `pii: ${Object.keys(piiDetections).length}` : "scan pii"}
               </button>
-              <button onClick={expandAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
-                expand
-              </button>
-              <button onClick={collapseAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
-                collapse
-              </button>
+              {viewMode === "table" && (
+                <>
+                  <button onClick={expandAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+                    expand
+                  </button>
+                  <button onClick={collapseAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+                    collapse
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <TypeLegend />
@@ -318,8 +395,35 @@ export default function SchemaExplorerPage() {
         />
       )}
 
+      {/* DDL view */}
+      {schema && viewMode === "ddl" && (
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
+            <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider uppercase">create table ddl</span>
+            <div className="flex items-center gap-3 text-[9px] text-[var(--color-text-dim)] tracking-wider">
+              {ddlTokens > 0 && <span>~{ddlTokens.toLocaleString()} tokens</span>}
+              <button
+                onClick={() => navigator.clipboard.writeText(ddlContent)}
+                className="hover:text-[var(--color-text)] transition-colors"
+              >
+                copy
+              </button>
+            </div>
+          </div>
+          {ddlLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-text-dim)]" />
+            </div>
+          ) : (
+            <pre className="px-4 py-3 text-[11px] text-[var(--color-text-muted)] overflow-x-auto font-mono leading-relaxed max-h-[600px] overflow-y-auto whitespace-pre">
+              {ddlContent || "-- No DDL available"}
+            </pre>
+          )}
+        </div>
+      )}
+
       {/* Schema tree */}
-      {schema && (
+      {schema && viewMode === "table" && (
         <div className="space-y-px stagger-fade-in">
           {filteredTables.length === 0 ? (
             <div className="text-center py-12 text-xs text-[var(--color-text-dim)]">
@@ -347,7 +451,67 @@ export default function SchemaExplorerPage() {
                     </svg>
                     <span className="text-xs text-[var(--color-text-muted)] group-hover:text-[var(--color-text)] transition-colors">{table.name}</span>
                     <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider">{table.schema}</span>
-                    <span className="ml-auto text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
+                    {(table.foreign_keys?.length ?? 0) > 0 && (
+                      <span className="text-[9px] px-1 py-0.5 border border-blue-500/20 text-blue-400 tracking-wider tabular-nums">
+                        {table.foreign_keys!.length} FK{table.foreign_keys!.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {table.description && (
+                      <span className="text-[9px] text-[var(--color-text-dim)] italic tracking-wider truncate max-w-[200px]">
+                        {table.description}
+                      </span>
+                    )}
+                    {table.engine && (
+                      <span className="text-[9px] px-1 py-0.5 border border-[var(--color-border)] text-[var(--color-text-dim)] tracking-wider">
+                        {table.engine}
+                      </span>
+                    )}
+                    {table.diststyle && (
+                      <span className="text-[9px] px-1 py-0.5 border border-orange-500/20 text-orange-400 tracking-wider">
+                        DIST:{table.diststyle}
+                      </span>
+                    )}
+                    {table.sortkey && (
+                      <span className="text-[9px] px-1 py-0.5 border border-amber-500/20 text-amber-400 tracking-wider">
+                        SORT:{table.sortkey}
+                      </span>
+                    )}
+                    {table.clustering_key && (
+                      <span className="text-[9px] px-1 py-0.5 border border-cyan-500/20 text-cyan-400 tracking-wider">
+                        CLUSTER:{table.clustering_key}
+                      </span>
+                    )}
+                    {table.sorting_key && (
+                      <span className="text-[9px] px-1 py-0.5 border border-violet-500/20 text-violet-400 tracking-wider">
+                        ORDER:{table.sorting_key}
+                      </span>
+                    )}
+                    <span className="ml-auto flex items-center gap-3 text-[10px] text-[var(--color-text-dim)] tabular-nums tracking-wider">
+                      {table.row_count != null && table.row_count > 0 && (
+                        <span className="opacity-60">
+                          {table.row_count >= 1_000_000
+                            ? `${(table.row_count / 1_000_000).toFixed(1)}M`
+                            : table.row_count >= 1_000
+                              ? `${(table.row_count / 1_000).toFixed(0)}K`
+                              : table.row_count} rows
+                        </span>
+                      )}
+                      {table.size_mb != null && table.size_mb > 0 && (
+                        <span className="opacity-60">
+                          {table.size_mb >= 1024
+                            ? `${(table.size_mb / 1024).toFixed(1)}GB`
+                            : `${table.size_mb.toFixed(0)}MB`}
+                        </span>
+                      )}
+                      {!table.size_mb && table.total_bytes != null && table.total_bytes > 0 && (
+                        <span className="opacity-60">
+                          {table.total_bytes >= 1_073_741_824
+                            ? `${(table.total_bytes / 1_073_741_824).toFixed(1)}GB`
+                            : table.total_bytes >= 1_048_576
+                              ? `${(table.total_bytes / 1_048_576).toFixed(0)}MB`
+                              : `${(table.total_bytes / 1024).toFixed(0)}KB`}
+                        </span>
+                      )}
                       {table.columns.length} cols
                     </span>
                   </button>
@@ -361,6 +525,13 @@ export default function SchemaExplorerPage() {
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">column</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">type</th>
                             <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-24">nullable</th>
+                            <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">references</th>
+                            {table.columns.some(c => c.stats) && (
+                              <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-24">cardinality</th>
+                            )}
+                            {table.columns.some(c => c.comment) && (
+                              <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em]">comment</th>
+                            )}
                             {piiDetections && (
                               <th className="text-left px-4 py-2 text-[9px] text-[var(--color-text-dim)] uppercase tracking-[0.15em] w-20">pii</th>
                             )}
@@ -374,12 +545,24 @@ export default function SchemaExplorerPage() {
                                 <span className="flex items-center gap-2">
                                   {col.primary_key && <Key className="w-2.5 h-2.5 text-[var(--color-warning)]" />}
                                   <span className="text-[var(--color-text-muted)]">{col.name}</span>
+                                  {col.dist_key && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-orange-500/30 text-orange-400 tracking-wider leading-none">DK</span>
+                                  )}
+                                  {col.sort_key_position != null && col.sort_key_position > 0 && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-amber-500/30 text-amber-400 tracking-wider leading-none">SK{col.sort_key_position}</span>
+                                  )}
+                                  {col.low_cardinality && (
+                                    <span className="text-[8px] px-1 py-0.5 border border-teal-500/30 text-teal-400 tracking-wider leading-none">LC</span>
+                                  )}
                                 </span>
                               </td>
                               <td className="px-4 py-1.5">
                                 <span className={`${getTypeColor(col.type)} flex items-center gap-1.5`}>
                                   <span className={`w-1 h-1 ${getTypeColor(col.type).replace("text-", "bg-")}`} />
                                   {col.type}
+                                  {col.encoding && col.encoding !== "none" && (
+                                    <span className="text-[8px] text-[var(--color-text-dim)] opacity-60">{col.encoding}</span>
+                                  )}
                                 </span>
                               </td>
                               <td className="px-4 py-1.5">
@@ -389,6 +572,43 @@ export default function SchemaExplorerPage() {
                                   <span className="text-[var(--color-warning)]">NOT NULL</span>
                                 )}
                               </td>
+                              <td className="px-4 py-1.5">
+                                {(() => {
+                                  const fk = table.foreign_keys?.find(f => f.column === col.name);
+                                  if (fk) {
+                                    return (
+                                      <span className="text-[9px] text-blue-400 tracking-wider">
+                                        → {fk.references_table}.{fk.references_column}
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+                              </td>
+                              {table.columns.some(c => c.stats) && (
+                                <td className="px-4 py-1.5">
+                                  {col.stats && (
+                                    <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider tabular-nums">
+                                      {col.stats.distinct_count != null
+                                        ? col.stats.distinct_count >= 1000
+                                          ? `${(col.stats.distinct_count / 1000).toFixed(0)}K`
+                                          : col.stats.distinct_count
+                                        : col.stats.distinct_fraction != null
+                                          ? `${(col.stats.distinct_fraction * 100).toFixed(0)}%`
+                                          : ""}
+                                    </span>
+                                  )}
+                                </td>
+                              )}
+                              {table.columns.some(c => c.comment) && (
+                                <td className="px-4 py-1.5">
+                                  {col.comment && (
+                                    <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider italic">
+                                      {col.comment.length > 60 ? col.comment.slice(0, 60) + "..." : col.comment}
+                                    </span>
+                                  )}
+                                </td>
+                              )}
                               {piiDetections && (
                                 <td className="px-4 py-1.5">
                                   {piiDetections[col.name.toLowerCase()] && (

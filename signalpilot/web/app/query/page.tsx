@@ -16,8 +16,9 @@ import {
   Shield,
   DollarSign,
   Zap,
+  BookOpen,
 } from "lucide-react";
-import { getConnections, executeQuery as apiExecuteQuery } from "@/lib/api";
+import { getConnections, executeQuery as apiExecuteQuery, getConnectionSchemaLink } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 import { EmptyQuery, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
@@ -67,6 +68,66 @@ interface QueryResult {
 
 const HISTORY_KEY = "sp_query_history";
 
+/* ── Query templates per DB type ── */
+const QUERY_TEMPLATES: Record<string, { label: string; sql: string }[]> = {
+  postgres: [
+    { label: "List tables", sql: "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema NOT IN ('pg_catalog', 'information_schema')\nORDER BY table_schema, table_name;" },
+    { label: "Table sizes", sql: "SELECT\n  schemaname || '.' || tablename AS table,\n  pg_size_pretty(pg_total_relation_size(schemaname || '.' || tablename)) AS total_size,\n  pg_size_pretty(pg_relation_size(schemaname || '.' || tablename)) AS data_size\nFROM pg_tables\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nORDER BY pg_total_relation_size(schemaname || '.' || tablename) DESC\nLIMIT 20;" },
+    { label: "Running queries", sql: "SELECT pid, now() - pg_stat_activity.query_start AS duration,\n  query, state\nFROM pg_stat_activity\nWHERE (now() - pg_stat_activity.query_start) > interval '5 seconds'\n  AND state != 'idle'\nORDER BY duration DESC;" },
+    { label: "Index usage", sql: "SELECT\n  schemaname || '.' || relname AS table,\n  indexrelname AS index,\n  idx_scan AS scans,\n  pg_size_pretty(pg_relation_size(indexrelid)) AS size\nFROM pg_stat_user_indexes\nORDER BY idx_scan DESC\nLIMIT 20;" },
+  ],
+  mysql: [
+    { label: "List tables", sql: "SELECT table_schema, table_name, table_rows,\n  ROUND(data_length / 1024 / 1024, 2) AS data_mb\nFROM information_schema.tables\nWHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')\nORDER BY table_rows DESC;" },
+    { label: "Table sizes", sql: "SELECT table_schema, table_name,\n  ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb\nFROM information_schema.tables\nWHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys')\nORDER BY (data_length + index_length) DESC\nLIMIT 20;" },
+    { label: "Show processlist", sql: "SELECT id, user, host, db, command, time, state,\n  LEFT(info, 100) AS query\nFROM information_schema.processlist\nWHERE command != 'Sleep'\nORDER BY time DESC;" },
+  ],
+  snowflake: [
+    { label: "List schemas", sql: "SHOW SCHEMAS;" },
+    { label: "List tables", sql: "SELECT table_schema, table_name, row_count,\n  bytes / 1024 / 1024 AS size_mb\nFROM information_schema.tables\nWHERE table_schema NOT IN ('INFORMATION_SCHEMA')\nORDER BY row_count DESC NULLS LAST;" },
+    { label: "Warehouse usage", sql: "SELECT warehouse_name, \n  SUM(credits_used) AS total_credits,\n  COUNT(*) AS query_count\nFROM snowflake.account_usage.warehouse_metering_history\nWHERE start_time >= DATEADD('day', -7, CURRENT_TIMESTAMP())\nGROUP BY warehouse_name\nORDER BY total_credits DESC;" },
+    { label: "Query history", sql: "SELECT query_id, query_text, database_name,\n  execution_status, total_elapsed_time / 1000 AS elapsed_sec\nFROM snowflake.account_usage.query_history\nWHERE start_time >= DATEADD('hour', -24, CURRENT_TIMESTAMP())\nORDER BY start_time DESC\nLIMIT 20;" },
+  ],
+  bigquery: [
+    { label: "List datasets", sql: "SELECT schema_name\nFROM INFORMATION_SCHEMA.SCHEMATA;" },
+    { label: "List tables", sql: "SELECT table_schema, table_name, table_type,\n  row_count, ROUND(size_bytes / 1024 / 1024 / 1024, 2) AS size_gb\nFROM `region-us`.INFORMATION_SCHEMA.TABLE_STORAGE\nORDER BY size_bytes DESC\nLIMIT 20;" },
+    { label: "Job history", sql: "SELECT job_id, user_email, query,\n  total_bytes_processed / 1024 / 1024 / 1024 AS gb_processed,\n  total_slot_ms / 1000 AS slot_sec\nFROM `region-us`.INFORMATION_SCHEMA.JOBS\nWHERE creation_time > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 24 HOUR)\nORDER BY total_bytes_processed DESC\nLIMIT 20;" },
+  ],
+  clickhouse: [
+    { label: "List tables", sql: "SELECT database, name, engine,\n  formatReadableSize(total_bytes) AS size,\n  total_rows\nFROM system.tables\nWHERE database NOT IN ('system', 'INFORMATION_SCHEMA', 'information_schema')\nORDER BY total_bytes DESC;" },
+    { label: "Running queries", sql: "SELECT query_id, user, elapsed,\n  formatReadableSize(memory_usage) AS memory,\n  LEFT(query, 100) AS query\nFROM system.processes\nWHERE is_initial_query = 1\nORDER BY elapsed DESC;" },
+    { label: "Part sizes", sql: "SELECT database, table,\n  COUNT() AS parts,\n  formatReadableSize(SUM(bytes_on_disk)) AS size,\n  SUM(rows) AS total_rows\nFROM system.parts\nWHERE active AND database NOT IN ('system')\nGROUP BY database, table\nORDER BY SUM(bytes_on_disk) DESC\nLIMIT 20;" },
+  ],
+  redshift: [
+    { label: "List tables", sql: "SELECT schemaname, tablename, \n  \"column\" AS dist_key, diststyle\nFROM pg_table_def\nJOIN svv_table_info ON tablename = \"table\"\nWHERE schemaname NOT IN ('pg_catalog', 'information_schema')\nLIMIT 20;" },
+    { label: "Table sizes", sql: "SELECT \"schema\" || '.' || \"table\" AS table_name,\n  size AS size_mb, tbl_rows\nFROM svv_table_info\nORDER BY size DESC\nLIMIT 20;" },
+    { label: "Running queries", sql: "SELECT pid, user_name, starttime,\n  DATEDIFF('second', starttime, GETDATE()) AS elapsed_sec,\n  LEFT(querytxt, 100) AS query\nFROM stv_recents\nWHERE status = 'Running'\nORDER BY starttime;" },
+  ],
+  databricks: [
+    { label: "List schemas", sql: "SHOW SCHEMAS;" },
+    { label: "List tables", sql: "SELECT table_schema, table_name, table_type\nFROM information_schema.tables\nWHERE table_schema NOT IN ('information_schema')\nORDER BY table_schema, table_name;" },
+    { label: "Describe table", sql: "DESCRIBE TABLE EXTENDED your_schema.your_table;" },
+  ],
+  trino: [
+    { label: "List catalogs", sql: "SHOW CATALOGS;" },
+    { label: "List schemas", sql: "SHOW SCHEMAS;" },
+    { label: "List tables", sql: "SHOW TABLES;" },
+    { label: "Running queries", sql: "SELECT query_id, state, query,\n  date_diff('second', created, now()) AS elapsed_sec\nFROM system.runtime.queries\nWHERE state = 'RUNNING'\nORDER BY created;" },
+  ],
+  mssql: [
+    { label: "List tables", sql: "SELECT s.name AS [schema], t.name AS [table],\n  p.rows AS row_count\nFROM sys.tables t\nJOIN sys.schemas s ON t.schema_id = s.schema_id\nLEFT JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id IN (0, 1)\nWHERE s.name NOT IN ('sys')\nORDER BY p.rows DESC;" },
+    { label: "Table sizes", sql: "SELECT s.name + '.' + t.name AS [table],\n  SUM(a.total_pages) * 8 / 1024 AS total_mb,\n  SUM(a.used_pages) * 8 / 1024 AS used_mb,\n  p.rows\nFROM sys.tables t\nJOIN sys.schemas s ON t.schema_id = s.schema_id\nJOIN sys.indexes i ON t.object_id = i.object_id\nJOIN sys.partitions p ON i.object_id = p.object_id AND i.index_id = p.index_id\nJOIN sys.allocation_units a ON p.partition_id = a.container_id\nGROUP BY s.name, t.name, p.rows\nORDER BY SUM(a.total_pages) DESC;" },
+    { label: "Running queries", sql: "SELECT r.session_id, r.status, r.command,\n  r.cpu_time, r.total_elapsed_time / 1000 AS elapsed_sec,\n  LEFT(t.text, 100) AS query\nFROM sys.dm_exec_requests r\nCROSS APPLY sys.dm_exec_sql_text(r.sql_handle) t\nWHERE r.status != 'background'\nORDER BY r.total_elapsed_time DESC;" },
+  ],
+  duckdb: [
+    { label: "List tables", sql: "SELECT table_schema, table_name\nFROM information_schema.tables\nORDER BY table_schema, table_name;" },
+    { label: "System info", sql: "SELECT * FROM duckdb_settings()\nWHERE name IN ('threads', 'memory_limit', 'max_memory');" },
+  ],
+  sqlite: [
+    { label: "List tables", sql: "SELECT name, type FROM sqlite_master\nWHERE type IN ('table', 'view')\nORDER BY name;" },
+    { label: "Table info", sql: "SELECT m.name AS table_name, p.*\nFROM sqlite_master m\nJOIN pragma_table_info(m.name) p\nWHERE m.type = 'table'\nORDER BY m.name, p.cid;" },
+  ],
+};
+
 export default function QueryExplorerPage() {
   const { toast } = useToast();
   const [connections, setConnections] = useState<ConnectionInfo[]>([]);
@@ -76,10 +137,17 @@ export default function QueryExplorerPage() {
   const [executing, setExecuting] = useState(false);
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
   const [history, setHistory] = useState<
     { sql: string; connection: string; ts: number; duration_ms: number; row_count?: number; cache_hit?: boolean }[]
   >([]);
   const [copied, setCopied] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [schemaContext, setSchemaContext] = useState<string>("");
+  const [schemaLoading, setSchemaLoading] = useState(false);
+  const [showSchema, setShowSchema] = useState(false);
+  const [schemaLinked, setSchemaLinked] = useState(0);
+  const [schemaTotal, setSchemaTotal] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +173,7 @@ export default function QueryExplorerPage() {
     if (!sql.trim() || !selectedConn) return;
     setExecuting(true);
     setError(null);
+    setErrorHint(null);
     setResult(null);
 
     try {
@@ -124,7 +193,27 @@ export default function QueryExplorerPage() {
       setHistory(newHistory);
       try { localStorage.setItem(HISTORY_KEY, JSON.stringify(newHistory)); } catch {}
     } catch (e) {
-      setError(String(e instanceof Error ? e.message : e));
+      const msg = String(e instanceof Error ? e.message : e);
+      // Parse structured error with hint from gateway
+      try {
+        const jsonMatch = msg.match(/\d+:\s*(\{.*\})\s*$/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.detail?.error) {
+            setError(parsed.detail.error);
+            setErrorHint(parsed.detail.hint || null);
+          } else if (parsed.error) {
+            setError(parsed.error);
+            setErrorHint(parsed.hint || null);
+          } else {
+            setError(msg);
+          }
+        } else {
+          setError(msg);
+        }
+      } catch {
+        setError(msg);
+      }
     } finally {
       setExecuting(false);
     }
@@ -145,6 +234,22 @@ export default function QueryExplorerPage() {
   }
 
   const lineCount = Math.max(sql.split("\n").length, 6);
+
+  async function loadSchemaContext() {
+    if (!selectedConn || !sql.trim()) return;
+    setSchemaLoading(true);
+    setShowSchema(true);
+    try {
+      const data = await getConnectionSchemaLink(selectedConn, sql.trim(), "ddl", 10);
+      setSchemaContext(data.ddl || data.schema || "-- No relevant tables found");
+      setSchemaLinked(data.linked_tables);
+      setSchemaTotal(data.total_tables);
+    } catch (e) {
+      setSchemaContext(`-- Error loading schema: ${e}`);
+    } finally {
+      setSchemaLoading(false);
+    }
+  }
 
   function exportCSV() {
     if (!result || result.rows.length === 0) return;
@@ -257,7 +362,55 @@ export default function QueryExplorerPage() {
           />
         </div>
 
+        {/* Query templates dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowTemplates(!showTemplates)}
+            disabled={!selectedConn}
+            className="flex items-center gap-1.5 px-2.5 py-2 border border-[var(--color-border)] text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider disabled:opacity-30"
+          >
+            <BookOpen className="w-3 h-3" strokeWidth={1.5} />
+            templates
+            <ChevronDown className="w-2.5 h-2.5" />
+          </button>
+          {showTemplates && selectedConn && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowTemplates(false)} />
+              <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-lg">
+                {(() => {
+                  const conn = connections.find(c => c.name === selectedConn);
+                  const templates = conn ? QUERY_TEMPLATES[conn.db_type] || [] : [];
+                  if (templates.length === 0) return (
+                    <div className="px-3 py-2 text-[10px] text-[var(--color-text-dim)] tracking-wider">no templates for this db type</div>
+                  );
+                  return templates.map((t, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setSql(t.sql); setShowTemplates(false); }}
+                      className="w-full text-left px-3 py-2 text-[10px] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] hover:text-[var(--color-text)] transition-colors tracking-wider border-b border-[var(--color-border)] last:border-b-0"
+                    >
+                      {t.label}
+                    </button>
+                  ));
+                })()}
+              </div>
+            </>
+          )}
+        </div>
+
         <div className="flex-1" />
+
+        <Tooltip content="Show relevant tables for your query (schema linking)" position="bottom">
+          <button
+            onClick={loadSchemaContext}
+            disabled={schemaLoading || !sql.trim() || !selectedConn}
+            className="flex items-center gap-1.5 px-3 py-2 border border-[var(--color-border)] text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:border-[var(--color-border-hover)] transition-all tracking-wider disabled:opacity-30"
+          >
+            {schemaLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Table2 className="w-3 h-3" strokeWidth={1.5} />}
+            schema
+            {schemaLinked > 0 && <span className="text-[9px] px-1 py-0.5 border border-blue-500/20 text-blue-400 tabular-nums">{schemaLinked}</span>}
+          </button>
+        </Tooltip>
 
         <button
           onClick={runQuery}
@@ -311,6 +464,48 @@ export default function QueryExplorerPage() {
         </div>
       </div>
 
+      {/* Schema context panel */}
+      {showSchema && (
+        <div className="mb-4 border border-[var(--color-border)] bg-[var(--color-bg-card)] flex-shrink-0 animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
+            <div className="flex items-center gap-2">
+              <Table2 className="w-3 h-3 text-blue-400" strokeWidth={1.5} />
+              <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider uppercase">
+                relevant schema
+              </span>
+              {schemaLinked > 0 && (
+                <span className="text-[9px] text-[var(--color-text-dim)] tabular-nums">
+                  {schemaLinked}/{schemaTotal} tables linked
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigator.clipboard.writeText(schemaContext)}
+                className="text-[9px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+              >
+                copy
+              </button>
+              <button
+                onClick={() => setShowSchema(false)}
+                className="text-[9px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider"
+              >
+                close
+              </button>
+            </div>
+          </div>
+          {schemaLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-text-dim)]" />
+            </div>
+          ) : (
+            <pre className="px-4 py-3 text-[10px] text-[var(--color-text-muted)] overflow-x-auto font-mono leading-relaxed max-h-[200px] overflow-y-auto whitespace-pre">
+              {schemaContext}
+            </pre>
+          )}
+        </div>
+      )}
+
       {/* Error display */}
       {error && (
         <div className="mb-4 flex items-start gap-3 p-4 border border-[var(--color-error)]/30 bg-[var(--color-error)]/5 flex-shrink-0 animate-fade-in">
@@ -318,6 +513,12 @@ export default function QueryExplorerPage() {
           <div>
             <p className="text-xs text-[var(--color-error)] mb-1 tracking-wider">query error</p>
             <p className="text-[10px] text-[var(--color-text-muted)]">{error}</p>
+            {errorHint && (
+              <div className="mt-2 flex items-start gap-2 px-3 py-2 bg-[var(--color-warning)]/10 border border-[var(--color-warning)]/20">
+                <Zap className="w-3 h-3 text-[var(--color-warning)] mt-0.5 flex-shrink-0" strokeWidth={1.5} />
+                <p className="text-[10px] text-[var(--color-warning)]">{errorHint}</p>
+              </div>
+            )}
           </div>
         </div>
       )}

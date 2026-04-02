@@ -2,7 +2,7 @@
 
 These hooks provide the real-time feed that powers the monitoring UI.
 Every PreToolUse and PostToolUse event is logged to the tool_calls table,
-which triggers a pg_notify that the monitor's SSE endpoint picks up.
+which the monitor's SSE endpoint picks up via polling.
 """
 
 import time
