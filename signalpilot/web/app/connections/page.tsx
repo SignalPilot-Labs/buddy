@@ -420,6 +420,11 @@ interface FormState {
   sf_private_key: string;
   sf_private_key_passphrase: string;
   sf_oauth_token: string;
+  // AWS IAM auth (PostgreSQL, MySQL on RDS)
+  iam_auth: boolean;
+  aws_region: string;
+  aws_access_key_id: string;
+  aws_secret_access_key: string;
   // Trino HTTPS
   trino_https: boolean;
   // DuckDB / MotherDuck
@@ -453,7 +458,9 @@ const defaultForm: FormState = {
   ssl_enabled: false, ssl_mode: "require", ssl_ca_cert: "", ssl_client_cert: "", ssl_client_key: "",
   ssh_enabled: false, ssh_host: "", ssh_port: "22", ssh_username: "", ssh_auth_method: "password",
   ssh_password: "", ssh_private_key: "", ssh_key_passphrase: "",
-  snowflake_auth_method: "password", sf_private_key: "", sf_private_key_passphrase: "", sf_oauth_token: "", trino_https: false, motherduck_token: "",
+  snowflake_auth_method: "password", sf_private_key: "", sf_private_key_passphrase: "", sf_oauth_token: "",
+  iam_auth: false, aws_region: "us-east-1", aws_access_key_id: "", aws_secret_access_key: "",
+  trino_https: false, motherduck_token: "",
   tags: [], tagInput: "",
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
@@ -626,6 +633,14 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
     } else if (form.snowflake_auth_method === "oauth") {
       payload.oauth_access_token = form.sf_oauth_token;
     }
+  }
+
+  // AWS IAM auth (PostgreSQL, MySQL on RDS)
+  if (form.iam_auth && (form.db_type === "postgres" || form.db_type === "mysql")) {
+    payload.auth_method = "iam";
+    payload.aws_region = form.aws_region;
+    if (form.aws_access_key_id) payload.aws_access_key_id = form.aws_access_key_id;
+    if (form.aws_secret_access_key) payload.aws_secret_access_key = form.aws_secret_access_key;
   }
 
   // DuckDB MotherDuck token
@@ -996,7 +1011,34 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
       <FormInput label="port" value={form.port} onChange={(v) => setForm({ ...form, port: v })} placeholder={String(config.defaultPort)} />
       <FormInput label="database" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder={ph.db} required />
       <FormInput label="username" value={form.username} onChange={(v) => setForm({ ...form, username: v })} placeholder={ph.user} required />
-      <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+      {!form.iam_auth && (
+        <FormInput label="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+      )}
+      {/* AWS IAM Auth toggle for RDS */}
+      <div className="col-span-2 mt-1">
+        <button
+          type="button"
+          onClick={() => setForm({ ...form, iam_auth: !form.iam_auth })}
+          className={`flex items-center gap-2 px-2.5 py-1 text-[10px] tracking-wider border transition-all ${
+            form.iam_auth
+              ? "border-[var(--color-text)] text-[var(--color-text)]"
+              : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)]"
+          }`}
+        >
+          {form.iam_auth ? "✓ " : ""}AWS IAM authentication
+        </button>
+      </div>
+      {form.iam_auth && (
+        <>
+          <FormInput label="AWS region" value={form.aws_region} onChange={(v) => setForm({ ...form, aws_region: v })} placeholder="us-east-1" hint="RDS instance region" />
+          <FormInput label="AWS access key ID" value={form.aws_access_key_id} onChange={(v) => setForm({ ...form, aws_access_key_id: v })} placeholder="AKIA..." hint="leave empty to use instance profile / env credentials" />
+          <FormInput label="AWS secret access key" value={form.aws_secret_access_key} onChange={(v) => setForm({ ...form, aws_secret_access_key: v })} type="password" hint="leave empty to use instance profile / env credentials" />
+          <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
+            <div><span className="text-[var(--color-text-muted)]">setup:</span> DB user must have rds_iam role (PostgreSQL) or be created with AWSAuthenticationPlugin (MySQL). SSL is auto-enabled.</div>
+            <div><span className="text-[var(--color-text-muted)]">credentials:</span> Leave access key fields empty to use EC2 instance profile, ECS task role, or AWS_* env vars.</div>
+          </div>
+        </>
+      )}
     </>
   );
 }

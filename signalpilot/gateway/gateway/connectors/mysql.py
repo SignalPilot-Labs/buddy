@@ -29,19 +29,45 @@ class MySQLConnector(BaseConnector):
         self._connection_timeout: int = 10
         self._read_timeout: int = 30
         self._write_timeout: int = 30
+        self._iam_auth: bool = False
+        self._iam_region: str = "us-east-1"
+        self._iam_access_key: str | None = None
+        self._iam_secret_key: str | None = None
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         """Set SSL configuration for the connection."""
         self._ssl_config = ssl_config
 
     def set_credential_extras(self, extras: dict) -> None:
-        """Extract SSL config and timeout settings from credential extras."""
+        """Extract SSL config, IAM auth, and timeout settings from credential extras."""
         if extras.get("ssl_config"):
             self.set_ssl_config(extras["ssl_config"])
         if extras.get("connection_timeout"):
             self._connection_timeout = extras["connection_timeout"]
         if extras.get("query_timeout"):
             self._read_timeout = extras["query_timeout"]
+        if extras.get("auth_method") == "iam":
+            self._iam_auth = True
+            self._iam_region = extras.get("aws_region", "us-east-1")
+            self._iam_access_key = extras.get("aws_access_key_id")
+            self._iam_secret_key = extras.get("aws_secret_access_key")
+
+    def _generate_iam_token(self, host: str, port: int, username: str) -> str:
+        """Generate a short-lived RDS IAM auth token (valid 15 minutes)."""
+        try:
+            import boto3
+        except ImportError:
+            raise RuntimeError("boto3 not installed. Run: pip install boto3")
+
+        kwargs: dict[str, Any] = {"region_name": self._iam_region}
+        if self._iam_access_key and self._iam_secret_key:
+            kwargs["aws_access_key_id"] = self._iam_access_key
+            kwargs["aws_secret_access_key"] = self._iam_secret_key
+
+        client = boto3.client("rds", **kwargs)
+        return client.generate_db_auth_token(
+            DBHostname=host, Port=port, DBUsername=username, Region=self._iam_region
+        )
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_PYMYSQL:
@@ -50,11 +76,22 @@ class MySQLConnector(BaseConnector):
         params = self._parse_connection_string(connection_string)
         self._connect_params = params
 
+        # For IAM auth, generate short-lived RDS token as password
+        password = params.get("password", "")
+        if self._iam_auth:
+            host = params.get("host", "localhost")
+            port = int(params.get("port", 3306))
+            user = params.get("user", "root")
+            password = self._generate_iam_token(host, port, user)
+            # IAM auth requires SSL
+            if not self._ssl_config:
+                self._ssl_config = {"enabled": True, "mode": "require"}
+
         connect_kwargs: dict = {
             "host": params.get("host", "localhost"),
             "port": int(params.get("port", 3306)),
             "user": params.get("user", "root"),
-            "password": params.get("password", ""),
+            "password": password,
             "database": params.get("database", ""),
             "charset": "utf8mb4",
             "cursorclass": pymysql.cursors.DictCursor,

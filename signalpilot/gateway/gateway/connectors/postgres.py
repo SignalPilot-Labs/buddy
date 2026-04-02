@@ -21,23 +21,64 @@ class PostgresConnector(BaseConnector):
         self._temp_files: list[str] = []
         self._connection_timeout: int = 15
         self._command_timeout: int = 30
+        self._iam_auth: bool = False
+        self._iam_region: str = "us-east-1"
+        self._iam_access_key: str | None = None
+        self._iam_secret_key: str | None = None
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         """Set SSL configuration (CA cert, client cert, client key as PEM strings)."""
         self._ssl_config = ssl_config
 
     def set_credential_extras(self, extras: dict) -> None:
-        """Extract SSL config and timeout settings from credential extras."""
+        """Extract SSL config, IAM auth, and timeout settings from credential extras."""
         if extras.get("ssl_config"):
             self.set_ssl_config(extras["ssl_config"])
         if extras.get("connection_timeout"):
             self._connection_timeout = extras["connection_timeout"]
         if extras.get("query_timeout"):
             self._command_timeout = extras["query_timeout"]
+        if extras.get("auth_method") == "iam":
+            self._iam_auth = True
+            self._iam_region = extras.get("aws_region", "us-east-1")
+            self._iam_access_key = extras.get("aws_access_key_id")
+            self._iam_secret_key = extras.get("aws_secret_access_key")
+
+    def _generate_iam_token(self, host: str, port: int, username: str) -> str:
+        """Generate a short-lived RDS IAM auth token (valid 15 minutes)."""
+        try:
+            import boto3
+        except ImportError:
+            raise RuntimeError("boto3 not installed. Run: pip install boto3")
+
+        kwargs: dict[str, Any] = {"region_name": self._iam_region}
+        if self._iam_access_key and self._iam_secret_key:
+            kwargs["aws_access_key_id"] = self._iam_access_key
+            kwargs["aws_secret_access_key"] = self._iam_secret_key
+
+        client = boto3.client("rds", **kwargs)
+        return client.generate_db_auth_token(
+            DBHostname=host, Port=port, DBUsername=username, Region=self._iam_region
+        )
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_ASYNCPG:
             raise RuntimeError("asyncpg not installed. Run: pip install asyncpg")
+
+        # For IAM auth, replace password in connection string with RDS token
+        if self._iam_auth:
+            from urllib.parse import urlparse, urlunparse, quote
+            parsed = urlparse(connection_string)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or 5432
+            username = parsed.username or "postgres"
+            token = self._generate_iam_token(host, port, username)
+            # Rebuild URL with IAM token as password (URL-encoded since tokens contain special chars)
+            netloc = f"{quote(username, safe='')}:{quote(token, safe='')}@{host}:{port}"
+            connection_string = urlunparse(parsed._replace(netloc=netloc))
+            # IAM auth requires SSL
+            if not self._ssl_config:
+                self._ssl_config = {"enabled": True, "mode": "require"}
 
         # Build SSL context if SSL config provided
         ssl_ctx = None
