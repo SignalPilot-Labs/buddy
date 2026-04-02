@@ -1211,8 +1211,12 @@ async def explore_columns(
                 flags.append("AUTO_INCREMENT")
             if col.get("low_cardinality"):
                 flags.append("LOW_CARD")
-            if flags:
-                parts.append(f"[{', '.join(flags)}]")
+            if col.get("dist_key"):
+                flags.append("DISTKEY")
+            if col.get("sort_key_position"):
+                flags.append(f"SORTKEY#{col['sort_key_position']}")
+            if col.get("encoding"):
+                flags.append(f"ENC={col['encoding']}")
             if col.get("comment"):
                 parts.append(f"-- {col['comment']}")
             lines.append(" ".join(parts))
