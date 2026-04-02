@@ -606,10 +606,14 @@ def _format_health_stats(stats: dict) -> str:
 @mcp.tool()
 async def find_join_path(connection_name: str, from_table: str, to_table: str, max_hops: int = 4) -> str:
     """
-    Find FK join paths between two tables for accurate multi-table SQL generation.
+    Find join paths between two tables for accurate multi-table SQL generation.
 
     Returns the exact join columns at each hop, enabling correct JOIN construction
     without hallucinating join conditions. Essential for Spider2.0-style queries.
+
+    Includes both explicit FK relationships AND inferred joins from column naming
+    conventions (e.g., customer_id → customers.id), making this work even on
+    databases without FK declarations (data lakes, Databricks, ClickHouse, etc.).
 
     Args:
         connection_name: Name of the database connection
@@ -623,7 +627,7 @@ async def find_join_path(connection_name: str, from_table: str, to_table: str, m
     async with httpx.AsyncClient(base_url=GATEWAY_URL, timeout=30) as client:
         resp = await client.get(
             f"/api/connections/{connection_name}/schema/join-paths",
-            params={"from_table": from_table, "to_table": to_table, "max_hops": max_hops},
+            params={"from_table": from_table, "to_table": to_table, "max_hops": max_hops, "include_implicit": "true"},
         )
         if resp.status_code != 200:
             return f"Error: {resp.text}"
@@ -1448,10 +1452,11 @@ async def explore_column(
 @mcp.tool()
 async def find_join_path(connection_name: str, from_table: str, to_table: str, max_hops: int = 4) -> str:
     """
-    Find FK join paths between two tables — critical for multi-table queries.
+    Find join paths between two tables — critical for multi-table queries.
 
-    Uses BFS over the foreign key graph to discover all paths, returning
-    the exact join columns at each hop. Prevents hallucinated join conditions.
+    Uses BFS over the FK graph plus inferred joins from column naming
+    conventions (e.g., customer_id → customers.id). Works even on databases
+    without FK declarations (data lakes, Databricks, ClickHouse, etc.).
 
     Example output: orders → order_items.order_id = orders.id → products.id = order_items.product_id
 
@@ -1474,6 +1479,7 @@ async def find_join_path(connection_name: str, from_table: str, to_table: str, m
                     "from_table": from_table,
                     "to_table": to_table,
                     "max_hops": min(max_hops, 6),
+                    "include_implicit": "true",
                 },
             )
             if resp.status_code != 200:

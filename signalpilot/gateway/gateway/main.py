@@ -1175,6 +1175,8 @@ def _compress_schema(schema: dict) -> dict:
             "ddl": "\n".join(ddl_parts),
             "row_count": table.get("row_count", 0),
         }
+        if table.get("size_mb"):
+            compressed[key]["size_mb"] = table["size_mb"]
         if fk_refs:
             compressed[key]["foreign_keys"] = fk_refs
         if table.get("indexes"):
@@ -1732,13 +1734,21 @@ async def get_compact_schema(
 
     table_keys = sorted(filtered.keys(), key=_table_relevance)[:max_tables]
 
-    # Build FK lookup for compact reference format
-    fk_map: dict[str, dict[str, str]] = {}  # table.col -> ref_table.ref_col
+    # Build FK lookup for compact reference format (explicit + inferred)
+    fk_map: dict[str, str] = {}  # table.col -> ref_table.ref_col
     if include_fk:
         for key, table in filtered.items():
             for fk in table.get("foreign_keys", []):
                 fk_key = f"{key}.{fk['column']}"
                 ref = f"{fk.get('references_table', '')}.{fk.get('references_column', '')}"
+                fk_map[fk_key] = ref
+        # Add inferred joins
+        inferred = _infer_implicit_joins(filtered)
+        for inf in inferred:
+            inf_from_key = f"{inf['from_schema']}.{inf['from_table']}" if inf["from_schema"] else inf["from_table"]
+            fk_key = f"{inf_from_key}.{inf['from_column']}"
+            if fk_key not in fk_map:
+                ref = f"{inf['to_table']}.{inf['to_column']}"
                 fk_map[fk_key] = ref
 
     if format == "json":
