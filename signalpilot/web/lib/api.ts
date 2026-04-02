@@ -223,6 +223,12 @@ export const getSchemaCache = () =>
 export const invalidateSchemaCache = (name?: string) =>
   request<{ invalidated: number }>(`/api/schema-cache/invalidate${name ? `?connection_name=${encodeURIComponent(name)}` : ""}`, { method: "POST" });
 
+// Connection URL Validation
+export const validateConnectionUrl = (connection_string: string, db_type: string) =>
+  request<{ valid: boolean; parsed?: Record<string, unknown>; warnings?: string[]; error?: string }>(
+    "/api/connections/validate-url", { method: "POST", body: JSON.stringify({ connection_string, db_type }) }
+  );
+
 // Metrics SSE
 export function subscribeMetrics(cb: (data: import("./types").MetricsSnapshot) => void): () => void {
   const es = new EventSource(`${GATEWAY_URL}/api/metrics`);

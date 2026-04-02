@@ -2127,5 +2127,47 @@ class TestSchemaOverview:
         assert callable(schema_overview)
 
 
+# ── URL Validation (Round 8) ──────────────────────────────────────────────
+
+class TestURLValidation:
+    """Tests for the /connections/validate-url endpoint."""
+
+    def test_validate_url_endpoint_exists(self):
+        from gateway.main import app
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/connections/validate-url" in routes
+
+    def test_validate_postgres_url(self):
+        """Validate a PostgreSQL URL parses correctly."""
+        from gateway.main import validate_connection_url
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            validate_connection_url({"connection_string": "postgresql://admin:pass@localhost:5432/mydb", "db_type": "postgres"})
+        )
+        assert result["valid"] is True
+        assert result["parsed"]["host"] == "localhost"
+        assert result["parsed"]["port"] == 5432
+        assert result["parsed"]["database"] == "mydb"
+
+    def test_validate_empty_url(self):
+        """Empty URL returns invalid."""
+        from gateway.main import validate_connection_url
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            validate_connection_url({"connection_string": "", "db_type": "postgres"})
+        )
+        assert result["valid"] is False
+
+    def test_validate_missing_password_warning(self):
+        """URL without password produces warning."""
+        from gateway.main import validate_connection_url
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(
+            validate_connection_url({"connection_string": "postgresql://admin@localhost:5432/mydb", "db_type": "postgres"})
+        )
+        assert result["valid"] is True
+        assert any("password" in w.lower() for w in result.get("warnings", []))
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

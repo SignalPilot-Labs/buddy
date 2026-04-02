@@ -555,11 +555,99 @@ async def refresh_connection_schema(name: str):
     }
 
 
+@app.post("/api/connections/validate-url")
+async def validate_connection_url(body: dict):
+    """Validate and parse a connection string without saving or connecting.
+
+    Returns parsed components and identifies potential issues.
+    Useful for frontend preview before saving a connection.
+    """
+    url = body.get("connection_string", "")
+    db_type = body.get("db_type", "")
+
+    if not url:
+        return {"valid": False, "error": "Connection string is empty"}
+    if not db_type:
+        return {"valid": False, "error": "db_type is required"}
+
+    try:
+        from urllib.parse import urlparse, unquote
+
+        # Try to parse based on db_type
+        parsed_info: dict[str, Any] = {"db_type": db_type}
+        warnings: list[str] = []
+
+        if db_type in ("postgres", "mysql", "redshift", "clickhouse"):
+            # Standard URL format
+            normalized = url
+            if db_type == "clickhouse":
+                for prefix in ("clickhouse+https://", "clickhouse+http://", "clickhouses://", "clickhouse://"):
+                    if normalized.startswith(prefix):
+                        normalized = "http://" + normalized[len(prefix):]
+                        break
+            elif db_type == "redshift" and normalized.startswith("redshift://"):
+                normalized = "postgresql://" + normalized[len("redshift://"):]
+            elif db_type == "mysql" and normalized.startswith("mysql+pymysql://"):
+                normalized = "http://" + normalized[len("mysql+pymysql://"):]
+
+            parsed = urlparse(normalized)
+            parsed_info["host"] = parsed.hostname or ""
+            parsed_info["port"] = parsed.port
+            parsed_info["database"] = (parsed.path or "").lstrip("/")
+            parsed_info["username"] = unquote(parsed.username or "")
+            parsed_info["has_password"] = bool(parsed.password)
+
+            if not parsed_info["host"]:
+                warnings.append("No host specified")
+            if not parsed_info["database"]:
+                warnings.append("No database specified")
+            if not parsed_info["username"]:
+                warnings.append("No username specified")
+            if not parsed_info["has_password"]:
+                warnings.append("No password in URL — will need separate credentials")
+
+        elif db_type == "snowflake":
+            if url.startswith("snowflake://"):
+                parsed = urlparse(url)
+                path_parts = [p for p in (parsed.path or "").split("/") if p]
+                parsed_info["account"] = parsed.hostname or ""
+                parsed_info["username"] = unquote(parsed.username or "")
+                parsed_info["has_password"] = bool(parsed.password)
+                parsed_info["database"] = path_parts[0] if path_parts else ""
+                parsed_info["schema"] = path_parts[1] if len(path_parts) > 1 else ""
+                if not parsed_info["account"]:
+                    warnings.append("No account identifier specified")
+            else:
+                warnings.append("Snowflake URLs should start with snowflake://")
+
+        elif db_type == "databricks":
+            if url.startswith("databricks://"):
+                parsed = urlparse(url)
+                parsed_info["host"] = parsed.hostname or ""
+                parsed_info["http_path"] = (parsed.path or "").lstrip("/")
+                parsed_info["has_token"] = bool(parsed.username)
+                if not parsed_info["host"]:
+                    warnings.append("No hostname specified")
+                if not parsed_info["http_path"]:
+                    warnings.append("No HTTP path specified")
+            else:
+                warnings.append("Databricks URLs should start with databricks://")
+
+        return {
+            "valid": True,
+            "parsed": parsed_info,
+            "warnings": warnings,
+        }
+    except Exception as e:
+        return {"valid": False, "error": f"Invalid URL format: {e}"}
+
+
 @app.post("/api/connections/{name}/test")
 async def test_connection(name: str):
-    """Two-phase connection test (industry standard pattern from HEX/DBeaver):
+    """Three-phase connection test (industry standard pattern from HEX/DBeaver):
     Phase 1: Network/tunnel connectivity
     Phase 2: Database authentication and query
+    Phase 3: Schema access verification
     """
     info = get_connection(name)
     if not info:
