@@ -3763,6 +3763,44 @@ async def get_cached_sample_values(
         raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
 
 
+def _fuzzy_match(query: str, target: str, max_distance: int = 2) -> bool:
+    """Simple edit-distance fuzzy matching for schema search.
+
+    Returns True if `query` is within `max_distance` edits of `target`
+    (or any substring of target of similar length). Uses Levenshtein distance.
+    Only triggers for terms with 4+ characters to avoid false positives.
+    """
+    if len(query) < 4 or len(target) < 3:
+        return False
+    # Quick check: if the lengths differ by more than max_distance, skip
+    if abs(len(query) - len(target)) > max_distance:
+        # Try substring matching for longer targets
+        if len(target) > len(query) + max_distance:
+            # Check if query fuzzy-matches any window of target
+            for i in range(len(target) - len(query) + 1):
+                window = target[i:i + len(query)]
+                if _levenshtein(query, window) <= max_distance:
+                    return True
+        return False
+    return _levenshtein(query, target) <= max_distance
+
+
+def _levenshtein(s1: str, s2: str) -> int:
+    """Compute Levenshtein edit distance between two strings."""
+    if len(s1) < len(s2):
+        return _levenshtein(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    prev = list(range(len(s2) + 1))
+    for i, c1 in enumerate(s1):
+        curr = [i + 1]
+        for j, c2 in enumerate(s2):
+            # Insertion, deletion, substitution
+            curr.append(min(prev[j + 1] + 1, curr[j] + 1, prev[j] + (0 if c1 == c2 else 1)))
+        prev = curr
+    return prev[len(s2)]
+
+
 @app.get("/api/connections/{name}/schema/search")
 async def search_schema(
     name: str,
@@ -3853,10 +3891,18 @@ async def search_schema(
                 score += 5.0
             elif term in table_name_lower:
                 score += 3.0
+            elif _fuzzy_match(term, table_name_lower):
+                score += 2.0  # Fuzzy match — handles typos
 
             # Schema name matching
             if term in schema_name_lower:
                 score += 1.0
+
+            # Compound table name parts (e.g., "order" matches "order_items")
+            table_parts = set(table_name_lower.replace("-", "_").split("_"))
+            if term in table_parts or term.rstrip("s") in table_parts:
+                if term not in table_name_lower:  # Don't double-count substring matches
+                    score += 2.5
 
             # Column name matching
             for col in table.get("columns", []):
@@ -3870,6 +3916,9 @@ async def search_schema(
                     matched_columns.append(col["name"])
                 elif term in col_name:
                     score += 1.5
+                    matched_columns.append(col["name"])
+                elif _fuzzy_match(term, col_name):
+                    score += 1.0  # Fuzzy column match
                     matched_columns.append(col["name"])
                 # Comment matching
                 if col_comment and term in col_comment:
