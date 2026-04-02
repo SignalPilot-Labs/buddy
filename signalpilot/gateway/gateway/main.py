@@ -464,7 +464,7 @@ def _validate_connection_params(conn: ConnectionCreate) -> list[str]:
             errors.append("SSH tunnel with key auth requires a private key")
         if conn.ssh_tunnel.auth_method == "password" and not conn.ssh_tunnel.password:
             errors.append("SSH tunnel with password auth requires a password")
-        if db not in ("postgres", "mysql", "redshift", "clickhouse", "mssql"):
+        if db not in ("postgres", "mysql", "redshift", "clickhouse", "mssql", "trino"):
             errors.append(f"SSH tunnels are not supported for {db} (only host:port databases)")
 
     return errors
@@ -827,7 +827,7 @@ async def test_connection(name: str):
     has_tunnel = (
         extras.get("ssh_tunnel")
         and extras["ssh_tunnel"].get("enabled")
-        and info.db_type in ("postgres", "mysql", "redshift", "clickhouse", "mssql")
+        and info.db_type in ("postgres", "mysql", "redshift", "clickhouse", "mssql", "trino")
     )
     if has_tunnel:
         try:

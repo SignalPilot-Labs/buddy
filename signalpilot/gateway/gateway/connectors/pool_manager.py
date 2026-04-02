@@ -21,7 +21,7 @@ from .ssh_tunnel import SSHTunnel
 logger = logging.getLogger(__name__)
 
 # DB types that use host:port connections and can benefit from SSH tunnels
-_TUNNEL_CAPABLE_DB_TYPES = {"postgres", "mysql", "redshift", "clickhouse", "mssql"}
+_TUNNEL_CAPABLE_DB_TYPES = {"postgres", "mysql", "redshift", "clickhouse", "mssql", "trino"}
 
 # Default ports per DB type (for connection string rewriting)
 _DEFAULT_PORTS: dict[str, int] = {
@@ -30,6 +30,7 @@ _DEFAULT_PORTS: dict[str, int] = {
     "redshift": 5439,
     "clickhouse": 9000,
     "mssql": 1433,
+    "trino": 8080,
 }
 
 # URI scheme prefixes per DB type
@@ -39,6 +40,7 @@ _URI_SCHEMES: dict[str, list[str]] = {
     "redshift": ["redshift://", "postgresql://"],
     "clickhouse": ["clickhouse://"],
     "mssql": ["mssql://", "mssql+pymssql://", "sqlserver://"],
+    "trino": ["trino://", "trino+https://"],
 }
 
 
@@ -52,12 +54,16 @@ def _rewrite_connection_string(
     try:
         # Normalize scheme for urlparse
         normalized = connection_string
+        trino_https = False
         if db_type == "redshift" and normalized.startswith("redshift://"):
             normalized = "postgresql://" + normalized[len("redshift://"):]
         elif db_type == "clickhouse" and normalized.startswith("clickhouse://"):
             normalized = "http://" + normalized[len("clickhouse://"):]
         elif db_type == "mysql" and normalized.startswith("mysql+pymysql://"):
             normalized = "http://" + normalized[len("mysql+pymysql://"):]
+        elif db_type == "trino" and normalized.startswith("trino+https://"):
+            trino_https = True
+            normalized = "http://" + normalized[len("trino+https://"):]
 
         parsed = urlparse(normalized)
         # Replace host and port
@@ -84,6 +90,8 @@ def _rewrite_connection_string(
             result = "clickhouse://" + result[len("http://"):]
         elif db_type == "mysql" and connection_string.startswith("mysql+pymysql://"):
             result = "mysql+pymysql://" + result[len("http://"):]
+        elif db_type == "trino" and trino_https:
+            result = "trino+https://" + result[len("http://"):]
 
         return result
     except Exception as e:
@@ -102,6 +110,8 @@ def _extract_host_port(connection_string: str, db_type: str) -> tuple[str, int]:
             normalized = "http://" + normalized[len("mysql+pymysql://"):]
         elif db_type == "redshift" and normalized.startswith("redshift://"):
             normalized = "postgresql://" + normalized[len("redshift://"):]
+        elif db_type == "trino" and normalized.startswith("trino+https://"):
+            normalized = "http://" + normalized[len("trino+https://"):]
 
         parsed = urlparse(normalized)
         host = parsed.hostname or "localhost"
