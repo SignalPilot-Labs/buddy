@@ -316,18 +316,38 @@ class MSSQLConnector(BaseConnector):
         """
 
         # Column statistics — helps Spider2.0 understand selectivity
+        # Uses dm_db_stats_properties for actual distinct counts from auto-stats
         stats_sql = """
             SELECT
                 OBJECT_SCHEMA_NAME(s.object_id) AS table_schema,
                 OBJECT_NAME(s.object_id) AS table_name,
                 c.name AS column_name,
                 s.name AS stat_name,
-                STATS_DATE(s.object_id, s.stats_id) AS last_updated
+                STATS_DATE(s.object_id, s.stats_id) AS last_updated,
+                sp.rows AS stat_rows,
+                sp.modification_counter AS modifications
             FROM sys.stats s
             JOIN sys.stats_columns sc ON s.object_id = sc.object_id AND s.stats_id = sc.stats_id
             JOIN sys.columns c ON sc.object_id = c.object_id AND sc.column_id = c.column_id
+            LEFT JOIN sys.dm_db_stats_properties(s.object_id, s.stats_id) sp ON 1=1
             WHERE sc.stats_column_id = 1
                 AND OBJECT_SCHEMA_NAME(s.object_id) NOT IN ('sys', 'INFORMATION_SCHEMA')
+        """
+
+        # Column-level cardinality via unique indexes
+        cardinality_sql = """
+            SELECT
+                OBJECT_SCHEMA_NAME(i.object_id) AS table_schema,
+                OBJECT_NAME(i.object_id) AS table_name,
+                c.name AS column_name,
+                i.is_unique
+            FROM sys.indexes i
+            JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
+            JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
+            WHERE i.name IS NOT NULL
+                AND ic.is_included_column = 0
+                AND ic.key_ordinal = 1
+                AND OBJECT_SCHEMA_NAME(i.object_id) NOT IN ('sys', 'INFORMATION_SCHEMA')
         """
 
         def _fetch(query: str) -> list:
@@ -348,12 +368,13 @@ class MSSQLConnector(BaseConnector):
                 _fetch(fk_sql),
                 _fetch(idx_sql),
                 _fetch(stats_sql),
+                _fetch(cardinality_sql),
             )
 
         # Run the synchronous queries in a thread pool to avoid blocking the event loop
         import asyncio
         loop = asyncio.get_event_loop()
-        rows, rowcount_rows, fk_rows, idx_rows, stat_rows = await loop.run_in_executor(
+        rows, rowcount_rows, fk_rows, idx_rows, stat_rows, card_rows = await loop.run_in_executor(
             None, _fetch_all_sequential
         )
 
@@ -391,11 +412,22 @@ class MSSQLConnector(BaseConnector):
                 "type": r.get("index_type", ""),
             })
 
-        # Build stats map (column → has_statistics flag)
+        # Build stats map (column → statistics info)
         col_has_stats: set[str] = set()
+        col_stat_info: dict[str, dict] = {}
         for r in stat_rows:
             stat_key = f"{r['table_schema']}.{r['table_name']}.{r['column_name']}"
             col_has_stats.add(stat_key)
+            stat_rows_count = r.get("stat_rows", 0)
+            if stat_rows_count and stat_key not in col_stat_info:
+                col_stat_info[stat_key] = {"stat_rows": int(stat_rows_count)}
+
+        # Build unique column set from indexes
+        unique_cols: set[str] = set()
+        for r in card_rows:
+            if r.get("is_unique"):
+                card_key = f"{r['table_schema']}.{r['table_name']}.{r['column_name']}"
+                unique_cols.add(card_key)
 
         schema: dict[str, Any] = {}
         for row in rows:
@@ -440,6 +472,11 @@ class MSSQLConnector(BaseConnector):
                 col_entry["identity"] = True
             if stat_key in col_has_stats:
                 col_entry["has_statistics"] = True
+            # Enrich with cardinality info for schema linking
+            if stat_key in unique_cols:
+                col_entry["stats"] = {"distinct_fraction": -1.0}  # Unique column
+            elif stat_key in col_stat_info:
+                col_entry["stats"] = col_stat_info[stat_key]
 
             schema[key]["columns"].append(col_entry)
         return schema
