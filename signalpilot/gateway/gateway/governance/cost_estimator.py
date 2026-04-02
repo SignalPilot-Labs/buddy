@@ -373,14 +373,23 @@ class CostEstimator:
 
     @staticmethod
     async def estimate_mssql(connector: BaseConnector, sql: str) -> CostEstimate:
-        """Use SET SHOWPLAN_ALL to estimate SQL Server query cost."""
+        """Use SET SHOWPLAN_ALL to estimate SQL Server query cost.
+
+        SHOWPLAN_ALL returns the execution plan without executing the query.
+        We wrap the session in SHOWPLAN mode and restore it afterward to avoid
+        side effects on the connection's read-only transaction state.
+        """
         try:
-            # Enable showplan mode, get plan, then disable
+            # SHOWPLAN_ALL returns plan rows instead of executing the query.
+            # It must be enabled/disabled as a session-level setting.
             await connector.execute("SET SHOWPLAN_ALL ON")
             try:
                 rows = await connector.execute(sql)
             finally:
-                await connector.execute("SET SHOWPLAN_ALL OFF")
+                try:
+                    await connector.execute("SET SHOWPLAN_ALL OFF")
+                except Exception:
+                    pass  # Best-effort cleanup — connection may be reused
 
             if not rows:
                 return CostEstimate(warning="SHOWPLAN returned no data")
@@ -395,12 +404,12 @@ class CostEstimator:
                 cost = row.get("TotalSubtreeCost", 0)
                 if cost and isinstance(cost, (int, float)):
                     total_cost = max(total_cost, float(cost))
+                # EstimateIO and EstimateCPU are also useful for tuning
                 stmt = row.get("StmtText", "")
                 if stmt:
                     plan_lines.append(str(stmt))
 
-            # SQL Server on-premises is ~$0.10/hr, Azure SQL ~$0.20/hr
-            estimated_usd = estimated_rows * 0.000_000_4
+            estimated_usd = estimated_rows * _COST_PER_ROW["mssql"]
             return CostEstimate(
                 estimated_rows=estimated_rows,
                 estimated_cost=total_cost,
