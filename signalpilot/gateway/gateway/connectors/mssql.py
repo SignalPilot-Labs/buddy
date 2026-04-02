@@ -337,11 +337,22 @@ class MSSQLConnector(BaseConnector):
             except Exception:
                 return []
 
-        rows = _fetch(col_sql)
-        rowcount_rows = _fetch(rowcount_sql)
-        fk_rows = _fetch(fk_sql)
-        idx_rows = _fetch(idx_sql)
-        stat_rows = _fetch(stats_sql)
+        def _fetch_all_sequential() -> tuple:
+            """Run all metadata queries sequentially — pymssql uses a single connection."""
+            return (
+                _fetch(col_sql),
+                _fetch(rowcount_sql),
+                _fetch(fk_sql),
+                _fetch(idx_sql),
+                _fetch(stats_sql),
+            )
+
+        # Run the synchronous queries in a thread pool to avoid blocking the event loop
+        import asyncio
+        loop = asyncio.get_event_loop()
+        rows, rowcount_rows, fk_rows, idx_rows, stat_rows = await loop.run_in_executor(
+            None, _fetch_all_sequential
+        )
 
         # Build row count and table size maps
         row_counts: dict[str, int] = {}

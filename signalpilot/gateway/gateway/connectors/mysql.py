@@ -252,11 +252,20 @@ class MySQLConnector(BaseConnector):
             except Exception:
                 return []
 
-        # Run queries sequentially (PyMySQL isn't thread-safe for a single connection)
-        rows = _fetch(sql)
-        fk_rows = _fetch(fk_sql)
-        idx_rows = _fetch(idx_sql)
-        card_rows = _fetch(cardinality_sql)
+        def _fetch_all_sequential() -> tuple:
+            """Run all metadata queries sequentially — PyMySQL uses a single connection."""
+            return (
+                _fetch(sql),
+                _fetch(fk_sql),
+                _fetch(idx_sql),
+                _fetch(cardinality_sql),
+            )
+
+        # Run the synchronous queries in a thread pool to avoid blocking the event loop
+        loop = asyncio.get_event_loop()
+        rows, fk_rows, idx_rows, card_rows = await loop.run_in_executor(
+            None, _fetch_all_sequential
+        )
 
         # Build cardinality map
         cardinality: dict[str, int] = {}
