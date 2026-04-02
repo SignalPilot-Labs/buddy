@@ -939,6 +939,134 @@ async def get_schema_diff(name: str):
     }
 
 
+@app.get("/api/connections/{name}/schema/search")
+async def search_schema(
+    name: str,
+    q: str = Query(..., min_length=1, description="Search query — matches table names, column names, column comments"),
+    include_samples: bool = Query(default=False, description="Include sample values for matched columns"),
+    limit: int = Query(default=20, ge=1, le=100, description="Max tables to return"),
+):
+    """Semantic search across schema metadata for AI agent schema linking.
+
+    This endpoint enables Spider2.0-style schema linking: given a natural language
+    query, the agent searches for relevant tables and columns before generating SQL.
+    Matches against table names, column names, column comments, and foreign key
+    references. Results are ranked by relevance (exact match > prefix > substring).
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    conn_str = get_connection_string(name)
+    if not conn_str:
+        raise HTTPException(status_code=400, detail="No credentials stored")
+
+    # Get schema from cache or fetch
+    cached = schema_cache.get(name)
+    if cached is None:
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            cached = await connector.get_schema()
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+        schema_cache.put(name, cached)
+
+    # Score each table by relevance to query terms
+    terms = [t.strip().lower() for t in q.split() if t.strip()]
+    scored: list[tuple[float, str, dict]] = []
+
+    for key, table in cached.items():
+        score = 0.0
+        table_name_lower = table.get("name", "").lower()
+        schema_name_lower = table.get("schema", "").lower()
+        matched_columns: list[str] = []
+
+        for term in terms:
+            # Table name matching (highest weight)
+            if term == table_name_lower:
+                score += 10.0
+            elif table_name_lower.startswith(term):
+                score += 5.0
+            elif term in table_name_lower:
+                score += 3.0
+
+            # Schema name matching
+            if term in schema_name_lower:
+                score += 1.0
+
+            # Column name matching
+            for col in table.get("columns", []):
+                col_name = col.get("name", "").lower()
+                col_comment = col.get("comment", "").lower()
+                if term == col_name:
+                    score += 4.0
+                    matched_columns.append(col["name"])
+                elif col_name.startswith(term):
+                    score += 2.0
+                    matched_columns.append(col["name"])
+                elif term in col_name:
+                    score += 1.5
+                    matched_columns.append(col["name"])
+                # Comment matching
+                if col_comment and term in col_comment:
+                    score += 1.0
+                    if col["name"] not in matched_columns:
+                        matched_columns.append(col["name"])
+
+            # FK reference matching — find tables that reference or are referenced
+            for fk in table.get("foreign_keys", []):
+                ref_table = fk.get("references_table", "").lower()
+                if term in ref_table:
+                    score += 2.0
+
+            # Table description/comment matching
+            desc = table.get("description", "").lower()
+            if desc and term in desc:
+                score += 1.5
+
+        if score > 0:
+            # Deduplicate matched columns
+            result_table = dict(table)
+            result_table["_matched_columns"] = list(dict.fromkeys(matched_columns))
+            result_table["_relevance_score"] = round(score, 1)
+            scored.append((score, key, result_table))
+
+    # Sort by score descending, take top N
+    scored.sort(key=lambda x: x[0], reverse=True)
+    results = {}
+    for score, key, table in scored[:limit]:
+        results[key] = table
+
+    # Optionally fetch sample values for matched columns
+    if include_samples and results:
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            for key, table in results.items():
+                matched_cols = table.get("_matched_columns", [])
+                if matched_cols and hasattr(connector, "get_sample_values"):
+                    full_name = f"{table.get('schema', '')}.{table['name']}" if table.get("schema") else table["name"]
+                    try:
+                        samples = await connector.get_sample_values(full_name, matched_cols[:5], limit=3)
+                        if samples:
+                            table["_sample_values"] = samples
+                    except Exception:
+                        pass
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception:
+            pass
+
+    return {
+        "connection_name": name,
+        "query": q,
+        "result_count": len(results),
+        "total_tables": len(cached),
+        "tables": results,
+    }
+
+
 # ─── Sandboxes ───────────────────────────────────────────────────────────────
 
 @app.get("/api/sandboxes")

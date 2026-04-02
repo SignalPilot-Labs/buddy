@@ -830,6 +830,119 @@ class TestClickHouseURLParsing:
         assert params["port"] == 9000
 
 
+class TestSchemaSearch:
+    """Test the schema search scoring logic used by /schema/search endpoint."""
+
+    def _build_test_schema(self):
+        return {
+            "public.orders": {
+                "schema": "public",
+                "name": "orders",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "comment": ""},
+                    {"name": "customer_id", "type": "int", "primary_key": False, "comment": "FK to customers"},
+                    {"name": "total_amount", "type": "decimal", "primary_key": False, "comment": "Order total in USD"},
+                ],
+                "foreign_keys": [{"column": "customer_id", "references_table": "customers", "references_column": "id"}],
+                "description": "Customer purchase orders",
+            },
+            "public.customers": {
+                "schema": "public",
+                "name": "customers",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "comment": ""},
+                    {"name": "email", "type": "varchar", "primary_key": False, "comment": "Customer email address"},
+                    {"name": "name", "type": "varchar", "primary_key": False, "comment": ""},
+                ],
+                "foreign_keys": [],
+                "description": "",
+            },
+            "public.products": {
+                "schema": "public",
+                "name": "products",
+                "columns": [
+                    {"name": "id", "type": "int", "primary_key": True, "comment": ""},
+                    {"name": "product_name", "type": "varchar", "primary_key": False, "comment": ""},
+                    {"name": "price", "type": "decimal", "primary_key": False, "comment": ""},
+                ],
+                "foreign_keys": [],
+                "description": "Product catalog",
+            },
+        }
+
+    def _score_tables(self, schema, query):
+        """Replicate the scoring logic from main.py search endpoint."""
+        terms = [t.strip().lower() for t in query.split() if t.strip()]
+        scored = []
+        for key, table in schema.items():
+            score = 0.0
+            table_name_lower = table.get("name", "").lower()
+            for term in terms:
+                if term == table_name_lower:
+                    score += 10.0
+                elif table_name_lower.startswith(term):
+                    score += 5.0
+                elif term in table_name_lower:
+                    score += 3.0
+                for col in table.get("columns", []):
+                    col_name = col.get("name", "").lower()
+                    col_comment = col.get("comment", "").lower()
+                    if term == col_name:
+                        score += 4.0
+                    elif col_name.startswith(term):
+                        score += 2.0
+                    elif term in col_name:
+                        score += 1.5
+                    if col_comment and term in col_comment:
+                        score += 1.0
+                for fk in table.get("foreign_keys", []):
+                    ref_table = fk.get("references_table", "").lower()
+                    if term in ref_table:
+                        score += 2.0
+                desc = table.get("description", "").lower()
+                if desc and term in desc:
+                    score += 1.5
+            if score > 0:
+                scored.append((score, key))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return scored
+
+    def test_exact_table_match_highest_score(self):
+        schema = self._build_test_schema()
+        results = self._score_tables(schema, "orders")
+        # "orders" exact match should rank first
+        assert results[0][1] == "public.orders"
+        # Should score higher than "customers" which only matches via FK reference
+        assert results[0][0] > results[1][0] if len(results) > 1 else True
+
+    def test_column_name_match(self):
+        schema = self._build_test_schema()
+        results = self._score_tables(schema, "email")
+        # customers has "email" column — exact match
+        customer_results = [r for r in results if r[1] == "public.customers"]
+        assert len(customer_results) == 1
+        assert customer_results[0][0] >= 4.0  # exact column match
+
+    def test_fk_reference_match(self):
+        schema = self._build_test_schema()
+        results = self._score_tables(schema, "customers")
+        # Both "customers" table (exact) and "orders" (FK ref) should match
+        keys = [r[1] for r in results]
+        assert "public.customers" in keys
+        assert "public.orders" in keys
+
+    def test_no_match_returns_empty(self):
+        schema = self._build_test_schema()
+        results = self._score_tables(schema, "nonexistent_xyz")
+        assert len(results) == 0
+
+    def test_comment_matching(self):
+        schema = self._build_test_schema()
+        results = self._score_tables(schema, "USD")
+        # orders has column comment "Order total in USD"
+        assert any(r[1] == "public.orders" for r in results)
+
+
 class TestMySQLSSLConfig:
     """Test MySQL SSL configuration support."""
 
