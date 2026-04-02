@@ -445,6 +445,9 @@ interface FormState {
   connection_timeout: string; // seconds
   query_timeout: string; // seconds
   keepalive_interval: string; // seconds (0 = disabled)
+  // Connection pool
+  pool_min_size: string;
+  pool_max_size: string;
 }
 
 const defaultForm: FormState = {
@@ -465,7 +468,7 @@ const defaultForm: FormState = {
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
   schema_filter_include: "", schema_filter_exclude: "",
-  connection_timeout: "15", query_timeout: "120", keepalive_interval: "0",
+  connection_timeout: "15", query_timeout: "120", keepalive_interval: "0", pool_min_size: "1", pool_max_size: "5",
 };
 
 function buildConnectionPreview(form: FormState): string {
@@ -697,6 +700,12 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
   if (qTimeout && qTimeout !== 120) payload.query_timeout = qTimeout;
   const keepalive = parseInt(form.keepalive_interval);
   if (keepalive && keepalive > 0) payload.keepalive_interval = keepalive;
+
+  // Connection pool size (only for pool-capable connectors like PostgreSQL)
+  const poolMin = parseInt(form.pool_min_size);
+  const poolMax = parseInt(form.pool_max_size);
+  if (poolMin && poolMin !== 1) payload.pool_min_size = poolMin;
+  if (poolMax && poolMax !== 5) payload.pool_max_size = poolMax;
 
   return payload;
 }
@@ -1823,6 +1832,27 @@ export default function ConnectionsPage() {
                           <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">ping to prevent idle disconnect</p>
                         </div>
                       </div>
+                      {/* Pool sizing — only for pool-capable connectors */}
+                      {(form.db_type === "postgres") && (
+                        <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-[var(--color-border)]/50">
+                          <div>
+                            <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">pool min size</label>
+                            <div className="flex items-center gap-1.5">
+                              <input type="number" min="1" max="20" value={form.pool_min_size} onChange={(e) => setForm({ ...form, pool_min_size: e.target.value })} className="w-20 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tabular-nums" />
+                              <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">conns</span>
+                            </div>
+                            <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">minimum idle connections</p>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">pool max size</label>
+                            <div className="flex items-center gap-1.5">
+                              <input type="number" min="1" max="50" value={form.pool_max_size} onChange={(e) => setForm({ ...form, pool_max_size: e.target.value })} className="w-20 px-3 py-2 bg-[var(--color-bg-input)] border border-[var(--color-border)] text-xs focus:outline-none focus:border-[var(--color-text-dim)] tabular-nums" />
+                              <span className="text-[9px] text-[var(--color-text-dim)] tracking-wider">conns</span>
+                            </div>
+                            <p className="text-[8px] text-[var(--color-text-dim)] mt-1 tracking-wider opacity-60">max concurrent connections</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

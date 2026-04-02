@@ -21,6 +21,8 @@ class PostgresConnector(BaseConnector):
         self._temp_files: list[str] = []
         self._connection_timeout: int = 15
         self._command_timeout: int = 30
+        self._pool_min_size: int = 1
+        self._pool_max_size: int = 5
         self._iam_auth: bool = False
         self._iam_region: str = "us-east-1"
         self._iam_access_key: str | None = None
@@ -38,6 +40,10 @@ class PostgresConnector(BaseConnector):
             self._connection_timeout = extras["connection_timeout"]
         if extras.get("query_timeout"):
             self._command_timeout = extras["query_timeout"]
+        if extras.get("pool_min_size"):
+            self._pool_min_size = max(1, min(extras["pool_min_size"], 20))
+        if extras.get("pool_max_size"):
+            self._pool_max_size = max(1, min(extras["pool_max_size"], 50))
         if extras.get("auth_method") == "iam":
             self._iam_auth = True
             self._iam_region = extras.get("aws_region", "us-east-1")
@@ -87,8 +93,8 @@ class PostgresConnector(BaseConnector):
 
         try:
             connect_kwargs: dict[str, Any] = {
-                "min_size": 1,
-                "max_size": 5,
+                "min_size": self._pool_min_size,
+                "max_size": self._pool_max_size,
                 "timeout": self._connection_timeout,
                 "command_timeout": self._command_timeout,
             }
