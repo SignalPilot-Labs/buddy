@@ -1362,6 +1362,57 @@ async def query_database(req: DirectQueryRequest):
     return response
 
 
+@app.post("/api/query/explain")
+async def explain_query(req: DirectQueryRequest):
+    """Explain a query without executing it — returns the query plan and cost estimate.
+
+    This is the pre-flight check for the Spider2.0 agent: understand the query plan
+    and cost before committing to execution. Matches HEX's "Explain" button behavior.
+    """
+    info = get_connection(req.connection_name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{req.connection_name}' not found")
+
+    conn_str = get_connection_string(req.connection_name)
+    if not conn_str:
+        raise HTTPException(status_code=400, detail="No credentials stored")
+
+    # Validate SQL first
+    dialect = _SQLGLOT_DIALECTS.get(info.db_type, "postgres")
+    annotations = load_annotations(req.connection_name)
+    blocked_tables = list(annotations.blocked_tables)
+    settings = load_settings()
+    if settings.blocked_tables:
+        blocked_tables.extend(t for t in settings.blocked_tables if t not in blocked_tables)
+    validation = validate_sql(req.sql, blocked_tables=blocked_tables or None, dialect=dialect)
+    if not validation.ok:
+        raise HTTPException(status_code=400, detail=f"Query blocked: {validation.blocked_reason}")
+
+    safe_sql = inject_limit(req.sql, req.row_limit, dialect=dialect)
+
+    try:
+        extras = get_credential_extras(req.connection_name)
+        connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+
+        from .governance.cost_estimator import CostEstimator
+        cost_estimate = await CostEstimator.estimate(connector, safe_sql, info.db_type)
+        await pool_manager.release(info.db_type, conn_str)
+
+        return {
+            "connection_name": req.connection_name,
+            "sql": safe_sql,
+            "tables": validation.tables,
+            "estimated_rows": cost_estimate.estimated_rows,
+            "estimated_cost": cost_estimate.estimated_cost,
+            "estimated_usd": round(cost_estimate.estimated_usd, 8),
+            "is_expensive": cost_estimate.is_expensive,
+            "warning": cost_estimate.warning,
+            "plan": cost_estimate.raw_plan,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+
+
 # ─── Audit ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/audit")
