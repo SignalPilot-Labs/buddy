@@ -5,6 +5,80 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 13: Pool Manager Safety, Schema Browser UX, Configurable Timeouts, MCP Tool Fixes (2026-04-02)
+
+**Summary:** 8 improvements — Pool manager context manager with guaranteed release, schema browser enriched with warehouse metadata, configurable timeouts for all connectors, MCP tool bug fixes and new validate_sql tool.
+
+**Key metrics:**
+- 353 tests passing (up from 350 — 3 new pool manager context manager tests)
+- 22 MCP tools (up from 21 — new validate_sql tool)
+- Pool release guaranteed via try/finally on query, test, and schema endpoints
+- All 4 live Docker databases verified: PostgreSQL, MySQL, ClickHouse, MSSQL
+- Frontend and backend deployed and tested in containers
+- 7 git commits this round
+
+### Industry Research (Spider2.0 & HEX, April 2026)
+- **Spider2.0 leaderboard**: ReFoRCE still leads at 31.26% on Snow, 30.35% on Lite. Paytm now on leaderboard (first Indian company).
+- **Spider2.0 combined coverage**: All methods combined solve 66.91% (366/547) of examples.
+- **HEX March 2026**: Projects as Context for Agent (swap data connections), chDB 4 ClickHouse integration, new CRUD API endpoints, Python 3.12 kernel.
+- **HEX OAuth**: Supported for Snowflake, BigQuery, Databricks. Token expiration notifications (Jan 2026).
+- **Connection pooling best practices**: Dynamic pool sizing, PgBouncer transaction pooling, failover strategies. Prisma v7 shifted to driver-level pooling.
+- **SignalPilot positioning**: Now has validate_sql for ReFoRCE-style self-refinement loop. Key remaining gap: per-user OAuth for warehouse connections.
+
+### 1. Pool Manager Async Context Manager (Reliability)
+**File:** `gateway/connectors/pool_manager.py`
+- Added `pool_manager.connection()` async context manager that guarantees release via try/finally.
+- Usage: `async with pool_manager.connection(db_type, conn_str) as connector:`
+- Prevents release leaks when exceptions occur during query execution or schema fetch.
+
+### 2. Pool Release Leak Fix (Bug Fix)
+**File:** `gateway/main.py`
+- **Query endpoint**: Wrapped cost estimation + query execution in try/finally — previously release was skipped on timeout/exception.
+- **Test connection endpoint**: Wrapped health check + schema access in try/finally — release was skipped on exception path.
+- **Schema endpoints**: Converted to use new context manager for get_connection_schema and describe_table.
+- **Schema link endpoint**: Converted to context manager.
+
+### 3. Schema Page Warehouse Metadata Display (Frontend)
+**File:** `web/app/schema/page.tsx`
+- **Table-level badges**: Redshift `DIST:KEY/ALL/EVEN`, `SORT:col1,col2`, Snowflake `CLUSTER:col`, ClickHouse `ORDER:sorting_key`, table engine.
+- **Table size**: Shows MB/GB for Redshift (size_mb) and ClickHouse (total_bytes).
+- **Column-level badges**: Distribution key (DK), sort key position (SK#), low cardinality (LC) indicators.
+- **Column encoding**: Shows Redshift column encoding type (bytedict, lzo, etc.) next to data type.
+- **Cardinality column**: Shows distinct count or uniqueness percentage when stats data is available.
+- TypeScript interfaces updated: `TableSchema` gains `diststyle`, `sortkey`, `clustering_key`, `size_mb`, `total_bytes`; `Column` gains `encoding`, `dist_key`, `sort_key_position`, `low_cardinality`, expanded `stats`.
+
+### 4. Configurable Connection/Query Timeouts (Flexibility)
+**Files:** `gateway/models.py`, `gateway/store.py`, `web/app/connections/page.tsx`, connectors
+- **Frontend**: New "Timeouts & Keepalive" section in advanced connection options with connection timeout (1-300s), query timeout (1-3600s), and keepalive interval selector.
+- **Backend**: `ConnectionCreate`, `ConnectionUpdate`, and `ConnectionInfo` models now include `connection_timeout`, `query_timeout`, `keepalive_interval` fields.
+- **Connectors**: PostgreSQL (asyncpg timeout + command_timeout), MySQL (connect_timeout + read_timeout), MSSQL (login_timeout + timeout), ClickHouse (connect_timeout + send_receive_timeout) all use configurable values from credential extras.
+- Previously all timeouts were hardcoded (e.g., Postgres 15s/30s, MySQL 10s/30s).
+
+### 5. MCP explore_columns Flags Bug Fix (Bug Fix)
+**File:** `gateway/mcp_server.py`
+- **BUG**: explore_columns was computing a `flags` list (PK, NOT NULL, DISTKEY, SORTKEY#N, ENC=, LOW_CARD) but never appending it to the output. The AI agent was missing critical optimization hints when exploring columns.
+- **FIX**: Added `if flags: parts.append(f"[{', '.join(flags)}]")` before output.
+- Impact: Spider2.0 agent now sees `[PK, NOT NULL]` or `[DISTKEY, SORTKEY#1, ENC=lzo]` for each column.
+
+### 6. MCP schema_statistics Enrichment
+**File:** `gateway/mcp_server.py`
+- Top tables in schema_statistics now show engine, sorting_key, diststyle, sortkey, clustering_key, and size.
+- Gives the AI agent optimization context at the overview level, before deep-diving into specific tables.
+
+### 7. validate_sql MCP Tool (New)
+**File:** `gateway/mcp_server.py`
+- New MCP tool for ReFoRCE-style self-refinement: validates SQL against actual database schema without executing.
+- Uses EXPLAIN internally to catch column/table errors, type mismatches, syntax errors with position info.
+- Returns "VALID ✓" with plan summary or "INVALID ✗" with error details and fix suggestions.
+- Enables the generate → validate → fix → execute workflow used by Spider2.0 SOTA systems.
+
+### 8. Pool Manager Context Manager Tests
+**File:** `tests/test_connectors_live.py`
+- 3 new integration tests: release on success, release on exception, connection reuse across context manager calls.
+- Verifies that the same connector instance is returned from subsequent context manager calls (connection reuse).
+
+---
+
 ## Round 12: Schema Introspection Fixes, Sample Values Optimization, DDL Metadata (2026-04-02)
 
 **Summary:** 10 improvements — Fixed Redshift schema introspection bug, added column stats/encoding to Redshift, Snowflake clustering key metadata, batched sample value queries across all 10 non-Postgres connectors, MSSQL/Redshift-specific frontend forms, DDL column-level optimization hints, SQLite cost estimation, schema overview enrichment.
