@@ -2028,5 +2028,28 @@ class TestMCPJoinTools:
         assert "graph" in source
 
 
+# ── Table Exploration (ReFoRCE pattern, Round 8) ──────────────────────────
+
+class TestExploreTable:
+    """Tests for /schema/explore-table — iterative column exploration."""
+
+    def test_explore_table_endpoint_exists(self):
+        from gateway.main import app
+        routes = [r.path for r in app.routes if hasattr(r, "path")]
+        assert "/api/connections/{name}/schema/explore-table" in routes
+
+    def test_explore_table_includes_reverse_fks(self):
+        """explore_table finds tables that reference the queried table."""
+        import inspect
+        from gateway.main import explore_table
+        source = inspect.getsource(explore_table)
+        assert "referenced_by" in source
+        assert "references_table" in source
+
+    def test_explore_table_mcp_tool_exists(self):
+        from gateway.mcp_server import explore_table
+        assert callable(explore_table)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

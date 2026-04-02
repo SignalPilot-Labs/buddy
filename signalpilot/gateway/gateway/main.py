@@ -1220,6 +1220,132 @@ async def get_compact_schema(
     }
 
 
+@app.get("/api/connections/{name}/schema/explore-table")
+async def explore_table(
+    name: str,
+    table: str = Query(..., description="Full table name (e.g., 'public.customers')"),
+    include_samples: bool = Query(default=True, description="Include sample distinct values for string/enum columns"),
+    include_stats: bool = Query(default=True, description="Include column-level statistics"),
+    sample_limit: int = Query(default=5, ge=1, le=20, description="Max sample values per column"),
+):
+    """Deep column exploration for a single table — ReFoRCE-style iterative schema linking.
+
+    When the AI agent identifies a relevant table from the compact schema overview,
+    this endpoint provides full column details including:
+    - Column types, nullability, primary/foreign keys
+    - Sample distinct values (for string/enum columns)
+    - Column statistics (row counts, cardinality hints)
+    - FK references to other tables
+
+    This supports the iterative exploration pattern from ReFoRCE (Spider2.0 SOTA):
+    1. Agent gets compact overview via /schema/compact
+    2. Agent identifies relevant tables
+    3. Agent deep-dives specific tables via this endpoint
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    cached = schema_cache.get(name)
+    if cached is None:
+        conn_str = get_connection_string(name)
+        if not conn_str:
+            raise HTTPException(status_code=400, detail="No credentials stored")
+        try:
+            extras = get_credential_extras(name)
+            connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+            cached = await connector.get_schema()
+            await pool_manager.release(info.db_type, conn_str)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=_sanitize_db_error(str(e)))
+        schema_cache.put(name, cached)
+
+    # Find the table
+    table_data = cached.get(table)
+    if not table_data:
+        # Try fuzzy match by table name
+        for key, tbl in cached.items():
+            if tbl.get("name") == table or key == table:
+                table_data = tbl
+                table = key
+                break
+    if not table_data:
+        raise HTTPException(status_code=404, detail=f"Table '{table}' not found in schema")
+
+    result: dict[str, Any] = {
+        "connection_name": name,
+        "table": table,
+        "schema": table_data.get("schema", ""),
+        "name": table_data.get("name", ""),
+        "row_count": table_data.get("row_count", 0),
+        "engine": table_data.get("engine", ""),
+        "columns": [],
+        "foreign_keys": table_data.get("foreign_keys", []),
+        "referenced_by": [],
+    }
+
+    # Find reverse FK references (tables that FK to this table)
+    for key, tbl in cached.items():
+        for fk in tbl.get("foreign_keys", []):
+            if fk.get("references_table") == table_data.get("name"):
+                result["referenced_by"].append({
+                    "table": key,
+                    "column": fk["column"],
+                    "references_column": fk["references_column"],
+                })
+
+    # Build enriched column list
+    string_cols = []
+    for col in table_data.get("columns", []):
+        col_info: dict[str, Any] = {
+            "name": col["name"],
+            "type": col.get("type", ""),
+            "nullable": col.get("nullable", True),
+            "primary_key": col.get("primary_key", False),
+        }
+        if col.get("comment"):
+            col_info["comment"] = col["comment"]
+        if include_stats and col.get("stats"):
+            col_info["stats"] = col["stats"]
+
+        # Check if this column has FK
+        for fk in table_data.get("foreign_keys", []):
+            if fk["column"] == col["name"]:
+                col_info["foreign_key"] = {
+                    "references_table": fk["references_table"],
+                    "references_column": fk["references_column"],
+                }
+
+        result["columns"].append(col_info)
+
+        # Collect string/enum columns for sampling
+        col_type = col.get("type", "").lower()
+        if any(t in col_type for t in ("varchar", "text", "char", "string", "enum", "category")):
+            string_cols.append(col["name"])
+
+    # Fetch sample values for string columns
+    if include_samples and string_cols:
+        # Check cache first
+        cached_samples = schema_cache.get_sample_values(name, table)
+        if cached_samples:
+            result["sample_values"] = cached_samples
+        else:
+            try:
+                conn_str = get_connection_string(name)
+                if conn_str:
+                    extras = get_credential_extras(name)
+                    connector = await pool_manager.acquire(info.db_type, conn_str, credential_extras=extras)
+                    samples = await connector.get_sample_values(table, string_cols[:10], limit=sample_limit)
+                    await pool_manager.release(info.db_type, conn_str)
+                    if samples:
+                        schema_cache.put_sample_values(name, table, samples)
+                        result["sample_values"] = samples
+            except Exception:
+                pass
+
+    return result
+
+
 @app.get("/api/connections/{name}/schema/diff")
 async def get_schema_diff(name: str):
     """Compare current database schema against cached version.
