@@ -397,6 +397,9 @@ interface FormState {
   credentials_json: string;
   bq_location: string;
   bq_max_bytes_billed: string;
+  bq_auth_method: "service_account" | "oauth" | "adc";
+  bq_oauth_token: string;
+  bq_impersonate_sa: string; // target service account email for impersonation
   // ClickHouse
   ch_protocol: "native" | "http";
   // Databricks
@@ -475,6 +478,7 @@ const defaultForm: FormState = {
   database: "", username: "", password: "", description: "",
   account: "", warehouse: "", schema_name: "", role: "",
   project: "", dataset: "", credentials_json: "", bq_location: "", bq_max_bytes_billed: "",
+  bq_auth_method: "service_account", bq_oauth_token: "", bq_impersonate_sa: "",
   ch_protocol: "native",
   http_path: "", access_token: "", catalog: "",
   databricks_auth_method: "pat", dbx_oauth_client_id: "", dbx_oauth_client_secret: "",
@@ -623,6 +627,13 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
     if (form.bq_location) payload.location = form.bq_location;
     const maxBytes = parseInt(form.bq_max_bytes_billed);
     if (maxBytes > 0) payload.maximum_bytes_billed = maxBytes;
+    payload.auth_method = form.bq_auth_method;
+    if (form.bq_auth_method === "oauth") {
+      payload.oauth_access_token = form.bq_oauth_token;
+    }
+    if (form.bq_impersonate_sa) {
+      payload.impersonate_service_account = form.bq_impersonate_sa;
+    }
   }
 
   // Databricks
@@ -880,19 +891,72 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
 
   // BigQuery fields
   if (form.db_type === "bigquery") {
+    const bqAuthMethods = ["service_account", "oauth", "adc"] as const;
+    const bqAuthLabels: Record<string, string> = { service_account: "service account", oauth: "OAuth token", adc: "application default" };
     return (
       <>
         <FormInput label="gcp project id" value={form.project} onChange={(v) => setForm({ ...form, project: v })} placeholder="my-project-123" required />
         <FormInput label="default dataset" value={form.dataset} onChange={(v) => setForm({ ...form, dataset: v })} placeholder="analytics" hint="optional — default dataset for queries" />
-        <FormTextArea
-          label="service account json"
-          value={form.credentials_json}
-          onChange={(v) => setForm({ ...form, credentials_json: v })}
-          placeholder='{"type": "service_account", "project_id": "...", ...}'
-          hint="paste the full service account JSON key file contents"
-          rows={6}
+
+        {/* Auth method selector */}
+        <div className="col-span-2 mb-1">
+          <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider">authentication method</label>
+          <div className="flex gap-2">
+            {bqAuthMethods.map((method) => (
+              <button
+                key={method}
+                type="button"
+                onClick={() => setForm({ ...form, bq_auth_method: method })}
+                className={`px-2.5 py-1 text-[10px] tracking-wider border transition-all ${
+                  form.bq_auth_method === method
+                    ? "border-[var(--color-text)] text-[var(--color-text)]"
+                    : "border-[var(--color-border)] text-[var(--color-text-dim)] hover:border-[var(--color-border-hover)]"
+                }`}
+              >
+                {bqAuthLabels[method]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Auth-specific fields */}
+        {form.bq_auth_method === "service_account" && (
+          <FormTextArea
+            label="service account json"
+            value={form.credentials_json}
+            onChange={(v) => setForm({ ...form, credentials_json: v })}
+            placeholder='{"type": "service_account", "project_id": "...", ...}'
+            hint="paste the full service account JSON key file contents"
+            rows={6}
+            className="col-span-2"
+          />
+        )}
+        {form.bq_auth_method === "oauth" && (
+          <>
+            <FormInput label="OAuth access token" value={form.bq_oauth_token} onChange={(v) => setForm({ ...form, bq_oauth_token: v })} type="password" required className="col-span-2" hint="from Google Cloud OAuth flow or gcloud auth print-access-token" />
+            <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
+              <div><span className="text-[var(--color-text-muted)]">setup:</span> Create an OAuth client in GCP Console → APIs & Services → Credentials → OAuth 2.0 Client ID.</div>
+              <div><span className="text-[var(--color-text-muted)]">scopes:</span> Token must include https://www.googleapis.com/auth/bigquery scope.</div>
+            </div>
+          </>
+        )}
+        {form.bq_auth_method === "adc" && (
+          <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
+            <div><span className="text-[var(--color-text-muted)]">setup:</span> Run <code className="bg-[var(--color-bg-hover)] px-1">gcloud auth application-default login</code> on the server, or set GOOGLE_APPLICATION_CREDENTIALS env var.</div>
+            <div><span className="text-[var(--color-text-muted)]">gke:</span> On GKE, workload identity is used automatically. Ensure the KSA is bound to a GCP SA with BigQuery roles.</div>
+          </div>
+        )}
+
+        {/* Impersonation (cross-project access) */}
+        <FormInput
+          label="impersonate service account"
+          value={form.bq_impersonate_sa}
+          onChange={(v) => setForm({ ...form, bq_impersonate_sa: v })}
+          placeholder="analytics-reader@target-project.iam.gserviceaccount.com"
+          hint="optional — act as another service account for cross-project access"
           className="col-span-2"
         />
+
         <FormInput
           label="location"
           value={form.bq_location}
@@ -908,7 +972,6 @@ function ConnectionFieldsForm({ form, setForm }: { form: FormState; setForm: (f:
           hint="safety limit — query fails if scan exceeds this (10GB = 10737418240)"
         />
         <div className="col-span-2 px-3 py-2 bg-[var(--color-bg)]/50 border border-[var(--color-border)] border-dashed text-[9px] text-[var(--color-text-dim)] tracking-wider space-y-1">
-          <div><span className="text-[var(--color-text-muted)]">setup:</span> GCP Console → IAM → Service Accounts → Create Key (JSON). Needs BigQuery Data Viewer + Job User roles.</div>
           <div><span className="text-[var(--color-text-muted)]">cost control:</span> Set max bytes billed to prevent runaway costs. 2026 pricing: $6.25/TB on-demand (first 1TB free).</div>
           <div><span className="text-[var(--color-text-muted)]">vpc:</span> For VPC Service Controls, ensure the service account has access from SignalPilot&apos;s network perimeter.</div>
         </div>

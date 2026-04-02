@@ -28,6 +28,10 @@ class BigQueryConnector(BaseConnector):
         self._location: str = ""  # e.g. "US", "EU", "us-east1"
         self._maximum_bytes_billed: int | None = None  # safety limit — query fails if exceeded
         self._last_job_stats: dict | None = None  # stats from most recent query job
+        # Auth method: "service_account" | "oauth" | "impersonation" | "adc"
+        self._auth_method: str = "adc"
+        self._oauth_token: str = ""
+        self._impersonate_service_account: str = ""  # target SA email for impersonation
 
     async def connect(self, connection_string: str) -> None:
         if not HAS_BIGQUERY:
@@ -65,6 +69,11 @@ class BigQueryConnector(BaseConnector):
                 "Download the JSON key file from GCP Console > IAM > Service Accounts."
             )
         creds = service_account.Credentials.from_service_account_info(info)
+
+        # If impersonation is requested, wrap credentials
+        if self._impersonate_service_account:
+            creds = self._wrap_impersonation(creds)
+
         self._project = project or info.get("project_id", "")
         self._dataset = dataset
         self._location = location
@@ -76,6 +85,38 @@ class BigQueryConnector(BaseConnector):
             location=self._location or None,
         )
 
+    def _wrap_impersonation(self, source_creds):
+        """Wrap credentials with service account impersonation (HEX pattern).
+
+        Allows a service account to act as another service account,
+        useful for cross-project access and least-privilege patterns.
+        """
+        try:
+            from google.auth import impersonated_credentials
+            target_scopes = ["https://www.googleapis.com/auth/bigquery"]
+            return impersonated_credentials.Credentials(
+                source_credentials=source_creds,
+                target_principal=self._impersonate_service_account,
+                target_scopes=target_scopes,
+            )
+        except ImportError:
+            raise RuntimeError("google-auth library required for impersonation. Run: pip install google-auth")
+
+    def _create_oauth_client(self):
+        """Create BigQuery client from OAuth access token (HEX OAuth pattern)."""
+        if not HAS_BIGQUERY:
+            raise RuntimeError("google-cloud-bigquery not installed")
+        try:
+            from google.oauth2.credentials import Credentials as OAuthCredentials
+            creds = OAuthCredentials(token=self._oauth_token)
+            self._client = bigquery.Client(
+                project=self._project,
+                credentials=creds,
+                location=self._location or None,
+            )
+        except Exception as e:
+            raise RuntimeError(f"BigQuery OAuth setup failed: {e}") from e
+
     def set_credential_extras(self, extras: dict) -> None:
         """Extract BigQuery credentials from credential extras."""
         # Parse maximum_bytes_billed from extras (safety limit)
@@ -86,7 +127,18 @@ class BigQueryConnector(BaseConnector):
                 pass
         if extras.get("location"):
             self._location = extras["location"]
-        if extras.get("credentials_json"):
+        if extras.get("auth_method"):
+            self._auth_method = extras["auth_method"]
+        if extras.get("impersonate_service_account"):
+            self._impersonate_service_account = extras["impersonate_service_account"]
+
+        # OAuth access token (HEX pattern)
+        if extras.get("oauth_access_token"):
+            self._oauth_token = extras["oauth_access_token"]
+            self._project = extras.get("project", self._project)
+            self._dataset = extras.get("dataset", self._dataset)
+            self._create_oauth_client()
+        elif extras.get("credentials_json"):
             self.set_credentials(
                 credentials_json=extras["credentials_json"],
                 project=extras.get("project", self._project),
