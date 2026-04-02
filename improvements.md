@@ -5,6 +5,95 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 9: Connector Tier Classification, DDL Schema Format, BigQuery Optimization (2026-04-02)
+
+**Summary:** 10 features — HEX-style connector tier classification system (3 tiers, feature matrix, scoring), DDL schema format (Spider2.0 SOTA), FK-based relevance sorting, BigQuery parallel schema with nested field flattening, IP whitelist display, live URL parsing preview, schema DDL view toggle, 3 new MCP tools (connector_capabilities, schema_diff, schema_ddl).
+
+**Key metrics:**
+- 196 tests passing (up from 179 in Round 8)
+- All 3 Docker databases tested E2E: PostgreSQL (10 tables), MySQL (6 tables), ClickHouse (2 tables)
+- Connector tiers: 4 Tier 1 (pg, mysql, snowflake, bq), 3 Tier 2 (redshift, ch, databricks), 2 Tier 3 (duckdb, sqlite)
+- PostgreSQL feature score: 100% (15/15 features)
+- DDL token estimate: ~645 tokens for 5-table schema (vs ~2000+ for JSON format)
+- FK-relevance sorting: order_items (2 FKs) correctly prioritized over single-FK tables
+- BigQuery schema now parallelized with batched concurrent get_table calls (max 20)
+- 6 git commits this round
+
+### 1. Connector Tier Classification (HEX Pattern)
+
+**What:** `GET /api/connectors/capabilities` — returns full feature matrix for all 9 connectors.
+
+**Tier system:**
+- **Tier 1** (Full Support): PostgreSQL, MySQL, Snowflake, BigQuery — all core features, actively maintained
+- **Tier 2** (Stable): Redshift, ClickHouse, Databricks — supported, some features missing
+- **Tier 3** (Basic): DuckDB, SQLite — schema introspection + sample values only
+
+**Feature matrix tracks:** SSL, SSH tunnel, schema introspection, FKs, indexes, row counts, column stats, PKs, comments, sample values, read-only transactions, query timeout, cost estimation, connection pooling, parallel schema, and DB-specific features.
+
+**Frontend:** Tier badges (T1/T2/T3) on connection cards and db_type selector buttons with color coding.
+
+### 2. DDL Schema Format for Spider2.0
+
+**What:** `GET /api/connections/{name}/schema/ddl` — CREATE TABLE DDL format.
+
+**Why DDL:**
+- Spider2.0 SOTA systems (DAIL-SQL, DIN-SQL, CHESS) found DDL format outperforms JSON/text
+- LLMs have seen massive DDL in training data, making it the natural schema format
+- DDL encodes constraints (PK, FK, NOT NULL) in standard SQL syntax
+- ~3x more token-efficient than full JSON schema
+
+**FK-based relevance sorting:** Tables with more foreign keys (join hubs) appear first in truncated schemas, critical for Spider2.0's multi-table join queries.
+
+### 3. BigQuery Parallel Schema Pull
+
+**What:** Rewrote BigQuery `get_schema()` to use parallel introspection.
+
+**Before:** Sequential `list_datasets()` → `list_tables()` → `get_table()` (N+1 problem)
+**After:** Concurrent `list_tables()` per dataset + batched concurrent `get_table()` (max 20 concurrent)
+**Bonus:** Nested RECORD/STRUCT fields are now flattened for Spider2.0 compatibility.
+
+### 4. IP Whitelist Display
+
+**What:** Connection form shows firewall/IP whitelist info for SSH-capable databases.
+
+**Matches HEX pattern:** Shows the gateway host IP with copy-to-clipboard, and suggests SSH tunnel as alternative.
+
+### 5. Live URL Parsing Preview
+
+**What:** When typing a connection string in URL mode, parsed components (host, port, db, user, etc.) are shown inline below the input.
+
+**Supports:** PostgreSQL, MySQL, Redshift, ClickHouse, Snowflake, Databricks URL formats.
+
+### 6. Schema Page DDL View Toggle
+
+**What:** Schema explorer page now has table/DDL view toggle.
+
+**DDL view features:**
+- CREATE TABLE statements with PK/FK constraints and row counts
+- Token count estimate (helps understand AI context window usage)
+- Copy-to-clipboard for easy schema sharing
+- Scrollable with syntax-appropriate monospace formatting
+
+### 7. New MCP Tools
+
+- `connector_capabilities(connection_name?)` — tier info + features for agent planning
+- `schema_diff(connection_name)` — detect added/removed/modified tables after migrations
+- `schema_ddl(connection_name, max_tables)` — DDL-formatted schema for SQL generation
+
+### Industry Research (2026-04-01)
+
+**HEX:** SSH tunnels are on-demand (not persistent), IP whitelisting from static IPs, 4-tier connector system with prioritized maintenance.
+
+**Retool:** SSH tunneling + IP whitelisting recommended. MSSQL v1/v2 deprecated in 2026 Q3.
+
+**Metabase:** SSH tunnels supported but "direct connection is preferable" — tunnels add latency and can block concurrent operations.
+
+**Spider2.0:** Spider2-DBT introduced (68 tasks, repository-level). Tool-call-based Spider-Agent for Spider2-Snow requires no Docker. Leaderboard actively maintained at spider2-sql.github.io.
+
+**Zero-Trust (2026):** SSH tunneling no longer considered sufficient for production zero-trust access. Identity-based verification replacing static SSH keys.
+
+---
+
 ## Round 8: Join Path Discovery, Schema Exploration, Connection Test Phase 3 (2026-04-02)
 
 **Summary:** 11 features — schema relationships endpoint (3 formats), join path discovery (BFS multi-hop), connection test Phase 3 (schema access verification), ReFoRCE-style table exploration, ClickHouse protocol UI selector, schema overview, DB-specific error hints, Databricks schema optimization, ClickHouse protocol field, MCP tools for join/explore/relationships/overview.
@@ -1294,10 +1383,19 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~ReFoRCE table exploration~~ (Done: iterative column deep-dive)
 - [x] ~~ClickHouse protocol selector~~ (Done: native TCP vs HTTP UI toggle)
 - [x] ~~MCP join/explore tools~~ (Done: find_join_path, get_relationships, explore_table)
+- [x] ~~Connector tier classification~~ (Done: HEX 4-tier model with feature matrix)
+- [x] ~~DDL schema format~~ (Done: CREATE TABLE format for Spider2.0 SOTA)
+- [x] ~~FK-based relevance sorting~~ (Done: join-hub tables prioritized in truncated schemas)
+- [x] ~~BigQuery parallel schema~~ (Done: concurrent dataset/table introspection + nested field flattening)
+- [x] ~~IP whitelist display~~ (Done: HEX-style firewall info with copy-to-clipboard)
+- [x] ~~Live URL parsing preview~~ (Done: inline parsed components as user types connection string)
+- [x] ~~Schema DDL view toggle~~ (Done: table/DDL view switch on schema explorer page)
+- [x] ~~MCP schema_ddl tool~~ (Done: DDL-formatted schema for AI agent workflow)
+- [x] ~~MCP connector_capabilities tool~~ (Done: tier info + features for agents)
+- [x] ~~MCP schema_diff tool~~ (Done: detect added/removed/modified tables)
 - [ ] OAuth support for Snowflake, BigQuery, Databricks
 - [ ] Claude MCP Connector integration (HEX pattern)
 - [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
 - [ ] Identity-Aware Proxy (IAP) support for zero-trust database access
 - [ ] Query tagging for cost attribution (Databricks pattern)
 - [ ] Self-refinement loop for SQL generation (ReFoRCE approach)
-- [ ] Connector tier classification system (HEX 4-tier model)
