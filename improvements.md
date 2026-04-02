@@ -7,14 +7,17 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ## Round 15: Comments, Reconnection, DDL Compression, Error Classification (2026-04-02)
 
-**Summary:** 10 improvements — added column/table comments to Redshift/DuckDB/Trino, reconnection logic (`_ensure_connected()`) to 4 more connectors, ReFoRCE-style DDL compression for large schemas, SQLite error classification, unified type abbreviations for token savings, and fixed NoneType crash in schema sorting.
+**Summary:** 15 improvements — added column/table comments to Redshift/DuckDB/Trino, reconnection logic (`_ensure_connected()`) to 4 more connectors, ReFoRCE-style DDL compression for large schemas, SQLite error classification, unified type abbreviations, NoneType fix, MSSQL/Trino URL validation + connection string builders, 6 new query error hints, extended schema linking synonyms, and capability flag updates.
 
 **Key metrics:**
 - 353 tests passing, 1 skipped
 - All 4 live Docker databases verified: PostgreSQL (17.9), MySQL (8.0.45), ClickHouse (26.3.3.20), MSSQL (2022)
 - `_ensure_connected()` now on 6/11 connectors (MySQL, MSSQL, Redshift, ClickHouse, Snowflake, Trino)
-- Column comments now fetched by 9/11 connectors (all except SQLite/Redshift-no-comments-in-db)
-- 4 git commits this round
+- Column comments now fetched by 10/11 connectors (all except SQLite)
+- 21 total error hint patterns (up from 14)
+- 25 semantic synonym mappings for schema linking (up from 11)
+- All 11 connector capability flags updated to reflect actual features
+- 9 git commits this round
 
 ### Industry Research (Spider2.0 & ReFoRCE, April 2026)
 - **ReFoRCE (ICLR 2025 VerifAI)**: Still SOTA on Spider2.0. Key finding: "database information compression is the most critical component." Their pattern-based table grouping merges similar-prefix tables (stg_, dim_, fact_), keeping one representative DDL per group. This handles 300KB+ DDL that exceeds context limits.
@@ -80,6 +83,46 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 - Fixed `TypeError: bad operand type for unary -: 'NoneType'` when `row_count` is null
 - MySQL and some connectors can store null row_count explicitly (not missing key, but null value)
 - Added `or 0` fallback in all 4 sorting paths (get_schema_ddl relevance, compact overview relevance, schema_link relevance, schema_link fallback)
+
+### 9. MSSQL/Trino URL Validation and Connection String Builders
+**Files:** `main.py`, `store.py`
+- **Bug**: Creating MSSQL/Trino connections with individual fields (host/port/user) resulted in empty credential string — `_build_connection_string()` had no case for these types
+- **Fix**: Added `mssql://user:pass@host:1433/db` and `trino://user@host:8080/catalog/schema` builders
+- Added MSSQL URL parsing to `validate-url` endpoint (was missing)
+- Added Trino URL parsing to `validate-url` endpoint (was missing)
+- Added MSSQL host+username validation to `_validate_connection_params()`
+- Added Trino host+catalog validation to `_validate_connection_params()`
+
+### 10. Extended Query Error Hints (Spider2.0 Self-Correction)
+**File:** `errors.py`
+- Added 6 new error hint patterns (21 total, up from 14):
+  - Date/time function dialect mismatches: DB-specific hints for BigQuery/Snowflake/ClickHouse/MSSQL/MySQL/PG/Redshift
+  - Window function errors (OVER clause, WHERE/HAVING restrictions)
+  - CTE/WITH clause errors (recursive, unused CTE names)
+  - String concatenation dialect differences (|| vs + vs CONCAT)
+  - NULL comparison errors (= vs IS NULL guidance)
+  - Snowflake case sensitivity (uppercase identifiers, double-quote quoting)
+
+### 11. Extended Schema Linking Synonyms
+**File:** `main.py`
+- Added 14 new semantic synonym mappings (25 total, up from 11):
+  - location→city/state/country/region/address/zip
+  - customer→client/buyer/account, employee→staff/worker
+  - product→item/sku/goods/inventory, category→type/group/segment
+  - payment→amount/transaction/charge/invoice
+  - shipping→shipment/delivery/tracking/freight
+  - discount→promo/coupon/rebate, average→avg/mean
+  - monthly/yearly/daily→month/year/day/date
+- Added compound table name matching: splits `order_items` into parts, matches "items" or "order" individually (+4.0 score)
+
+### 12. Capability Flag Updates
+**File:** `main.py`
+- Updated `_CONNECTOR_TIERS` to reflect actual feature support after recent improvements:
+  - Redshift: comments=True, column_stats=True
+  - Trino: ssl=True, query_timeout=True, primary_keys=True
+  - DuckDB: comments=True, foreign_keys=True, row_counts=True, primary_keys=True, query_timeout=True, +motherduck
+  - SQLite: foreign_keys=True, row_counts=True, primary_keys=True, query_timeout=True
+- Updated test assertions to match new capability levels
 
 ---
 
