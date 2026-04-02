@@ -70,6 +70,40 @@ class TestCostEstimatorRouting:
         assert est.warning is not None
 
 
+class TestAllDBTypesHavePricing:
+    """All supported DB types should have cost-per-row entries."""
+
+    def test_all_types_present(self):
+        expected = ["postgres", "redshift", "mysql", "snowflake", "bigquery",
+                    "clickhouse", "databricks", "duckdb", "sqlite", "mssql", "trino"]
+        for db_type in expected:
+            assert db_type in _COST_PER_ROW, f"{db_type} missing from _COST_PER_ROW"
+
+    def test_bigquery_2026_pricing(self):
+        """BigQuery should use 2026 pricing of $6.25/TB."""
+        assert _COST_PER_ROW["bigquery"] == 0.000_006_25
+
+    def test_local_dbs_are_free(self):
+        assert _COST_PER_ROW["duckdb"] == 0.0
+        assert _COST_PER_ROW["sqlite"] == 0.0
+
+    def test_warehouses_more_expensive_than_rdbms(self):
+        assert _COST_PER_ROW["snowflake"] > _COST_PER_ROW["postgres"]
+        assert _COST_PER_ROW["bigquery"] > _COST_PER_ROW["mysql"]
+
+
+class TestCostEstimatorMethods:
+    """All estimator static methods should exist."""
+
+    def test_all_estimators_exist(self):
+        methods = ["estimate_postgres", "estimate_mysql", "estimate_snowflake",
+                   "estimate_bigquery", "estimate_redshift", "estimate_clickhouse",
+                   "estimate_databricks", "estimate_duckdb", "estimate_mssql",
+                   "estimate_trino"]
+        for method in methods:
+            assert hasattr(CostEstimator, method), f"Missing estimator: {method}"
+
+
 class TestPostgresCostConstants:
     """Test cost calculation constants."""
 
