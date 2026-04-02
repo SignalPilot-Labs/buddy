@@ -1623,5 +1623,150 @@ class TestSchemaFiltering:
         assert callable(get_cached_sample_values)
 
 
+# ── Connection String Builder (Round 7) ────────────────────────────────────
+
+class TestConnectionStringBuilder:
+    """Tests for URL-format connection string building."""
+
+    def test_snowflake_url_format(self):
+        """Snowflake builds standard URL format instead of pipe-delimited."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="snowflake",
+            account="myaccount", username="admin", password="pass123",
+            database="mydb", warehouse="compute_wh", schema_name="public", role="sysadmin",
+        )
+        url = _build_connection_string(conn)
+        assert url.startswith("snowflake://")
+        assert "@myaccount" in url
+        assert "/mydb/public" in url
+        assert "warehouse=compute_wh" in url
+        assert "role=sysadmin" in url
+        assert "|" not in url  # No pipe-delimited format
+
+    def test_snowflake_url_special_chars(self):
+        """Snowflake URL-encodes special characters in username/password."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="snowflake",
+            account="acct", username="user@domain.com", password="p@ss!word",
+            database="db",
+        )
+        url = _build_connection_string(conn)
+        assert "user%40domain.com" in url
+        assert "p%40ss%21word" in url
+
+    def test_databricks_url_format(self):
+        """Databricks builds standard URL format."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="databricks",
+            host="myworkspace.cloud.databricks.com",
+            http_path="/sql/1.0/warehouses/abc123",
+            access_token="dapi1234567890",
+            catalog="main", schema_name="default",
+        )
+        url = _build_connection_string(conn)
+        assert url.startswith("databricks://")
+        assert "dapi1234567890@myworkspace" in url
+        assert "catalog=main" in url
+        assert "schema=default" in url
+        assert "|" not in url  # No pipe-delimited format
+
+    def test_postgres_url_format(self):
+        """PostgreSQL builds standard URL format."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="postgres",
+            host="localhost", port=5432, database="mydb",
+            username="admin", password="pass",
+        )
+        url = _build_connection_string(conn)
+        assert url == "postgresql://admin:pass@localhost:5432/mydb"
+
+    def test_clickhouse_url_format(self):
+        """ClickHouse builds standard URL format."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(
+            name="test", db_type="clickhouse",
+            host="ch.example.com", port=9000, database="analytics",
+            username="default", password="secret",
+        )
+        url = _build_connection_string(conn)
+        assert url == "clickhouse://default:secret@ch.example.com:9000/analytics"
+
+    def test_duckdb_connection_string(self):
+        """DuckDB uses database path as connection string."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="duckdb", database="/data/analytics.duckdb")
+        url = _build_connection_string(conn)
+        assert url == "/data/analytics.duckdb"
+
+    def test_duckdb_default_memory(self):
+        """DuckDB defaults to :memory: when no database specified."""
+        from gateway.store import _build_connection_string
+        from gateway.models import ConnectionCreate
+        conn = ConnectionCreate(name="test", db_type="duckdb")
+        url = _build_connection_string(conn)
+        assert url == ":memory:"
+
+
+# ── DuckDB Schema Improvements (Round 7) ──────────────────────────────────
+
+class TestDuckDBSchemaImprovements:
+    """Tests for DuckDB primary key detection and row counts."""
+
+    def test_duckdb_schema_has_pk_detection(self):
+        """DuckDB get_schema queries PRIMARY KEY constraints."""
+        import inspect
+        from gateway.connectors.duckdb import DuckDBConnector
+        source = inspect.getsource(DuckDBConnector.get_schema)
+        assert "PRIMARY KEY" in source
+
+    def test_duckdb_schema_has_row_counts(self):
+        """DuckDB get_schema queries duckdb_tables() for row counts."""
+        import inspect
+        from gateway.connectors.duckdb import DuckDBConnector
+        source = inspect.getsource(DuckDBConnector.get_schema)
+        assert "duckdb_tables" in source
+
+    @pytest.mark.asyncio
+    async def test_duckdb_pk_and_row_count(self):
+        """DuckDB schema includes primary_key and row_count fields."""
+        from gateway.connectors.duckdb import DuckDBConnector
+        conn = DuckDBConnector()
+        await conn.connect(":memory:")
+        await conn.execute("CREATE TABLE test_pk (id INTEGER PRIMARY KEY, name VARCHAR)")
+        await conn.execute("INSERT INTO test_pk VALUES (1, 'a'), (2, 'b')")
+        schema = await conn.get_schema()
+        assert len(schema) >= 1
+        table = list(schema.values())[0]
+        # Check primary key detected
+        id_col = next(c for c in table["columns"] if c["name"] == "id")
+        assert id_col["primary_key"] is True
+        name_col = next(c for c in table["columns"] if c["name"] == "name")
+        assert name_col["primary_key"] is False
+        await conn.close()
+
+
+# ── SQLite Foreign Keys (Round 7) ─────────────────────────────────────────
+
+class TestSQLiteForeignKeys:
+    """Tests for SQLite PRAGMA foreign_keys = ON."""
+
+    def test_sqlite_enables_foreign_keys(self):
+        """SQLite connect() enables PRAGMA foreign_keys."""
+        import inspect
+        from gateway.connectors.sqlite import SQLiteConnector
+        source = inspect.getsource(SQLiteConnector.connect)
+        assert "PRAGMA foreign_keys" in source
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

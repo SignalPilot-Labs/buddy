@@ -363,15 +363,20 @@ def _build_connection_string(conn: ConnectionCreate) -> str:
         return conn.database or ":memory:"
 
     elif conn.db_type == DBType.snowflake:
-        # Snowflake uses account identifier, not host:port
+        # URL format: snowflake://user:pass@account/db/schema?warehouse=WH&role=ROLE
         account = conn.account or ""
-        user = conn.username or ""
-        pw = conn.password or ""
+        user = url_quote(conn.username or "", safe="")
+        pw = f":{url_quote(conn.password or '', safe='')}" if conn.password else ""
         db = conn.database or ""
-        wh = conn.warehouse or ""
         schema = conn.schema_name or ""
-        role = conn.role or ""
-        return f"snowflake://{account}|{user}|{pw}|{db}|{wh}|{schema}|{role}"
+        path = f"/{db}/{schema}" if schema else f"/{db}" if db else ""
+        params = []
+        if conn.warehouse:
+            params.append(f"warehouse={url_quote(conn.warehouse, safe='')}")
+        if conn.role:
+            params.append(f"role={url_quote(conn.role, safe='')}")
+        query = f"?{'&'.join(params)}" if params else ""
+        return f"snowflake://{user}{pw}@{account}{path}{query}"
 
     elif conn.db_type == DBType.bigquery:
         # BigQuery uses project + credentials JSON — connection_string holds the project ID
@@ -395,11 +400,17 @@ def _build_connection_string(conn: ConnectionCreate) -> str:
         return f"clickhouse://{user}{pw}@{host}:{port}/{db}"
 
     elif conn.db_type == DBType.databricks:
-        # Databricks uses server_hostname + http_path + access_token
+        # URL format: databricks://token@host/http_path?catalog=CAT&schema=SCH
         host = conn.host or ""
-        http_path = conn.http_path or ""
-        token = conn.access_token or ""
-        return f"databricks://{host}|{http_path}|{token}"
+        http_path = url_quote(conn.http_path or "", safe="/")
+        token = url_quote(conn.access_token or "", safe="")
+        params = []
+        if conn.catalog:
+            params.append(f"catalog={url_quote(conn.catalog, safe='')}")
+        if conn.schema_name:
+            params.append(f"schema={url_quote(conn.schema_name, safe='')}")
+        query = f"?{'&'.join(params)}" if params else ""
+        return f"databricks://{token}@{host}/{http_path}{query}"
 
     return ""
 
