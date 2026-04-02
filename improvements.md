@@ -5,6 +5,62 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 28: Schema Intelligence — Fingerprinting, Normalization, Progressive Disclosure (2026-04-01)
+
+**Summary:** 4 improvements — schema fingerprinting with diff tracking for automatic change detection, unified schema normalization across all 11 connector types, progressive schema disclosure (47% token reduction for agent context), and HEX/Spider2.0 industry research integration.
+
+**Key metrics:**
+- 488 tests passing (30 new this round)
+- 4 git commits this round
+- Progressive disclosure: 1,091 → 574 tokens (47% reduction) on enterprise-pg
+- All 5 Docker databases verified: PostgreSQL ×2, MySQL, MSSQL, ClickHouse
+- Schema fingerprints: unique 16-char SHA-256 per connection (fast structural change detection)
+
+### 1. Schema Fingerprinting & Diff Tracking
+**Files:** `connectors/schema_cache.py`, `gateway/main.py`
+- **Impact:** Automatic detection of DDL changes (added/removed/modified tables and columns) during scheduled refreshes
+- Structural fingerprint: SHA-256 hash of table names, column types, FK relationships — ignores volatile fields (row_count, stats)
+- Diff history: bounded deque (20 events/connection) records every structural change with timestamps
+- Scheduled refresh loop now logs: "+2/-1 tables, 3 modified" instead of just "10 tables"
+- New endpoints: `GET /api/connections/{name}/schema/diff-history`, `GET /api/schema/changes`
+- Refresh status endpoint now includes `fingerprint` field
+
+### 2. Unified Schema Normalization
+**Files:** `connectors/schema_cache.py`, `connectors/base.py`
+- **Impact:** Downstream consumers (DDL generation, schema linking, Spider2.0 agent) get consistent fields regardless of DB type
+- Centralized in `schema_cache.put()` — every schema automatically normalized on cache entry
+- Baseline table fields guaranteed: schema, name, type, columns, foreign_keys, row_count, description
+- Baseline column fields guaranteed: name, type, nullable, primary_key, comment
+- BigQuery `size_bytes` → `size_mb` conversion (512MB = 512.0)
+- ClickHouse/BigQuery now always have `foreign_keys: []` (previously missing)
+- DB-specific fields (engine, sorting_key, dist_key, etc.) preserved alongside baseline
+
+### 3. Progressive Schema Disclosure (Spider2.0 Optimization)
+**Files:** `gateway/main.py`
+- **Impact:** 47% token reduction in agent context while preserving join path coverage
+- New `progressive=true` parameter on `/api/connections/{name}/schema/agent-context`
+- Two-tier output: top N tables get full DDL, rest get compact one-liners
+- Compact format: `-- public.payments (15 cols, 4,999,162 rows, PK: id, FK: order_id→orders)`
+- Join paths preserved in compact view so agent can request detailed schema if needed
+- Configurable: `full_ddl_count` (default 8) controls the tier split
+- Mirrors CHESS (column filtering) and DIN-SQL (decomposition) approaches from Spider2.0 SOTA
+
+### 4. HEX/Spider2.0 Industry Research (2026-04-01)
+**Hex.tech alignment:**
+- ✅ Separate credential fields, SSH tunnels, SSL/TLS, IP allowlisting, schema filtering
+- ✅ Scheduled schema refreshes, connection testing (pre-save), connection presets
+- ✅ OAuth for Snowflake/Databricks (already implemented)
+- HEX tiered connectors (Tier 1-3) — informational, not needed for agent UX
+
+**Spider2.0 leaderboard (March 2026):**
+- Genloop: 96.7% (Spider2-Snow) — #1 globally
+- Databao Agent (JetBrains): #1 Spider2-DBT (68-task repo-level benchmark)
+- Paytm: first Indian company on Spider2-Snow leaderboard
+- Spider2-DBT trend: repo-level tasks (read code, fix models, validate) — our progressive context directly helps
+- Our approach aligns with top teams: DDL format, sample values, FK graph traversal, column pruning, progressive disclosure
+
+---
+
 ## Round 27: DDL Compression, Column Pruning, DB-Specific Error Hints (2026-04-01)
 
 **Summary:** 3 improvements — DDL compression with column pruning (54% token reduction), DB-specific actionable error hints for connection testing, and per-column relevance scoring for schema linking.
