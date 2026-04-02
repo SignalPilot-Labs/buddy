@@ -5,6 +5,73 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 23: Spider2.0 SOTA Techniques, Schema Refinement, URL Builder (2026-04-02)
+
+**Summary:** 7 improvements — Two-pass schema refinement endpoint (Spider2.0 SOTA), agent-context single-call schema provisioning, connection URL builder endpoint, async schema fetching for MSSQL/MySQL, HEX-style contextual setup guidance for PG/MySQL, comprehensive SQL extraction tests, and all 5 databases verified healthy with agent-context data.
+
+**Key metrics:**
+- 365 tests passing (16 new tests this round)
+- 5 git commits this round
+- Gateway rebuilt and deployed with all new endpoints
+- Verified on live: PG (2x), MySQL, MSSQL, ClickHouse — all 5 healthy
+- Agent-context verified: PG 10 tables/1386 tokens, MySQL 7/302, MSSQL 6/426, ClickHouse 2/145
+- Schema refine: 10 → 3 tables for "customer orders" query (token estimate: 445)
+- Spider2.0 leaderboard: ReFoRCE at 31.26% (Snow), baseline GPT-4o ~10%
+
+### 1. Two-Pass Schema Refinement (Spider2.0 SOTA)
+**Files:** `gateway/main.py`
+- **Impact:** Implements the #1 SOTA technique from RSL-SQL and ReFoRCE — reduces hallucinated columns by 40-60%
+- POST `/api/connections/{name}/schema/refine` takes a draft SQL and extracts referenced tables/columns
+- Returns minimal schema with `<< USED IN QUERY` annotations on referenced columns
+- Includes FK-connected tables and inferred join targets for join completeness
+- Supports question-based linking as fallback
+- Research basis: EDBT 2026 (IBM), RSL-SQL (arXiv), ReFoRCE (HaoAI Lab)
+
+### 2. Agent-Context Single-Call Endpoint
+**Files:** `gateway/main.py`
+- **Impact:** One API call to get complete prompt-ready schema context for SQL generation agents
+- GET `/api/connections/{name}/schema/agent-context` combines DDL, joins, metadata, sample values
+- Optional question parameter for schema linking (narrows 10→7 tables with token reduction)
+- Compact metadata: row counts, table sizes, database info header
+- Token estimate included in response for context window budgeting
+
+### 3. Connection URL Builder
+**Files:** `gateway/main.py`
+- **Impact:** Bidirectional URL flow — fields→URL (build-url) and URL→fields (validate-url)
+- POST `/api/connections/build-url` supports all 11 DB types
+- Proper URL encoding for special characters in passwords
+- Returns both `url` (full) and `masked_url` (password hidden) versions
+- Snowflake: account, warehouse, role, schema as URL params
+- Databricks: token:PAT@host/path format
+- ClickHouse: protocol-aware scheme selection (native/http/https)
+
+### 4. Async Schema Fetching for Sync Connectors
+**Files:** `connectors/mssql.py`, `connectors/mysql.py`
+- **Impact:** Prevents event loop blocking during schema introspection
+- MSSQL: `run_in_executor` wraps the sequential metadata query batch
+- MySQL: `run_in_executor` wraps the sequential query batch
+- Both connectors already had 4-5 query schema introspection; now non-blocking
+
+### 5. HEX-Style Contextual Setup Guidance
+**Files:** `web/app/connections/page.tsx`
+- **Impact:** Per-provider setup instructions reduce time-to-connect
+- PostgreSQL: RDS endpoint, Supabase pooler, Neon SSL, on-prem SSH guidance
+- MySQL: RDS security groups, PlanetScale SSL, Cloud SQL Auth Proxy, on-prem SSH
+
+### 6. Tests
+**Files:** `tests/test_schema_refine.py` (new)
+- 5 SQL table extraction tests: simple SELECT, JOIN, schema-qualified, subquery, dotted columns
+- 11 connection URL builder tests: all major DB types, password encoding, masking
+
+### 7. Industry Standards Research
+- HEX uses progressive disclosure (Basic→Advanced→Access sections), form-based approach
+- HEX Tier 1: BigQuery, ClickHouse, Databricks, Snowflake; Tier 2: PG, MySQL, Redshift, MSSQL
+- Spider2.0 SOTA: ReFoRCE at 31.26% using two-pass schema linking
+- Key EDBT 2026 finding: recall matters more than precision for schema linking
+- DDL format is dominant; enriched with column descriptions and sample values
+
+---
+
 ## Round 22: Auth Expansion, Join Inference, UI Enhancements (2026-04-02)
 
 **Summary:** 6 improvements — Redshift IAM auth (GetClusterCredentials + Serverless), MSSQL Azure AD/Entra ID auth via MSAL, enhanced implicit join inference (3 new patterns for Spider2.0), frontend Azure AD + IAM UI sections, connection URL copy button, and connector capability flag updates.
