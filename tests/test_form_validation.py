@@ -111,9 +111,9 @@ class TestBigQueryCredentialsValidation:
 
 
 class TestSSHValidation:
-    """Test SSH tunnel field validation."""
+    """Test SSH tunnel field validation (mirrors frontend validateForm)."""
 
-    def _validate_ssh(self, host: str, username: str, auth_method: str, password: str, key: str) -> dict[str, str]:
+    def _validate_ssh(self, host: str, username: str, auth_method: str, password: str, key: str, port: str = "22") -> dict[str, str]:
         errors = {}
         if not host.strip():
             errors["ssh_host"] = "SSH host is required"
@@ -121,8 +121,17 @@ class TestSSHValidation:
             errors["ssh_username"] = "SSH username is required"
         if auth_method == "password" and not password.strip():
             errors["ssh_password"] = "SSH password is required"
-        if auth_method == "key" and not key.strip():
-            errors["ssh_private_key"] = "SSH private key is required"
+        if auth_method == "key":
+            if not key.strip():
+                errors["ssh_private_key"] = "SSH private key is required"
+            elif not key.strip().startswith("-----BEGIN"):
+                errors["ssh_private_key"] = "must be a PEM-format private key"
+        try:
+            p = int(port)
+            if p < 1 or p > 65535:
+                errors["ssh_port"] = "SSH port must be 1-65535"
+        except (ValueError, TypeError):
+            errors["ssh_port"] = "SSH port must be 1-65535"
         return errors
 
     def test_valid_password_auth(self):
@@ -152,6 +161,64 @@ class TestSSHValidation:
     def test_agent_auth_no_password_or_key_needed(self):
         errors = self._validate_ssh("bastion.example.com", "ubuntu", "agent", "", "")
         assert len(errors) == 0
+
+    def test_key_must_be_pem_format(self):
+        errors = self._validate_ssh("bastion.example.com", "ubuntu", "key", "", "not-a-pem-key")
+        assert "ssh_private_key" in errors
+        assert "PEM" in errors["ssh_private_key"]
+
+    def test_rsa_key_accepted(self):
+        errors = self._validate_ssh("bastion.example.com", "ubuntu", "key", "", "-----BEGIN RSA PRIVATE KEY-----\nMIIE...")
+        assert "ssh_private_key" not in errors
+
+    def test_ed25519_key_accepted(self):
+        errors = self._validate_ssh("bastion.example.com", "ubuntu", "key", "", "-----BEGIN OPENSSH PRIVATE KEY-----\nbase64data")
+        assert "ssh_private_key" not in errors
+
+    def test_invalid_ssh_port(self):
+        errors = self._validate_ssh("bastion.example.com", "ubuntu", "password", "secret", "", port="0")
+        assert "ssh_port" in errors
+
+    def test_valid_ssh_port(self):
+        errors = self._validate_ssh("bastion.example.com", "ubuntu", "password", "secret", "", port="2222")
+        assert "ssh_port" not in errors
+
+
+class TestTimeoutValidation:
+    """Test connection and query timeout validation."""
+
+    def _validate_timeout(self, value: str, max_val: int) -> str | None:
+        if not value:
+            return None  # empty = use default
+        try:
+            t = int(value)
+            if t < 1 or t > max_val:
+                return f"must be 1-{max_val}"
+        except (ValueError, TypeError):
+            return "must be a number"
+        return None
+
+    def test_valid_connection_timeout(self):
+        assert self._validate_timeout("15", 300) is None
+        assert self._validate_timeout("1", 300) is None
+        assert self._validate_timeout("300", 300) is None
+
+    def test_invalid_connection_timeout(self):
+        assert self._validate_timeout("0", 300) is not None
+        assert self._validate_timeout("301", 300) is not None
+        assert self._validate_timeout("-1", 300) is not None
+        assert self._validate_timeout("abc", 300) is not None
+
+    def test_valid_query_timeout(self):
+        assert self._validate_timeout("120", 3600) is None
+        assert self._validate_timeout("3600", 3600) is None
+
+    def test_invalid_query_timeout(self):
+        assert self._validate_timeout("0", 3600) is not None
+        assert self._validate_timeout("3601", 3600) is not None
+
+    def test_empty_uses_default(self):
+        assert self._validate_timeout("", 300) is None
 
 
 class TestDbTypeDetectionFromUrl:

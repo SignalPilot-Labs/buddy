@@ -284,6 +284,30 @@ const CONNECTION_PRESETS: ConnectionPreset[] = [
     defaults: { ch_protocol: "http", ssl_enabled: true, port: "8443", description: "ClickHouse Cloud (HTTPS)" },
   },
   {
+    label: "Amazon Redshift",
+    db_type: "redshift",
+    icon: "🔴",
+    defaults: { port: "5439", ssl_enabled: true, ssl_mode: "require", description: "Amazon Redshift cluster" },
+  },
+  {
+    label: "Redshift Serverless",
+    db_type: "redshift",
+    icon: "🟠",
+    defaults: { port: "5439", ssl_enabled: true, ssl_mode: "require", iam_auth: true, description: "Redshift Serverless with IAM auth" },
+  },
+  {
+    label: "GCP Cloud SQL (PG)",
+    db_type: "postgres",
+    icon: "☁️",
+    defaults: { port: "5432", ssl_enabled: true, ssl_mode: "verify-ca", description: "GCP Cloud SQL for PostgreSQL" },
+  },
+  {
+    label: "MotherDuck",
+    db_type: "duckdb",
+    icon: "🦆",
+    defaults: { database: "md:", description: "MotherDuck cloud DuckDB" },
+  },
+  {
     label: "SSH Tunnel (any DB)",
     db_type: "postgres",
     icon: "🔒",
@@ -2149,7 +2173,12 @@ export default function ConnectionsPage() {
               <div className="mb-4">
                 <label className="block text-[10px] text-[var(--color-text-dim)] mb-1.5 tracking-wider opacity-60">quick start</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {CONNECTION_PRESETS.filter(p => p.db_type === form.db_type || form.db_type === "postgres").slice(0, 6).map((preset) => (
+                  {[...CONNECTION_PRESETS].sort((a, b) => {
+                    // Prioritize presets matching current db_type
+                    const aMatch = a.db_type === form.db_type ? 0 : 1;
+                    const bMatch = b.db_type === form.db_type ? 0 : 1;
+                    return aMatch - bMatch;
+                  }).slice(0, 8).map((preset) => (
                     <button
                       key={preset.label}
                       type="button"
