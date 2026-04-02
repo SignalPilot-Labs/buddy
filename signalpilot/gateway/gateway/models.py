@@ -112,6 +112,15 @@ class ConnectionCreate(BaseModel):
     # ─── Metadata ───────────────────────────────────────────────────
     description: str = Field(default="", max_length=500)
     tags: list[str] = Field(default_factory=list)  # organizational tags
+    # ─── Schema filtering (HEX pattern) ────────────────────────────
+    schema_filter_include: list[str] = Field(
+        default_factory=list,
+        description="Only include these schemas (empty = include all). Glob patterns supported.",
+    )
+    schema_filter_exclude: list[str] = Field(
+        default_factory=list,
+        description="Exclude these schemas from AI introspection. Common: staging, dev, raw, tmp.",
+    )
     # ─── Scheduled schema refresh (HEX pattern) ───────────────────
     schema_refresh_interval: int | None = Field(
         default=None, ge=60, le=86400,
@@ -158,6 +167,8 @@ class ConnectionUpdate(BaseModel):
     private_key_passphrase: str | None = Field(default=None, max_length=1024)
     description: str | None = Field(default=None, max_length=500)
     tags: list[str] | None = None
+    schema_filter_include: list[str] | None = None
+    schema_filter_exclude: list[str] | None = None
     schema_refresh_interval: int | None = Field(default=None, ge=60, le=86400)
     last_schema_refresh: float | None = None  # internal — set by scheduler
     connection_timeout: int | None = Field(default=None, ge=1, le=300)
@@ -190,6 +201,8 @@ class ConnectionInfo(BaseModel):
     # Metadata
     description: str = ""
     tags: list[str] = Field(default_factory=list)
+    schema_filter_include: list[str] = Field(default_factory=list)
+    schema_filter_exclude: list[str] = Field(default_factory=list)
     schema_refresh_interval: int | None = None  # seconds, None = disabled
     last_schema_refresh: float | None = None  # timestamp of last successful refresh
     connection_timeout: int | None = None

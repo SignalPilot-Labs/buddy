@@ -26,6 +26,7 @@ import {
   Copy,
   EyeOff,
   Star,
+  Filter,
 } from "lucide-react";
 import {
   getConnections,
@@ -423,6 +424,9 @@ interface FormState {
   // Connection scoping (HEX pattern)
   scope: "workspace" | "project";
   read_only: boolean;
+  // Schema filtering (HEX pattern)
+  schema_filter_include: string; // comma-separated schema names
+  schema_filter_exclude: string; // comma-separated schema names
   // Timeouts
   connection_timeout: string; // seconds
   query_timeout: string; // seconds
@@ -444,6 +448,7 @@ const defaultForm: FormState = {
   tags: [], tagInput: "",
   schema_refresh_enabled: false, schema_refresh_interval: "300",
   scope: "workspace", read_only: true,
+  schema_filter_include: "", schema_filter_exclude: "",
   connection_timeout: "15", query_timeout: "120", keepalive_interval: "0",
 };
 
@@ -626,6 +631,14 @@ function buildCreatePayload(form: FormState): Record<string, unknown> {
       private_key: form.ssh_auth_method === "key" ? form.ssh_private_key : null,
       private_key_passphrase: form.ssh_auth_method === "key" ? form.ssh_key_passphrase : null,
     };
+  }
+
+  // Schema filtering
+  if (form.schema_filter_include.trim()) {
+    payload.schema_filter_include = form.schema_filter_include.split(",").map((s: string) => s.trim()).filter(Boolean);
+  }
+  if (form.schema_filter_exclude.trim()) {
+    payload.schema_filter_exclude = form.schema_filter_exclude.split(",").map((s: string) => s.trim()).filter(Boolean);
   }
 
   // Timeouts (pass as numbers if non-default)
@@ -1150,10 +1163,12 @@ export default function ConnectionsPage() {
       schema_refresh_interval: String((conn as any).schema_refresh_interval || 300),
       scope: (conn as any).scope || "workspace",
       read_only: (conn as any).read_only !== false,
+      schema_filter_include: ((conn as any).schema_filter_include || []).join(", "),
+      schema_filter_exclude: ((conn as any).schema_filter_exclude || []).join(", "),
     });
     setEditingConnection(conn.name);
     setShowForm(true);
-    setShowAdvanced(!!(conn.ssl || conn.ssh_tunnel?.enabled || (conn as any).schema_refresh_interval));
+    setShowAdvanced(!!(conn.ssl || conn.ssh_tunnel?.enabled || (conn as any).schema_refresh_interval || (conn as any).schema_filter_include?.length || (conn as any).schema_filter_exclude?.length));
   }
 
   async function handleTest(name: string) {
@@ -1486,6 +1501,43 @@ export default function ConnectionsPage() {
                         <p className="text-[8px] text-[var(--color-text-dim)] tracking-wider mt-1.5 opacity-60">
                           for cloud-hosted signalpilot, dedicated static ips are assigned per workspace. contact your admin for the exact ips.
                         </p>
+                      </div>
+                    </div>
+
+                    {/* Schema Filtering */}
+                    <div className="border-t border-[var(--color-border)] pt-4 mt-4">
+                      <div className="flex items-center gap-2 text-[10px] text-[var(--color-text-dim)] tracking-wider mb-2">
+                        <Filter className="w-3 h-3" strokeWidth={1.5} />
+                        <span>schema filtering</span>
+                      </div>
+                      <div className="text-[8px] text-[var(--color-text-dim)] tracking-wider mb-3 opacity-60">
+                        filter which schemas are visible to the ai agent. excludes staging, dev, and raw schemas to improve accuracy.
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-[9px] text-[var(--color-text-muted)] tracking-wider mb-1">
+                            include schemas <span className="opacity-50">(comma-separated, empty = all)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="public, analytics, production"
+                            value={form.schema_filter_include}
+                            onChange={(e) => setForm({ ...form, schema_filter_include: e.target.value })}
+                            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-[10px] px-3 py-2 tracking-wider placeholder:text-[var(--color-text-dim)]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] text-[var(--color-text-muted)] tracking-wider mb-1">
+                            exclude schemas <span className="opacity-50">(comma-separated, glob patterns supported)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="staging*, dev*, raw, tmp*, _dbt_*"
+                            value={form.schema_filter_exclude}
+                            onChange={(e) => setForm({ ...form, schema_filter_exclude: e.target.value })}
+                            className="w-full bg-[var(--color-bg)] border border-[var(--color-border)] text-[var(--color-text)] text-[10px] px-3 py-2 tracking-wider placeholder:text-[var(--color-text-dim)]"
+                          />
+                        </div>
                       </div>
                     </div>
 

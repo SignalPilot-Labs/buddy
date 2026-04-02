@@ -150,6 +150,52 @@ def _sanitize_db_error(error: str, db_type: str | None = None) -> str:
     return sanitized
 
 
+# ─── Schema Filtering (HEX pattern) ─────────────────────────────────────────
+
+import fnmatch as _fnmatch
+
+
+def _apply_schema_filter(
+    schema: dict[str, dict],
+    include: list[str] | None = None,
+    exclude: list[str] | None = None,
+) -> dict[str, dict]:
+    """Filter schema tables by include/exclude schema name patterns.
+
+    HEX pattern: filter out staging/dev/raw schemas to focus AI on production data.
+    Glob patterns are supported (e.g., 'staging_*', 'dev*').
+    """
+    if not include and not exclude:
+        return schema
+
+    filtered: dict[str, dict] = {}
+    for key, table_data in schema.items():
+        table_schema = table_data.get("schema", "")
+
+        # Include filter: only keep if schema matches at least one pattern
+        if include:
+            if not any(_fnmatch.fnmatch(table_schema.lower(), pat.lower()) for pat in include):
+                continue
+
+        # Exclude filter: skip if schema matches any pattern
+        if exclude:
+            if any(_fnmatch.fnmatch(table_schema.lower(), pat.lower()) for pat in exclude):
+                continue
+
+        filtered[key] = table_data
+    return filtered
+
+
+def _get_schema_filters(name: str) -> tuple[list[str], list[str]]:
+    """Get schema filter config for a connection."""
+    conn = get_connection(name)
+    if conn is None:
+        return [], []
+    include = getattr(conn, "schema_filter_include", []) or []
+    exclude = getattr(conn, "schema_filter_exclude", []) or []
+    return include, exclude
+
+
 # ─── Global sandbox client (recreated when settings change) ──────────────────
 
 _sandbox_client: SandboxClient | None = None
@@ -1393,6 +1439,8 @@ async def get_schema_ddl(
         schema_cache.put(name, cached)
 
     filtered = apply_endorsement_filter(name, cached)
+    sf_include, sf_exclude = _get_schema_filters(name)
+    filtered = _apply_schema_filter(filtered, sf_include, sf_exclude)
 
     # Sort by FK relevance (same as compact)
     def _table_relevance(key: str) -> tuple:
@@ -1576,6 +1624,8 @@ async def schema_link(
         schema_cache.put(name, cached)
 
     filtered = apply_endorsement_filter(name, cached)
+    sf_include, sf_exclude = _get_schema_filters(name)
+    filtered = _apply_schema_filter(filtered, sf_include, sf_exclude)
 
     # Step 1: Tokenize question into search terms
     import re as _re_link
