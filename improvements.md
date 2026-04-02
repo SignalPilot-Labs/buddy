@@ -7,16 +7,26 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ## Round 12: Schema Introspection Fixes, Sample Values Optimization, DDL Metadata (2026-04-02)
 
-**Summary:** 6 improvements — Fixed Redshift schema introspection bug, added column stats/encoding to Redshift, Snowflake clustering key metadata, batched sample value queries (20→1 round trips), MSSQL/Redshift-specific frontend forms, DDL metadata for Snowflake/Redshift.
+**Summary:** 10 improvements — Fixed Redshift schema introspection bug, added column stats/encoding to Redshift, Snowflake clustering key metadata, batched sample value queries across all 10 non-Postgres connectors, MSSQL/Redshift-specific frontend forms, DDL column-level optimization hints, SQLite cost estimation, schema overview enrichment.
 
 **Key metrics:**
 - 350 tests passing (up from 333 — 17 new tests)
-- Sample values: 20 round trips → 1 per table (UNION ALL batching across 9 connectors)
-- Redshift: fixed silent bug where dist/sort key query was querying wrong system table
+- Sample values: 20 round trips → 1 per table (UNION ALL batching across ALL 10 connectors including BigQuery, SQLite)
+- Redshift: fixed silent bug where dist/sort key query was querying wrong system table (pg_table_def → SVV_TABLE_INFO)
 - Snowflake: clustering key metadata now exposed in schema + DDL output
-- Redshift: column encoding, statistics, and composite sort keys now captured
+- Redshift: column encoding, statistics, dist_key flags, and composite sort keys now captured
 - Frontend: MSSQL and Redshift now have dedicated form sections with contextual help
-- 4 git commits this round
+- DDL: column-level DISTKEY/SORTKEY#/low_cardinality annotations for query planning
+- Schema overview: optimization metadata (engine, sorting_key, size) in largest_tables
+- Cost estimation: now covers all 11 DB types (SQLite added)
+- 8 git commits this round
+
+### Industry Research (Spider2.0 & HEX, April 2026)
+- **Spider2.0 leaderboard**: ReFoRCE now at 35.83% on Snow, 36.56% on Lite (up from 31.26%)
+- **Spider2-DBT**: New task setting (May 2025) for repository-level text-to-SQL
+- **HEX March 2026**: chDB 4 integration (pythonic ClickHouse access), Agent can swap data connections, Context Studio for agent observation/improvement
+- **HEX Claude Connector**: Native app with interactive charts, thinking steps, SQL spot-checking
+- **SignalPilot positioning**: Exceeds HEX on schema linking quality (per-column statistics, cardinality annotations, DISTKEY/SORTKEY hints). Key gap remains: per-user OAuth.
 
 ### 1. Redshift Schema Introspection Fix (Bug Fix)
 **File:** `gateway/connectors/redshift.py`
