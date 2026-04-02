@@ -403,15 +403,25 @@ async def lifespan(app: FastAPI):
                             conn_info.db_type, conn_str, credential_extras=extras,
                         ) as connector:
                             schema = await connector.get_schema()
-                        schema_cache.put(conn_info.name, schema)
+                        # Track diff on scheduled refresh — detects DDL changes automatically
+                        diff_result = schema_cache.put(conn_info.name, schema, track_diff=True)
                         # Update last_schema_refresh timestamp
                         update_connection(conn_info.name, ConnectionUpdate(
                             last_schema_refresh=now,
                         ))
-                        logger.info(
-                            "Scheduled schema refresh for '%s': %d tables",
-                            conn_info.name, len(schema),
-                        )
+                        if diff_result and diff_result.get("has_changes"):
+                            added = len(diff_result.get("added_tables", []))
+                            removed = len(diff_result.get("removed_tables", []))
+                            modified = len(diff_result.get("modified_tables", []))
+                            logger.info(
+                                "Schema change detected for '%s': +%d/-%d tables, %d modified",
+                                conn_info.name, added, removed, modified,
+                            )
+                        else:
+                            logger.info(
+                                "Scheduled schema refresh for '%s': %d tables (no structural changes)",
+                                conn_info.name, len(schema),
+                            )
                     except Exception as e:
                         logger.warning(
                             "Scheduled schema refresh failed for '%s': %s",
@@ -4112,16 +4122,18 @@ async def get_schema_diff(name: str):
             "has_cached": False,
             "message": "No cached schema to compare. Current schema cached as baseline.",
             "table_count": len(new_schema),
+            "fingerprint": schema_cache.get_fingerprint(name),
         }
 
-    # Update cache with new schema
-    schema_cache.put(name, new_schema)
+    # Update cache with new schema — track_diff=True records the change event
+    schema_cache.put(name, new_schema, track_diff=True)
 
     return {
         "connection_name": name,
         "has_cached": True,
         "diff": diff,
         "table_count": len(new_schema),
+        "fingerprint": schema_cache.get_fingerprint(name),
     }
 
 
@@ -4144,6 +4156,40 @@ async def get_schema_refresh_status(name: str):
         ),
         "cached": cached_stats is not None,
         "cached_table_count": len(cached_stats) if cached_stats else 0,
+        "fingerprint": schema_cache.get_fingerprint(name),
+    }
+
+
+@app.get("/api/connections/{name}/schema/diff-history")
+async def get_schema_diff_history(name: str):
+    """Get schema change history for a connection.
+
+    Returns a list of detected structural changes (added/removed/modified tables and columns)
+    from scheduled refreshes and manual diff checks. Newest first, max 20 events.
+    """
+    info = get_connection(name)
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Connection '{name}' not found")
+
+    history = schema_cache.get_diff_history(name)
+    return {
+        "connection_name": name,
+        "events": history,
+        "current_fingerprint": schema_cache.get_fingerprint(name),
+    }
+
+
+@app.get("/api/schema/changes")
+async def get_all_schema_changes():
+    """Get recent schema changes across all connections.
+
+    Useful for monitoring dashboards — shows which databases had DDL changes
+    and when, across all monitored connections.
+    """
+    history = schema_cache.get_diff_history()
+    return {
+        "events": history,
+        "cache_stats": schema_cache.stats(),
     }
 
 
