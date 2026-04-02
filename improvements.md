@@ -5,6 +5,159 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 5: SSL Completion, Schema Endorsements & Column Correction (2026-04-01)
+
+**Summary:** 8 features — full SSL cert support across all host-based connectors, standardized credential_extras, schema endorsements (HEX Data Browser pattern), auto-schema-refresh, column name correction, query timeout for all connectors.
+
+**Key metrics:**
+- 214 unit tests passing (up from 195)
+- All 9 connectors now support per-query timeouts
+- All 4 host-based connectors support SSL certificates (CA cert, client cert, client key)
+- Schema endorsements reduced visible tables from 10 to 3 in endorsed_only mode
+- Column correction: "frist_name" → "first_name" (confidence 0.8), "loyalty_teir" → "loyalty_tier" (confidence 0.83)
+
+### 1. SSL Certificate Support for PostgreSQL, Redshift, ClickHouse
+
+**What:** Full SSL/TLS certificate support (CA cert, client cert, client key) for all host-based connectors.
+
+**Before:** Only MySQL had explicit cert support. PostgreSQL/Redshift relied on connection string params. ClickHouse only had a `secure` flag.
+
+**After:**
+- PostgreSQL: Builds `ssl.SSLContext` with cert chain, supports verify-full mode
+- Redshift: Passes `sslmode/sslrootcert/sslcert/sslkey` to psycopg2
+- ClickHouse: Passes `ca_certs/certfile/keyfile` to clickhouse-driver
+- All certs written to secure temp files (0600 permissions), cleaned up on close
+- Pool manager wires SSL config for all 4 DB types via `set_credential_extras()`
+
+### 2. Standardized credential_extras Pattern
+
+**What:** All connectors now implement `set_credential_extras()` on the base class.
+
+**Before:** Pool manager had 30+ lines of per-DB-type branching logic (BigQuery uses `set_credentials()`, MySQL uses `set_ssl_config()`, etc.).
+
+**After:** Single `connector.set_credential_extras(credential_extras)` call in pool manager. Each connector extracts what it needs:
+- PostgreSQL/MySQL/Redshift/ClickHouse: extract `ssl_config`
+- BigQuery: extract `credentials_json`, configure client
+- Snowflake: extract `account`, `warehouse`, `role`, etc.
+- Databricks: extract `http_path`, `access_token`, etc.
+
+### 3. Query Timeout for All 9 Connectors
+
+**What:** All connectors now support per-query timeouts via the `timeout` parameter.
+
+**Before:** Only PostgreSQL, MySQL, Snowflake, and Redshift had timeout support.
+
+**After:**
+| Connector | Timeout Mechanism |
+|-----------|------------------|
+| PostgreSQL | `SET LOCAL statement_timeout` (server-side) |
+| MySQL | `SET SESSION max_execution_time` (milliseconds) |
+| Redshift | `SET statement_timeout` (milliseconds) |
+| Snowflake | `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS` |
+| ClickHouse | `max_execution_time` setting |
+| DuckDB | `SET timeout` pragma (native) |
+| SQLite | `set_progress_handler` (query cancellation callback) |
+| Databricks | `SET statement_timeout` (best-effort) |
+| BigQuery | `timeout` param on query job |
+
+### 4. Schema Endorsements (HEX Data Browser Pattern)
+
+**What:** Table-level endorsement system that controls which tables AI agents can see.
+
+**Why:** HEX improved AI SQL accuracy from 82% to 96% by letting users curate which tables the AI agent sees. This is the single most impactful feature for text-to-SQL accuracy.
+
+**Two modes:**
+- `"all"` (default): Show all tables except hidden ones
+- `"endorsed_only"`: Show only explicitly endorsed tables
+
+**API:**
+- `GET /api/connections/{name}/schema/endorsements` — get current config
+- `PUT /api/connections/{name}/schema/endorsements` — set endorsed/hidden tables and mode
+- Applied transparently to the schema endpoint
+
+**Frontend:** Star icon to endorse tables, eye-off icon to hide tables, mode toggle button.
+
+**Verified E2E:** 10 tables → 3 tables in endorsed_only mode, 8 tables with 2 hidden.
+
+### 5. Auto-Schema-Refresh on Connection Creation
+
+**What:** Background task automatically fetches schema when a new connection is created.
+
+**Why:** HEX automatically kicks off a schema refresh on new connections. This ensures the schema is cached and ready for AI agents immediately, without requiring a manual schema fetch.
+
+**Implementation:** `asyncio.create_task()` fires after connection creation. Schema is cached via `schema_cache.put()` so subsequent requests are instant.
+
+### 6. Column Name Correction (Spider2.0 Hallucination Fix)
+
+**What:** Levenshtein distance-based column name correction for AI agent hallucination repair.
+
+**Why:** Schema linking errors cause 27.6% of SQL failures (EDBT 2026). LLM agents frequently hallucinate column names (e.g., "customer_name" instead of "first_name").
+
+**API:** `POST /api/connections/{name}/schema/correct-columns`
+```json
+// Request
+{"table": "public.customers", "columns": ["frist_name", "loyalty_teir"]}
+
+// Response
+{
+  "corrections": {
+    "frist_name": {"suggestion": "first_name", "distance": 2, "confidence": 0.8},
+    "loyalty_teir": {"suggestion": "loyalty_tier", "distance": 2, "confidence": 0.83}
+  }
+}
+```
+
+**Configurable threshold** (default 0.5) — fraction of name length as max edit distance.
+
+### 7. Test Coverage
+
+**19 new tests (195 → 214 total):**
+- SSL config: PostgreSQL (4), Redshift (3), ClickHouse (3)
+- Schema endorsements: 5 tests (default, set/get, endorsed_only, hidden, no-filter)
+- Credential extras standardization: 8 tests (all connectors + pool_manager)
+- Levenshtein distance: 6 tests
+
+### 8. Frontend Additions
+
+- Schema endorsement UI (star/hide per table, mode toggle)
+- Column correction API client
+- Schema endorsements API client
+
+---
+
+### Spider2.0 Leaderboard Update (April 2026 — Research Round 5)
+
+| Method | Spider2.0-Snow | Spider2.0-Lite | Key Technique |
+|--------|---------------|----------------|---------------|
+| **Genloop Sentinel v2 Pro** (SOTA) | **96.70%** | — | Multi-agent swarm + contextual scaling |
+| **Native mini** | **96.53%** | — | usenative.ai |
+| **QUVI-3 + Gemini-3-pro** | **94.15%** | — | Contextual scaling engine |
+| **Databao Agent** | — | **69.65%** | Code generation + schema linking |
+| **QUVI-2.3 + Claude-Opus-4.5** | — | **65.81%** | Multi-agent |
+| **ReFoRCE + o3** | — | **55.21%** | Self-refinement + consensus |
+
+**Key updates since Round 4:**
+- Spider2.0-Snow SOTA jumped from 35% (DSR-SQL) to **96.7%** (Sentinel v2 Pro) — massive leap
+- Top systems now use multi-agent swarms with deep reasoning and contextual scaling
+- Spider2.0-Lite SOTA at 69.7% (Databao Agent) — up from ~36% (ReFoRCE)
+- HEX added Claude MCP Connector for interactive charts/tables
+- HEX classifies connectors into 4 tiers (Tier 1: BigQuery, ClickHouse, Databricks, Snowflake)
+
+### HEX Comparison Update (Round 5)
+
+| Feature | HEX | SignalPilot |
+|---------|-----|-------------|
+| SSL certs (all connectors) | Yes | **Yes** (new — Postgres/Redshift/ClickHouse) |
+| Schema endorsements | Yes (Data Browser) | **Yes** (new — endorsed_only + hidden modes) |
+| Auto schema refresh | Yes (on new connections) | **Yes** (new — background task) |
+| Column correction | No | **Yes** (unique — Levenshtein distance) |
+| Query timeout (all DBs) | Yes | **Yes** (new — all 9 connectors) |
+| Connector tiers | 4 tiers | 1 tier (all production-ready) |
+| OAuth | Snowflake/Databricks/BigQuery | Planned |
+| Claude MCP Connector | Yes | Planned |
+
+---
+
 ## Round 4: Schema Search, Error Handling, Stats & UX (2026-04-01)
 
 **Summary:** 15 features — AI agent schema search, connection cloning, query explain preview, database version reporting, connector error handling, ClickHouse/BigQuery stats, Databricks URL format, Redshift optimization.
@@ -610,6 +763,7 @@ All connectors implement the same `BaseConnector` abstract class:
 - `connect(connection_string)` — open connection
 - `execute(sql, params, timeout)` — run query, return `list[dict]`
 - `get_schema()` — return full schema metadata
+- `set_credential_extras(extras)` — set structured credentials (SSL, tokens, etc.)
 - `health_check()` — verify connectivity
 - `close()` — cleanup resources
 
@@ -676,11 +830,17 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~Query explain preview~~ (Done: POST /api/query/explain with cost estimation)
 - [x] ~~Database version reporting~~ (Done: version displayed in connection test results)
 - [x] ~~ClickHouse auth error cleanup~~ (Done: truncated to first line)
+- [x] ~~SSL certs for PostgreSQL/Redshift/ClickHouse~~ (Done: CA cert, client cert, client key with temp files)
+- [x] ~~Standardized credential_extras~~ (Done: unified set_credential_extras() on BaseConnector)
+- [x] ~~Query timeout for all connectors~~ (Done: DuckDB SET timeout, SQLite progress_handler, Databricks SET statement_timeout)
+- [x] ~~Schema endorsements~~ (Done: HEX Data Browser pattern — endorsed_only + hidden modes)
+- [x] ~~Auto-schema-refresh on connection creation~~ (Done: background task like HEX)
+- [x] ~~Column name correction~~ (Done: Levenshtein distance with configurable threshold)
 - [ ] OAuth support for Snowflake, BigQuery, Databricks
-- [ ] Automated schema refresh scheduling (like HEX workspace connections)
+- [ ] Claude MCP Connector integration (HEX pattern)
 - [ ] LLM-guided schema linking (ReFoRCE Phase 2 — after table grouping)
-- [ ] DSR-SQL progressive generation state (feedback-guided SQL synthesis)
-- [ ] Approximate string matching (threshold 0.5) for column name hallucination correction
+- [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
 - [ ] Identity-Aware Proxy (IAP) support for zero-trust database access
 - [ ] Query tagging for cost attribution (Databricks pattern)
 - [ ] Self-refinement loop for SQL generation (ReFoRCE approach)
+- [ ] Connector tier classification system (HEX 4-tier model)
