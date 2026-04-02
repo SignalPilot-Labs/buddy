@@ -7,12 +7,13 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ## Round 20: Implicit Join Detection, Connector Metadata Enrichment (2026-04-02)
 
-**Summary:** 11 improvements — implicit join detection for FK-less databases (critical for Spider2.0 on data lakes), connector metadata enrichment (Databricks PK/FK, Snowflake sizes/comments), improved cost estimation, safety fixes, frontend VPN/PrivateLink guidance, and comprehensive test coverage.
+**Summary:** 12 improvements — implicit join detection for FK-less databases (critical for Spider2.0 on data lakes), connector metadata enrichment (Databricks PK/FK, Snowflake sizes/comments), improved cost estimation, ENUM cardinality hints in DDL, safety fixes, frontend VPN/PrivateLink guidance, and comprehensive test coverage.
 
 **Key metrics:**
-- 302 tests passing (29 new tests this round)
-- All 4 live Docker databases verified with implicit joins
+- 314 tests passing (41 new tests this round)
+- All 4 live Docker databases verified with implicit joins and new metadata
 - Implicit joins found: ClickHouse (1 inferred, 0 explicit), MySQL (1 inferred, 1 explicit)
+- 10 git commits this round
 - Gateway and frontend deployed to Docker containers
 
 ### 1. Implicit Join Detection via Column Name Pattern Matching
@@ -80,12 +81,27 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 - BigQuery: Added VPC Service Controls guidance and 2026 pricing info
 - Databricks: Added PrivateLink hint and Unity Catalog FK discovery note
 
-### 10. Test Coverage
-**Files:** `tests/test_implicit_joins.py`, `tests/test_databricks_connector.py`, `tests/test_snowflake_connector.py`, `tests/test_redshift_ssl_cleanup.py`
+### 10. ENUM Cardinality Hint in DDL Compression
+**Files:** `main.py`
+- Low-cardinality columns (<=10 distinct values) get ENUM marker in DDL compression
+- Helps Spider2.0 agents identify status/type fields suitable for WHERE filters
+- Excludes timestamp/date columns from ENUM classification to avoid false positives
+- ClickHouse LowCardinality type columns also marked as ENUM
+
+### 11. Schema Overview with Implicit Join Stats
+**Files:** `main.py`
+- `/schema/overview` now reports `inferred_joins` count and `has_implicit_joins` flag
+- Join complexity scoring includes both explicit FKs and inferred joins
+- Agents immediately know whether to use implicit join features
+
+### 12. Test Coverage (41 new tests)
+**Files:** `tests/test_implicit_joins.py`, `tests/test_databricks_connector.py`, `tests/test_snowflake_connector.py`, `tests/test_redshift_ssl_cleanup.py`, `tests/test_trino_connector.py`, `tests/test_cost_estimator.py`
 - 8 tests: implicit join detection (basic _id pattern, plural matching, skip existing FKs, no self-reference, multiple inferred, confidence field, no match without target, empty schema)
 - 8 tests: Databricks connector (parsing formats, credential extras, timeouts, schema structure, PK/FK SQL patterns)
 - 8 tests: Snowflake connector (parsing formats, credential extras, keepalive, OCSP, schema query columns)
 - 5 tests: Redshift SSL cleanup (temp file creation, removal, missing file handling, timeout defaults)
+- 7 tests: Trino connector (URL parsing, HTTPS, password, host-only, timeout, SSL verify, credential extras)
+- 5 tests: Cost estimator (all DB pricing, BQ 2026 rates, local DBs free, warehouse > RDBMS, all estimators exist)
 
 ---
 
