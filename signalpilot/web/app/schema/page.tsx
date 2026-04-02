@@ -13,7 +13,7 @@ import {
   Key,
   Shield,
 } from "lucide-react";
-import { getConnections, getConnectionSchema, getSchemaRefreshStatus, detectPII } from "@/lib/api";
+import { getConnections, getConnectionSchema, getSchemaRefreshStatus, detectPII, getConnectionSchemaDDL } from "@/lib/api";
 import type { ConnectionInfo } from "@/lib/types";
 import { EmptyDatabase, EmptyState } from "@/components/ui/empty-states";
 import { PageHeader, TerminalBar } from "@/components/ui/page-header";
@@ -92,6 +92,10 @@ export default function SchemaExplorerPage() {
   const [scanningPii, setScanningPii] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<number | null>(null);
   const [refreshInterval, setRefreshInterval] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "ddl">("table");
+  const [ddlContent, setDdlContent] = useState<string>("");
+  const [ddlLoading, setDdlLoading] = useState(false);
+  const [ddlTokens, setDdlTokens] = useState(0);
 
   useEffect(() => {
     getConnections()
@@ -143,9 +147,26 @@ export default function SchemaExplorerPage() {
     }
   }, [selectedConn]);
 
+  const loadDDL = useCallback(async () => {
+    if (!selectedConn) return;
+    setDdlLoading(true);
+    try {
+      const data = await getConnectionSchemaDDL(selectedConn);
+      setDdlContent(data.ddl);
+      setDdlTokens(data.token_estimate);
+    } catch {
+      setDdlContent("-- Failed to load DDL");
+    } finally {
+      setDdlLoading(false);
+    }
+  }, [selectedConn]);
+
   useEffect(() => {
-    if (selectedConn) loadSchema();
-  }, [selectedConn, loadSchema]);
+    if (selectedConn) {
+      loadSchema();
+      if (viewMode === "ddl") loadDDL();
+    }
+  }, [selectedConn, loadSchema, viewMode, loadDDL]);
 
   function toggleTable(key: string) {
     setExpandedTables((prev) => {
@@ -252,6 +273,21 @@ export default function SchemaExplorerPage() {
               </span>
             </div>
             <div className="flex items-center gap-1">
+              {/* View mode toggle */}
+              <div className="flex items-center border border-[var(--color-border)] mr-2">
+                <button
+                  onClick={() => setViewMode("table")}
+                  className={`px-2 py-1 text-[10px] tracking-wider transition-colors ${viewMode === "table" ? "bg-[var(--color-text)]/10 text-[var(--color-text)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}
+                >
+                  table
+                </button>
+                <button
+                  onClick={() => { setViewMode("ddl"); if (!ddlContent) loadDDL(); }}
+                  className={`px-2 py-1 text-[10px] tracking-wider transition-colors ${viewMode === "ddl" ? "bg-[var(--color-text)]/10 text-[var(--color-text)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}
+                >
+                  DDL
+                </button>
+              </div>
               <button
                 onClick={scanPii}
                 disabled={scanningPii}
@@ -260,12 +296,16 @@ export default function SchemaExplorerPage() {
                 {scanningPii ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" strokeWidth={1.5} />}
                 {piiDetections ? `pii: ${Object.keys(piiDetections).length}` : "scan pii"}
               </button>
-              <button onClick={expandAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
-                expand
-              </button>
-              <button onClick={collapseAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
-                collapse
-              </button>
+              {viewMode === "table" && (
+                <>
+                  <button onClick={expandAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+                    expand
+                  </button>
+                  <button onClick={collapseAll} className="px-2 py-1 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] transition-colors tracking-wider">
+                    collapse
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <TypeLegend />
@@ -332,8 +372,35 @@ export default function SchemaExplorerPage() {
         />
       )}
 
+      {/* DDL view */}
+      {schema && viewMode === "ddl" && (
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] animate-fade-in">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--color-border)]">
+            <span className="text-[10px] text-[var(--color-text-dim)] tracking-wider uppercase">create table ddl</span>
+            <div className="flex items-center gap-3 text-[9px] text-[var(--color-text-dim)] tracking-wider">
+              {ddlTokens > 0 && <span>~{ddlTokens.toLocaleString()} tokens</span>}
+              <button
+                onClick={() => navigator.clipboard.writeText(ddlContent)}
+                className="hover:text-[var(--color-text)] transition-colors"
+              >
+                copy
+              </button>
+            </div>
+          </div>
+          {ddlLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-text-dim)]" />
+            </div>
+          ) : (
+            <pre className="px-4 py-3 text-[11px] text-[var(--color-text-muted)] overflow-x-auto font-mono leading-relaxed max-h-[600px] overflow-y-auto whitespace-pre">
+              {ddlContent || "-- No DDL available"}
+            </pre>
+          )}
+        </div>
+      )}
+
       {/* Schema tree */}
-      {schema && (
+      {schema && viewMode === "table" && (
         <div className="space-y-px stagger-fade-in">
           {filteredTables.length === 0 ? (
             <div className="text-center py-12 text-xs text-[var(--color-text-dim)]">
