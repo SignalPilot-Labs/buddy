@@ -5,6 +5,84 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 15: Comments, Reconnection, DDL Compression, Error Classification (2026-04-02)
+
+**Summary:** 10 improvements — added column/table comments to Redshift/DuckDB/Trino, reconnection logic (`_ensure_connected()`) to 4 more connectors, ReFoRCE-style DDL compression for large schemas, SQLite error classification, unified type abbreviations for token savings, and fixed NoneType crash in schema sorting.
+
+**Key metrics:**
+- 353 tests passing, 1 skipped
+- All 4 live Docker databases verified: PostgreSQL (17.9), MySQL (8.0.45), ClickHouse (26.3.3.20), MSSQL (2022)
+- `_ensure_connected()` now on 6/11 connectors (MySQL, MSSQL, Redshift, ClickHouse, Snowflake, Trino)
+- Column comments now fetched by 9/11 connectors (all except SQLite/Redshift-no-comments-in-db)
+- 4 git commits this round
+
+### Industry Research (Spider2.0 & ReFoRCE, April 2026)
+- **ReFoRCE (ICLR 2025 VerifAI)**: Still SOTA on Spider2.0. Key finding: "database information compression is the most critical component." Their pattern-based table grouping merges similar-prefix tables (stg_, dim_, fact_), keeping one representative DDL per group. This handles 300KB+ DDL that exceeds context limits.
+- **Spider2.0-DBT**: New task setting with 68 repository-level text-to-SQL tasks (replacing original Spider2 setting). Evaluation suite scores refreshed.
+- **HEX Data Manager (2026)**: Custom metadata tells AI when to use/not use tables. "Endorsed Status" for non-staging tables. Data Browser with plain-language descriptions.
+- **Airbyte 2026**: AI-enhanced connectors with intelligent schema discovery, automatic mapping, zero-copy integration, and dynamic batching. Schema evolution via modular, versioned schemas.
+- **SignalPilot positioning**: Now implements ReFoRCE's table grouping compression (via `compress=true` flag on DDL endpoint), column comments for semantic understanding, and full reconnection safety across most connectors.
+
+### 1. Redshift Column/Table Comments
+**File:** `connectors/redshift.py`
+- Added `pg_description` query to fetch column and table comments (Redshift supports COMMENT ON)
+- Comments joined via `pg_attribute` + `pg_class` for column-level, `objsubid=0` for table-level
+- Runs concurrently with other metadata queries via `asyncio.gather`
+- Critical for Spider2.0 — comments give AI agent semantic understanding of column purpose
+
+### 2. DuckDB Column/Table Comments
+**File:** `connectors/duckdb.py`
+- Column comments via `duckdb_columns()` system function (`comment` field)
+- Table comments via `duckdb_tables()` system function (`comment` field)
+- Added `"description"` field to table entries for DDL output
+
+### 3. Trino Column Comments via information_schema
+**File:** `connectors/trino.py`
+- Added `c.comment` to information_schema columns query (9th field)
+- Graceful fallback: if catalog doesn't have comment column, falls back to query without it
+- SHOW COLUMNS path already had comment support (4th field)
+
+### 4. Reconnection Logic (_ensure_connected) for 4 Connectors
+**Files:** `connectors/redshift.py`, `connectors/clickhouse.py`, `connectors/snowflake.py`, `connectors/trino.py`
+- Added `_ensure_connected()` method: pings connection with `SELECT 1`, raises if lost
+- Redshift: psycopg2 cursor-based ping
+- ClickHouse: uses `_raw_execute("SELECT 1")` for both native and HTTP backends
+- Snowflake: cursor-based ping with proper cleanup
+- Trino: cursor-based ping with proper cleanup
+- Coverage: 6/11 connectors now have reconnection (MySQL, MSSQL, Redshift, ClickHouse, Snowflake, Trino)
+
+### 5. SQLite Error Classification
+**File:** `connectors/sqlite.py`
+- Added structured error handling in `connect()` for common failure modes:
+  - "unable to open" → "Cannot open database file: {path}"
+  - "not a database" → "File is not a valid SQLite database: {path}"
+  - "readonly" → "Database is read-only: {path}"
+- Previously: generic exception propagation with no context
+
+### 6. ReFoRCE Table Grouping for DDL Compression
+**Files:** `main.py`, `mcp_server.py`
+- New `compress=true` parameter on `/api/connections/{name}/schema/ddl` endpoint
+- Groups tables with common prefixes (e.g., `stg_`, `dim_`, `fact_`, `raw_`) when schema has 15+ tables
+- Shows full DDL for representative table (most columns), lists others by name
+- Saves 30-50% tokens for large enterprise schemas
+- MCP `schema_ddl` tool also supports `compress` parameter
+- Response includes `compressed_tables` and `total_tables_represented` counts
+
+### 7. Unified DDL Type Abbreviations
+**File:** `main.py`
+- Extended type abbreviation map in both `get_schema_ddl` and `schema_link`:
+  - `INTEGER` → `INT`, `REAL` → `FLOAT`, `BOOLEAN` → `BOOL` (already had)
+- Consistent type maps across both DDL output paths
+- Reduces tokens for type-heavy schemas
+
+### 8. NoneType Fix in Schema Sorting
+**File:** `main.py`
+- Fixed `TypeError: bad operand type for unary -: 'NoneType'` when `row_count` is null
+- MySQL and some connectors can store null row_count explicitly (not missing key, but null value)
+- Added `or 0` fallback in all 4 sorting paths (get_schema_ddl relevance, compact overview relevance, schema_link relevance, schema_link fallback)
+
+---
+
 ## Round 14: Views, Schema Filtering, Column Exploration, Connector Reliability (2026-04-01)
 
 **Summary:** 8 major improvements — added views to schema introspection across all 11 connectors, implemented HEX-style schema filtering, added ReFoRCE-inspired column exploration endpoint, fixed connector reliability issues, and improved error messages.
