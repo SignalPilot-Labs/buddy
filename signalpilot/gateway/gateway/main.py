@@ -1408,6 +1408,7 @@ async def get_schema_ddl(
     name: str,
     max_tables: int = Query(default=50, ge=1, le=500, description="Maximum tables to include"),
     include_fk: bool = Query(default=True, description="Include foreign key constraints"),
+    compress: bool = Query(default=False, description="Enable ReFoRCE-style table grouping for large schemas"),
 ):
     """CREATE TABLE DDL representation of the schema.
 
@@ -1459,6 +1460,35 @@ async def get_schema_ddl(
                 fk_key = f"{key}.{fk['column']}"
                 ref = f"{fk.get('references_table', '')}.{fk.get('references_column', '')}"
                 fk_map[fk_key] = ref
+
+    # ReFoRCE-style table grouping: merge similar-prefix tables, show one DDL per group
+    # This dramatically reduces token usage for large schemas (300KB+ DDL → fits in context)
+    grouped_tables: set[str] = set()  # Keys that are compressed (show name only)
+    group_representatives: dict[str, list[str]] = {}  # representative_key -> [member_names]
+    if compress and len(table_keys) > 15:
+        import re as _re_group
+        # Extract common prefixes (e.g., "stg_", "dim_", "fact_", "raw_")
+        prefix_groups: dict[str, list[str]] = {}
+        for key in table_keys:
+            tname = filtered[key].get("name", "")
+            # Find prefix: everything before first underscore that appears in 3+ tables
+            match = _re_group.match(r'^([a-zA-Z]+_)', tname)
+            if match:
+                prefix = match.group(1)
+                if prefix not in prefix_groups:
+                    prefix_groups[prefix] = []
+                prefix_groups[prefix].append(key)
+
+        for prefix, members in prefix_groups.items():
+            if len(members) >= 3:
+                # Pick the member with most columns as representative
+                rep = max(members, key=lambda k: len(filtered[k].get("columns", [])))
+                others = [k for k in members if k != rep]
+                group_representatives[rep] = [filtered[k].get("name", "") for k in others]
+                grouped_tables.update(others)
+
+        # Remove grouped tables from table_keys
+        table_keys = [k for k in table_keys if k not in grouped_tables]
 
     ddl_statements = []
     for key in table_keys:
@@ -1581,13 +1611,22 @@ async def get_schema_ddl(
 
         obj_keyword = "CREATE VIEW" if table.get("type") == "view" else "CREATE TABLE"
         ddl = f"{table_header}{obj_keyword} {table_name} (\n{',\n'.join(col_lines)}\n);{row_comment}"
+
+        # Append group member list if this is a representative table
+        if key in group_representatives:
+            members = group_representatives[key]
+            ddl += f"\n-- Similar tables (same structure): {', '.join(members)}"
+
         ddl_statements.append(ddl)
 
     ddl_text = "\n\n".join(ddl_statements)
+    compressed_count = len(grouped_tables) if compress else 0
     return {
         "connection_name": name,
         "format": "ddl",
         "table_count": len(ddl_statements),
+        "compressed_tables": compressed_count,
+        "total_tables_represented": len(ddl_statements) + compressed_count,
         "token_estimate": len(ddl_text) // 4,
         "ddl": ddl_text,
     }

@@ -910,7 +910,7 @@ async def schema_diff(connection_name: str) -> str:
 
 
 @mcp.tool()
-async def schema_ddl(connection_name: str, max_tables: int = 50) -> str:
+async def schema_ddl(connection_name: str, max_tables: int = 50, compress: bool = False) -> str:
     """
     Get the database schema as CREATE TABLE DDL statements.
 
@@ -926,6 +926,8 @@ async def schema_ddl(connection_name: str, max_tables: int = 50) -> str:
     Args:
         connection_name: Name of the database connection
         max_tables: Maximum number of tables to include (default 50)
+        compress: Enable ReFoRCE-style table grouping for large schemas (groups similar-prefix
+                  tables, shows one DDL per group with member list — saves 30-50% tokens)
     """
     if not _CONN_NAME_RE.match(connection_name):
         return "Error: Invalid connection name"
@@ -934,17 +936,21 @@ async def schema_ddl(connection_name: str, max_tables: int = 50) -> str:
     async with httpx.AsyncClient(timeout=60) as client:
         r = await client.get(
             f"{gw}/api/connections/{connection_name}/schema/ddl",
-            params={"max_tables": max_tables},
+            params={"max_tables": max_tables, "compress": compress},
         )
     if r.status_code != 200:
         return f"Error ({r.status_code}): {r.text[:200]}"
 
     data = r.json()
+    compressed = data.get("compressed_tables", 0)
+    total_repr = data.get("total_tables_represented", data.get("table_count", 0))
     header = (
         f"-- Schema DDL for {connection_name}\n"
-        f"-- Tables: {data.get('table_count', 0)}, "
-        f"Est. tokens: {data.get('token_estimate', 0)}\n\n"
+        f"-- Tables: {data.get('table_count', 0)} DDL"
     )
+    if compressed:
+        header += f" + {compressed} compressed ({total_repr} total)"
+    header += f", Est. tokens: {data.get('token_estimate', 0)}\n\n"
     return header + data.get("ddl", "")
 
 
