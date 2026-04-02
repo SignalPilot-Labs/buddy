@@ -5,6 +5,68 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 18: ReFoRCE Schema Compression, Column Exploration, Connection Export/Import (2026-04-02)
+
+**Summary:** 8 improvements — implemented ReFoRCE SOTA schema compression (date-partitioned table deduplication), added column exploration endpoint for iterative schema linking, added connection export/import (HEX pattern), fixed mssql SSH tunnel validation and SQL dialect bugs, added 13 new tests.
+
+**Key metrics:**
+- 264 tests passing (13 new tests for schema compression and export/import)
+- All 4 live Docker databases verified (PostgreSQL, MySQL, ClickHouse, MSSQL)
+- Column exploration tested across all 4 database types
+- 5 git commits this round
+
+### 1. ReFoRCE-Style Date-Partitioned Table Deduplication
+**File:** `main.py` (`_deduplicate_partitioned_tables`)
+- **Impact:** Single most impactful Spider2.0 optimization (3-4% EX degradation if disabled per ReFoRCE ablation)
+- Detects table families with date suffixes (YYYYMMDD, YYYY_MM_DD, YYYY_MM) or numeric partitions (p1, p2, _001, _002)
+- Collapses families into one representative with aggregated row counts
+- Requires structural similarity (80%+ shared column names) to avoid false positives
+- Minimum 3 tables per family to trigger deduplication
+- Applied consistently across **all 4 schema endpoints**: compact, grouped, enriched, DDL
+
+### 2. Column Exploration Endpoint (ReFoRCE Pattern)
+**Files:** `main.py` (`POST /schema/explore`), `mcp_server.py` (`explore_column` tool)
+- Iterative column probing for resolving schema linking ambiguity
+- Returns top distinct values with counts + NULL statistics (total_rows, null_count, distinct_count, null_pct)
+- Optional LIKE/ILIKE filter pattern for targeted exploration
+- Dialect-aware SQL: MSSQL uses TOP N + [brackets], PostgreSQL/Snowflake use ILIKE, others use LIKE
+- Exposed as MCP tool for AI agent access
+- Verified working on all 4 database types
+
+### 3. Connection Export/Import (HEX Pattern)
+**Files:** `main.py` (`GET /export`, `POST /import`), `api.ts`, `connections/page.tsx`
+- **Export:** JSON manifest with all connection configs; credentials stripped by default for safety
+- **Import:** Bulk import from JSON file; skips existing connections (no overwrite)
+- Frontend: Download/Upload buttons in connection page header
+- File-based import with JSON parsing and result reporting (imported/skipped/errors)
+
+### 4. Fix MSSQL SSH Tunnel Validation
+**File:** `main.py` (`_validate_connection_params`)
+- **Bug:** Frontend marked mssql as `supportsSSH: true` but gateway validation rejected SSH for mssql
+- **Fix:** Added 'mssql' to allowed SSH tunnel db types (pool_manager already supported it)
+
+### 5. Fix MSSQL Column Exploration SQL Dialect
+**File:** `main.py` (`explore_column_values`)
+- MSSQL uses `TOP N` instead of `LIMIT` — column exploration now generates dialect-correct SQL
+- MSSQL uses `[brackets]` for identifier quoting and `[count]` for reserved word column aliases
+
+### 6. Fix Export Endpoint Pydantic Model Access
+**File:** `main.py` (`export_connections`)
+- `list_connections()` returns Pydantic `ConnectionInfo` objects, not dicts
+- Fixed to use `model_dump()` for safe dict access
+
+### 7. Route Ordering Fix for Export/Import
+**File:** `main.py`
+- Moved `/api/connections/export` and `/api/connections/import` before `{name}` routes
+- Without this, FastAPI matched "export" as a connection name, returning 404
+
+### 8. New Tests
+**Files:** `tests/test_schema_compression.py`, `tests/test_export_import.py`
+- 8 tests for `_deduplicate_partitioned_tables`: date partitions, numeric partitions, structural similarity check, mixed schemas, edge cases
+- 5 tests for export/import: with/without credentials, skip existing, empty name handling
+
+---
+
 ## Round 17: Connector Best Practices, Thread Safety, Schema Linking, Error Hints (2026-04-02)
 
 **Summary:** 9 improvements — fixed Snowflake connector to use latest API, fixed thread-safety bugs in Snowflake/Redshift schema queries, improved schema linking with reverse FK following and expanded synonyms, added Trino HTTPS toggle, expanded query error hints for Spider2.0 dialects, and fixed MCP tool API mismatches.
