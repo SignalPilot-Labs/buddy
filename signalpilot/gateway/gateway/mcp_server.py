@@ -55,6 +55,12 @@ from .store import (
     load_settings,
 )
 
+def _gateway_url() -> str:
+    """Get the gateway API URL for internal MCP→REST calls."""
+    import os
+    return os.environ.get("SP_GATEWAY_URL", "http://localhost:3300")
+
+
 mcp = FastMCP(
     "SignalPilot",
     instructions=(
@@ -1124,6 +1130,182 @@ async def cache_status() -> str:
         f"Misses: {stats['misses']}\n"
         f"Hit Rate: {stats['hit_rate'] * 100:.1f}%"
     )
+
+
+@mcp.tool()
+async def explore_columns(
+    connection_name: str,
+    table: str,
+    columns: list[str] | None = None,
+    include_samples: bool = True,
+    include_stats: bool = True,
+) -> str:
+    """
+    Explore specific columns in a table — their types, statistics, and sample values.
+
+    Use this for iterative column exploration (ReFoRCE pattern): first use
+    schema_link to find relevant tables, then explore_columns to understand
+    specific columns before writing SQL.
+
+    Args:
+        connection_name: Name of the database connection
+        table: Full table name (e.g., "public.customers")
+        columns: Optional list of column names to explore. If None, explores all.
+        include_samples: Whether to include sample distinct values
+        include_stats: Whether to include column statistics
+
+    Returns column details: type, nullable, primary_key, comment, stats, sample values
+    """
+    err = _validate_connection_name(connection_name)
+    if err:
+        return err
+
+    try:
+        # Get schema
+        gw = _gateway_url()
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(f"{gw}/api/connections/{connection_name}/schema")
+        if resp.status_code != 200:
+            return f"Error: {resp.text}"
+        schema_data = resp.json()
+        tables = schema_data.get("tables", {})
+
+        # Find the table
+        table_info = tables.get(table)
+        if not table_info:
+            # Try fuzzy match
+            for k in tables:
+                if table.lower() in k.lower() or tables[k].get("name", "").lower() == table.lower():
+                    table_info = tables[k]
+                    table = k
+                    break
+            if not table_info:
+                available = list(tables.keys())[:10]
+                return f"Table '{table}' not found. Available: {', '.join(available)}"
+
+        all_columns = table_info.get("columns", [])
+        if columns:
+            col_set = {c.lower() for c in columns}
+            selected = [c for c in all_columns if c["name"].lower() in col_set]
+            missing = col_set - {c["name"].lower() for c in selected}
+            if missing:
+                available = [c["name"] for c in all_columns]
+                return f"Columns not found: {', '.join(missing)}. Available: {', '.join(available)}"
+        else:
+            selected = all_columns
+
+        # Build response
+        lines = [f"Table: {table} ({table_info.get('row_count', '?')} rows)"]
+        if table_info.get("description"):
+            lines.append(f"Description: {table_info['description']}")
+        lines.append("")
+
+        for col in selected:
+            parts = [f"  {col['name']}: {col.get('type', 'unknown')}"]
+            flags = []
+            if col.get("primary_key"):
+                flags.append("PK")
+            if not col.get("nullable", True):
+                flags.append("NOT NULL")
+            if col.get("identity"):
+                flags.append("AUTO_INCREMENT")
+            if col.get("low_cardinality"):
+                flags.append("LOW_CARD")
+            if flags:
+                parts.append(f"[{', '.join(flags)}]")
+            if col.get("comment"):
+                parts.append(f"-- {col['comment']}")
+            lines.append(" ".join(parts))
+
+            if include_stats and col.get("stats"):
+                stats = col["stats"]
+                stat_parts = []
+                if stats.get("distinct_count"):
+                    stat_parts.append(f"distinct={stats['distinct_count']}")
+                if stats.get("distinct_fraction"):
+                    frac = abs(stats["distinct_fraction"])
+                    stat_parts.append(f"uniqueness={frac:.2f}")
+                if stats.get("data_bytes"):
+                    mb = stats["data_bytes"] / (1024 * 1024)
+                    stat_parts.append(f"size={mb:.1f}MB")
+                if stat_parts:
+                    lines.append(f"    stats: {', '.join(stat_parts)}")
+
+        # Get sample values if requested
+        if include_samples:
+            try:
+                col_names = [c["name"] for c in selected[:10]]
+                async with httpx.AsyncClient(timeout=30) as client:
+                    sample_resp = await client.get(
+                        f"{gw}/api/connections/{connection_name}/schema/sample-values",
+                        params={"table": table, "columns": ",".join(col_names), "limit": "5"},
+                    )
+                if sample_resp.status_code == 200:
+                    sample_data = sample_resp.json()
+                    samples = sample_data.get("values", {})
+                    if samples:
+                        lines.append("")
+                        lines.append("Sample values:")
+                        for col_name, vals in samples.items():
+                            lines.append(f"  {col_name}: {', '.join(str(v) for v in vals[:5])}")
+            except Exception:
+                pass
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error exploring columns: {e}"
+
+
+@mcp.tool()
+async def schema_statistics(connection_name: str) -> str:
+    """
+    Get a high-level summary of the database schema — table counts, total rows,
+    column counts, FK density. Useful for understanding the overall data landscape
+    before diving into specific tables.
+
+    Returns: overview with tables sorted by size and FK connectivity.
+    """
+    err = _validate_connection_name(connection_name)
+    if err:
+        return err
+
+    try:
+        gw = _gateway_url()
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(f"{gw}/api/connections/{connection_name}/schema/overview")
+        if resp.status_code != 200:
+            return f"Error: {resp.text}"
+
+        data = resp.json()
+        lines = [
+            f"Database: {connection_name} ({data.get('db_type', '?')})",
+            f"Tables: {data.get('table_count', 0)}",
+            f"Total columns: {data.get('total_columns', 0)}",
+            f"Total rows: {data.get('total_rows', 0):,}",
+            f"Foreign key relationships: {data.get('total_foreign_keys', 0)}",
+            "",
+        ]
+
+        # Show top tables by row count
+        top = data.get("top_tables_by_rows", [])
+        if top:
+            lines.append("Largest tables:")
+            for t in top[:10]:
+                lines.append(f"  {t['name']}: {t.get('row_count', 0):,} rows, {t.get('column_count', 0)} cols")
+
+        # Hub tables (most FK connections)
+        hub = data.get("hub_tables", [])
+        if hub:
+            lines.append("")
+            lines.append("Hub tables (most relationships):")
+            for t in hub[:5]:
+                lines.append(f"  {t['name']}: {t.get('fk_count', 0)} FKs")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"Error: {e}"
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
