@@ -60,9 +60,19 @@ class MSSQLConnector(BaseConnector):
             "charset": "UTF-8",
         }
 
-        # TLS encryption (Azure SQL requires it)
+        # Default to TDS 7.4 (SQL Server 2019+ / Azure SQL)
+        connect_kwargs["tds_version"] = "7.4"
+
+        # TLS encryption — from SSL config or URL encrypt=true
+        enable_tls = params.get("encrypt", False)
         if self._ssl_config and self._ssl_config.get("enabled"):
-            connect_kwargs["tds_version"] = "7.3"
+            enable_tls = True
+            mode = self._ssl_config.get("mode", "require")
+            if mode in ("verify-ca", "verify-full"):
+                connect_kwargs["conn_properties"] = "Encrypt=yes;TrustServerCertificate=no"
+            else:
+                connect_kwargs["conn_properties"] = "Encrypt=yes;TrustServerCertificate=yes"
+        elif enable_tls:
             connect_kwargs["conn_properties"] = "Encrypt=yes;TrustServerCertificate=yes"
 
         try:
@@ -78,8 +88,14 @@ class MSSQLConnector(BaseConnector):
             raise RuntimeError(f"SQL Server connection error: {e}") from e
 
     def _parse_connection_string(self, conn_str: str) -> dict:
-        """Parse mssql://user:pass@host:port/db or mssql+pymssql://... format."""
-        from urllib.parse import urlparse, unquote
+        """Parse mssql://user:pass@host:port/db or mssql+pymssql://... format.
+
+        Also supports query parameters:
+        - encrypt=true/false
+        - trustServerCertificate=true/false
+        - instance=SQLEXPRESS (named instance)
+        """
+        from urllib.parse import urlparse, unquote, parse_qs
 
         s = conn_str
         for prefix in ("mssql+pymssql://", "mssql://", "sqlserver://"):
@@ -88,13 +104,25 @@ class MSSQLConnector(BaseConnector):
                 break
 
         parsed = urlparse(s)
-        return {
+        query = parse_qs(parsed.query or "")
+
+        result = {
             "host": parsed.hostname or "localhost",
             "port": parsed.port or 1433,
             "user": unquote(parsed.username or "sa"),
             "password": unquote(parsed.password or ""),
             "database": parsed.path.lstrip("/") if parsed.path else "master",
         }
+
+        # Support named instances via query param: ?instance=SQLEXPRESS
+        if query.get("instance"):
+            result["host"] = f"{result['host']}\\{query['instance'][0]}"
+
+        # Support encryption via query param: ?encrypt=true
+        if query.get("encrypt", [""])[0].lower() in ("true", "1", "yes"):
+            result["encrypt"] = True
+
+        return result
 
     def _ensure_connected(self) -> None:
         """Ensure connection is alive, reconnect if needed."""

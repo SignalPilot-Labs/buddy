@@ -128,11 +128,10 @@ class ClickHouseConnector(BaseConnector):
         if HAS_CLICKHOUSE_HTTP:
             try:
                 http_port = connect_args.get("port", 9000)
-                # Map native port 9000 → HTTP port 8123 (common convention)
-                if http_port == 9000:
-                    http_port = 8123
-                elif http_port == 9100:
-                    http_port = 8124  # Our Docker mapping
+                # Map native ports → HTTP ports (common convention)
+                native_to_http = {9000: 8123, 9440: 8443, 9100: 8124}
+                if http_port in native_to_http:
+                    http_port = native_to_http[http_port]
                 http_kwargs = {
                     "host": connect_args.get("host", "localhost"),
                     "port": http_port,

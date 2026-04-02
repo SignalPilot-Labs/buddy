@@ -1747,6 +1747,26 @@ async def schema_link(
         "payment": ["amount", "transaction", "charge", "invoice"],
         "shipping": ["shipment", "delivery", "tracking", "freight"],
         "discount": ["promo", "coupon", "rebate", "reduction"],
+        "name": ["title", "label", "description"],
+        "total": ["sum", "amount", "aggregate", "count"],
+        "count": ["number", "total", "quantity"],
+        "quantity": ["qty", "count", "amount", "units"],
+        "percentage": ["percent", "rate", "ratio", "fraction"],
+        "rank": ["position", "order", "rank", "rating"],
+        "department": ["dept", "division", "team", "group", "unit"],
+        "salary": ["wage", "pay", "compensation", "income", "earning"],
+        "manager": ["supervisor", "boss", "lead", "head"],
+        "country": ["nation", "region", "territory", "geo"],
+        "city": ["town", "municipality", "location"],
+        "email": ["mail", "contact", "address"],
+        "phone": ["tel", "telephone", "mobile", "contact"],
+        "created": ["created_at", "date", "timestamp", "registered"],
+        "updated": ["modified", "changed", "last_modified"],
+        "deleted": ["removed", "archived", "inactive"],
+        "stock": ["inventory", "supply", "quantity", "available"],
+        "supplier": ["vendor", "provider", "manufacturer"],
+        "invoice": ["bill", "receipt", "statement", "charge"],
+        "order": ["purchase", "transaction", "booking", "request"],
     }
     question_lower = question.lower()
     terms = [w for w in _re_link.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', question_lower) if len(w) >= 3 and w not in stopwords]
@@ -1834,16 +1854,32 @@ async def schema_link(
             linked_keys.add(key)
 
     # Step 4: Add FK-connected tables (high-recall — EDBT 2026 finding)
+    # Forward FK: linked table → table it references
     fk_additions = set()
     for key in list(linked_keys):
         table_data = filtered.get(key, {})
         for fk in table_data.get("foreign_keys", []):
             ref_table = fk.get("references_table", "")
-            # Find the full key for the referenced table
             for candidate_key in filtered:
                 if filtered[candidate_key].get("name", "") == ref_table:
                     fk_additions.add(candidate_key)
                     break
+
+    # Reverse FK: find tables that reference a linked table (critical for join tables)
+    # Build reverse FK index: table_name → [keys of tables that reference it]
+    reverse_fk_index: dict[str, list[str]] = {}
+    for key, table_data in filtered.items():
+        for fk in table_data.get("foreign_keys", []):
+            ref_table = fk.get("references_table", "")
+            if ref_table not in reverse_fk_index:
+                reverse_fk_index[ref_table] = []
+            reverse_fk_index[ref_table].append(key)
+
+    for key in list(linked_keys):
+        table_name = filtered[key].get("name", "")
+        for referring_key in reverse_fk_index.get(table_name, []):
+            if referring_key in filtered:
+                fk_additions.add(referring_key)
 
     for key in fk_additions:
         if len(linked_keys) < max_tables:

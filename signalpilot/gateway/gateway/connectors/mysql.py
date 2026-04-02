@@ -28,6 +28,7 @@ class MySQLConnector(BaseConnector):
         self._temp_files: list[str] = []
         self._connection_timeout: int = 10
         self._read_timeout: int = 30
+        self._write_timeout: int = 30
 
     def set_ssl_config(self, ssl_config: dict) -> None:
         """Set SSL configuration for the connection."""
@@ -59,6 +60,7 @@ class MySQLConnector(BaseConnector):
             "cursorclass": pymysql.cursors.DictCursor,
             "connect_timeout": self._connection_timeout,
             "read_timeout": self._read_timeout,
+            "write_timeout": self._write_timeout,
             "autocommit": True,
         }
 
