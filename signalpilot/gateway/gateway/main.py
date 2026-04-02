@@ -491,11 +491,13 @@ async def export_connections(
     all_conns = list_connections()
     exported = []
     for conn in all_conns:
+        # ConnectionInfo is a Pydantic model — convert to dict for safe attribute access
+        conn_dict = conn.model_dump() if hasattr(conn, "model_dump") else dict(conn)
         entry: dict = {
-            "name": conn.get("name", ""),
-            "db_type": conn.get("db_type", ""),
-            "description": conn.get("description", ""),
-            "tags": conn.get("tags", []),
+            "name": conn_dict.get("name", ""),
+            "db_type": conn_dict.get("db_type", ""),
+            "description": conn_dict.get("description", ""),
+            "tags": conn_dict.get("tags", []),
         }
         # Copy configuration fields
         for field in ("host", "port", "database", "username", "account", "warehouse",
@@ -503,7 +505,7 @@ async def export_connections(
                        "schema_filter_include", "schema_filter_exclude",
                        "schema_refresh_interval", "connection_timeout", "query_timeout",
                        "keepalive_interval"):
-            val = conn.get(field)
+            val = conn_dict.get(field)
             if val is not None:
                 entry[field] = val
 
@@ -512,10 +514,10 @@ async def export_connections(
             if conn_str:
                 entry["connection_string"] = conn_str
             # Include SSL config if present
-            if conn.get("ssl_config"):
-                entry["ssl_config"] = conn["ssl_config"]
-            if conn.get("ssh_tunnel"):
-                entry["ssh_tunnel"] = conn["ssh_tunnel"]
+            if conn_dict.get("ssl_config"):
+                entry["ssl_config"] = conn_dict["ssl_config"]
+            if conn_dict.get("ssh_tunnel"):
+                entry["ssh_tunnel"] = conn_dict["ssh_tunnel"]
 
         exported.append(entry)
 
@@ -1405,8 +1407,19 @@ async def explore_column_values(
 
     where_clause = parts[0] if parts else ""
 
-    # Build the query
-    explore_sql = f"""
+    # Build the query — dialect-aware LIMIT/TOP
+    if db_type == "mssql":
+        explore_sql = f"""
+SELECT TOP {limit}
+    {q_col} AS value,
+    COUNT(*) AS [count]
+FROM {table}
+{where_clause}
+GROUP BY {q_col}
+ORDER BY [count] DESC
+"""
+    else:
+        explore_sql = f"""
 SELECT
     {q_col} AS value,
     COUNT(*) AS count
