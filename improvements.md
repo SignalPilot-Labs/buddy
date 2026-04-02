@@ -5,6 +5,66 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 22: Auth Expansion, Join Inference, UI Enhancements (2026-04-02)
+
+**Summary:** 6 improvements — Redshift IAM auth (GetClusterCredentials + Serverless), MSSQL Azure AD/Entra ID auth via MSAL, enhanced implicit join inference (3 new patterns for Spider2.0), frontend Azure AD + IAM UI sections, connection URL copy button, and connector capability flag updates.
+
+**Key metrics:**
+- 349 tests passing (19 new tests this round)
+- 4 git commits this round
+- Gateway and frontend deployed to Docker containers
+- Verified on live: PG (2x), MySQL, ClickHouse, MSSQL — all 5 healthy
+- Join inference: analytics-pg → 6 inferred joins detected (shared-key pattern)
+- Spider2.0 leaderboard check: Genloop Sentinel v2 Pro at 96.70% (Snow), Databao at 69.65% (Lite)
+
+### 1. Redshift IAM Authentication
+**Files:** `connectors/redshift.py`, `web/app/connections/page.tsx`
+- **Impact:** Matches HEX's AWS IAM auth for Redshift — temporary credentials via GetClusterCredentials
+- Provisioned: `boto3.client('redshift').get_cluster_credentials(ClusterIdentifier, DbUser, DbName)`
+- Serverless: `boto3.client('redshift-serverless').get_credentials(workgroupName, dbName)`
+- Auto-detects cluster ID from endpoint hostname if not provided
+- Supports explicit AWS keys or instance profile / env credentials
+- Auto-enables SSL when IAM is active
+- Frontend: IAM toggle with cluster ID, workgroup, AWS region, and credential fields
+
+### 2. MSSQL Azure AD / Entra ID Authentication
+**Files:** `connectors/mssql.py`, `web/app/connections/page.tsx`
+- **Impact:** Azure SQL Database users can authenticate via service principal
+- Uses MSAL `ConfidentialClientApplication.acquire_token_for_client()` with `database.windows.net` scope
+- Auto-enables encryption (`Encrypt=yes;TrustServerCertificate=no`) for Azure SQL
+- Frontend: Azure AD toggle with tenant ID, client ID, client secret fields
+- Setup guidance for creating contained DB users from external providers
+
+### 3. Enhanced Implicit Join Inference (Spider2.0)
+**Files:** `gateway/main.py`
+- **Impact:** 3 new FK inference patterns for databases without explicit FKs (ClickHouse, BigQuery, etc.)
+- Pattern 2: camelCase columns (`customerId` → `customer.id`)
+- Pattern 3: shared PK columns (both tables have `product_id`, one as PK → joinable)
+- Fixed plural detection: `category_id` → `categories` (y→ies rule)
+- Verified on analytics-pg: 6 inferred joins auto-detected from `_key` suffix columns
+- 10 new tests covering all inference patterns including edge cases
+
+### 4. Frontend UX Improvements
+**Files:** `web/app/connections/page.tsx`
+- Connection URL copy button in preview section
+- Redshift IAM auth UI section with cluster/workgroup configuration
+- MSSQL Azure AD UI section with tenant/client/secret fields
+- Hides password field when IAM or Azure AD is active
+- Connector-specific guidance (Redshift Serverless endpoint format, Azure SQL firewall, etc.)
+
+### 5. Connector Capability Flags Update
+**Files:** `gateway/main.py`
+- Redshift: Added `iam_auth: True`, `table_sizes: True`
+- MSSQL: Added `azure_ad_auth: True`
+
+### 6. Tests
+**Files:** `tests/test_join_inference.py` (new), `tests/test_redshift_iam.py` (new)
+- 10 join inference tests: basic `_id` match, singular table, explicit FK dedup, self-reference prevention, camelCase, shared PK, multi-FK, y→ies plural, empty schema, no-match
+- 5 Redshift IAM tests: defaults, extras parsing, serverless workgroup, method existence, keyless auth
+- 4 MSSQL Azure AD tests: defaults, extras parsing, method existence, non-Azure path
+
+---
+
 ## Round 21: Security, Auth Flexibility, Schema Enrichment (2026-04-02)
 
 **Summary:** 10 improvements — Trino SQL injection fix (security), Snowflake OAuth support, AWS IAM auth for PostgreSQL/MySQL, table size metadata for PG/MySQL/MSSQL, Trino row counts, configurable connection pool sizing, Spider2.0 cardinality hints in compact schema, DDL metadata headers, total_size_mb in schema overview, and comprehensive tests.
