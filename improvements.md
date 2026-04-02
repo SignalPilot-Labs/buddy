@@ -5,6 +5,154 @@ Major overhaul of database connectors to match HEX-level flexibility and optimiz
 
 ---
 
+## Round 8: Join Path Discovery, Schema Exploration, Connection Test Phase 3 (2026-04-02)
+
+**Summary:** 7 features — schema relationships endpoint (3 formats), join path discovery (BFS multi-hop), connection test Phase 3 (schema access verification), ReFoRCE-style table exploration, ClickHouse protocol UI selector, MCP tools for join/explore/relationships.
+
+**Key metrics:**
+- 166 unit tests passing (up from 154)
+- All 3 Docker databases tested E2E with Phase 3 (PostgreSQL 10 tables, MySQL 6 tables, ClickHouse 2 tables)
+- Join path discovery: found 4 paths between payments→employees with 2-4 hops
+- Table exploration: full column details + reverse FKs + sample values in single call
+- 4 new MCP tools: find_join_path, get_relationships, explore_table (+ existing list_tables)
+
+### 1. Schema Relationships Endpoint (ERD Summary)
+
+**What:** `GET /api/connections/{name}/schema/relationships` — extracts all FK relationships.
+
+**Formats:**
+- `compact`: One-line-per-FK arrows (`orders.customer_id → customers.id`) — minimal tokens
+- `full`: Detailed JSON with schema/table/column/referenced info
+- `graph`: Bidirectional adjacency list for join path planning
+
+**E2E verified:** 10 relationships across 8 tables on enterprise-pg.
+
+### 2. Join Path Discovery (BFS Multi-Hop)
+
+**What:** `GET /api/connections/{name}/schema/join-paths?from_table=X&to_table=Y&max_hops=4`
+
+**How it works:**
+- Builds bidirectional FK graph from schema
+- BFS traversal finds all paths up to N hops
+- Returns exact join columns at each hop + SQL hint
+- Sorted by hop count (shortest first), limited to 10 paths
+
+**Spider2.0 impact:** Critical for multi-table queries — agent no longer needs to hallucinate join conditions. The SQL hint can be directly used in query construction.
+
+**E2E verified:** `payments → orders → employees` (2 hops) found correctly, plus 3 alternate longer paths.
+
+### 3. Connection Test Phase 3: Schema Access
+
+**What:** After auth passes (Phase 2), automatically verifies schema metadata access.
+
+**Output:**
+- Table count + sample table names for confidence
+- Caches schema on success (avoids duplicate fetch on first schema request)
+- Status: ok/warning (doesn't fail connection, just warns if no tables found)
+
+**HEX pattern:** Matches HEX's 3-phase connection test: network → auth → permissions.
+
+### 4. ReFoRCE-Style Table Exploration
+
+**What:** `GET /api/connections/{name}/schema/explore-table?table=X`
+
+**Based on ReFoRCE (Spider2.0 SOTA, 31.26 score):**
+1. Agent gets compact overview via `/schema/compact` (all tables, minimal tokens)
+2. Agent identifies relevant tables from overview
+3. Agent deep-dives specific tables via `/schema/explore-table`
+
+**Returns:**
+- Full column details (types, nullable, PK, FK, stats, comments)
+- Reverse FK references (tables that reference this table)
+- Sample distinct values for string/enum columns (cached)
+- Column-level cardinality statistics
+
+### 5. ClickHouse Protocol Selector (Frontend)
+
+**What:** Native TCP vs HTTP protocol toggle in the ClickHouse connection form.
+
+**Details:**
+- Protocol selector buttons: "native TCP (:9000)" vs "HTTP (:8123)"
+- Port auto-updates based on protocol + SSL selection
+- Connection preview shows correct scheme (`clickhouse+http://`, `clickhouses://`)
+- Description text explains when to use each protocol
+
+### 6. MCP Tools for Schema Intelligence
+
+**New tools:**
+- `find_join_path(connection_name, from_table, to_table, max_hops)` — multi-hop FK path discovery
+- `get_relationships(connection_name, format)` — ERD overview in compact/graph format
+- `explore_table(connection_name, table_name)` — deep column exploration with samples
+
+**Spider2.0 agent workflow:**
+```
+1. list_tables("enterprise-pg")          → compact overview of all 10 tables
+2. find_join_path("enterprise-pg", "orders", "products")  → orders → order_items → products
+3. explore_table("enterprise-pg", "public.orders")         → full column details + samples
+4. query_database("enterprise-pg", "SELECT ...")           → execute the query
+```
+
+### 7. Test Display Improvements (Frontend)
+
+**What:** Connection test result display now handles 3-phase results with warning status.
+
+- Phase labels: SSH, DB, Schema (instead of just SSH/DB)
+- Warning status shown with amber triangle icon
+- Status colors: green (ok), amber (warning), red (error)
+
+---
+
+### Spider2.0 2026 Research Update
+
+**ReFoRCE (SOTA, 31.26 on Spider2-Snow):**
+- Table compression for handling massive schemas
+- Format restriction for accurate SQL generation
+- Iterative column exploration for better schema understanding
+- Our `explore-table` + `compact schema` directly support this pattern
+
+**Schema Linking Research (EDBT 2026):**
+- Schema linking remains essential for enterprise-scale databases (1000+ columns)
+- "The Death of Schema Linking?" — less important for SOTA LLMs on small schemas, still critical for enterprise
+- RSL-SQL bidirectional approach: schema→SQL and SQL→schema linking
+- High recall is critical — missing one column = wrong SQL
+
+**SignalPilot now covers the full ReFoRCE pipeline:**
+1. ✅ Table compression (`/schema/compact` — 60-70% token reduction)
+2. ✅ Iterative column exploration (`/schema/explore-table` — per-table deep dive)
+3. ✅ Join path discovery (`/schema/join-paths` — BFS multi-hop)
+4. ✅ Schema search (`/schema/search` — relevance-ranked results)
+5. ✅ Sample values for schema linking (`/schema/sample-values`)
+6. ✅ Cost estimation (`/query/explain` — per-DB EXPLAIN parsing)
+
+### HEX Feature Comparison Matrix (Updated Round 8)
+
+| Feature | HEX | SignalPilot | Status |
+|---------|-----|-------------|--------|
+| Connection URL + Fields | ✅ | ✅ | Done |
+| SSH Tunnel | ✅ | ✅ | Done |
+| SSL/TLS | ✅ | ✅ | Done |
+| IP Allowlisting | ✅ | ✅ | Done (guidance UI) |
+| Snowflake Key-Pair Auth | ✅ | ✅ | Done |
+| BigQuery Service Account | ✅ | ✅ | Done |
+| Schema Browser | ✅ | ✅ | Done |
+| Schema Endorsements | ✅ | ✅ | Done |
+| Schema Refresh | ✅ | ✅ | Done (scheduled) |
+| Connection Cloning | ✅ | ✅ | Done |
+| Connection Tags | ✅ | ✅ | Done |
+| OAuth Connections | ✅ | ❌ | Not yet |
+| Connection Tiers | ✅ | ❌ | Not yet |
+| 3-Phase Connection Test | ✅ | ✅ | **New (Round 8)** |
+| FK Relationship ERD | Partial | ✅ | **New (Round 8)** |
+| Join Path Discovery | ❌ | ✅ | **Unique to SignalPilot** |
+| Iterative Schema Exploration | ❌ | ✅ | **Unique (ReFoRCE pattern)** |
+| MCP Schema Tools | ❌ | ✅ | **Unique (6 tools)** |
+| Schema Search | ❌ | ✅ | **Unique** |
+| Cost Estimation | ❌ | ✅ | **Unique** |
+| Compact Schema (LLM) | ❌ | ✅ | **Unique** |
+| PII Detection | ❌ | ✅ | **Unique** |
+
+---
+
 ## Round 7: Schema Refresh, Filtering, Caching, Connector Fixes, MCP (2026-04-02)
 
 **Summary:** 15 features — scheduled schema refresh, schema filtering, sample values caching, compact schema, cost estimation improvements, connector bug fixes (MySQL SSL, ClickHouse HTTP SSL, DuckDB PKs, SQLite FKs), URL-format connection strings for Snowflake/Databricks, BigQuery partitioning metadata, MCP list_tables tool, pool manager stats, schema refresh UI.
@@ -1102,9 +1250,14 @@ Full Schema (25KB) → _compress_schema() → DDL-style (6KB, 75% smaller)
 - [x] ~~Schema endorsements~~ (Done: HEX Data Browser pattern — endorsed_only + hidden modes)
 - [x] ~~Auto-schema-refresh on connection creation~~ (Done: background task like HEX)
 - [x] ~~Column name correction~~ (Done: Levenshtein distance with configurable threshold)
+- [x] ~~Schema relationships ERD endpoint~~ (Done: compact/full/graph formats)
+- [x] ~~Join path discovery~~ (Done: BFS multi-hop with SQL hints)
+- [x] ~~Connection test Phase 3~~ (Done: schema access verification + caching)
+- [x] ~~ReFoRCE table exploration~~ (Done: iterative column deep-dive)
+- [x] ~~ClickHouse protocol selector~~ (Done: native TCP vs HTTP UI toggle)
+- [x] ~~MCP join/explore tools~~ (Done: find_join_path, get_relationships, explore_table)
 - [ ] OAuth support for Snowflake, BigQuery, Databricks
 - [ ] Claude MCP Connector integration (HEX pattern)
-- [ ] LLM-guided schema linking (ReFoRCE Phase 2 — after table grouping)
 - [ ] Contextual scaling engine (Genloop/QUVI-3 approach for 90%+ accuracy)
 - [ ] Identity-Aware Proxy (IAP) support for zero-trust database access
 - [ ] Query tagging for cost attribution (Databricks pattern)
