@@ -76,6 +76,22 @@ export const getConnectionSchema = (name: string) =>
     }>;
   }>(`/api/connections/${name}/schema`);
 
+export const cloneConnection = (name: string, newName: string) =>
+  request<import("./types").ConnectionInfo>(`/api/connections/${name}/clone?new_name=${encodeURIComponent(newName)}`, { method: "POST" });
+export const explainQuery = (connection_name: string, sql: string, row_limit = 1000) =>
+  request<{
+    connection_name: string;
+    sql: string;
+    tables: string[];
+    estimated_rows: number;
+    estimated_usd: number;
+    is_expensive: boolean;
+    warning: string | null;
+    plan: string | null;
+  }>("/api/query/explain", {
+    method: "POST",
+    body: JSON.stringify({ connection_name, sql, row_limit }),
+  });
 export const searchConnectionSchema = (name: string, query: string) =>
   request<{
     connection_name: string;

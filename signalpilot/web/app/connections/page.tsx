@@ -23,12 +23,14 @@ import {
   Pencil,
   RefreshCw,
   Search,
+  Copy,
 } from "lucide-react";
 import {
   getConnections,
   createConnection,
   updateConnection,
   deleteConnection,
+  cloneConnection,
   testConnection,
   getConnectionSchema,
   searchConnectionSchema,
@@ -815,6 +817,18 @@ export default function ConnectionsPage() {
     setDeleteTarget(null);
   }
 
+  async function handleClone(name: string) {
+    const newName = prompt(`Clone "${name}" as:`, `${name}-copy`);
+    if (!newName || !newName.trim()) return;
+    try {
+      await cloneConnection(name, newName.trim());
+      refresh();
+      toast(`Cloned as "${newName.trim()}"`, "success");
+    } catch (err: any) {
+      toast(`Clone failed: ${err.message?.slice(0, 80) || "unknown error"}`, "error");
+    }
+  }
+
   async function handleToggleSchema(name: string) {
     if (expandedConn === name) { setExpandedConn(null); return; }
     setExpandedConn(name);
@@ -1194,6 +1208,10 @@ export default function ConnectionsPage() {
                     <button onClick={(e) => { e.stopPropagation(); handleEditConnection(conn); }}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-all tracking-wider">
                       <Pencil className="w-3 h-3" strokeWidth={1.5} /> edit
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); handleClone(conn.name); }}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[var(--color-text-dim)] hover:text-[var(--color-text)] hover:bg-[var(--color-bg-hover)] transition-all tracking-wider">
+                      <Copy className="w-3 h-3" strokeWidth={1.5} /> clone
                     </button>
                     <button onClick={() => handleDelete(conn.name)}
                       className="p-1.5 text-[var(--color-text-dim)] hover:text-[var(--color-error)] hover:bg-[var(--color-error)]/5 transition-all">
