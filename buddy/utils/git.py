@@ -27,6 +27,7 @@ class GitWorkspace:
     def __init__(self):
         self._initialized = False
         self._last_repo = ""
+        self._auth_in_config = False
 
     def _get_repo(self) -> str:
         """Read GITHUB_REPO at call time so runtime changes are picked up."""
@@ -43,7 +44,13 @@ class GitWorkspace:
         return result.stdout.strip()
 
     def _git_auth_env(self) -> dict[str, str]:
-        """Return env vars that inject auth via git config environment variables."""
+        """Return env vars that inject auth via git config environment variables.
+
+        Skipped once auth is written to local git config by setup_auth(),
+        to avoid duplicate Authorization headers.
+        """
+        if self._auth_in_config:
+            return {}
         token = os.environ.get("GIT_TOKEN", "")
         if not token:
             return {}
@@ -121,6 +128,7 @@ class GitWorkspace:
         if token:
             b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
             self.run_git(["config", "http.extraHeader", f"Authorization: Basic {b64}"])
+            self._auth_in_config = True
 
     def get_branch_name(self) -> str:
         """Generate a unique branch name."""
