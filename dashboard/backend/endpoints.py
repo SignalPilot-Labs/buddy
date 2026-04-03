@@ -316,6 +316,7 @@ async def stream_events(run_id: str = RunId):
             )).scalar_one()
 
         yield f"event: connected\ndata: {json.dumps({'run_id': run_id})}\n\n"
+        idle_cycles = 0
 
         while True:
             found_any = False
@@ -334,10 +335,15 @@ async def stream_events(run_id: str = RunId):
                     last_audit_id = al.id
                     yield f"event: audit\ndata: {json.dumps(model_to_dict(al), default=str)}\n\n"
 
-            if not found_any:
+            if found_any:
+                idle_cycles = 0
+            else:
+                idle_cycles += 1
                 yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
 
-                # Check if run has ended — stop streaming after final events are flushed
+            # Check terminal status every cycle (not just when idle) to avoid
+            # missing run completion during chatty event bursts
+            if idle_cycles >= 2 or not found_any:
                 async with session() as s:
                     run_status = (await s.execute(
                         select(Run.status).where(Run.id == run_id)
