@@ -38,6 +38,7 @@ services:
     restart: unless-stopped
     environment:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      HOST_IP: ${HOST_IP:-}
     ports:
       - "3400:3400"
       - "3401:3401"

@@ -20,10 +20,20 @@ fi
 
 export DASHBOARD_API_KEY
 
-# Inject API key into frontend runtime config (NEXT_PUBLIC_ only works at build time)
-echo "window.__BUDDY_API_KEY__=\"${DASHBOARD_API_KEY}\";" > /app/frontend/public/config.js
+# ── Resolve host LAN IP for QR code mobile access ────────────────────────
+# Priority: HOST_IP env var > query host via host.docker.internal
+if [ -z "$HOST_IP" ]; then
+    HOST_IP="$(getent hosts host.docker.internal 2>/dev/null | awk '{print $1}')" || true
+fi
+export HOST_IP
+
+# Inject runtime config into frontend (NEXT_PUBLIC_ only works at build time)
+cat > /app/frontend/public/config.js <<JSEOF
+window.__BUDDY_API_KEY__="${DASHBOARD_API_KEY}";
+JSEOF
 
 echo "[dashboard] API key: $DASHBOARD_API_KEY"
+echo "[dashboard] Host IP: ${HOST_IP:-unknown}"
 
 # Start FastAPI backend
 uvicorn backend.app:app --host 0.0.0.0 --port "$API_PORT" &

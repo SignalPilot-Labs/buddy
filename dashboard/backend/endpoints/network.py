@@ -1,21 +1,20 @@
 """Dashboard API endpoint — local network IP for mobile QR code access."""
 
-import socket
+import os
 
 from fastapi import APIRouter, Depends
 
 from backend import auth
-from backend.constants import DOCKER_HOST_INTERNAL, UI_PORT
+from backend.constants import UI_PORT
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
 
+_HOST_IP_ENV = "HOST_IP"
+
 
 def _get_host_ip() -> str | None:
-    """Resolve the Docker host's LAN IP via host.docker.internal."""
-    try:
-        return socket.gethostbyname(DOCKER_HOST_INTERNAL)
-    except OSError:
-        return None
+    """Return the host machine's LAN IP from HOST_IP env var."""
+    return os.environ.get(_HOST_IP_ENV) or None
 
 
 @router.get("/network-info")
