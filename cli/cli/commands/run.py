@@ -142,23 +142,27 @@ _ACTION_HANDLERS: dict[str, Callable[[BuddyClient, str], None]] = {
 }
 
 
-def _action_menu(run: dict) -> None:
-    """Show an action menu for the selected run."""
-    run_id = run["id"]
-    status = run.get("status", "unknown")
+def _active_run_choices(status: str) -> list[dict]:
+    """Return action choices specific to active (running/paused/rate_limited) runs."""
+    choices: list[dict] = []
+    if status == "running":
+        choices.append({"name": "Pause", "value": "pause"})
+    if status == "paused":
+        choices.append({"name": "Resume", "value": "resume"})
+    choices.extend([
+        {"name": "Stop", "value": "stop"},
+        {"name": "Inject prompt", "value": "inject"},
+        {"name": "Unlock time gate", "value": "unlock"},
+        {"name": "Stream live events", "value": "stream"},
+    ])
+    return choices
 
+
+def _build_action_choices(status: str) -> list[dict]:
+    """Build the full list of selectable actions based on run status."""
     actions: list[dict] = [{"name": "Show details", "value": "details"}]
     if status in ("running", "paused", "rate_limited"):
-        if status == "running":
-            actions.append({"name": "Pause", "value": "pause"})
-        if status == "paused":
-            actions.append({"name": "Resume", "value": "resume"})
-        actions.extend([
-            {"name": "Stop", "value": "stop"},
-            {"name": "Inject prompt", "value": "inject"},
-            {"name": "Unlock time gate", "value": "unlock"},
-            {"name": "Stream live events", "value": "stream"},
-        ])
+        actions.extend(_active_run_choices(status))
     if status in ("completed", "stopped", "error"):
         actions.append({"name": "Resume (inject + restart)", "value": "inject"})
     actions.extend([
@@ -167,12 +171,18 @@ def _action_menu(run: dict) -> None:
         {"name": "Diff stats", "value": "diff"},
         {"name": "← Back", "value": "back"},
     ])
+    return actions
 
+
+def _action_menu(run: dict) -> None:
+    """Show an action menu for the selected run."""
+    run_id = run["id"]
+    status = run.get("status", "unknown")
+    actions = _build_action_choices(status)
     action = inquirer.select(
         message=f"Run {short_id(run_id)} ({status}) — choose action:",
         choices=actions,
     ).execute()
-
     _dispatch_action(action, run, run_id)
 
 
@@ -193,28 +203,32 @@ def _dispatch_action(action: str, run: dict, run_id: str) -> None:
         _show_diff(run_id)
 
 
+def _dispatch_stream_event(etype: str, data: dict) -> bool:
+    """Handle a single SSE event; return True when stream should stop."""
+    if etype == "ping":
+        return False
+    if etype == "connected":
+        console.print("[dim]Connected to event stream[/dim]")
+    elif etype == "tool_call":
+        _print_tool_call_event(data)
+    elif etype == "audit":
+        _print_audit_event(data)
+    elif etype == "run_ended":
+        st = data.get("status", "unknown")
+        console.print(f"\n[bold]Run ended: {status_styled(st)}[/bold]")
+        return True
+    else:
+        console.print(f"  [{etype}] {_json.dumps(data, default=str)[:100]}")
+    return False
+
+
 def _stream_run(run_id: str) -> None:
     """Live tail SSE events for a run."""
     console.print(f"[dim]Streaming events for {short_id(run_id)}… (Ctrl+C to stop)[/dim]\n")
     try:
         for event in get_client().stream_sse(f"/api/stream/{run_id}"):
-            etype = event["event"]
-            data = event["data"]
-
-            if etype == "ping":
-                continue
-            elif etype == "connected":
-                console.print("[dim]Connected to event stream[/dim]")
-            elif etype == "tool_call":
-                _print_tool_call_event(data)
-            elif etype == "audit":
-                _print_audit_event(data)
-            elif etype == "run_ended":
-                st = data.get("status", "unknown")
-                console.print(f"\n[bold]Run ended: {status_styled(st)}[/bold]")
+            if _dispatch_stream_event(event["event"], event["data"]):
                 return
-            else:
-                console.print(f"  [{etype}] {_json.dumps(data, default=str)[:100]}")
     except KeyboardInterrupt:
         console.print("\n[dim]Stream disconnected.[/dim]")
 
@@ -281,16 +295,8 @@ def _show_audit(run_id: str, limit: int, offset: int) -> None:
     ], title=f"Audit Log — {short_id(run_id)}")
 
 
-def _show_diff(run_id: str) -> None:
-    """Show diff stats for a run."""
-    data = get_client().get(f"/api/runs/{run_id}/diff")
-    if state.json_mode:
-        print_json(data)
-        return
-    files = data.get("files", [])
-    if not files:
-        console.print("[dim]No file changes.[/dim]")
-        return
+def _format_diff_rows(files: list[dict]) -> list[dict]:
+    """Convert file diff entries into display rows."""
     rows = []
     for f in files:
         added = f.get("added", 0)
@@ -301,14 +307,33 @@ def _show_diff(run_id: str) -> None:
             "status": f.get("status", "?"),
             "changes": bar,
         })
-    print_table(rows, [("path", "File"), ("status", "Status"), ("changes", "Changes")],
-                title=f"Diff — {short_id(run_id)}")
+    return rows
+
+
+def _print_diff_summary(data: dict) -> None:
+    """Print the summary line of a diff response."""
     console.print(
         f"\n  [bold]{data.get('total_files', 0)}[/bold] files  "
         f"[green]+{data.get('total_added', 0)}[/green]  "
         f"[red]-{data.get('total_removed', 0)}[/red]  "
         f"[dim](source: {data.get('source', '?')})[/dim]"
     )
+
+
+def _show_diff(run_id: str) -> None:
+    """Show diff stats for a run."""
+    data = get_client().get(f"/api/runs/{run_id}/diff")
+    if state.json_mode:
+        print_json(data)
+        return
+    files = data.get("files", [])
+    if not files:
+        console.print("[dim]No file changes.[/dim]")
+        return
+    rows = _format_diff_rows(files)
+    print_table(rows, [("path", "File"), ("status", "Status"), ("changes", "Changes")],
+                title=f"Diff — {short_id(run_id)}")
+    _print_diff_summary(data)
 
 
 # ── Commands ────────────────────────────────────────────────────────────────
@@ -336,25 +361,25 @@ def start_run(
     print_success(f"Run started: {run_id}")
 
 
+def _resolve_run(run_id: Optional[str]) -> dict:
+    """Fetch a run by ID or interactively select one."""
+    if run_id:
+        return get_client().get(f"/api/runs/{run_id}")
+    return _select_run()
+
+
 @app.callback(invoke_without_command=True)
 def run_callback(
     ctx: typer.Context,
     run_id: Optional[str] = typer.Argument(None, help="Run ID (omit for interactive selection)"),
 ) -> None:
     """Manage runs. Omit run_id for an interactive selector."""
-    # If a subcommand was invoked (e.g. `buddy run start`), let it handle things.
     if ctx.invoked_subcommand is not None:
         return
-
-    if run_id:
-        run = get_client().get(f"/api/runs/{run_id}")
-    else:
-        run = _select_run()
-
+    run = _resolve_run(run_id)
     if state.json_mode:
         print_json(run)
         return
-
     _show_run_detail(run)
     console.print()
     _action_menu(run)
