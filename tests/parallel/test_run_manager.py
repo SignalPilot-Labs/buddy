@@ -287,7 +287,7 @@ class TestTOCTOU:
         with patch.object(mgr, "_run_docker", side_effect=fake_run_docker), \
              patch.object(mgr, "_wait_for_health", new=fake_wait_health), \
              patch("httpx.AsyncClient", return_value=mock_client), \
-             patch("asyncio.create_task"), \
+             patch("asyncio.create_task", side_effect=lambda coro: (coro.close(), MagicMock())[-1]), \
              patch("run_manager.db") as mock_db:
             mock_db.upsert_worker = AsyncMock()
             mock_db.update_worker_status = AsyncMock()
@@ -514,7 +514,7 @@ class TestStartRun:
         with patch.object(mgr, "_run_docker", return_value="abc123def456") as mock_docker, \
              patch.object(mgr, "_wait_for_health", new=fake_wait_health), \
              patch("httpx.AsyncClient", return_value=mock_client), \
-             patch("asyncio.create_task"), \
+             patch("asyncio.create_task", side_effect=lambda coro: (coro.close(), MagicMock())[-1]), \
              patch("run_manager.db") as mock_db:
             mock_db.upsert_worker = AsyncMock()
             mock_db.update_worker_status = AsyncMock()

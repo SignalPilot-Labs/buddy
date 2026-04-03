@@ -18,9 +18,9 @@ def validate_branch_name(name: str) -> None:
     if not name or len(name) > BRANCH_NAME_MAX_LEN:
         raise ValueError(f"Invalid branch name length: {len(name) if name else 0}")
     if not _BRANCH_RE.match(name):
-        raise ValueError(f"Invalid branch name: contains disallowed characters")
+        raise ValueError("Invalid branch name: contains disallowed characters")
     if '..' in name or name.endswith('.lock') or name.endswith('/'):
-        raise ValueError(f"Invalid branch name format")
+        raise ValueError("Invalid branch name format")
 
 
 def safe_serialize(data: Any) -> Any:
