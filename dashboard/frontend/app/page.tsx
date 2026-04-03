@@ -471,7 +471,6 @@ export default function MonitorPage() {
           onKill={() => selectedRunId && parallelKill(selectedRunId)}
           onUnlock={() => selectedRunId && parallelUnlock(selectedRunId)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
-          onResumeRun={() => {}}
           busy={parallelBusy}
           sessionLocked={agentHealth?.session_unlocked === false}
           timeRemaining={agentHealth?.time_remaining || null}

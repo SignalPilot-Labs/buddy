@@ -32,12 +32,6 @@ export async function setActiveRepo(repo: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function fetchRun(id: string): Promise<Run> {
-  const res = await fetch(`${getApiBase()}/api/runs/${id}`);
-  if (!res.ok) throw new Error("Failed to fetch run");
-  return res.json();
-}
-
 export async function fetchToolCalls(
   runId: string,
   limit = 500
