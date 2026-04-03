@@ -19,8 +19,10 @@ If any tests fail, report them as Critical Issues. Do NOT proceed to code review
 
 ### Warnings (should fix)
 - **Performance** — N+1 queries, unbounded loops, missing indexes, sync blocking in async, missing connection pooling
-- **Code quality** — God files (>300 lines), god functions (>20 lines), duplicated code, dead code, unclear names
-- **Magic numbers** outside constants files
+- **Code quality** — God files (>300 lines), god functions (>20 lines), duplicated code, unclear names
+- **Dead code** — Unused imports, unreachable branches, commented-out code, unused variables
+- **Inline imports** — All imports must be at the top of the file
+- **Magic values** — Hardcoded numbers, strings, URLs, ports, timeouts outside constants files
 - **Default parameter values** that shouldn't be there
 - **Missing types** — `any` usage, untyped functions, incorrect type assertions
 
