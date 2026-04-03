@@ -125,10 +125,38 @@ async def resume_run(run_id: str = RunId):
 
 @router.post("/runs/{run_id}/inject")
 async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()):
-    """Inject a prompt into a running or paused agent."""
+    """Inject a prompt into a running, paused, or completed agent.
+
+    For running/paused runs: pushes an inject event to the agent.
+    For completed/stopped runs: auto-resumes the run with the prompt as initial context.
+    """
     if not body.payload or not body.payload.strip():
         raise HTTPException(status_code=400, detail="Payload (prompt text) is required")
-    return await send_control_signal(run_id, "inject", {"running", "paused"}, body.payload.strip())
+    prompt = body.payload.strip()
+
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+
+        if run.status in ("running", "paused"):
+            return await send_control_signal(run_id, "inject", {"running", "paused"}, prompt)
+
+        if run.status in ("completed", "stopped", "error"):
+            creds = await read_credentials()
+            resume_body = {
+                "run_id": run_id,
+                "prompt": prompt,
+                "claude_token": creds.get("claude_token"),
+                "git_token": creds.get("git_token"),
+                "github_repo": creds.get("github_repo"),
+            }
+            result = await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
+            run.status = "running"
+            await s.commit()
+            return {"ok": True, "signal": "inject_resume", "run_id": run_id, "resumed": True}
+
+        raise HTTPException(status_code=409, detail=f"Cannot inject into run with status '{run.status}'")
 
 
 @router.post("/runs/{run_id}/stop")

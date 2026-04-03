@@ -29,6 +29,14 @@ Use subagents for all substantial work. Do small fixes (< 3 tool calls) yourself
 - Stay on task. Do what was asked, nothing else.
 - Branch workflow: develop on feature branch, push after each commit.
 
+## PR Description
+
+Before ending your session, write `.buddy/pr.json` with:
+```json
+{"title": "Short PR title", "description": "## Summary\n- what changed\n- why\n\n## Tests\n- what was tested"}
+```
+This is used to create the pull request. Be specific about what changed and what tests were run.
+
 ## Session Control
 
 You have the `end_session` tool. This is the ONLY way to end your session.

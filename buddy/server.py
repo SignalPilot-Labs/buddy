@@ -78,9 +78,9 @@ class AgentServer:
         await self._teardown.finalize(ctx, status)
         self.current_run_id = None
 
-    async def _resume_agent(self, run_id: str, max_budget: float) -> None:
+    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None = None) -> None:
         """Bootstrap → execute → teardown for a resumed run."""
-        ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget)
+        ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
         self.current_run_id = ctx.run_id
         self._events = events
 
@@ -167,7 +167,7 @@ class AgentServer:
             self._inject_credentials(body)
             budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
-            self._task = asyncio.create_task(self._resume_agent(body.run_id, budget))
+            self._task = asyncio.create_task(self._resume_agent(body.run_id, budget, body.prompt))
             self._task.add_done_callback(self._on_task_done)
             await asyncio.sleep(STARTUP_WAIT_SEC)
             return {"ok": True, "run_id": body.run_id, "resumed": True}
