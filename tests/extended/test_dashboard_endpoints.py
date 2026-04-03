@@ -409,3 +409,72 @@ class TestParallelProxyEndpoints:
 
         assert resp.status_code == 200
         assert resp.json() == []
+
+
+# ---------------------------------------------------------------------------
+# agent_request status code forwarding
+# ---------------------------------------------------------------------------
+
+class TestAgentRequestStatusForwarding:
+    """Verify agent_request preserves client-meaningful status codes."""
+
+    @pytest.mark.asyncio
+    async def test_forwards_429_rate_limit(self):
+        """429 from agent is forwarded as 429, not converted to 502."""
+        from backend.utils import agent_request
+        from fastapi import HTTPException
+
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_response.json.return_value = {"detail": "Too many start requests. Max 5 per minute."}
+
+        mock_client = AsyncMock()
+        mock_client.request.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("backend.utils.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(HTTPException) as exc_info:
+                await agent_request("POST", "/parallel/start", 30, None, None, None)
+            assert exc_info.value.status_code == 429
+            assert "Too many" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_forwards_404_not_found(self):
+        """404 from agent is forwarded as 404."""
+        from backend.utils import agent_request
+        from fastapi import HTTPException
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {"detail": "Run not found in parallel slots"}
+
+        mock_client = AsyncMock()
+        mock_client.request.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("backend.utils.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(HTTPException) as exc_info:
+                await agent_request("GET", "/parallel/runs/abcdef01", 30, None, None, None)
+            assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_converts_500_to_502(self):
+        """500 from agent becomes 502 (upstream error)."""
+        from backend.utils import agent_request
+        from fastapi import HTTPException
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.json.return_value = {"detail": "Internal server error"}
+
+        mock_client = AsyncMock()
+        mock_client.request.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("backend.utils.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(HTTPException) as exc_info:
+                await agent_request("GET", "/some/path", 30, None, None, None)
+            assert exc_info.value.status_code == 502

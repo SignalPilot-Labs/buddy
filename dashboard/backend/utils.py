@@ -128,14 +128,15 @@ async def agent_request(
             res = await client.request(
                 method, f"{AGENT_API_URL}{path}", json=json_body, params=params, headers=headers,
             )
-            if res.status_code == 409:
-                raise HTTPException(status_code=409, detail=res.json().get("detail", "Conflict"))
             if res.status_code >= 400:
                 log.warning("Agent returned %d for %s %s", res.status_code, method, path)
                 try:
                     detail = res.json().get("detail", f"Agent error {res.status_code}")
                 except Exception:
                     detail = f"Agent error {res.status_code}"
+                # Preserve client-meaningful status codes; wrap others as 502
+                if res.status_code in (404, 409, 422, 429):
+                    raise HTTPException(status_code=res.status_code, detail=detail)
                 raise HTTPException(status_code=502, detail=detail)
             return res.json()
     except HTTPException:
