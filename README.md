@@ -21,6 +21,8 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ## Quick start
 
 ```bash
+git clone https://github.com/SignalPilot-Labs/buddy.git
+cd buddy
 docker compose up --build -d
 # open http://localhost:3400
 ```
