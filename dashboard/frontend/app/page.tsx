@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -30,7 +30,9 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { TunnelPopover } from "@/components/ui/TunnelPopover";
 
 export default function MonitorPage() {
-  const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(null);
+  const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
+    try { return localStorage.getItem("sp_improve_active_repo") || null; } catch { return null; }
+  });
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const { runs, loading: runsLoading, refresh: refreshRuns } = useRuns(activeRepoFilter);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -47,9 +49,55 @@ export default function MonitorPage() {
   const isMobile = useMobile();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "bots">("bots");
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
-  const allEvents = [...historyEvents, ...liveEvents];
+
+  // Merge live events into history — SSE post events need to find their pre in history
+  const allEvents = useMemo(() => {
+    if (liveEvents.length === 0) return historyEvents;
+    // Build a map of tool_use_id → index for unmatched pre events
+    const preIndex = new Map<string, number>();
+    const merged = [...historyEvents];
+    for (let i = 0; i < merged.length; i++) {
+      const ev = merged[i];
+      if (
+        ev._kind === "tool" &&
+        ev.data.phase === "pre" &&
+        !ev.data.output_data &&
+        ev.data.tool_use_id
+      ) {
+        preIndex.set(ev.data.tool_use_id, i);
+      }
+    }
+    for (const ev of liveEvents) {
+      if (
+        ev._kind === "tool" &&
+        ev.data.phase === "post" &&
+        ev.data.tool_use_id &&
+        preIndex.has(ev.data.tool_use_id)
+      ) {
+        // Merge post into the matching pre slot in history
+        const idx = preIndex.get(ev.data.tool_use_id)!;
+        const pre = merged[idx];
+        if (pre._kind === "tool") {
+          merged[idx] = {
+            _kind: "tool",
+            data: {
+              ...pre.data,
+              output_data: ev.data.output_data,
+              duration_ms: ev.data.duration_ms,
+              phase: "post",
+            },
+          };
+        }
+        preIndex.delete(ev.data.tool_use_id);
+      } else {
+        merged.push(ev);
+      }
+    }
+    return merged;
+  }, [historyEvents, liveEvents]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -88,17 +136,30 @@ export default function MonitorPage() {
     });
     fetchRepos().then((r) => {
       setRepos(r);
-      // Auto-select the active repo (first one with runs, or first configured)
-      if (r.length > 0 && !activeRepoFilter) {
-        const withRuns = r.find((repo) => repo.run_count > 0);
-        setActiveRepoFilter(withRuns?.repo || r[0].repo);
+      if (r.length > 0) {
+        // Prefer stored repo if it still exists in the list, otherwise pick first with runs
+        const stored = activeRepoFilter;
+        const valid = stored && r.some((repo) => repo.repo === stored);
+        if (!valid) {
+          const withRuns = r.find((repo) => repo.run_count > 0);
+          const picked = withRuns?.repo || r[0].repo;
+          setActiveRepoFilter(picked);
+          try {
+            localStorage.setItem("sp_improve_active_repo", picked);
+          } catch {}
+        }
       }
     });
   }, []);
 
   // Handle repo switch
   const handleRepoSwitch = useCallback(async (repo: string) => {
+    setSuppressAutoSelect(true);
     setActiveRepoFilter(repo || null);
+    try {
+      if (repo) localStorage.setItem("sp_improve_active_repo", repo);
+      else localStorage.removeItem("sp_improve_active_repo");
+    } catch {}
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEvents([]);
@@ -112,11 +173,12 @@ export default function MonitorPage() {
 
   // Auto-select first active run or latest run
   useEffect(() => {
+    if (suppressAutoSelect) return;
     if (!selectedRunId && runs.length > 0) {
       const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
       setSelectedRunId(active?.id || runs[0].id);
     }
-  }, [runs, selectedRunId]);
+  }, [runs, selectedRunId, suppressAutoSelect]);
 
   // Keep selectedRun fresh
   useEffect(() => {
@@ -266,6 +328,7 @@ export default function MonitorPage() {
           const newRun = freshRuns.find((r) => !existingIds.has(r.id));
           if (newRun) {
             refreshRuns();
+            setSuppressAutoSelect(false);
             handleSelectRun(newRun.id);
             setActiveView("feed");
             return;
