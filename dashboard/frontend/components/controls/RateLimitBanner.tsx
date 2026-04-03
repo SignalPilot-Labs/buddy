@@ -23,6 +23,9 @@ export function RateLimitBanner({
   onResume: () => void;
   busy: boolean;
 }) {
+  const [initialRemaining] = useState(() =>
+    Math.max(1, resetsAt - Date.now() / 1000)
+  );
   const [remaining, setRemaining] = useState(() =>
     Math.max(0, resetsAt - Date.now() / 1000)
   );
@@ -69,7 +72,7 @@ export function RateLimitBanner({
               <motion.div
                 className="h-full bg-[#ffaa00]/40 rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${100 - (remaining / 3600) * 100}%` }}
+                animate={{ width: `${((initialRemaining - remaining) / initialRemaining) * 100}%` }}
                 transition={{ duration: 0.5 }}
               />
             </div>

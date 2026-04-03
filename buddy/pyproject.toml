@@ -17,5 +17,15 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pyright",
+    "mypy",
+    "ruff",
+    "black",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["core", "tools", "utils"]

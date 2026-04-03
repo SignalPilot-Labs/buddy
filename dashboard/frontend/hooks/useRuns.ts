@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Run } from "@/lib/types";
 import { fetchRuns } from "@/lib/api";
 
 export function useRuns(repo?: string | null, pollInterval = 8000) {
   const [runs, setRuns] = useState<Run[]>([]);
   const [loading, setLoading] = useState(true);
+  const genRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const gen = ++genRef.current;
     try {
       const data = await fetchRuns(repo || undefined);
+      // Discard stale results if repo filter changed during fetch
+      if (gen !== genRef.current) return;
       setRuns(data);
     } catch (err) {
       console.warn("Failed to fetch runs, will retry:", err);
     } finally {
-      setLoading(false);
+      if (gen === genRef.current) setLoading(false);
     }
   }, [repo]);
 

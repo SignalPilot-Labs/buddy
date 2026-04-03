@@ -308,7 +308,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         {thinking && (
           <button onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[9px] text-[#888] hover:text-[#888] transition-colors flex items-center gap-1">
+            className="ml-auto text-[9px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5" cy="5" r="3.5" /><circle cx="5" cy="5" r="1" /></svg>
             {showThinking ? "hide reasoning" : "show reasoning"}
           </button>
@@ -326,7 +326,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       {text && (
         <div className="relative">
           {isLong && (
-            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#888] transition-colors">
+            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#ccc] transition-colors">
               [{collapsed ? "expand" : "collapse"}]
             </button>
           )}
@@ -508,7 +508,9 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
 /* ── Agent Run ── */
 const IDLE_WARN_MS = 60_000; // 1 min — show warning (backend handles kill at 10 min)
 
-function AgentRunCard({ tool, childTools, finalText, ts }: { tool: ToolCall; childTools: ToolCall[]; finalText: string; ts: string }) {
+function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
+  tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string
+}) {
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
@@ -516,7 +518,7 @@ function AgentRunCard({ tool, childTools, finalText, ts }: { tool: ToolCall; chi
   const input = tool.input_data || {};
   const description = (input.description as string) || "Sub-agent task";
   const prompt = (input.prompt as string) || "";
-  const subType = (input.subagent_type as string) || "general";
+  const subType = agentType || (input.subagent_type as string) || "general";
   const isPending = tool.phase === "pre" && !tool.output_data;
 
   const lastActivityTs = childTools.length > 0
@@ -959,7 +961,7 @@ export function GroupedEventCard({ event, isLast = false }: { event: GroupedEven
     case "playwright_group":
       return <PlaywrightGroupCard tools={event.tools} ts={event.ts} totalDuration={event.totalDuration} />;
     case "agent_run":
-      return <AgentRunCard tool={event.tool} childTools={event.childTools} finalText={event.finalText} ts={event.ts} />;
+      return <AgentRunCard tool={event.tool} childTools={event.childTools} finalText={event.finalText} agentType={event.agentType} ts={event.ts} />;
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
     case "usage_tick":
