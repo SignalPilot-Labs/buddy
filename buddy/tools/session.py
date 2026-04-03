@@ -112,7 +112,6 @@ class SessionGate:
             remaining = self.time_remaining_str()
             return {"content": [{"type": "text", "text": (
                 f"SESSION LOCKED — {remaining} remaining. You cannot end the session yet.\n\n"
-                f"Your task is not done. If you've finished the current assignment, "
-                f"stop and wait — a Product Director will review your work and give you "
-                f"your next task. Do NOT go looking for unrelated work to do."
+                f"Do NOT call end_session again. Explore the codebase for more improvements "
+                f"related to your original task. The planner will tell you when to stop."
             )}]}
