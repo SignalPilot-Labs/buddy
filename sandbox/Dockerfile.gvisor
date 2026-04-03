@@ -1,0 +1,45 @@
+# Buddy Sandbox — gVisor backend (no KVM required)
+# Works on macOS (Apple Silicon), Linux, and CI environments.
+#
+# Versions pinned in build.sh (source of truth).
+# Defaults here are fallbacks for standalone docker build.
+
+ARG PYTHON_VERSION=3.12
+ARG GVISOR_VERSION=20260323.0
+
+FROM python:${PYTHON_VERSION}-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ARG GVISOR_VERSION
+
+# System deps (curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install gVisor (runsc) — pinned version, auto-detect architecture
+RUN ARCH=$(uname -m) && \
+    curl -fsSL "https://storage.googleapis.com/gvisor/releases/release/${GVISOR_VERSION}/${ARCH}/runsc" \
+    -o /usr/local/bin/runsc && \
+    chmod +x /usr/local/bin/runsc
+
+RUN mkdir -p /opt/buddy
+
+COPY sandbox/pyproject.toml /opt/buddy/
+RUN pip install --no-cache-dir /opt/buddy/
+
+COPY sandbox/base.py /opt/buddy/
+COPY sandbox/gvisor.py /opt/buddy/
+COPY sandbox/firecracker/ /opt/buddy/firecracker/
+COPY sandbox/manager.py /opt/buddy/
+COPY config/ /opt/buddy/config/
+
+WORKDIR /opt/buddy
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=3s \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+ENTRYPOINT ["python3", "manager.py"]

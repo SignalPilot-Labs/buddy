@@ -1,0 +1,114 @@
+# Buddy — all containers
+#
+# Usage:
+#   docker compose up --build -d              # macOS / no KVM (gVisor sandbox)
+#   docker compose --profile firecracker up --build -d  # Linux with /dev/kvm
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: buddy-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: buddy
+      POSTGRES_USER: buddy
+      POSTGRES_PASSWORD: buddy
+    ports:
+      - "5432:5432"
+    volumes:
+      - buddy-db:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready -U buddy
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db-init:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+    container_name: buddy-db-init
+    depends_on:
+      db:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile.dashboard
+    container_name: buddy-dashboard
+    restart: unless-stopped
+    ports:
+      - "3400:3400"
+      - "3401:3401"
+    volumes:
+      - buddy-keys:/data
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+
+  agent:
+    build:
+      context: .
+      dockerfile: buddy/Dockerfile.agent
+    container_name: buddy-agent
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GIT_TERMINAL_PROMPT: "0"
+      SP_SANDBOX_URL: http://sandbox:8080
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8500/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - .:/workspace:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+      - claude-agent-sessions:/home/agentuser/.claude
+      - agent-repo:/home/agentuser/repo
+    working_dir: /workspace
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+      dashboard:
+        condition: service_started
+
+  # gVisor sandbox (default — works everywhere)
+  sandbox:
+    build:
+      context: .
+      dockerfile: sandbox/Dockerfile.gvisor
+    container_name: buddy-sandbox
+    restart: unless-stopped
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+
+  # Firecracker sandbox (Linux with KVM only)
+  sandbox-firecracker:
+    build:
+      context: .
+      dockerfile: sandbox/Dockerfile.firecracker
+    container_name: buddy-sandbox-firecracker
+    restart: unless-stopped
+    devices:
+      - "/dev/kvm:/dev/kvm"
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    volumes:
+      - sandbox-overlays:/opt/buddy/overlays
+    profiles: ["firecracker"]
+
+volumes:
+  buddy-db:
+  buddy-keys:
+  claude-agent-sessions:
+  agent-repo:
+  sandbox-overlays:

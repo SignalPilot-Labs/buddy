@@ -1,0 +1,65 @@
+# Versions pinned in build.sh (source of truth).
+ARG PYTHON_VERSION=3.12
+ARG NODE_VERSION=22
+
+# Stage 1: Build Next.js app
+FROM node:${NODE_VERSION}-slim AS builder
+
+WORKDIR /app
+COPY dashboard/frontend/package.json ./
+RUN npm install
+COPY dashboard/frontend/ ./
+RUN npm run build
+
+# Stage 2: FastAPI backend + Next.js server
+ARG PYTHON_VERSION
+ARG NODE_VERSION
+FROM python:${PYTHON_VERSION}-slim
+
+# Install Node.js for Next.js server
+ARG NODE_VERSION
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Config (required by db/connection.py)
+COPY config/ /app/config/
+
+# Shared DB package (models + connection pool)
+COPY db/pyproject.toml /app/db/pyproject.toml
+COPY db/__init__.py /app/db/__init__.py
+RUN pip install --no-cache-dir /app/db/
+COPY db/ /app/db/
+
+# Dashboard backend
+COPY dashboard/backend/pyproject.toml /app/backend/pyproject.toml
+COPY dashboard/backend/__init__.py /app/backend/__init__.py
+RUN pip install --no-cache-dir /app/backend/
+COPY dashboard/backend/ /app/backend/
+
+# Copy the built Next.js app (standalone + static)
+COPY --from=builder /app/.next /app/frontend/.next
+COPY --from=builder /app/node_modules /app/frontend/node_modules
+COPY --from=builder /app/package.json /app/frontend/package.json
+COPY --from=builder /app/next.config.ts /app/frontend/next.config.ts
+COPY --from=builder /app/tsconfig.json /app/frontend/tsconfig.json
+COPY --from=builder /app/postcss.config.mjs /app/frontend/postcss.config.mjs
+COPY --from=builder /app/public /app/frontend/public
+
+# Startup script
+COPY dashboard/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Run as non-root
+RUN useradd -m appuser \
+    && mkdir -p /data \
+    && chown -R appuser:appuser /app /data
+
+USER appuser
+
+EXPOSE 3400 3401
+
+CMD ["/app/entrypoint.sh"]

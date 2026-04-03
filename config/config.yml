@@ -1,0 +1,30 @@
+# Buddy configuration
+# Copy to ~/.buddy/config.yml (global) or .buddy/config.yml (per-project)
+# Per-project config takes precedence over global config.
+
+database:
+  host: db
+  port: 5432
+  name: buddy
+  user: buddy
+  password: buddy # locally hosted db, not exposed outside docker
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 1800
+  echo: false
+
+sandbox:
+  max_vms: 10
+  vm_memory_mb: 512
+  vm_vcpus: 1
+  vm_timeout_sec: 300
+  log_level: info
+
+agent:
+  port: 8500
+  max_budget_usd: 0 # 0 = unlimited
+
+dashboard:
+  api_port: 3401
+  ui_port: 3400
