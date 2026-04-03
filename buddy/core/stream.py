@@ -53,6 +53,7 @@ class StreamProcessor:
         result_msg = None
         should_stop = False
         final_status: str | None = None
+        inject_payloads: list[str] = []
 
         async for message in self._client.receive_response():
             action = await self._check_event(is_planning)
@@ -62,6 +63,8 @@ class StreamProcessor:
                 break
             if action == "break":
                 break
+            if action and action.startswith("inject:"):
+                inject_payloads.append(action[7:])
 
             if isinstance(message, StreamEvent):
                 await self._log_delta(message)
@@ -87,6 +90,7 @@ class StreamProcessor:
             session_ended=self._session.has_ended(),
             result_message=result_msg,
             round_tools=tools, round_text_chunks=chunks,
+            pending_injects=inject_payloads,
         )
 
     # ── Event Handling ──
@@ -130,9 +134,11 @@ class StreamProcessor:
             await db.log_audit(run_id, "session_unlocked", {})
 
         if kind == "inject" and not is_planning:
+            prompt = event.get("payload", "")
             await db.log_audit(run_id, "prompt_injected", {
-                "prompt": event.get("payload", ""), "delivery": "queued",
+                "prompt": prompt, "delivery": "queued",
             })
+            return f"inject:{prompt}"
 
         if kind == "stuck_recovery" and not is_planning:
             stuck_info = event.get("payload", "[]")

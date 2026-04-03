@@ -69,6 +69,17 @@ class AgentLoop:
                     if result.session_ended:
                         break
 
+                    # Pick up injects from mid-round
+                    if result.pending_injects:
+                        if pending_inject:
+                            result.pending_injects.insert(0, pending_inject)
+                        if len(result.pending_injects) == 1:
+                            pending_inject = result.pending_injects[0]
+                        else:
+                            pending_inject = "\n\n".join(
+                                f"{i+1}. {msg}" for i, msg in enumerate(result.pending_injects)
+                            )
+
                     # Between-round event check
                     event = await events.drain()
                     if event:
