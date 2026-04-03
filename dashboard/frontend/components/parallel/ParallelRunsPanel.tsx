@@ -53,6 +53,7 @@ export function ParallelRunsPanel({
 }: ParallelRunsPanelProps) {
   const {
     status,
+    error: parallelError,
     stopRun,
     killRun,
     pauseRun,
@@ -93,9 +94,11 @@ export function ParallelRunsPanel({
         <div>
           <h3 className="text-[12px] font-semibold text-[#e8e8e8]">Bots</h3>
           <p className="text-[10px] text-[#888] mt-0.5">
-            {status
-              ? `${status.active} active / ${status.max_concurrent} max`
-              : "Loading..."}
+            {parallelError
+              ? <span className="text-[#ff4444]">{parallelError}</span>
+              : status
+                ? `${status.active} active / ${status.max_concurrent} max`
+                : "Loading..."}
           </p>
         </div>
         <Button variant="success" onClick={onStartNew}>
