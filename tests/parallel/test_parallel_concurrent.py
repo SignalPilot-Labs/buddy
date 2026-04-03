@@ -377,7 +377,9 @@ class TestConcurrentAPIEndpoints:
                 run_id=f"aa11223{call_count}",
             )
 
-        with patch("server._run_manager") as mock_mgr:
+        with patch("server._start_limiter") as mock_limiter, \
+             patch("server._run_manager") as mock_mgr:
+            mock_limiter.check.return_value = True
             mock_mgr.start_run = mock_start
 
             with patch("run_manager.RunManager.to_dict", return_value={

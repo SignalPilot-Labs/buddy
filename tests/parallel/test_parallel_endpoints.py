@@ -1,11 +1,14 @@
 """Tests for /parallel/* endpoints in buddy/server.py."""
 
+import time
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 from httpx import ASGITransport
+
+from buddy.server import _StartRateLimiter
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +127,40 @@ async def test_parallel_start_max_concurrent(client, mock_manager):
     resp = await client.post("/parallel/start", json={})
     assert resp.status_code == 409
     assert "Max concurrent" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_parallel_start_rate_limited(client, mock_manager):
+    """Returns 429 when the rate limiter rejects the request."""
+    with patch("server._start_limiter.check", return_value=False):
+        resp = await client.post("/parallel/start", json={})
+    assert resp.status_code == 429
+    assert "Too many start requests" in resp.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Rate limiter unit tests
+# ---------------------------------------------------------------------------
+
+class TestStartRateLimiter:
+    def test_allows_within_limit(self):
+        limiter = _StartRateLimiter(max_calls=3, window_sec=60)
+        assert limiter.check() is True
+        assert limiter.check() is True
+        assert limiter.check() is True
+
+    def test_blocks_over_limit(self):
+        limiter = _StartRateLimiter(max_calls=2, window_sec=60)
+        assert limiter.check() is True
+        assert limiter.check() is True
+        assert limiter.check() is False
+
+    def test_window_expiry(self):
+        limiter = _StartRateLimiter(max_calls=1, window_sec=0.1)
+        assert limiter.check() is True
+        assert limiter.check() is False
+        time.sleep(0.15)
+        assert limiter.check() is True
 
 
 # ---------------------------------------------------------------------------

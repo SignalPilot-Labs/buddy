@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 # Make buddy package importable from tests/parallel/
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "buddy"))
 
@@ -19,3 +21,10 @@ _sdk_mock.tool = lambda *args, **kwargs: (lambda f: f)
 _sdk_mock.create_sdk_mcp_server = MagicMock()
 sys.modules.setdefault("claude_agent_sdk", _sdk_mock)
 sys.modules.setdefault("claude_agent_sdk.types", MagicMock())
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset the module-level rate limiter between tests to prevent state leakage."""
+    import server
+    server._start_limiter._timestamps.clear()

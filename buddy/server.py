@@ -8,6 +8,7 @@ import asyncio
 import hmac
 import logging
 import os
+import time
 import traceback
 from contextlib import asynccontextmanager
 
@@ -30,6 +31,25 @@ from tools.session import SessionGate
 from run_manager import RunManager, MAX_CONCURRENT
 
 log = logging.getLogger("server")
+
+
+class _StartRateLimiter:
+    """Simple sliding-window rate limiter for parallel/start."""
+    def __init__(self, max_calls: int = 5, window_sec: float = 60.0):
+        self._max = max_calls
+        self._window = window_sec
+        self._timestamps: list[float] = []
+
+    def check(self) -> bool:
+        now = time.monotonic()
+        self._timestamps = [t for t in self._timestamps if now - t < self._window]
+        if len(self._timestamps) >= self._max:
+            return False
+        self._timestamps.append(now)
+        return True
+
+
+_start_limiter = _StartRateLimiter()
 
 
 class ParallelStartRequest(BaseModel):
@@ -338,6 +358,8 @@ class AgentServer:
 
         @app.post("/parallel/start")
         async def parallel_start(body: ParallelStartRequest):
+            if not _start_limiter.check():
+                raise HTTPException(status_code=429, detail="Too many start requests. Max 5 per minute.")
             creds = {}
             if body.claude_token:
                 creds["claude_token"] = body.claude_token
