@@ -32,8 +32,7 @@ SECRET_KEYS = frozenset({"claude_token", "git_token"})
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
 
-# Authentication
-DEFAULT_DASHBOARD_API_KEY = "hell0buddy"
+# Authentication — key is set by entrypoint.sh (generated or from env)
 DASHBOARD_API_KEY_ENV = "DASHBOARD_API_KEY"
 
 # Network / ports

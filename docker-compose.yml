@@ -38,7 +38,6 @@ services:
     restart: unless-stopped
     environment:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
-      DASHBOARD_API_KEY: ${DASHBOARD_API_KEY:-}
     ports:
       - "3400:3400"
       - "3401:3401"

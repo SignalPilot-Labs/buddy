@@ -5,10 +5,19 @@
 
 export const API_PORT = 3401;
 export const UI_PORT = 3400;
-export const DEFAULT_API_KEY = "hell0buddy";
+/** API key injected by entrypoint.sh into /public/config.js at runtime. */
+declare global {
+  interface Window { __BUDDY_API_KEY__?: string; }
+}
 
-/** API key sent with every request. Reads from env at build time, falls back to default. */
-export const API_KEY = process.env.NEXT_PUBLIC_DASHBOARD_API_KEY || DEFAULT_API_KEY;
+export function getApiKey(): string {
+  if (typeof window !== "undefined" && window.__BUDDY_API_KEY__) {
+    return window.__BUDDY_API_KEY__;
+  }
+  return process.env.DASHBOARD_API_KEY || "";
+}
+
+export const API_KEY = getApiKey();
 
 // Polling intervals (ms)
 export const AGENT_HEALTH_POLL_MS = 10_000;

@@ -3,24 +3,24 @@
 All endpoints require a valid X-API-Key header matching the
 DASHBOARD_API_KEY environment variable. SSE endpoints also accept
 the key via ?api_key= query parameter (EventSource can't send headers).
+
+The key is set by entrypoint.sh — either from user env, persisted
+file, or freshly generated on first boot.
 """
 
 import hmac
-import logging
 import os
 
 from fastapi import HTTPException, Query, Security
 from fastapi.security import APIKeyHeader
 
-from backend.constants import DASHBOARD_API_KEY_ENV, DEFAULT_DASHBOARD_API_KEY
+from backend.constants import DASHBOARD_API_KEY_ENV
 
-log = logging.getLogger("backend.auth")
-
-_api_key = os.environ.get(DASHBOARD_API_KEY_ENV, DEFAULT_DASHBOARD_API_KEY)
+_api_key = os.environ.get(DASHBOARD_API_KEY_ENV, "")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
-if _api_key == DEFAULT_DASHBOARD_API_KEY:
-    log.warning("Using default API key — set %s env var for security", DASHBOARD_API_KEY_ENV)
+if not _api_key:
+    raise RuntimeError(f"{DASHBOARD_API_KEY_ENV} env var is not set — entrypoint.sh must set it")
 
 
 def _check(key: str | None) -> None:
