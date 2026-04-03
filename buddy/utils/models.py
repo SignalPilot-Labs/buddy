@@ -32,6 +32,7 @@ class RoundResult:
     result_message: Any | None
     round_tools: list[str] = field(default_factory=list)
     round_text_chunks: list[str] = field(default_factory=list)
+    pending_injects: list[str] = field(default_factory=list)
 
 
 # ── HTTP Request Schemas ──
