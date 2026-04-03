@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import re
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException
@@ -43,6 +44,7 @@ from backend.utils import (
 )
 from db.models import AuditLog, Run, Setting, ToolCall
 
+log = logging.getLogger("dashboard.endpoints")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
 
@@ -140,8 +142,8 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
 
-        if run.status in ("running", "paused"):
-            return await send_control_signal(run_id, "inject", {"running", "paused"}, prompt)
+        if run.status in ("running", "paused", "rate_limited"):
+            return await send_control_signal(run_id, "inject", {"running", "paused", "rate_limited"}, prompt)
 
         if run.status in ("completed", "stopped", "error"):
             creds = await read_credentials()
@@ -212,7 +214,7 @@ async def get_run_diff(run_id: str = RunId):
         diff_stats = run.diff_stats
         branch_name = run.branch_name
         base_branch = run.base_branch or DEFAULT_BASE_BRANCH
-        is_active = run.status in ("running", "paused")
+        is_active = run.status in ("running", "paused", "rate_limited")
 
     if diff_stats:
         return {
@@ -310,6 +312,15 @@ async def stream_events(run_id: str = RunId):
             if not found_any:
                 yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
 
+                # Check if run has ended — stop streaming after final events are flushed
+                async with session() as s:
+                    run_status = (await s.execute(
+                        select(Run.status).where(Run.id == run_id)
+                    )).scalar_one_or_none()
+                if run_status in ("completed", "stopped", "killed", "crashed", "error"):
+                    yield f"event: run_ended\ndata: {json.dumps({'status': run_status})}\n\n"
+                    return
+
             await asyncio.sleep(SSE_POLL_INTERVAL_SEC)
 
     return StreamingResponse(
@@ -346,7 +357,8 @@ async def get_settings():
                     plain = crypto.decrypt(setting.value, MASTER_KEY_PATH)
                     prefix = MASK_PREFIX_CLAUDE_TOKEN if setting.key == "claude_token" else MASK_PREFIX_DEFAULT
                     settings[setting.key] = crypto.mask(plain, prefix_len=prefix)
-                except Exception:
+                except Exception as e:
+                    log.error("Failed to decrypt setting '%s': %s", setting.key, e)
                     settings[setting.key] = "****"
             else:
                 settings[setting.key] = setting.value

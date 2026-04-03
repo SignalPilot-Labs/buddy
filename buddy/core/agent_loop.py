@@ -13,7 +13,7 @@ import os
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
-from utils.constants import MAX_ROUNDS, ROUND_SUMMARY_LIMIT, ROUND_SUMMARY_AUDIT_LIMIT, FILES_CHANGED_LIMIT
+from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
 from utils.git import GitWorkspace
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
@@ -98,6 +98,7 @@ class AgentLoop:
                         log.info("Pushed branch %s", ctx.branch_name)
                     except Exception as e:
                         log.warning("Push failed between rounds: %s", e)
+                        await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
 
                     # Decide whether to continue
                     if session.is_unlocked():
@@ -157,6 +158,12 @@ class AgentLoop:
         elif kind == "unlock":
             session.force_unlock()
             await db.log_audit(ctx.run_id, "session_unlocked", {})
+        elif kind == "stuck_recovery":
+            payload = event.get("payload", "")
+            log.warning("Stuck subagent recovery triggered between rounds: %s", payload[:LOG_PREVIEW_LIMIT])
+            await db.log_audit(ctx.run_id, "stuck_recovery", {"agents": payload[:ROUND_SUMMARY_AUDIT_LIMIT]})
+            # Inject recovery instructions into next round
+            return f"inject:A stuck subagent was detected. Recovery info: {payload}"
 
         return None
 

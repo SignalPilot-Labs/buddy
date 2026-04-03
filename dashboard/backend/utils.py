@@ -92,7 +92,13 @@ async def read_credentials() -> dict:
             setting = await s.get(Setting, key)
             if not setting:
                 continue
-            creds[key] = crypto.decrypt(setting.value, MASTER_KEY_PATH) if setting.encrypted else setting.value
+            if setting.encrypted:
+                try:
+                    creds[key] = crypto.decrypt(setting.value, MASTER_KEY_PATH)
+                except Exception as e:
+                    log.error("Failed to decrypt %s: %s", key, e)
+            else:
+                creds[key] = setting.value
     return creds
 
 
@@ -158,6 +164,13 @@ async def agent_request(
             )
             if res.status_code == 409:
                 raise HTTPException(status_code=409, detail=res.json().get("detail", "Conflict"))
+            if res.status_code >= 400:
+                log.warning("Agent returned %d for %s %s", res.status_code, method, path)
+                try:
+                    detail = res.json().get("detail", f"Agent error {res.status_code}")
+                except Exception:
+                    detail = f"Agent error {res.status_code}"
+                raise HTTPException(status_code=502, detail=detail)
             return res.json()
     except HTTPException:
         raise

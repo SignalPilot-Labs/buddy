@@ -1,11 +1,5 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_PORT } from "./constants";
-
-// SSE and all API calls go directly to FastAPI, not through Next.js rewrite
-function getApiBase(): string {
-  if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
-  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
-}
+import { getApiBase } from "./constants";
 
 export async function fetchRuns(repo?: string): Promise<Run[]> {
   const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
@@ -19,7 +13,8 @@ export async function fetchRepos(): Promise<RepoInfo[]> {
     const res = await fetch(`${getApiBase()}/api/repos`);
     if (!res.ok) return [];
     return res.json();
-  } catch {
+  } catch (err) {
+    console.warn("Failed to fetch repos:", err);
     return [];
   }
 }
@@ -99,7 +94,8 @@ export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
     const res = await fetch(`${getApiBase()}/api/agent/health`);
     return res.json();
-  } catch {
+  } catch (err) {
+    console.warn("Agent health check failed:", err);
     return { status: "unreachable", current_run_id: null };
   }
 }
@@ -182,7 +178,8 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
     const res = await fetch(`${getApiBase()}/api/runs/${runId}/diff`);
     if (!res.ok) return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
     return res.json();
-  } catch {
+  } catch (err) {
+    console.warn("Failed to fetch run diff:", err);
     return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
   }
 }
@@ -192,7 +189,8 @@ export async function fetchBranches(): Promise<string[]> {
     const res = await fetch(`${getApiBase()}/api/agent/branches`);
     if (!res.ok) return ["main"];
     return res.json();
-  } catch {
+  } catch (err) {
+    console.warn("Failed to fetch branches:", err);
     return ["main"];
   }
 }

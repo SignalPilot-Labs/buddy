@@ -31,3 +31,11 @@ Follow the file structure given to you by the planner. If none was given:
 4. Run linter and typechecker if available.
 5. One logical change per commit. Clear message explaining WHY.
 6. Do NOT refactor surrounding code unless it's part of the task.
+
+## Verification
+
+After writing code:
+1. Run a syntax check: `python -c "import ast; ast.parse(open('FILE').read())"` for Python, or `npx tsc --noEmit` for TypeScript.
+2. Run existing tests if they're fast (< 30 seconds).
+3. If you introduced new imports, verify the module exists.
+4. If you modified a function signature, grep for all callers and update them.

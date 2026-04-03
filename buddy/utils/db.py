@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select, func, update
 
 from db.connection import connect, close, get_session_factory
-from db.models import AuditLog, ControlSignal, Run, ToolCall
+from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("agent.db")
 
@@ -201,23 +201,6 @@ async def log_audit(run_id: str, event_type: str, details: dict | None) -> None:
         await s.commit()
 
 
-async def poll_control_signal(run_id: str) -> dict | None:
-    """Fetch and consume the oldest pending control signal for this run."""
-    async with get_session_factory()() as s:
-        result = await s.execute(
-            select(ControlSignal)
-            .where(ControlSignal.run_id == run_id, ControlSignal.consumed == False)
-            .order_by(ControlSignal.ts)
-            .limit(1)
-        )
-        signal = result.scalars().first()
-        if not signal:
-            return None
-        signal.consumed = True
-        await s.commit()
-        return {"signal": signal.signal, "payload": signal.payload}
-
-
 @swallow_errors
 async def update_run_status(run_id: str, status: str) -> None:
     """Update the run status (e.g. to 'paused')."""
@@ -233,7 +216,7 @@ async def mark_crashed_runs() -> int:
     async with get_session_factory()() as s:
         result = await s.execute(
             update(Run)
-            .where(Run.status.in_(["running", "paused"]))
+            .where(Run.status.in_(["running", "paused", "rate_limited"]))
             .values(
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),

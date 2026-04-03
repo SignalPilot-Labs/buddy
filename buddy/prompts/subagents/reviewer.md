@@ -59,3 +59,6 @@ Extended tests (full integration, e2e) should be run after major changes, not af
 - Prioritize: test failures > security > correctness > breaking changes > performance > quality.
 - If code is well-written, say so briefly and move on. Don't nitpick.
 - Focus on substance, not style.
+- Check for regressions: did the change break something that worked before?
+- Verify new imports resolve to real modules.
+- If a function signature changed, check that all callers were updated.

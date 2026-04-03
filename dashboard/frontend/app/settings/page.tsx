@@ -9,7 +9,7 @@ import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
-import { API_PORT } from "@/lib/constants";
+import { getApiBase } from "@/lib/constants";
 
 interface FieldConfig {
   key: keyof Settings;
@@ -47,11 +47,6 @@ const FIELDS: FieldConfig[] = [
     helpText: "Optional. Default max spend per run. Can be overridden when starting a run.",
   },
 ];
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
-  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
-}
 
 export default function SettingsPage() {
   const [status, setStatus] = useState<SettingsStatus | null>(null);
@@ -142,8 +137,8 @@ export default function SettingsPage() {
       });
       const r = await fetchRepos();
       setRepos(r);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to remove repo:", err);
     }
   };
 
@@ -157,8 +152,8 @@ export default function SettingsPage() {
       const [s, cfg] = await Promise.all([fetchSettingsStatus(), fetchSettings()]);
       setStatus(s);
       setSettings(cfg);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error("Failed to set active repo:", err);
     }
   };
 

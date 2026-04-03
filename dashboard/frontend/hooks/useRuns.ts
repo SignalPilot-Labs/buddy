@@ -12,8 +12,8 @@ export function useRuns(repo?: string | null, pollInterval = 8000) {
     try {
       const data = await fetchRuns(repo || undefined);
       setRuns(data);
-    } catch {
-      // silently retry on next poll
+    } catch (err) {
+      console.warn("Failed to fetch runs, will retry:", err);
     } finally {
       setLoading(false);
     }

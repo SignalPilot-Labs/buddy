@@ -1,17 +1,13 @@
 import type { SettingsStatus, Settings } from "./types";
-import { API_PORT } from "./constants";
-
-function getApiBase(): string {
-  if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
-  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
-}
+import { getApiBase } from "./constants";
 
 export async function fetchSettingsStatus(): Promise<SettingsStatus> {
   try {
     const res = await fetch(`${getApiBase()}/api/settings/status`);
     if (!res.ok) throw new Error("Failed to fetch settings status");
     return res.json();
-  } catch {
+  } catch (err) {
+    console.warn("Failed to fetch settings status:", err);
     return { configured: false, has_claude_token: false, has_git_token: false, has_github_repo: false };
   }
 }

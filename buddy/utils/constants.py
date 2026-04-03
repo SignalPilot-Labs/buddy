@@ -10,23 +10,26 @@ PULSE_CHECK_INTERVAL_SEC = 30
 # ── Run Limits ──
 MAX_ROUNDS = 500
 MAX_BUDGET_DEFAULT = 50.0
+RATE_LIMIT_MAX_WAIT_SEC = 600      # Max seconds to wait for rate limit reset before stopping
 
 # ── Serialization Limits ──
 MAX_STR_LEN = 5000
 MAX_LIST_LEN = 100
 
 # ── Truncation Limits (audit/logging) ──
-AUDIT_TEXT_LIMIT = 2000
-PROMPT_SUMMARY_LIMIT = 200
-TEXT_CHUNK_LIMIT = 500
-ROUND_SUMMARY_LIMIT = 1500
-ASSIGNMENT_LIMIT = 1000
-INPUT_SUMMARY_LIMIT = 500
-TRANSCRIPT_LIMIT = 3000
-FINAL_TEXT_LIMIT = 2000
-LOG_PREVIEW_LIMIT = 200
-FILES_CHANGED_LIMIT = 500
-ROUND_SUMMARY_AUDIT_LIMIT = 500
+# These protect the DB and logs from unbounded text.
+# Each limit is tuned for its context: previews are short, full text is longer.
+AUDIT_TEXT_LIMIT = 2000            # LLM text/thinking deltas stored in audit log
+PROMPT_SUMMARY_LIMIT = 200         # Custom prompt preview in API responses and audit
+TEXT_CHUNK_LIMIT = 500             # Per-round text chunks collected for planner context
+ROUND_SUMMARY_LIMIT = 1500        # Combined round text sent to planner prompt
+ASSIGNMENT_LIMIT = 1000           # Tool assignment descriptions in logs
+INPUT_SUMMARY_LIMIT = 500         # Tool input summaries in security audit
+TRANSCRIPT_LIMIT = 3000           # Subagent transcript final text extraction
+FINAL_TEXT_LIMIT = 2000           # Subagent completion text stored in audit
+LOG_PREVIEW_LIMIT = 200           # One-line log preview of assistant messages
+FILES_CHANGED_LIMIT = 500         # Git files-changed list in planner audit meta
+ROUND_SUMMARY_AUDIT_LIMIT = 500   # Round summary stored in planner audit meta
 
 # ── Paths ──
 WORK_DIR = "/home/agentuser/repo"
@@ -45,6 +48,9 @@ CMD_TIMEOUT = 120
 PROTECTED_BRANCHES = frozenset({"main", "master", "staging", "prod", "production"})
 BRANCH_NAME_PATTERN = r'^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$'
 BRANCH_NAME_MAX_LEN = 256
+GIT_RETRY_ATTEMPTS = 3
+GIT_RETRY_DELAY_SEC = 2.0
+RATE_LIMIT_SLEEP_BUFFER_SEC = 5
 
 # ── Security Patterns ──
 CREDENTIAL_PATTERNS = [
@@ -72,6 +78,9 @@ DANGEROUS_PATTERNS = [
 ]
 
 SECRET_ENV_VARS = "GIT_TOKEN|ANTHROPIC_API_KEY|GH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|FGAT_GIT_TOKEN"
+
+# ── Input Limits ──
+INJECT_PAYLOAD_MAX_LEN = 50000
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"

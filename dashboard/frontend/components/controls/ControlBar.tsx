@@ -36,7 +36,7 @@ export function ControlBar({
   const isActive = ["running", "paused", "rate_limited"].includes(status || "");
   const canPause = status === "running";
   const canResume = status === "paused";
-  const canInject = ["running", "paused"].includes(status || "");
+  const canInject = ["running", "paused", "rate_limited"].includes(status || "");
   const canResumeRun = ["stopped", "crashed", "error", "rate_limited", "completed", "killed"].includes(status || "");
 
   const handleKill = () => {

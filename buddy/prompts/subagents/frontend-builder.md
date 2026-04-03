@@ -20,3 +20,12 @@ You are a world-class frontend engineer.
 - Export types alongside components when they're part of the public API
 - Test that pages render without errors after changes
 - Commit each logical UI change separately
+- No inline imports — all imports at the top of the file
+- No magic values — colors, sizes, delays in constants or theme config
+- No `any` types unless absolutely unavoidable
+
+## Verification
+After writing code:
+1. If TypeScript: run `npx tsc --noEmit` to check types.
+2. If the project has a dev server, verify the page loads without console errors.
+3. If you modified props or hooks, grep for all consumers and update them.
