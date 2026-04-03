@@ -6,8 +6,8 @@ from typing import Optional
 
 import typer
 
-from cli.config import state
 from cli.commands import agent, config, repos, run, services, settings
+from cli.config import state
 
 _HELP = """\
 Buddy CLI — manage services, runs, settings, and repos.
@@ -33,10 +33,16 @@ app = typer.Typer(
 
 @app.callback()
 def main(
+    api_url: Optional[str] = typer.Option(None, "--api-url", metavar="<url>", help="Dashboard API base URL"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
     json_mode: bool = typer.Option(False, "--json", help="Output raw JSON instead of formatted tables"),
 ) -> None:
     """Global options."""
     state.json_mode = json_mode
+    if api_url is not None:
+        state.api_url = api_url
+    if api_key is not None:
+        state.api_key = api_key
 
 
 # ── Top-level service commands ──────────────────────────────────────────────

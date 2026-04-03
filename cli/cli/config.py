@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
-CONFIG_PATH = Path.home() / ".buddy" / "cli.toml"
+from cli.constants import DEFAULT_API_URL
 
-DEFAULT_API_URL = "http://localhost:3401"
+CONFIG_PATH = Path.home() / ".buddy" / "cli.toml"
 
 
 @dataclass
@@ -17,6 +17,7 @@ class State:
     """Global CLI state populated by the root callback."""
 
     api_key: str | None = None
+    api_url: str | None = None
     json_mode: bool = False
     project_dir: str | None = None
 
@@ -34,6 +35,11 @@ def _load_toml() -> dict:
 
 def resolve_api_url() -> str:
     """Resolve the API base URL (no trailing slash)."""
+    if state.api_url:
+        return state.api_url.rstrip("/")
+    env = os.environ.get("BUDDY_API_URL")
+    if env:
+        return env.rstrip("/")
     cfg = _load_toml().get("api_url")
     if cfg:
         return str(cfg).rstrip("/")

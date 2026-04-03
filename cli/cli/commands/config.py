@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import tomllib
-from pathlib import Path
 from typing import Optional
 
+import tomli_w
 import typer
 from rich.console import Console
 
-from cli.config import CONFIG_PATH, DEFAULT_API_URL
+from cli.config import CONFIG_PATH, state
+from cli.constants import DEFAULT_API_URL
 from cli.output import print_detail, print_json, print_success
-from cli.config import state
+
+CONFIG_FILE_PERMISSIONS: int = 0o600
 
 console = Console()
 
@@ -32,15 +34,8 @@ def _read_config() -> dict:
 def _write_config(cfg: dict) -> None:
     """Write config dict as TOML to ~/.buddy/cli.toml."""
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    lines: list[str] = []
-    for key, value in cfg.items():
-        if isinstance(value, str):
-            lines.append(f'{key} = "{value}"')
-        elif isinstance(value, bool):
-            lines.append(f"{key} = {'true' if value else 'false'}")
-        elif isinstance(value, (int, float)):
-            lines.append(f"{key} = {value}")
-    CONFIG_PATH.write_text("\n".join(lines) + "\n")
+    CONFIG_PATH.write_bytes(tomli_w.dumps(cfg).encode())
+    CONFIG_PATH.chmod(CONFIG_FILE_PERMISSIONS)
 
 
 @app.command("get")

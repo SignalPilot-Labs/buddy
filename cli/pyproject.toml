@@ -13,6 +13,7 @@ dependencies = [
     "httpx-sse>=0.4.0",
     "rich>=13.0.0",
     "InquirerPy>=0.3.4",
+    "tomli-w>=1.0.0",
 ]
 
 [project.scripts]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as _json
 import sys
 from typing import Any, Iterator
 
@@ -10,6 +11,7 @@ from httpx_sse import connect_sse
 from rich.console import Console
 
 from cli.config import resolve_api_key, resolve_api_url
+from cli.constants import HTTP_TIMEOUT_SECONDS
 
 err = Console(stderr=True)
 
@@ -23,7 +25,7 @@ class BuddyClient:
         headers: dict[str, str] = {}
         if api_key:
             headers["X-API-Key"] = api_key
-        self._http = httpx.Client(base_url=base_url, headers=headers, timeout=15)
+        self._http = httpx.Client(base_url=base_url, headers=headers, timeout=HTTP_TIMEOUT_SECONDS)
         self.base_url = base_url
 
     # -- convenience verbs ---------------------------------------------------
@@ -47,8 +49,6 @@ class BuddyClient:
 
         Each yielded dict has ``event`` (str) and ``data`` (parsed JSON).
         """
-        import json as _json
-
         with connect_sse(
             self._http, "GET", path, timeout=httpx.Timeout(None)
         ) as source:
@@ -79,17 +79,21 @@ class BuddyClient:
             sys.exit(1)
 
         if resp.status_code >= 400:
-            detail = ""
-            try:
-                detail = resp.json().get("detail", resp.text)
-            except Exception:
-                detail = resp.text
+            detail = _extract_error_detail(resp)
             err.print(f"[red]Error {resp.status_code}:[/red] {detail}")
             sys.exit(1)
 
         if resp.status_code == 204 or not resp.text:
             return {}
         return resp.json()
+
+
+def _extract_error_detail(resp: httpx.Response) -> str:
+    """Pull the error detail from a failed HTTP response."""
+    content_type = resp.headers.get("content-type", "")
+    if content_type.startswith("application/json"):
+        return resp.json().get("detail", resp.text)
+    return resp.text
 
 
 def get_client() -> BuddyClient:

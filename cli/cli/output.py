@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from cli.config import state
+from cli.constants import ISO_FALLBACK_LENGTH, SHORT_ID_LENGTH
 
 console = Console()
 
@@ -50,6 +51,11 @@ def status_icon(status: str) -> str:
     return f"[{colour}]{icon}[/{colour}]"
 
 
+def plain_status_icon(status: str) -> str:
+    """Return the plain (no Rich tags) icon for *status*."""
+    return _STATUS_ICONS.get(status, "?")
+
+
 def format_duration(minutes: float | None) -> str:
     if minutes is None or minutes == 0:
         return "—"
@@ -70,30 +76,27 @@ def relative_time(iso_str: str | None) -> str:
     """Turn an ISO timestamp into a human-friendly relative string."""
     if not iso_str:
         return "—"
-    try:
-        dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        diff = now - dt
-        secs = int(diff.total_seconds())
-        if secs < 0:
-            return "just now"
-        if secs < 60:
-            return f"{secs}s ago"
-        mins = secs // 60
-        if mins < 60:
-            return f"{mins}m ago"
-        hours = mins // 60
-        if hours < 24:
-            return f"{hours}h ago"
-        days = hours // 24
-        return f"{days}d ago"
-    except Exception:
-        return iso_str[:19]
+    dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+    now = datetime.now(timezone.utc)
+    diff = now - dt
+    secs = int(diff.total_seconds())
+    if secs < 0:
+        return "just now"
+    if secs < 60:
+        return f"{secs}s ago"
+    mins = secs // 60
+    if mins < 60:
+        return f"{mins}m ago"
+    hours = mins // 60
+    if hours < 24:
+        return f"{hours}h ago"
+    days = hours // 24
+    return f"{days}d ago"
 
 
 def short_id(run_id: str) -> str:
     """First 8 chars of a UUID."""
-    return run_id[:8]
+    return run_id[:SHORT_ID_LENGTH]
 
 
 # ── Output functions ────────────────────────────────────────────────────────

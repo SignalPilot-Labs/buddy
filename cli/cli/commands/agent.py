@@ -5,8 +5,8 @@ from __future__ import annotations
 import typer
 
 from cli.client import get_client
-from cli.output import console, print_detail, print_json, print_success, status_styled
 from cli.config import state
+from cli.output import console, print_json, status_styled
 
 app = typer.Typer(
     help="Check agent container status and available branches.",
@@ -44,13 +44,10 @@ def branches() -> None:
     Example:
       buddy agent branches
     """
-    data = get_client().get("/api/agent/branches")
+    data: list[str] = get_client().get("/api/agent/branches")
     if state.json_mode:
         print_json(data)
         return
 
-    if isinstance(data, list):
-        for branch in data:
-            console.print(f"  {branch}")
-    else:
-        console.print(str(data))
+    for branch in data:
+        console.print(f"  {branch}")

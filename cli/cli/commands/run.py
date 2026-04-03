@@ -2,28 +2,27 @@
 
 from __future__ import annotations
 
-import json as _json
-import sys
 from typing import Optional
 
 import typer
 from InquirerPy import inquirer
-from rich.console import Console
 
 from cli.client import get_client
+from cli.commands.run_helpers import show_audit, show_diff, show_tools, stream_run
 from cli.config import state
+from cli.constants import FUZZY_MAX_HEIGHT, PROMPT_LIST_TRUNCATION, PROMPT_SELECTOR_TRUNCATION
 from cli.output import (
     console,
     format_cost,
     format_duration,
+    plain_status_icon,
     print_detail,
+    print_error,
     print_json,
     print_success,
     print_table,
-    print_error,
     relative_time,
     short_id,
-    status_icon,
     status_styled,
 )
 
@@ -41,16 +40,9 @@ def _run_label(r: dict) -> str:
     """Build a display label for a run in the interactive list."""
     sid = short_id(r.get("id", "????????"))
     st = r.get("status", "unknown")
-    prompt = (r.get("custom_prompt") or "no prompt")[:50]
+    prompt = (r.get("custom_prompt") or "no prompt")[:PROMPT_SELECTOR_TRUNCATION]
     ago = relative_time(r.get("started_at"))
-    icon = status_icon(st).replace("[", "").replace("]", "")  # strip Rich tags for inquirer
-    # InquirerPy doesn't render Rich markup, so use plain icons
-    plain_icons = {
-        "running": "●", "paused": "❚❚", "completed": "✓",
-        "stopped": "◼", "error": "✗", "crashed": "✗",
-        "killed": "✗", "rate_limited": "⏳",
-    }
-    icon = plain_icons.get(st, "?")
+    icon = plain_status_icon(st)
     return f"{icon}  {sid}  {st:<13} {prompt:<52} {ago}"
 
 
@@ -66,7 +58,7 @@ def _select_run() -> dict:
     run_id = inquirer.fuzzy(
         message="Select a run:",
         choices=choices,
-        max_height="70%",
+        max_height=FUZZY_MAX_HEIGHT,
     ).execute()
 
     if not run_id:
@@ -102,7 +94,6 @@ def _action_menu(run: dict) -> None:
     run_id = run["id"]
     status = run.get("status", "unknown")
 
-    # Build actions based on current status
     actions: list[dict] = [{"name": "Show details", "value": "details"}]
 
     if status in ("running", "paused", "rate_limited"):
@@ -130,25 +121,27 @@ def _action_menu(run: dict) -> None:
         choices=actions,
     ).execute()
 
+    _dispatch_action(action, run)
+
+
+def _dispatch_action(action: str, run: dict) -> None:
+    """Execute the chosen action menu item."""
+    run_id = run["id"]
     client = get_client()
 
     if action == "details":
         _show_run_detail(run)
-
     elif action == "pause":
         client.post(f"/api/runs/{run_id}/pause")
         print_success("Run paused")
-
     elif action == "resume":
         budget = typer.prompt("Max budget USD (0 = unlimited)", default="0", type=float)
         client.post("/api/agent/resume", json={"run_id": run_id, "max_budget_usd": budget})
         print_success("Run resumed")
-
     elif action == "stop":
         reason = typer.prompt("Reason", default="Operator requested stop")
         client.post(f"/api/runs/{run_id}/stop", json={"payload": reason})
         print_success("Stop signal sent")
-
     elif action == "inject":
         prompt = typer.prompt("Prompt to inject")
         if not prompt.strip():
@@ -156,133 +149,17 @@ def _action_menu(run: dict) -> None:
             return
         client.post(f"/api/runs/{run_id}/inject", json={"payload": prompt})
         print_success("Prompt injected")
-
     elif action == "unlock":
         client.post(f"/api/runs/{run_id}/unlock")
         print_success("Time gate unlocked")
-
     elif action == "stream":
-        _stream_run(run_id)
-
+        stream_run(run_id)
     elif action == "tools":
-        _show_tools(run_id)
-
+        show_tools(run_id)
     elif action == "audit":
-        _show_audit(run_id)
-
+        show_audit(run_id)
     elif action == "diff":
-        _show_diff(run_id)
-
-    elif action == "back":
-        return
-
-
-def _stream_run(run_id: str) -> None:
-    """Live tail SSE events for a run."""
-    console.print(f"[dim]Streaming events for {short_id(run_id)}… (Ctrl+C to stop)[/dim]\n")
-    try:
-        for event in get_client().stream_sse(f"/api/stream/{run_id}"):
-            etype = event["event"]
-            data = event["data"]
-
-            if etype == "ping":
-                continue
-            elif etype == "connected":
-                console.print("[dim]Connected to event stream[/dim]")
-            elif etype == "tool_call":
-                name = data.get("tool_name", "?")
-                phase = data.get("phase", "")
-                dur = data.get("duration_ms")
-                dur_str = f" ({dur}ms)" if dur else ""
-                permitted = data.get("permitted", True)
-                icon = "[green]✓[/green]" if permitted else "[red]✗[/red]"
-                console.print(f"  {icon} [bold]{name}[/bold] [{phase}]{dur_str}")
-            elif etype == "audit":
-                et = data.get("event_type", "?")
-                details = data.get("details", {})
-                snippet = str(details)[:80] if details else ""
-                console.print(f"  [cyan]▸[/cyan] {et}  {snippet}")
-            elif etype == "run_ended":
-                st = data.get("status", "unknown")
-                console.print(f"\n[bold]Run ended: {status_styled(st)}[/bold]")
-                return
-            else:
-                console.print(f"  [{etype}] {_json.dumps(data, default=str)[:100]}")
-    except KeyboardInterrupt:
-        console.print("\n[dim]Stream disconnected.[/dim]")
-
-
-def _show_tools(run_id: str, limit: int = 50, offset: int = 0) -> None:
-    """Show tool calls for a run."""
-    data = get_client().get(f"/api/runs/{run_id}/tools", params={"limit": limit, "offset": offset})
-    if state.json_mode:
-        print_json(data)
-        return
-    rows = []
-    for tc in data:
-        rows.append({
-            "id": tc.get("id", ""),
-            "ts": relative_time(tc.get("ts")),
-            "tool": tc.get("tool_name", "?"),
-            "phase": tc.get("phase", ""),
-            "duration": f"{tc.get('duration_ms', '')}ms" if tc.get("duration_ms") else "—",
-            "ok": "✓" if tc.get("permitted", True) else "✗",
-        })
-    print_table(rows, [
-        ("id", "ID"), ("ts", "When"), ("tool", "Tool"),
-        ("phase", "Phase"), ("duration", "Duration"), ("ok", "OK"),
-    ], title=f"Tool Calls — {short_id(run_id)}")
-
-
-def _show_audit(run_id: str, limit: int = 50, offset: int = 0) -> None:
-    """Show audit log for a run."""
-    data = get_client().get(f"/api/runs/{run_id}/audit", params={"limit": limit, "offset": offset})
-    if state.json_mode:
-        print_json(data)
-        return
-    rows = []
-    for al in data:
-        details = al.get("details", {})
-        snippet = str(details)[:60] if details else "—"
-        rows.append({
-            "id": al.get("id", ""),
-            "ts": relative_time(al.get("ts")),
-            "event": al.get("event_type", "?"),
-            "details": snippet,
-        })
-    print_table(rows, [
-        ("id", "ID"), ("ts", "When"), ("event", "Event"), ("details", "Details"),
-    ], title=f"Audit Log — {short_id(run_id)}")
-
-
-def _show_diff(run_id: str) -> None:
-    """Show diff stats for a run."""
-    data = get_client().get(f"/api/runs/{run_id}/diff")
-    if state.json_mode:
-        print_json(data)
-        return
-    files = data.get("files", [])
-    if not files:
-        console.print("[dim]No file changes.[/dim]")
-        return
-    rows = []
-    for f in files:
-        added = f.get("added", 0)
-        removed = f.get("removed", 0)
-        bar = f"[green]+{added}[/green] [red]-{removed}[/red]"
-        rows.append({
-            "path": f.get("path", "?"),
-            "status": f.get("status", "?"),
-            "changes": bar,
-        })
-    print_table(rows, [("path", "File"), ("status", "Status"), ("changes", "Changes")],
-                title=f"Diff — {short_id(run_id)}")
-    console.print(
-        f"\n  [bold]{data.get('total_files', 0)}[/bold] files  "
-        f"[green]+{data.get('total_added', 0)}[/green]  "
-        f"[red]-{data.get('total_removed', 0)}[/red]  "
-        f"[dim](source: {data.get('source', '?')})[/dim]"
-    )
+        show_diff(run_id)
 
 
 # ── Commands ────────────────────────────────────────────────────────────────
@@ -342,7 +219,7 @@ def list_runs(
             "status": status_styled(r.get("status", "unknown")),
             "branch": r.get("branch_name", "—"),
             "repo": r.get("github_repo", "—"),
-            "prompt": (r.get("custom_prompt") or "—")[:40],
+            "prompt": (r.get("custom_prompt") or "—")[:PROMPT_LIST_TRUNCATION],
             "started": relative_time(r.get("started_at")),
             "duration": format_duration(r.get("duration_minutes")),
             "cost": format_cost(r.get("total_cost_usd")),
