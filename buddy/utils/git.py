@@ -97,11 +97,15 @@ class GitWorkspace:
         self._initialized = True
 
     def setup_auth(self) -> None:
-        """Initialize the repo clone and configure auth."""
+        """Initialize the repo clone and configure auth in local git config."""
         token = os.environ.get("GIT_TOKEN", "")
         if token and not os.environ.get("GH_TOKEN"):
             os.environ["GH_TOKEN"] = token
         self._ensure_repo()
+        # Set auth in local git config so agent Bash git commands can push
+        if token:
+            b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+            self.run_git(["config", "http.extraHeader", f"Authorization: Basic {b64}"])
 
     def get_branch_name(self) -> str:
         """Generate a unique branch name."""
