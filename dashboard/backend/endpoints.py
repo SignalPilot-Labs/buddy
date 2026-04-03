@@ -24,6 +24,7 @@ from backend.constants import (
     SSE_POLL_INTERVAL_SEC,
 )
 from backend.models import (
+    AddTokenRequest,
     ControlSignalRequest,
     ResumeRunRequest,
     RunId,
@@ -32,11 +33,14 @@ from backend.models import (
     UpdateSettingsRequest,
 )
 from backend.utils import (
+    add_token_to_pool,
     agent_request,
     ensure_repo_in_list,
     get_repo_list,
+    list_pool_tokens,
     model_to_dict,
     read_credentials,
+    remove_token_from_pool,
     save_repo_list,
     send_control_signal,
     session,
@@ -371,8 +375,9 @@ async def poll_events(
 async def settings_status():
     """Check which credentials are configured."""
     async with session() as s:
-        has = {}
-        for key in ("claude_token", "git_token", "github_repo"):
+        has: dict[str, bool] = {}
+        has["has_claude_token"] = (await s.get(Setting, "claude_token")) is not None or (await s.get(Setting, "claude_tokens")) is not None
+        for key in ("git_token", "github_repo"):
             has[f"has_{key}"] = (await s.get(Setting, key)) is not None
         has["configured"] = all(has.values())
         return has
@@ -455,6 +460,34 @@ async def remove_repo(repo_slug: str):
         await save_repo_list(s, repos)
         await s.commit()
     return {"ok": True, "remaining": repos}
+
+
+# ---------------------------------------------------------------------------
+# Token Pool
+# ---------------------------------------------------------------------------
+
+@router.get("/tokens")
+async def get_tokens():
+    """List all Claude tokens in the pool (masked)."""
+    return await list_pool_tokens()
+
+
+@router.post("/tokens")
+async def add_token(body: AddTokenRequest):
+    """Add a Claude token to the pool."""
+    try:
+        return await add_token_to_pool(body.token.strip())
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
+@router.delete("/tokens/{index}")
+async def delete_token(index: int):
+    """Remove a token from the pool by index."""
+    try:
+        return await remove_token_from_pool(index)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 # ---------------------------------------------------------------------------
