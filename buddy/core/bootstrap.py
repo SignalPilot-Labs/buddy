@@ -215,7 +215,7 @@ class RunBootstrap:
             "builder": AgentDefinition(
                 description="Write code, implement features, create files. Use for all code generation tasks.",
                 prompt=self._prompts.load_subagent_prompt("builder"),
-                model="sonnet",
+                model="opus",
                 tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             ),
             "frontend-builder": AgentDefinition(
