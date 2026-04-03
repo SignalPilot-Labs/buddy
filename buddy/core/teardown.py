@@ -39,9 +39,18 @@ class RunTeardown:
     async def _push_and_pr(self, ctx: RunContext) -> str | None:
         """Push branch and create PR. Returns PR URL or None."""
         try:
-            if self._git.get_current_branch() != ctx.branch_name:
-                log.warning("Not on expected branch %s, skipping push/PR", ctx.branch_name)
-                return None
+            current = self._git.get_current_branch()
+            if current != ctx.branch_name:
+                log.warning("Agent on branch %s instead of %s — recovering", current, ctx.branch_name)
+                try:
+                    self._recover_branch(current, ctx)
+                    await db.log_audit(ctx.run_id, "branch_recovered", {
+                        "from": current, "to": ctx.branch_name,
+                    })
+                except Exception as e:
+                    log.error("Branch recovery failed: %s", e)
+                    await db.log_audit(ctx.run_id, "branch_recovery_failed", {"error": str(e)})
+                    return None
 
             # Save any uncommitted work before pushing
             if self._git.has_changes():
@@ -62,6 +71,23 @@ class RunTeardown:
             log.error("PR failed: %s", e)
             await db.log_audit(ctx.run_id, "pr_failed", {"error": str(e)})
         return None
+
+    def _recover_branch(self, agent_branch: str, ctx: RunContext) -> None:
+        """Merge agent's branch into the expected buddy branch."""
+        git = self._git
+        # Commit any uncommitted work on the agent's branch first
+        if git.has_changes():
+            git.run_git(["add", "-A"])
+            git.run_git(["commit", "-m", "Auto-commit: save work before branch recovery"])
+        # Switch to the buddy branch (create if needed from base)
+        try:
+            git.run_git(["checkout", ctx.branch_name])
+        except RuntimeError:
+            git.run_git(["checkout", "-b", ctx.branch_name])
+        # Merge agent's work
+        git.run_git(["merge", agent_branch, "--no-edit", "-m",
+                     f"Merge branch '{agent_branch}' into {ctx.branch_name}"])
+        log.info("Recovered: merged %s into %s", agent_branch, ctx.branch_name)
 
     def _capture_diff(self, ctx: RunContext) -> list[dict] | None:
         """Capture diff stats. Returns list or None on failure."""

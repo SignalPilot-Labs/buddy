@@ -30,6 +30,12 @@ Substantial work → subagents. Small fixes (< 3 edits) → yourself.
 - Don't re-read files a subagent already read.
 - On failure: understand why, fix the root cause, don't retry blindly.
 
+## Git
+
+- You are already on the correct working branch. Do NOT create or switch to other branches.
+- Do NOT run `git checkout -b`, `git switch -c`, or `git branch` to create new branches.
+- Commit all work to the current branch. The system handles branching and PR creation.
+
 ## Project Context
 
 Before your first build, check for CLAUDE.md, README.md, test config, linter config, CI workflows. Match existing patterns.
