@@ -27,6 +27,7 @@ import { ParallelRunsView } from "@/components/parallel/ParallelRunsView";
 import { useMobile } from "@/hooks/useMobile";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
+import { TunnelPopover } from "@/components/ui/TunnelPopover";
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(null);
@@ -362,6 +363,9 @@ export default function MonitorPage() {
           </span>
         </div>
 
+        <TunnelPopover />
+        <div className="w-px h-4 bg-[#1a1a1a]" />
+
         {/* Settings link */}
         <Link
           href="/settings"
@@ -425,6 +429,7 @@ export default function MonitorPage() {
                 : "bg-[#ff4444]/60"
             }`}
           />
+          <TunnelPopover />
           <Link href="/settings" className="p-1.5 rounded hover:bg-white/[0.04] text-[#888]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />

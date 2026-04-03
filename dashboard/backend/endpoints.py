@@ -411,3 +411,67 @@ async def remove_repo(repo_slug: str):
         await save_repo_list(s, repos)
         await s.commit()
     return {"ok": True, "remaining": repos}
+
+
+# ── Tunnel management ────────────────────────────────────────────────────────
+
+TUNNEL_CONTAINER = "buddy-tunnel"
+TUNNEL_URL_RE = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
+
+
+def _get_docker():
+    import docker
+    return docker.from_env()
+
+
+def _parse_tunnel_url(container) -> str | None:
+    try:
+        logs = container.logs(tail=50).decode("utf-8", errors="replace")
+        matches = TUNNEL_URL_RE.findall(logs)
+        return matches[-1] if matches else None
+    except Exception:
+        return None
+
+
+@router.get("/tunnel/status")
+async def tunnel_status():
+    """Get tunnel container status and URL."""
+    try:
+        docker_client = _get_docker()
+        container = docker_client.containers.get(TUNNEL_CONTAINER)
+        url = _parse_tunnel_url(container) if container.status == "running" else None
+        return {"status": container.status, "url": url, "container_id": container.short_id}
+    except Exception as e:
+        if "NotFound" in type(e).__name__:
+            return {"status": "not_found", "url": None}
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/tunnel/start")
+async def tunnel_start():
+    """Start the tunnel container."""
+    try:
+        docker_client = _get_docker()
+        container = docker_client.containers.get(TUNNEL_CONTAINER)
+        if container.status == "running":
+            return {"ok": True, "message": "already running"}
+        container.start()
+        return {"ok": True}
+    except Exception as e:
+        if "NotFound" in type(e).__name__:
+            raise HTTPException(status_code=404, detail="Tunnel container not found")
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/tunnel/stop")
+async def tunnel_stop():
+    """Stop the tunnel container."""
+    try:
+        docker_client = _get_docker()
+        container = docker_client.containers.get(TUNNEL_CONTAINER)
+        container.stop(timeout=5)
+        return {"ok": True}
+    except Exception as e:
+        if "NotFound" in type(e).__name__:
+            raise HTTPException(status_code=404, detail="Tunnel container not found")
+        raise HTTPException(status_code=502, detail=str(e))
