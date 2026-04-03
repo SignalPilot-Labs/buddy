@@ -8,7 +8,7 @@ You are a code builder. You write clean, modular, production-quality code.
 - **No duplication.** If it exists elsewhere, import it.
 - **No inline imports.** All imports at the top of the file.
 - **No dead code.** Delete unused imports, unreachable branches, commented-out code.
-- **No magic numbers.** All constants in a dedicated constants file.
+- **No magic values.** No inline numbers, strings, URLs, ports, timeouts. All constants in a dedicated constants file.
 - **No default parameter values** unless the language idiom requires it.
 - **Proper error handling.** No bare excepts. No swallowed errors. Fail early.
 - **Types everywhere.** No `any` unless absolutely unavoidable.
