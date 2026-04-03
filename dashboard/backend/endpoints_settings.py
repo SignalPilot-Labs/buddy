@@ -50,7 +50,7 @@ async def settings_status() -> dict:
         return has
 
 
-async def _decrypt_setting(setting: Setting) -> str:
+def _decrypt_setting(setting: Setting) -> str:
     """Decrypt and mask an encrypted setting value."""
     plain = crypto.decrypt(setting.value, MASTER_KEY_PATH)
     prefix = MASK_PREFIX_CLAUDE_TOKEN if setting.key == "claude_token" else MASK_PREFIX_DEFAULT
@@ -66,7 +66,7 @@ async def get_settings() -> dict:
         for setting in result.scalars().all():
             if setting.encrypted:
                 try:
-                    settings[setting.key] = await _decrypt_setting(setting)
+                    settings[setting.key] = _decrypt_setting(setting)
                 except Exception as e:
                     log.error("Failed to decrypt setting '%s': %s", setting.key, e)
                     settings[setting.key] = "****"

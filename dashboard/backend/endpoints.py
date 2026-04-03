@@ -4,6 +4,7 @@ import logging
 
 from fastapi import APIRouter, Body, Depends, Query, HTTPException
 from sqlalchemy import select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
 from backend.constants import (
@@ -111,7 +112,7 @@ async def resume_run(run_id: str = RunId) -> dict:
     return await send_control_signal(run_id, "resume", {"paused"}, None)
 
 
-async def _resume_completed_run(run: Run, run_id: str, prompt: str, s) -> dict:
+async def _resume_completed_run(run: Run, run_id: str, prompt: str, s: AsyncSession) -> dict:
     """Resume a completed/stopped/error run with the given prompt."""
     creds = await read_credentials()
     resume_body = {
