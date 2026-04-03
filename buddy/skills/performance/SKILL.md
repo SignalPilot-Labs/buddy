@@ -1,48 +1,59 @@
 ---
-description: "Use when optimizing performance, fixing connection pooling, reducing latency, or profiling. Covers the gateway, database connectors, and sandbox execution."
+description: "Use when the task involves performance — optimizing slow code, fixing resource leaks, profiling, caching, reducing latency or startup time."
 ---
 
-# Performance Optimization
+# Performance
 
-## Known Hot Paths
-1. **SQL validation** — every query goes through `validate_sql()`, must be fast
-2. **Database connections** — currently creates a new pool per query (N+1 pool problem)
-3. **Sandbox execution** — cold boot ~1600ms, snapshot restore ~200-300ms
+Don't guess. Measure first, then fix what's actually slow.
 
-## Connection Pooling Fix
-The postgres connector creates a new pool per query and destroys it after. Fix:
-```python
-# Module-level pool, created once
-_pools: dict[str, asyncpg.Pool] = {}
+## How to Approach
 
-async def get_pool(dsn: str) -> asyncpg.Pool:
-    if dsn not in _pools:
-        _pools[dsn] = await asyncpg.create_pool(dsn, min_size=2, max_size=10)
-    return _pools[dsn]
-```
+1. **Reproduce the problem.** Find the slow path — which endpoint, query, or operation.
+2. **Profile.** Use the project's tools or add instrumentation. Identify the bottleneck.
+3. **Fix the bottleneck.** Not the code around it.
+4. **Verify the fix.** Measure again. If you can't measure, at least reason about the complexity change.
 
-## Profiling Commands
+## Common Bottlenecks
+
+**Database**
+- N+1 queries — fetching related records in a loop. Join or batch.
+- Missing indexes — `EXPLAIN ANALYZE` the slow query, add the index.
+- Pool churn — creating/destroying connections per request. Use a persistent pool.
+- Unbounded queries — no `LIMIT`, fetching entire tables. Paginate.
+
+**I/O**
+- Sync in async — blocking calls inside async functions starve the event loop. Use async alternatives.
+- Sequential when parallelizable — multiple independent API/DB calls done one after another. Use `asyncio.gather` / `Promise.all`.
+- No connection reuse — creating new HTTP clients per request. Reuse the client.
+
+**Compute**
+- Repeated work — same computation on every request. Cache it (in-memory, Redis, or HTTP cache headers).
+- O(n^2) or worse — nested loops, repeated list scans. Use sets, dicts, or better algorithms.
+- Heavy imports at startup — lazy-load large dependencies that aren't always needed.
+
+**Frontend**
+- Massive bundles — tree-shake, code-split, lazy-load routes.
+- Unthrottled re-renders — missing memoization, state updates in loops.
+- Blocking the main thread — heavy computation should be in a worker.
+
+## Profiling
+
 ```bash
-# Python profiling
-python -m cProfile -s cumulative -m gateway.main
-# or use py-spy for live profiling
-pip install py-spy && py-spy top -- python -m gateway.main
+# Python
+python -m cProfile -s cumulative script.py
+py-spy top -- python script.py  # live, zero overhead
+
+# Node
+node --prof app.js
+clinic doctor -- node app.js
+
+# General
+time curl -s http://localhost:3000/slow-endpoint > /dev/null
 ```
 
-## Database Performance
-- Use `EXPLAIN ANALYZE` on slow queries
-- Check for missing indexes on frequently-queried columns
-- Use connection pooling (asyncpg pools, not per-query connections)
-- Batch small operations instead of N individual queries
+## Rules
 
-## Startup Time
-- Lazy-load heavy dependencies (sqlglot, faker)
-- Pre-warm connection pools on startup
-- Use Firecracker snapshots over cold boots
-
-## Benchmarking
-Run the Spider2 benchmark to measure text-to-SQL accuracy:
-```bash
-python -m benchmark run --limit 5  # Quick test
-python -m benchmark run            # Full suite
-```
+- Don't optimize code that runs once at startup unless startup time is the problem.
+- Don't add caching without understanding invalidation.
+- Prefer simpler algorithms over clever micro-optimizations.
+- If the fix makes code significantly harder to read, document why it's worth it.
