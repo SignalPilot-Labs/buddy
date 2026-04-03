@@ -4,17 +4,15 @@
 
 **autonomous coding agent. give it a repo, get back a PR.**
 
+long-running sessions · sandboxed execution · live supervision
+
 <img src="assets/ui.png" width="800" alt="Buddy Monitor" />
-
-<br/>
-
-<img src="assets/buddy-working.png" width="800" alt="Buddy Working" />
 
 </div>
 
 ---
 
-Point it at a repo, describe what you want, set a time limit, and walk away. Watch everything live from a real-time dashboard. Pause, inject feedback, or stop at any time.
+Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
 
 ## Quick start
 
@@ -22,8 +20,6 @@ Point it at a repo, describe what you want, set a time limit, and walk away. Wat
 docker compose up --build -d
 # open http://localhost:3400
 ```
-
-The setup wizard handles the rest.
 
 ---
 
