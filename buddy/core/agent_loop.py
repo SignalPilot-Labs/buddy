@@ -84,8 +84,9 @@ class AgentLoop:
                     # Push commits between rounds
                     try:
                         self._git.push_branch(ctx.branch_name)
-                    except Exception:
-                        pass
+                        log.info("Pushed branch %s", ctx.branch_name)
+                    except Exception as e:
+                        log.warning("Push failed between rounds: %s", e)
 
                     # Decide whether to continue
                     if session.is_unlocked():
