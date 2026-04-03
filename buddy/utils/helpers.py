@@ -1,13 +1,26 @@
-"""Shared utilities for the agent package — serialization, truncation, transcript parsing."""
+"""Shared utilities for the agent package — serialization, truncation, transcript parsing, validation."""
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
-from utils.constants import MAX_LIST_LEN, MAX_STR_LEN, TRANSCRIPT_LIMIT
+from utils.constants import BRANCH_NAME_MAX_LEN, BRANCH_NAME_PATTERN, MAX_LIST_LEN, MAX_STR_LEN, TRANSCRIPT_LIMIT
 
 log = logging.getLogger("agent")
+
+_BRANCH_RE = re.compile(BRANCH_NAME_PATTERN)
+
+
+def validate_branch_name(name: str) -> None:
+    """Validate a branch name to prevent command injection."""
+    if not name or len(name) > BRANCH_NAME_MAX_LEN:
+        raise ValueError(f"Invalid branch name length: {len(name) if name else 0}")
+    if not _BRANCH_RE.match(name):
+        raise ValueError(f"Invalid branch name: contains disallowed characters")
+    if '..' in name or name.endswith('.lock') or name.endswith('/'):
+        raise ValueError(f"Invalid branch name format")
 
 
 def safe_serialize(data: Any) -> Any:

@@ -33,7 +33,21 @@ exit_code = 0
 try:
     sys.stdout = stdout_buf
     sys.stderr = stderr_buf
-    exec(compile(code, "<sandbox>", "exec"), {{"__builtins__": __builtins__}})
+    # Restricted builtins: open(), __import__(), exec(), eval(), compile() excluded
+    # to prevent file access and arbitrary code loading inside the sandbox.
+    _safe = {{k: __builtins__[k] if isinstance(__builtins__, dict) else getattr(__builtins__, k) for k in [
+        "print", "len", "range", "enumerate", "zip", "map", "filter", "sorted", "reversed",
+        "min", "max", "sum", "abs", "round", "pow", "divmod",
+        "int", "float", "str", "bool", "list", "dict", "tuple", "set", "frozenset",
+        "bytes", "bytearray", "memoryview", "complex",
+        "type", "isinstance", "issubclass", "hasattr", "getattr", "setattr", "delattr",
+        "iter", "next", "slice", "repr", "format", "hash", "id", "callable",
+        "all", "any", "chr", "ord", "hex", "oct", "bin",
+        "input", "Exception", "ValueError", "TypeError", "KeyError", "IndexError",
+        "RuntimeError", "StopIteration", "AttributeError", "NameError", "ZeroDivisionError",
+        "True", "False", "None",
+    ] if (isinstance(__builtins__, dict) and k in __builtins__) or (not isinstance(__builtins__, dict) and hasattr(__builtins__, k))}}
+    exec(compile(code, "<sandbox>", "exec"), {{"__builtins__": _safe}})
 except SystemExit as e:
     exit_code = e.code if isinstance(e.code, int) else 1
 except Exception:

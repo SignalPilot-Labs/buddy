@@ -26,7 +26,7 @@ MASK_PREFIX_CLAUDE_TOKEN = 8
 MASK_PREFIX_DEFAULT = 6
 
 # Settings keys that must be encrypted at rest
-SECRET_KEYS = frozenset({"claude_token", "git_token"})
+SECRET_KEYS = frozenset({"claude_token", "git_token", "dashboard_api_key"})
 
 # Default values
 DEFAULT_BASE_BRANCH = "main"

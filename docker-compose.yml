@@ -12,9 +12,7 @@ services:
     environment:
       POSTGRES_DB: buddy
       POSTGRES_USER: buddy
-      POSTGRES_PASSWORD: buddy
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-buddy}
     volumes:
       - buddy-db:/var/lib/postgresql/data
     healthcheck:
@@ -38,6 +36,8 @@ services:
       dockerfile: dashboard/Dockerfile.dashboard
     container_name: buddy-dashboard
     restart: unless-stopped
+    environment:
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
     ports:
       - "3400:3400"
       - "3401:3401"
@@ -59,6 +59,7 @@ services:
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SP_SANDBOX_URL: http://sandbox:8080
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
       interval: 10s

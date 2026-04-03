@@ -89,6 +89,13 @@ def _apply_env_overrides(config: dict) -> dict:
             sandbox[key] = cast(val)
     config["sandbox"] = sandbox
 
+    # Database password override
+    db = config.get("database", {})
+    db_password = os.getenv("DB_PASSWORD")
+    if db_password is not None:
+        db["password"] = db_password
+    config["database"] = db
+
     return config
 
 

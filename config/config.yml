@@ -7,7 +7,7 @@ database:
   port: 5432
   name: buddy
   user: buddy
-  password: buddy # locally hosted db, not exposed outside docker
+  password: buddy # default for local dev — override via DB_PASSWORD env var in production
   pool_size: 5
   max_overflow: 10
   pool_timeout: 30

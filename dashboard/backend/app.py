@@ -1,14 +1,31 @@
 """FastAPI dashboard app — setup, lifespan, middleware."""
 
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.constants import APP_TITLE, MASTER_KEY_PATH
 from backend.endpoints import router
 from backend.utils import autofill_settings
 from db.connection import connect, close
+
+_DEFAULT_CORS_ORIGINS = "http://localhost:3400"
+_ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+_ALLOWED_HEADERS = ["Content-Type", "X-API-Key", "Authorization"]
+
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("CORS_ALLOWED_ORIGINS", _DEFAULT_CORS_ORIGINS)
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
 @asynccontextmanager
@@ -21,10 +38,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=APP_TITLE, lifespan=lifespan)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    for header, value in _SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins(),
+    allow_methods=_ALLOWED_METHODS,
+    allow_headers=_ALLOWED_HEADERS,
 )
 app.include_router(router)

@@ -5,17 +5,20 @@ Control events are pushed to the active EventBus.
 """
 
 import asyncio
+import hmac
 import logging
 import os
 import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from starlette.responses import JSONResponse
 import uvicorn
 
 from utils import db
 from utils.constants import KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT, STARTUP_WAIT_SEC
 from utils.git import GitWorkspace
+from utils.helpers import validate_branch_name
 from utils.models import InjectRequest, ResumeRequest, StartRequest
 from utils.prompts import PromptLoader
 from core.bootstrap import RunBootstrap
@@ -43,7 +46,25 @@ class AgentServer:
         self._events: EventBus | None = None
         self.current_run_id: str | None = None
         self.app = FastAPI(title="Buddy Agent", lifespan=self._lifespan)
+        self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
+        self._setup_internal_auth()
         self._register_routes()
+
+    def _setup_internal_auth(self) -> None:
+        """Add internal secret authentication middleware if configured."""
+        if not self._internal_secret:
+            return
+        secret = self._internal_secret
+
+        @self.app.middleware("http")
+        async def check_internal_secret(request, call_next):
+            # Health endpoint is unauthenticated (Docker healthcheck)
+            if request.url.path == "/health":
+                return await call_next(request)
+            provided = request.headers.get("X-Internal-Secret", "")
+            if not hmac.compare_digest(provided, secret):
+                return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+            return await call_next(request)
 
     @asynccontextmanager
     async def _lifespan(self, app: FastAPI):
@@ -242,11 +263,14 @@ class AgentServer:
                     "total_removed": sum(f["removed"] for f in stats),
                 }
             except Exception as e:
-                return {"files": [], "error": str(e)}
+                log.warning("Live diff failed: %s", e)
+                return {"files": [], "error": "Failed to compute diff"}
 
         @app.get("/diff/{branch}")
         async def get_branch_diff(branch: str, base: str = "main"):
             try:
+                validate_branch_name(branch)
+                validate_branch_name(base)
                 self._git.setup_auth()
                 stats = self._git.get_branch_diff(branch, base)
                 return {
@@ -255,7 +279,8 @@ class AgentServer:
                     "total_removed": sum(f["removed"] for f in stats),
                 }
             except Exception as e:
-                return {"files": [], "error": str(e)}
+                log.warning("Branch diff failed: %s", e)
+                return {"files": [], "error": "Failed to compute diff"}
 
 
 _server = AgentServer()

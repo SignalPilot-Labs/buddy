@@ -4,6 +4,7 @@ GitWorkspace is instantiated once per agent container lifetime. It manages
 the cloned repo in WORK_DIR and handles all git/gh CLI interactions.
 """
 
+import base64
 import json
 import logging
 import os
@@ -14,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, WORK_DIR
+from utils.helpers import validate_branch_name
 
 log = logging.getLogger("agent.git")
 
@@ -29,16 +31,31 @@ class GitWorkspace:
         """Read GITHUB_REPO at call time so runtime changes are picked up."""
         return os.environ.get("GITHUB_REPO", "")
 
-    def _run(self, args: list[str], cwd: str, timeout: int) -> str:
+    def _run(self, args: list[str], cwd: str, timeout: int, extra_env: dict[str, str] | None = None) -> str:
         """Run a command and return stdout. Raises on failure."""
-        result = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        env = os.environ.copy()
+        if extra_env:
+            env.update(extra_env)
+        result = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout, env=env)
         if result.returncode != 0:
-            raise RuntimeError(f"{' '.join(args)} failed: {result.stderr.strip()}")
+            raise RuntimeError(f"{args[0]} failed: {result.stderr.strip()}")
         return result.stdout.strip()
+
+    def _git_auth_env(self) -> dict[str, str]:
+        """Return env vars that inject auth via git config environment variables."""
+        token = os.environ.get("GIT_TOKEN", "")
+        if not token:
+            return {}
+        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        return {
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraHeader",
+            "GIT_CONFIG_VALUE_0": f"Authorization: Basic {b64}",
+        }
 
     def run_git(self, args: list[str], cwd: str | None = None) -> str:
         """Run a git command in the work directory."""
-        return self._run(["git"] + args, cwd=cwd or WORK_DIR, timeout=CMD_TIMEOUT)
+        return self._run(["git"] + args, cwd=cwd or WORK_DIR, timeout=CMD_TIMEOUT, extra_env=self._git_auth_env())
 
     def _run_gh(self, args: list[str]) -> str:
         """Run a gh CLI command."""
@@ -56,7 +73,7 @@ class GitWorkspace:
             self._initialized = False
 
         repo_dir = Path(WORK_DIR)
-        remote_url = f"https://x-access-token:{token}@github.com/{repo}.git"
+        remote_url = f"https://github.com/{repo}.git"
 
         if self._initialized and repo_dir.exists() and (repo_dir / ".git").is_dir():
             try:
@@ -73,7 +90,7 @@ class GitWorkspace:
                 repo_dir.mkdir(parents=True)
             self._run(
                 ["git", "clone", "--depth", str(CLONE_DEPTH), "--no-single-branch", remote_url, "."],
-                cwd=WORK_DIR, timeout=CLONE_TIMEOUT,
+                cwd=WORK_DIR, timeout=CLONE_TIMEOUT, extra_env=self._git_auth_env(),
             )
 
         self._last_repo = repo
@@ -94,6 +111,8 @@ class GitWorkspace:
 
     def create_branch(self, branch_name: str, base_branch: str) -> str:
         """Create and checkout a new branch from the base branch."""
+        validate_branch_name(branch_name)
+        validate_branch_name(base_branch)
         self._ensure_repo()
         try:
             self.run_git(["fetch", "origin", base_branch])
@@ -108,6 +127,7 @@ class GitWorkspace:
 
     def ensure_base_branch(self, base_branch: str) -> None:
         """Verify the base branch exists on remote. Bootstrap empty repos."""
+        validate_branch_name(base_branch)
         self._ensure_repo()
         try:
             all_refs = self.run_git(["ls-remote", "--heads", "origin"])

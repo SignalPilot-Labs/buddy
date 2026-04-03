@@ -1,9 +1,12 @@
 #!/bin/bash
 set -e
 
-# Fix docker socket permissions so agentuser can use Docker CLI.
+# Grant agentuser access to Docker socket via group membership.
+# Avoid chmod 666 which would make the socket world-writable.
 if [ -S /var/run/docker.sock ]; then
-    chmod 666 /var/run/docker.sock
+    DOCKER_GID=$(stat -c '%g' /var/run/docker.sock 2>/dev/null || stat -f '%g' /var/run/docker.sock 2>/dev/null)
+    groupadd -g "$DOCKER_GID" -o docker 2>/dev/null || true
+    usermod -aG docker agentuser 2>/dev/null || chmod 660 /var/run/docker.sock
 fi
 
 # Fix repo volume ownership (created as root on first run)

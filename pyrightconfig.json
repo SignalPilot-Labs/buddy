@@ -1,0 +1,4 @@
+{
+  "extraPaths": ["buddy"],
+  "include": ["buddy", "tests"]
+}
