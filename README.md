@@ -1,17 +1,14 @@
 <div align="center">
 
-<pre>
-  _               _     _
- | |__  _   _  __| | __| |_   _
- | '_ \| | | |/ _` |/ _` | | | |
- | |_) | |_| | (_| | (_| | |_| |
- |_.__/ \__,_|\__,_|\__,_|\__, |
-                           |___/
-</pre>
+<h1>buddy</h1>
 
 **autonomous coding agent. give it a repo, get back a PR.**
 
 <img src="assets/ui.png" width="800" alt="Buddy Monitor" />
+
+<br/>
+
+<img src="assets/buddy-working.png" width="800" alt="Buddy Working" />
 
 </div>
 

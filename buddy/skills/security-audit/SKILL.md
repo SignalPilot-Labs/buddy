@@ -1,63 +1,44 @@
 ---
-description: "Use when addressing security vulnerabilities, reviewing auth, fixing CORS, credential exposure, or SQL injection. Covers the known SECURITY_AUDIT.md findings and remediation patterns."
+description: "Use when the task involves security — hardening endpoints, reviewing auth flows, fixing vulnerabilities, or auditing a codebase for security issues."
 ---
 
-# Security Audit Remediation
+# Security Audit
 
-## Known Findings Location
-The full audit is at `/workspace/testing/SECURITY_AUDIT.md`. Read it first.
+When working on security, be systematic. Don't just fix the reported issue — scan for the same pattern everywhere.
 
-## Priority Order
-1. **CRITICAL** — Fix immediately (sqlglot fallback bypass, unauthenticated endpoints)
-2. **HIGH** — Fix next (CORS wildcard, statement stacking bypass, credential vault)
-3. **MEDIUM/LOW** — Fix if time permits
+## How to Audit
 
-## Common Patterns
+1. **Map the attack surface.** Find all entry points: API routes, form handlers, webhooks, CLI args, file uploads. Use `grep` for route decorators (`@app.get`, `router.post`, `app.use`, etc.)
+2. **Check each entry point** against the threat list below.
+3. **Fix in order of severity.** Exploitable > data leak > hardening.
+4. **Verify each fix.** Write a test or manually confirm the vulnerability is closed.
 
-### Adding Authentication to FastAPI Endpoints
-```python
-from fastapi import Depends, HTTPException, Header
+## Threat Checklist
 
-async def verify_api_key(x_api_key: str = Header(...)):
-    if x_api_key != settings.api_key:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-    return x_api_key
+**Injection** — Does any user input reach a query, command, or template without sanitization?
+- SQL: parameterized queries only, never string interpolation
+- Command: no `subprocess.run(user_input)` or backtick interpolation
+- XSS: escape output in templates, use framework defaults
+- Path traversal: validate file paths, reject `..`
 
-@app.get("/api/protected", dependencies=[Depends(verify_api_key)])
-async def protected_endpoint():
-    ...
-```
+**Auth & access** — Can unauthenticated users reach protected resources? Can users access other users' data?
+- Every mutation endpoint needs auth
+- Check authorization, not just authentication (user A can't edit user B's data)
+- Tokens: stored securely, rotated, scoped
 
-### Fixing CORS
-Replace `allow_origins=["*"]` with explicit origins:
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3200"],
-    allow_methods=["GET", "POST", "PUT"],
-    allow_headers=["Content-Type", "X-API-Key"],
-)
-```
+**Secrets** — Are credentials exposed?
+- Grep for hardcoded tokens, passwords, API keys in source
+- Check `.env` files aren't committed (verify `.gitignore`)
+- Check error responses and logs don't leak secrets
 
-### SQL Validation Hardening
-The sqlglot fallback silently passes all queries. Fix:
-```python
-if not HAS_SQLGLOT:
-    return ValidationResult(ok=False, error="SQL validation unavailable")
-```
+**Config** — Are defaults safe?
+- CORS: explicit origins, not `*`
+- Debug mode off in production
+- Rate limiting on auth endpoints
+- HTTPS enforced where applicable
 
-### Error Message Sanitization
-Never leak internal details:
-```python
-# BAD
-raise HTTPException(status_code=500, detail=str(e))
-# GOOD
-logger.error(f"Internal error: {e}")
-raise HTTPException(status_code=500, detail="Internal server error")
-```
+## When You Fix Something
 
-## Testing Security Fixes
-- Verify endpoints return 401 without auth header
-- Verify CORS preflight only allows expected origins
-- Verify SQL injection attempts are blocked
-- Verify error messages don't leak stack traces
+- Commit the fix with a message explaining the vulnerability and how the fix closes it
+- If there's a test suite, add a test that proves the vulnerability is closed
+- If you find the same pattern in multiple places, fix all of them
