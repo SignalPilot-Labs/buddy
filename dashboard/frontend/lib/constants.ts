@@ -8,5 +8,5 @@ export const UI_PORT = 3400;
 
 export function getApiBase(): string {
   if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
-  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
+  return "";
 }

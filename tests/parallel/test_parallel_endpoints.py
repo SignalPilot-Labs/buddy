@@ -71,7 +71,6 @@ async def test_health_idle(client):
 @pytest.mark.asyncio
 async def test_parallel_status(client, mock_manager):
     """Returns a status summary of all parallel slots."""
-    from run_manager import RunManager
     slot = _make_slot()
     mock_manager.get_all_slots.return_value = [slot]
     mock_manager.active_count.return_value = 1
@@ -101,7 +100,6 @@ async def test_parallel_runs_empty(client, mock_manager):
 @pytest.mark.asyncio
 async def test_parallel_start_success(client, mock_manager):
     """Mocks RunManager.start_run and verifies a successful response."""
-    from run_manager import RunManager
     slot = _make_slot(run_id="new-run-456", status="running")
     mock_manager.start_run = AsyncMock(return_value=slot)
 

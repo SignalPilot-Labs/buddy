@@ -60,6 +60,23 @@ export function createSSE(runId: string): EventSource {
   return new EventSource(`${getApiBase()}/api/stream/${runId}`);
 }
 
+export interface PollResult {
+  tool_calls: ToolCall[];
+  audit_events: AuditEvent[];
+}
+
+export async function pollEvents(
+  runId: string,
+  afterTool: number,
+  afterAudit: number,
+): Promise<PollResult> {
+  const res = await fetch(
+    `${getApiBase()}/api/poll/${runId}?after_tool=${afterTool}&after_audit=${afterAudit}`,
+  );
+  if (!res.ok) throw new Error("Failed to poll events");
+  return res.json();
+}
+
 export interface AgentHealth {
   status: "idle" | "running" | "unreachable";
   current_run_id: string | null;

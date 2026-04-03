@@ -253,6 +253,41 @@ async def parallel_cleanup():
 
 
 # ---------------------------------------------------------------------------
+# Polling Fallback
+# ---------------------------------------------------------------------------
+
+POLL_MAX_RESULTS = 100
+
+
+@router.get("/poll/{run_id}")
+async def poll_events(
+    run_id: str = RunId,
+    after_tool: int = Query(default=0, ge=0),
+    after_audit: int = Query(default=0, ge=0),
+):
+    """Polling fallback endpoint — returns new tool calls and audit events since cursor IDs."""
+    async with session() as s:
+        tool_calls = (await s.execute(
+            select(ToolCall)
+            .where(ToolCall.run_id == run_id, ToolCall.id > after_tool)
+            .order_by(ToolCall.id)
+            .limit(POLL_MAX_RESULTS)
+        )).scalars().all()
+
+        audit_events = (await s.execute(
+            select(AuditLog)
+            .where(AuditLog.run_id == run_id, AuditLog.id > after_audit)
+            .order_by(AuditLog.id)
+            .limit(POLL_MAX_RESULTS)
+        )).scalars().all()
+
+    return {
+        "tool_calls": [model_to_dict(tc) for tc in tool_calls],
+        "audit_events": [model_to_dict(al) for al in audit_events],
+    }
+
+
+# ---------------------------------------------------------------------------
 # SSE Streaming
 # ---------------------------------------------------------------------------
 

@@ -9,7 +9,6 @@ Stress-tests error handling, recovery paths, and edge cases across:
 - Slot state transition logic
 """
 
-import asyncio
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 from httpx import ASGITransport
 
-from run_manager import RunManager, RunSlot, MAX_CONCURRENT, SIGNAL_ENDPOINTS
+from run_manager import RunManager, RunSlot, SIGNAL_ENDPOINTS
 
 
 # ---------------------------------------------------------------------------
