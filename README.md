@@ -8,6 +8,10 @@ long-running sessions · sandboxed execution · live supervision
 
 <img src="assets/ui.png" width="800" alt="Buddy Monitor" />
 
+<br/>
+
+<img src="assets/buddy-working.png" width="800" alt="Buddy Working" />
+
 </div>
 
 ---
