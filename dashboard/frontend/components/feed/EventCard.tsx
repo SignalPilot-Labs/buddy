@@ -227,7 +227,7 @@ function TodoDisplay({ todos }: { todos: Array<{ status: string; content: string
 function ToolCallCard({ tc }: { tc: ToolCall }) {
   const [expanded, setExpanded] = useState(false);
   const denied = !tc.permitted;
-  const isCeo = tc.agent_role === "ceo";
+  const isPlanner = tc.agent_role === "planner";
   const isComplete = tc.phase === "post" || !!tc.output_data;
   const isPending = tc.phase === "pre" && !tc.output_data;
 
@@ -238,13 +238,13 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 
   const borderColor = denied
     ? "border-l-[#ff4444]"
-    : isCeo
+    : isPlanner
       ? "border-l-[#ff8844]"
       : colors.border;
 
   const bgColor = denied
     ? "bg-[#ff4444]/[0.02]"
-    : isCeo
+    : isPlanner
       ? "bg-[#ff8844]/[0.02]"
       : colors.bg;
 
@@ -273,19 +273,19 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 
         {/* Tool icon */}
         <span className="shrink-0 opacity-70">
-          {getToolIcon(category, denied ? "#ff4444" : isCeo ? "#ff8844" : colors.iconColor)}
+          {getToolIcon(category, denied ? "#ff4444" : isPlanner ? "#ff8844" : colors.iconColor)}
         </span>
 
         {/* Agent role badge */}
         <span
           className={clsx(
             "text-[9px] font-bold uppercase tracking-[0.12em] rounded px-1 py-0.5 shrink-0",
-            isCeo
+            isPlanner
               ? "text-[#ff8844] bg-[#ff8844]/12"
               : "text-[#999] bg-white/[0.03]"
           )}
         >
-          {isCeo ? "CEO" : "WRK"}
+          {isPlanner ? "PLN" : "WRK"}
         </span>
 
         {/* Tool name */}
@@ -421,10 +421,8 @@ function AuditCard({ event }: { event: AuditEvent }) {
         return ((d.error as string) || "").slice(0, 100);
       case "session_ended":
         return `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`;
-      case "ceo_continuation":
+      case "planner_invoked":
         return `Round ${d.round} · ${d.tool_summary || ""}`;
-      case "worker_assignment":
-        return `Round ${d.round}`;
       case "killed":
         return `${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min elapsed`;
       case "fatal_error":
@@ -502,12 +500,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
                 {String(event.details.summary)}
               </div>
             )}
-            {event.event_type === "worker_assignment" && !!event.details.assignment && (
-              <div className="text-[10px] text-[#aaa] whitespace-pre-wrap break-words leading-relaxed mb-2">
-                {String(event.details.assignment)}
-              </div>
-            )}
-            {event.event_type === "ceo_continuation" && !!event.details.round_summary && (
+            {event.event_type === "planner_invoked" && !!event.details.round_summary && (
               <div className="text-[10px] text-[#aaa] whitespace-pre-wrap break-words leading-relaxed mb-2">
                 {String(event.details.round_summary)}
               </div>

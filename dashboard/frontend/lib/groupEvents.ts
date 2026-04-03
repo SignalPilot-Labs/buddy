@@ -4,7 +4,7 @@ import { getToolCategory, type ToolCategory } from "./types";
 /* ── Grouped Event Types ── */
 
 export type GroupedEvent =
-  | { type: "llm_message"; role: "worker" | "ceo"; text: string; thinking: string; ts: string }
+  | { type: "llm_message"; role: string; text: string; thinking: string; ts: string }
   | { type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; ts: string }
   | { type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
@@ -71,10 +71,8 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":
       return { type: "milestone", label: "Fatal Error", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
-    case "ceo_continuation":
-      return { type: "milestone", label: "CEO Continuation", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
-    case "worker_assignment":
-      return { type: "llm_message", role: "ceo", text: String(d.assignment || ""), thinking: "", ts };
+    case "planner_invoked":
+      return { type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
       return { type: "milestone", label: "Session Denied", detail: `${d.time_remaining || "?"} remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":

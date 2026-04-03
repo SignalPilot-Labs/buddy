@@ -76,9 +76,9 @@ RUN git config --global user.name "Buddy Bot" \
 ENV PYTHONPATH="/app"
 
 # Entrypoint: fix docker socket permissions at runtime, then exec as agentuser
-COPY --chown=root:root buddy/agent-entrypoint.sh /app/agent-entrypoint.sh
+COPY --chown=root:root buddy/entrypoint.sh /app/entrypoint.sh
 
 USER root
-RUN chmod +x /app/agent-entrypoint.sh
-ENTRYPOINT ["/app/agent-entrypoint.sh"]
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "-m", "server"]

@@ -40,7 +40,7 @@ export interface ToolCall {
   duration_ms: number | null;
   permitted: boolean;
   deny_reason: string | null;
-  agent_role: "worker" | "ceo";
+  agent_role: string;
   tool_use_id: string | null;
   session_id: string | null;
   agent_id: string | null;
@@ -67,8 +67,8 @@ export interface UsageEvent {
 export type FeedEvent =
   | { _kind: "tool"; data: ToolCall }
   | { _kind: "audit"; data: AuditEvent }
-  | { _kind: "llm_text"; text: string; ts: string; agent_role?: "worker" | "ceo" }
-  | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: "worker" | "ceo" }
+  | { _kind: "llm_text"; text: string; ts: string; agent_role?: string }
+  | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: string }
   | { _kind: "control"; text: string; ts: string }
   | { _kind: "usage"; data: UsageEvent };
 
@@ -233,9 +233,8 @@ export type AuditEventType =
   | "session_ended"
   | "pr_created"
   | "killed"
-  | "ceo_continuation"
+  | "planner_invoked"
   | "end_session_denied"
-  | "worker_assignment"
   | "session_unlocked"
   | "fatal_error"
   | "rate_limit_paused"
@@ -263,9 +262,8 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   session_ended:       { label: "Session Ended",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   pr_created:          { label: "PR Created",        color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   killed:              { label: "Killed",            color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  ceo_continuation:    { label: "CEO Continuation",  color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  planner_invoked:     { label: "Planner",           color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   end_session_denied:  { label: "Session Denied",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  worker_assignment:   { label: "Worker Assignment", color: "text-[#cc88ff]",  bg: "bg-[#cc88ff]/[0.04]", iconColor: "#cc88ff" },
   session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
