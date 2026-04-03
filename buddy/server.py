@@ -97,6 +97,16 @@ class AgentServer:
                 log.info("Cleaned up %d orphaned worker containers", orphans)
         log.info("Ready — waiting for start command on :%d", SERVER_PORT)
         yield
+        # Graceful shutdown: stop all running workers before closing
+        if not _is_worker():
+            active_slots = [s for s in _run_manager.get_all_slots() if s.status in ("starting", "running")]
+            if active_slots:
+                log.info("Shutting down %d active worker(s)...", len(active_slots))
+                for slot in active_slots:
+                    try:
+                        await _run_manager.send_signal(slot.container_name, "stop", {"reason": "Orchestrator shutdown"})
+                    except Exception as e:
+                        log.warning("Failed to stop worker %s: %s", slot.container_name, e)
         await db.close_db()
 
     # ── Run Lifecycle ──

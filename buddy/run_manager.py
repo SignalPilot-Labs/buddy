@@ -402,7 +402,10 @@ class RunManager:
                 slot.status = "error"
                 slot.error_message = f"Monitor failed: {e}"
 
-        await db.update_worker_status(container_name, slot.status, slot.error_message)
+        try:
+            await db.update_worker_status(container_name, slot.status, slot.error_message)
+        except Exception as e:
+            log.error("Failed to update DB status for %s: %s", container_name, e)
         self.cleanup_container(container_name, remove_volume=True)
         log.info("Monitor done for %s: status=%s", container_name, slot.status)
 
