@@ -273,7 +273,7 @@ export function SessionEndedIcon({ color }: { color?: string }) {
   );
 }
 
-export function CEOIcon({ color }: { color?: string }) {
+export function PlannerIcon({ color }: { color?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke={color || "currentColor"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 10l2.5-5 2.5 3 2.5-4 2.5 6" />
@@ -368,8 +368,7 @@ export function getAuditIcon(eventType: string, color?: string) {
     case "killed": return <KilledIcon color={color} />;
     case "session_ended": return <SessionEndedIcon color={color} />;
     case "agent_stop": return <StopRequestIcon color={color} />;
-    case "ceo_continuation": return <CEOIcon color={color} />;
-    case "worker_assignment": return <WorkerAssignmentIcon color={color} />;
+    case "planner_invoked": return <PlannerIcon color={color} />;
     case "rate_limit": case "rate_limit_paused": return <RateLimitIcon color={color} />;
     case "sdk_config": return <ConfigIcon color={color} />;
     case "session_unlocked": return <UnlockIcon color={color} />;

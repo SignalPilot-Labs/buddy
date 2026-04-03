@@ -11,7 +11,7 @@ benchmark/datasets/
 benchmark/results/
 benchmark/skills/improvements_*.json
 
-# Self-improve build artifacts
+# Build artifacts
 buddy/monitor-web/.next/
 buddy/monitor-web/node_modules/
 buddy/monitor-web/package-lock.json

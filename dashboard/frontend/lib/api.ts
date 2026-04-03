@@ -1,10 +1,10 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
+import { API_PORT } from "./constants";
 
-// FastAPI backend runs on port 3401 (same host)
 // SSE and all API calls go directly to FastAPI, not through Next.js rewrite
 function getApiBase(): string {
-  if (typeof window === "undefined") return "http://localhost:3401";
-  return `${window.location.protocol}//${window.location.hostname}:3401`;
+  if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
+  return `${window.location.protocol}//${window.location.hostname}:${API_PORT}`;
 }
 
 export async function fetchRuns(repo?: string): Promise<Run[]> {

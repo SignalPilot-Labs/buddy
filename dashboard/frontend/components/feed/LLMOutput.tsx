@@ -9,9 +9,9 @@ export function LLMTextBlock({
   agentRole = "worker",
 }: {
   text: string;
-  agentRole?: "worker" | "ceo";
+  agentRole?: string;
 }) {
-  const isCeo = agentRole === "ceo";
+  const isPlanner = agentRole === "planner";
   const [collapsed, setCollapsed] = useState(false);
   const isLong = text.length > 2000;
 
@@ -21,14 +21,14 @@ export function LLMTextBlock({
       animate={{ opacity: 1 }}
       className={clsx(
         "relative border-l-[3px] rounded-r px-3 py-2",
-        isCeo
+        isPlanner
           ? "border-l-[#ff8844]/60 bg-[#ff8844]/[0.02]"
           : "border-l-[#555]/40 bg-white/[0.01]"
       )}
     >
       <div className="flex items-start gap-2">
         {/* Icon */}
-        {isCeo ? (
+        {isPlanner ? (
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ff8844" strokeWidth="1.5" className="mt-0.5 shrink-0 opacity-60">
             <path d="M2 9l2-4 2 2.5 2-3.5 2 5" />
             <rect x="1" y="9" width="10" height="1.5" rx="0.5" />
@@ -39,9 +39,9 @@ export function LLMTextBlock({
           </svg>
         )}
         <div className="min-w-0 flex-1">
-          {isCeo && (
+          {isPlanner && (
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#ff8844] bg-[#ff8844]/10 rounded px-1 py-0.5 mr-1">
-              CEO
+              Planner
             </span>
           )}
 
@@ -64,7 +64,7 @@ export function LLMTextBlock({
                 exit={{ opacity: 0 }}
                 className={clsx(
                   "text-[11px] leading-relaxed whitespace-pre-wrap break-words block",
-                  isCeo ? "text-[#cc8855]" : "text-[#bbb]"
+                  isPlanner ? "text-[#cc8855]" : "text-[#bbb]"
                 )}
               >
                 {text}
@@ -86,7 +86,7 @@ export function LLMTextBlock({
           <span
             className={clsx(
               "inline-block w-[5px] h-[12px] ml-0.5 rounded-[1px]",
-              isCeo ? "bg-[#ff8844]/40" : "bg-[#00ff88]/30",
+              isPlanner ? "bg-[#ff8844]/40" : "bg-[#00ff88]/30",
             )}
             style={{ animation: "blink 1s step-end infinite" }}
           />
@@ -101,9 +101,9 @@ export function LLMThinkingBlock({
   agentRole = "worker",
 }: {
   text: string;
-  agentRole?: "worker" | "ceo";
+  agentRole?: string;
 }) {
-  const isCeo = agentRole === "ceo";
+  const isPlanner = agentRole === "planner";
   const [collapsed, setCollapsed] = useState(false);
   const isLong = text.length > 1000;
 
@@ -113,20 +113,20 @@ export function LLMThinkingBlock({
       animate={{ opacity: 1 }}
       className={clsx(
         "relative border-l-[3px] rounded-r px-3 py-2",
-        isCeo
+        isPlanner
           ? "border-l-[#ff8844]/30 bg-[#ff8844]/[0.01]"
           : "border-l-[#333]/50 bg-[#111]/30"
       )}
     >
       <div className="flex items-start gap-2">
         {/* Lightbulb icon */}
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke={isCeo ? "#774422" : "#444"} strokeWidth="1.5" className="mt-0.5 shrink-0 opacity-60">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke={isPlanner ? "#774422" : "#444"} strokeWidth="1.5" className="mt-0.5 shrink-0 opacity-60">
           <path d="M4 9h4M4.5 9c0 1 .5 2 1.5 2s1.5-1 1.5-2M6 1a3.5 3.5 0 00-2 6.3V9h4V7.3A3.5 3.5 0 006 1z" />
         </svg>
         <div className="min-w-0 flex-1">
-          {isCeo && (
+          {isPlanner && (
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#774422] mr-1">
-              CEO thinking
+              Planner thinking
             </span>
           )}
 
@@ -148,7 +148,7 @@ export function LLMThinkingBlock({
                 exit={{ opacity: 0 }}
                 className={clsx(
                   "text-[10px] italic leading-relaxed whitespace-pre-wrap break-words block opacity-60",
-                  isCeo ? "text-[#885533]" : "text-[#777]"
+                  isPlanner ? "text-[#885533]" : "text-[#777]"
                 )}
               >
                 {text}
@@ -169,7 +169,7 @@ export function LLMThinkingBlock({
           <span
             className={clsx(
               "inline-block w-[4px] h-[10px] ml-0.5 rounded-[1px]",
-              isCeo ? "bg-[#885533]/30" : "bg-[#555]/30",
+              isPlanner ? "bg-[#885533]/30" : "bg-[#555]/30",
             )}
             style={{ animation: "blink 1s step-end infinite" }}
           />

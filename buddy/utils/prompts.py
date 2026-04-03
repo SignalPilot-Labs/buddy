@@ -82,7 +82,7 @@ class PromptLoader:
             commits=commits or "none",
             cost_so_far=f"{cost_so_far:.2f}",
             round_summary=round_summary or "No summary available.",
-            original_prompt=original_prompt or "General self-improvement pass.",
+            original_prompt=original_prompt or "General improvement pass.",
         )
 
     def build_stop_prompt(self, reason: str) -> str:

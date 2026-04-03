@@ -266,14 +266,14 @@ export default function MonitorPage() {
               />
             </svg>
             {/* Logo */}
-            <Image src="/logo.svg" alt="SignalPilot" width={18} height={18} className="relative z-[1]" />
+            <Image src="/logo.svg" alt="Buddy" width={18} height={18} className="relative z-[1]" />
           </div>
           <div>
             <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-              SignalPilot
+              Buddy
             </h1>
             <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-              Self-Improve Monitor
+              Monitor
             </p>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function MonitorPage() {
               size="md"
             />
             <span className="text-[10px] text-[#888] font-medium">
-              {selectedRun.branch_name.replace("improvements-round-", "")}
+              {selectedRun.branch_name.replace("buddy/", "")}
             </span>
           </motion.div>
         )}

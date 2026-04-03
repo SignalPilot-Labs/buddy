@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "SignalPilot \u00B7 Self-Improve Monitor",
+  title: "Buddy",
   description: "Real-time monitoring dashboard for the Buddy agent",
   icons: {
     icon: [

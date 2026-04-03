@@ -1,12 +1,14 @@
 """Dashboard backend constants."""
 
+from config.loader import load as _load_config
+
 APP_TITLE = "Buddy Dashboard API"
 
 # Encryption key file path (inside Docker volume)
 MASTER_KEY_PATH = "/data/master.key"
 
-# Agent service URL (Docker network)
-AGENT_API_URL = "http://agent:8500"
+# Agent service URL (Docker network) — port from config/config.yml
+AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500)}"
 
 # Pagination
 RUNS_PAGE_SIZE = 50

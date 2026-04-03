@@ -4,12 +4,10 @@ description: "Use when debugging the frontend UI, testing visual rendering, chec
 
 # Frontend Debug & Browser Testing
 
-You have access to the **Playwright MCP server** which gives you a headless Chromium browser. Use it to interact with and debug the SignalPilot frontend.
+You have access to the **Playwright MCP server** which gives you a headless Chromium browser. Use it to interact with and debug the frontend.
 
 ## Available URLs
-- **SignalPilot Web UI**: `http://host.docker.internal:3200`
-- **SignalPilot Gateway API**: `http://host.docker.internal:3300`
-- **Self-Improve Monitor**: `http://host.docker.internal:3400`
+- **Buddy Monitor**: `http://host.docker.internal:3400`
 
 ## Playwright MCP Tools
 

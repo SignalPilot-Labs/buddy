@@ -89,7 +89,7 @@ class GitWorkspace:
         """Generate a unique branch name."""
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         short_id = uuid.uuid4().hex[:6]
-        return f"signalpilot/improvements-round-{date_str}-{short_id}"
+        return f"buddy/{date_str}-{short_id}"
 
     def create_branch(self, branch_name: str, base_branch: str) -> str:
         """Create and checkout a new branch from the base branch."""
