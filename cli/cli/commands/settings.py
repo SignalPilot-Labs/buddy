@@ -10,12 +10,21 @@ from cli.client import get_client
 from cli.output import console, print_detail, print_json, print_success, print_table
 from cli.config import state
 
-app = typer.Typer(help="Manage Buddy settings and credentials")
+app = typer.Typer(
+    help="Manage Buddy server settings and credentials (API tokens, repo, budget).",
+    rich_markup_mode=None,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 @app.command()
 def status() -> None:
-    """Show which credentials are configured."""
+    """Check which credentials are configured.
+
+    \b
+    Example:
+      buddy settings status
+    """
     data = get_client().get("/api/settings/status")
     if state.json_mode:
         print_json(data)
@@ -38,7 +47,12 @@ def status() -> None:
 
 @app.command("get")
 def get_settings() -> None:
-    """Show all settings (secrets are masked)."""
+    """Show all settings (secrets are masked).
+
+    \b
+    Example:
+      buddy settings get
+    """
     data = get_client().get("/api/settings")
     if state.json_mode:
         print_json(data)
@@ -48,13 +62,21 @@ def get_settings() -> None:
 
 @app.command("set")
 def set_settings(
-    claude_token: Optional[str] = typer.Option(None, help="Anthropic API key"),
-    git_token: Optional[str] = typer.Option(None, help="GitHub personal access token"),
-    github_repo: Optional[str] = typer.Option(None, help="GitHub repo (owner/name)"),
-    budget: Optional[str] = typer.Option(None, "--budget", help="Max budget in USD"),
-    api_key: Optional[str] = typer.Option(None, "--api-key", help="Dashboard API key"),
+    claude_token: Optional[str] = typer.Option(None, metavar="<token>", help="Anthropic API key"),
+    git_token: Optional[str] = typer.Option(None, metavar="<token>", help="GitHub personal access token"),
+    github_repo: Optional[str] = typer.Option(None, metavar="<owner/repo>", help="GitHub repo (owner/name)"),
+    budget: Optional[str] = typer.Option(None, "--budget", metavar="<amount>", help="Max budget in USD"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
 ) -> None:
-    """Update one or more settings."""
+    """Update one or more settings.
+
+    \b
+    Examples:
+      buddy settings set --claude-token sk-ant-... --git-token ghp_...
+      buddy settings set --github-repo owner/repo
+      buddy settings set --budget 10.00
+      buddy settings set --api-key my-secret-key
+    """
     body: dict = {}
     if claude_token is not None:
         body["claude_token"] = claude_token

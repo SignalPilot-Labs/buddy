@@ -8,12 +8,21 @@ from cli.client import get_client
 from cli.output import console, print_detail, print_json, print_success, status_styled
 from cli.config import state
 
-app = typer.Typer(help="Agent container status")
+app = typer.Typer(
+    help="Check agent container status and available branches.",
+    rich_markup_mode=None,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 @app.command()
 def health() -> None:
-    """Check if the agent container is reachable."""
+    """Check if the agent container is reachable and show current status.
+
+    \b
+    Example:
+      buddy agent health
+    """
     data = get_client().get("/api/agent/health")
     if state.json_mode:
         print_json(data)
@@ -29,7 +38,12 @@ def health() -> None:
 
 @app.command()
 def branches() -> None:
-    """List git branches available on the agent."""
+    """List git branches available on the agent.
+
+    \b
+    Example:
+      buddy agent branches
+    """
     data = get_client().get("/api/agent/branches")
     if state.json_mode:
         print_json(data)

@@ -27,7 +27,11 @@ from cli.output import (
     status_styled,
 )
 
-app = typer.Typer(help="Manage agent runs")
+app = typer.Typer(
+    help="Manage agent runs — start, list, inspect, and control runs.",
+    rich_markup_mode=None,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -284,14 +288,21 @@ def _show_diff(run_id: str) -> None:
 # ── Commands ────────────────────────────────────────────────────────────────
 
 
-@app.command("start")
+@app.command("new")
 def start_run(
-    prompt: Optional[str] = typer.Option(None, "--prompt", "-p", help="Task prompt"),
-    budget: float = typer.Option(0, "--budget", "-b", help="Max budget USD (0 = unlimited)"),
-    duration: float = typer.Option(0, "--duration", "-d", help="Duration in minutes (0 = unlimited)"),
-    base_branch: str = typer.Option("main", "--base-branch", help="Branch to base work on"),
+    prompt: Optional[str] = typer.Option(None, "--prompt", "-p", metavar="<prompt>", help="Task prompt"),
+    budget: float = typer.Option(0, "--budget", "-b", metavar="<amount>", help="Max budget USD (0 = unlimited)"),
+    duration: float = typer.Option(0, "--duration", "-d", metavar="<minutes>", help="Duration in minutes (0 = unlimited)"),
+    base_branch: str = typer.Option("main", "--base-branch", metavar="<branch>", help="Branch to base work on"),
 ) -> None:
-    """Start a new agent run."""
+    """Start a new agent run.
+
+    \b
+    Examples:
+      buddy run new -p "Fix login bugs"
+      buddy run new -p "Add dark mode" -d 60 -b 5.00
+      buddy run new -p "Refactor API" --base-branch develop
+    """
     body = {
         "prompt": prompt,
         "max_budget_usd": budget,
@@ -306,25 +317,83 @@ def start_run(
     print_success(f"Run started: {run_id}")
 
 
-@app.callback(invoke_without_command=True)
-def run_callback(
-    ctx: typer.Context,
-    run_id: Optional[str] = typer.Argument(None, help="Run ID (omit for interactive selection)"),
+@app.command("list")
+def list_runs(
+    repo: Optional[str] = typer.Option(None, "--repo", "-r", metavar="<owner/repo>", help="Filter by repo slug"),
 ) -> None:
-    """Manage runs. Omit run_id for an interactive selector."""
-    # If a subcommand was invoked (e.g. `buddy run start`), let it handle things.
-    if ctx.invoked_subcommand is not None:
+    """List recent runs.
+
+    \b
+    Examples:
+      buddy run list
+      buddy run list -r owner/repo
+    """
+    params = {}
+    if repo:
+        params["repo"] = repo
+    data = get_client().get("/api/runs", params=params or None)
+    if state.json_mode:
+        print_json(data)
         return
+    rows = []
+    for r in data:
+        rows.append({
+            "id": short_id(r.get("id", "")),
+            "status": status_styled(r.get("status", "unknown")),
+            "branch": r.get("branch_name", "—"),
+            "repo": r.get("github_repo", "—"),
+            "prompt": (r.get("custom_prompt") or "—")[:40],
+            "started": relative_time(r.get("started_at")),
+            "duration": format_duration(r.get("duration_minutes")),
+            "cost": format_cost(r.get("total_cost_usd")),
+        })
+    print_table(rows, [
+        ("id", "ID"), ("status", "Status"), ("branch", "Branch"),
+        ("repo", "Repo"), ("prompt", "Prompt"), ("started", "Started"),
+        ("duration", "Duration"), ("cost", "Cost"),
+    ], title="Runs")
 
-    if run_id:
-        run = get_client().get(f"/api/runs/{run_id}")
-    else:
-        run = _select_run()
 
+@app.command("get")
+def get_run(
+    run_id: str = typer.Argument(metavar="<run_id>", help="Run ID (UUID from 'buddy run list')"),
+) -> None:
+    """Show run details and open an interactive action menu (pause, stop, inject, stream, etc).
+
+    \b
+    Examples:
+      buddy run get a1b2c3d4-5678-90ab-cdef-1234567890ab
+    """
+    run = get_client().get(f"/api/runs/{run_id}")
     if state.json_mode:
         print_json(run)
         return
+    _show_run_detail(run)
+    console.print()
+    _action_menu(run)
 
+
+@app.callback(invoke_without_command=True)
+def run_callback(ctx: typer.Context) -> None:
+    """Manage agent runs — start, list, inspect, and control runs.
+
+    \b
+    Run without a subcommand to open an interactive run selector:
+      buddy run
+
+    \b
+    Or use a subcommand:
+      buddy run new -p "Fix bugs" -d 30    Start a new run
+      buddy run list                        List recent runs
+      buddy run get <run_id>                Inspect a specific run
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+
+    run = _select_run()
+    if state.json_mode:
+        print_json(run)
+        return
     _show_run_detail(run)
     console.print()
     _action_menu(run)
