@@ -19,9 +19,11 @@ export function useParallelRuns(pollInterval = 5000) {
         const data = await res.json();
         setStatus(data);
         setError(null);
+      } else {
+        setError(`Parallel status unavailable (HTTP ${res.status})`);
       }
     } catch {
-      // Silent fail on poll
+      setError("Unable to reach parallel runner service");
     }
   }, []);
 
