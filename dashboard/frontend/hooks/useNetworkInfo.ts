@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { fetchNetworkInfo } from "@/lib/api";
-
-const POLL_INTERVAL = 30_000;
+import { NETWORK_INFO_POLL_MS } from "@/lib/constants";
 
 export function useNetworkInfo() {
   const [url, setUrl] = useState<string | null>(null);
@@ -15,7 +14,7 @@ export function useNetworkInfo() {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, POLL_INTERVAL);
+    const id = setInterval(refresh, NETWORK_INFO_POLL_MS);
     return () => clearInterval(id);
   }, [refresh]);
 

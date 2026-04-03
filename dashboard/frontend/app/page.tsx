@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, startRun, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
+import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
@@ -72,7 +73,7 @@ export default function MonitorPage() {
       setAgentHealth(h);
     };
     check();
-    const id = setInterval(check, 10000);
+    const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -130,8 +131,8 @@ export default function MonitorPage() {
 
       try {
         const [tools, audits] = await Promise.all([
-          fetchToolCalls(id, 500),
-          fetchAuditLog(id, 500),
+          fetchToolCalls(id),
+          fetchAuditLog(id),
         ]);
 
         if (gen !== selectGenRef.current) return;
@@ -285,7 +286,7 @@ export default function MonitorPage() {
           style={!agentIdle && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
         />
 
-        {/* Tunnel manager */}
+        {/* Mobile access QR */}
         <MobileAccessPopover />
 
         {/* Run status */}
@@ -354,7 +355,7 @@ export default function MonitorPage() {
 
         <div className="flex-1" />
 
-        {/* Tunnel manager */}
+        {/* Mobile access QR */}
         <MobileAccessPopover />
 
         <div className="w-px h-4 bg-[#1a1a1a]" />

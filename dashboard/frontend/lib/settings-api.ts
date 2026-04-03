@@ -1,16 +1,5 @@
 import type { SettingsStatus, Settings, PoolToken } from "./types";
-import { API_KEY, getApiBase } from "./constants";
-
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { "X-API-Key": API_KEY, ...extra };
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const headers = authHeaders(
-    init?.headers as Record<string, string> | undefined,
-  );
-  return fetch(`${getApiBase()}${path}`, { ...init, headers });
-}
+import { apiFetch } from "./fetch";
 
 export async function fetchSettingsStatus(): Promise<SettingsStatus> {
   try {

@@ -32,7 +32,7 @@ def _cors_origins() -> list[str]:
 
 
 @asynccontextmanager
-async def lifespan(application: FastAPI):
+async def lifespan(_application: FastAPI):
     """Connect to DB on startup, close on shutdown."""
     await connect()
     await autofill_settings(MASTER_KEY_PATH)

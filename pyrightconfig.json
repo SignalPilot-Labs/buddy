@@ -1,5 +1,10 @@
 {
-  "extraPaths": ["buddy"],
-  "include": ["buddy", "tests"],
-  "typeCheckingMode": "basic"
+  "extraPaths": [
+    "buddy"
+  ],
+  "include": [
+    "buddy",
+    "tests"
+  ],
+  "typeCheckingMode": "standard"
 }

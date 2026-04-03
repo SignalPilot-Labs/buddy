@@ -153,7 +153,7 @@ async def poll_events(
     after_audit: int = Query(default=0, ge=0),
     limit: int = Query(default=POLL_LIMIT_DEFAULT, le=QUERY_MAX_LIMIT),
 ) -> dict:
-    """Polling fallback for environments where SSE doesn't work (e.g. Cloudflare tunnels)."""
+    """Polling fallback for environments where SSE doesn't work."""
     async with session() as s:
         tool_calls = await _query_recent_tool_calls(s, run_id, after_tool, limit)
         audit_events = await _query_recent_audit_events(s, run_id, after_audit, limit)

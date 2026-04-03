@@ -1,16 +1,7 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_KEY, getApiBase } from "./constants";
+import { API_KEY, getApiBase, HISTORY_FETCH_LIMIT, UI_PORT } from "./constants";
 
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { "X-API-Key": API_KEY, ...extra };
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const headers = authHeaders(
-    init?.headers as Record<string, string> | undefined,
-  );
-  return fetch(`${getApiBase()}${path}`, { ...init, headers });
-}
+import { apiFetch } from "./fetch";
 
 export async function fetchRuns(repo?: string): Promise<Run[]> {
   const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
@@ -51,7 +42,7 @@ export async function fetchRun(id: string): Promise<Run> {
 
 export async function fetchToolCalls(
   runId: string,
-  limit = 500
+  limit = HISTORY_FETCH_LIMIT
 ): Promise<ToolCall[]> {
   const res = await apiFetch(`/api/runs/${runId}/tools?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch tool calls");
@@ -60,7 +51,7 @@ export async function fetchToolCalls(
 
 export async function fetchAuditLog(
   runId: string,
-  limit = 500
+  limit = HISTORY_FETCH_LIMIT
 ): Promise<AuditEvent[]> {
   const res = await apiFetch(`/api/runs/${runId}/audit?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch audit log");
@@ -250,10 +241,10 @@ export interface NetworkInfo {
 export async function fetchNetworkInfo(): Promise<NetworkInfo> {
   try {
     const res = await apiFetch(`/api/network-info`);
-    if (!res.ok) return { url: null, ip: null, port: 3400 };
+    if (!res.ok) return { url: null, ip: null, port: UI_PORT };
     return res.json();
   } catch {
-    return { url: null, ip: null, port: 3400 };
+    return { url: null, ip: null, port: UI_PORT };
   }
 }
 
