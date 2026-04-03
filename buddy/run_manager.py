@@ -16,7 +16,7 @@ from utils import db
 
 log = logging.getLogger("run_manager")
 
-MAX_CONCURRENT = 10
+MAX_CONCURRENT = int(os.environ.get("PARALLEL_MAX_CONCURRENT", "10"))
 
 SIGNAL_ENDPOINTS: dict[str, str] = {
     "stop": "stop",
