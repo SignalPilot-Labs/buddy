@@ -306,6 +306,24 @@ class TestTOCTOU:
         with pytest.raises(RuntimeError, match="Max concurrent"):
             await mgr.start_run("prompt", 1.0, 10.0, "main", {})
 
+    def test_max_concurrent_configurable_via_env(self):
+        """MAX_CONCURRENT reads from PARALLEL_MAX_CONCURRENT env var."""
+        import importlib
+        import os
+        import run_manager
+
+        original = os.environ.get("PARALLEL_MAX_CONCURRENT")
+        try:
+            os.environ["PARALLEL_MAX_CONCURRENT"] = "5"
+            importlib.reload(run_manager)
+            assert run_manager.MAX_CONCURRENT == 5
+        finally:
+            if original is not None:
+                os.environ["PARALLEL_MAX_CONCURRENT"] = original
+            else:
+                os.environ.pop("PARALLEL_MAX_CONCURRENT", None)
+            importlib.reload(run_manager)
+
 
 # ===========================================================================
 # 8. to_dict
