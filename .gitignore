@@ -16,6 +16,10 @@ buddy/monitor-web/.next/
 buddy/monitor-web/node_modules/
 buddy/monitor-web/package-lock.json
 buddy/monitor/static/
+dashboard/frontend/.next/
+dashboard/frontend/node_modules/
+dashboard/frontend/package-lock.json
+dashboard/frontend/tsconfig.tsbuildinfo
 
 # Docker volumes / runtime
 *.log
