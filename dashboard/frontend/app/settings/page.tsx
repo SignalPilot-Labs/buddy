@@ -177,8 +177,8 @@ export default function SettingsPage() {
     try {
       await removePoolToken(index);
       setTokens(await fetchPoolTokens());
-    } catch (err) {
-      console.error("Failed to remove token:", err);
+    } catch (e) {
+      setTokenError(e instanceof Error ? e.message : "Failed to remove token");
     }
   };
 

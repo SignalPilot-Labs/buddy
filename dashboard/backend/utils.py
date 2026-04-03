@@ -124,6 +124,8 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
                 idx = idx % len(tokens)
                 picked = tokens[idx]
                 await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
+                # Commit here because read_credentials() owns the session —
+                # index must persist even if the caller doesn't write anything.
                 await s.commit()
                 return picked
         except (json.JSONDecodeError, TypeError, IndexError, ValueError) as e:
@@ -179,8 +181,11 @@ async def list_pool_tokens() -> list[dict]:
         tokens = await _read_token_pool(s)
         idx_row = await s.get(Setting, "claude_token_index")
         current_idx = int(idx_row.value) if idx_row else 0
+    if not tokens:
+        return []
+    active_idx = current_idx % len(tokens)
     return [
-        {"index": i, "masked": crypto.mask(t, prefix_len=8), "active": i == current_idx % len(tokens) if tokens else False}
+        {"index": i, "masked": crypto.mask(t, prefix_len=8), "active": i == active_idx}
         for i, t in enumerate(tokens)
     ]
 
