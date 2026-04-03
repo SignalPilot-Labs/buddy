@@ -33,7 +33,6 @@ Substantial work → subagents. Small fixes (< 3 edits) → yourself.
 ## Git
 
 - You are already on the correct working branch. Do NOT create or switch to other branches.
-- Do NOT run `git checkout -b`, `git switch -c`, or `git branch` to create new branches.
 - Commit all work to the current branch. The system handles branching and PR creation.
 
 ## Project Context
