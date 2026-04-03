@@ -133,7 +133,7 @@ export function useSSE(runId: string | null) {
           const data = JSON.parse(e.data);
           setEvents((prev) => [
             ...prev,
-            { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
+            { _kind: "audit", data: { id: 0, run_id: runId ?? "", event_type: "run_ended", details: data, ts: new Date().toISOString() } },
           ]);
         } catch (err) {
           console.error("Failed to parse run_ended event:", err);
