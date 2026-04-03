@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/Button";
 
 export interface ParallelRunsViewProps {
   onStartNew: () => void;
-  branches: string[];
   label?: string;
 }
 

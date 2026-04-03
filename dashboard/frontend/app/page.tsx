@@ -600,7 +600,6 @@ export default function MonitorPage() {
             {activeView === "bots" ? (
               <ParallelRunsView
                 onStartNew={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
-                branches={branches}
               />
             ) : (
               <>
@@ -625,7 +624,6 @@ export default function MonitorPage() {
           {mobilePanel === "bots" && (
             <ParallelRunsView
               onStartNew={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
-              branches={branches}
             />
           )}
           {mobilePanel === "runs" && (
