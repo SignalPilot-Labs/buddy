@@ -99,10 +99,13 @@ services:
     command:
       - |
         rm -f /tunnel/url.txt
-        cloudflared tunnel --no-autoupdate --url http://tunnel-auth:3402 2>&1 | while IFS= read -r line; do
-          echo "$$line"
-          echo "$$line" | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' > /tunnel/url.txt || true
+        cloudflared tunnel --no-autoupdate --url http://tunnel-auth:3402 > /tmp/cf.log 2>&1 &
+        CF_PID=$$!
+        while ! grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cf.log > /tunnel/url.txt 2>/dev/null; do
+          sleep 1
         done
+        echo "[tunnel] URL written to /tunnel/url.txt"
+        wait $$CF_PID
     volumes:
       - tunnel-url:/tunnel
     healthcheck:
