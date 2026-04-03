@@ -1,7 +1,7 @@
 """Stream processor: dispatches one round of SDK messages.
 
 StreamProcessor handles the raw SDK message loop — StreamEvent, AssistantMessage,
-RateLimitEvent, ResultMessage. It knows nothing about CEO/worker or round iteration.
+RateLimitEvent, ResultMessage. It knows nothing about planner/worker or round iteration.
 """
 
 import logging
@@ -30,7 +30,7 @@ class StreamProcessor:
     """Processes one round of SDK messages. Returns a RoundResult.
 
     Public API:
-        process(round_num, is_ceo) -> RoundResult
+        process(round_num, is_planning) -> RoundResult
     """
 
     def __init__(
@@ -46,7 +46,7 @@ class StreamProcessor:
         self._model = model
         self._fallback_model = fallback_model
 
-    async def process(self, round_num: int, is_ceo: bool) -> RoundResult:
+    async def process(self, round_num: int, is_planning: bool) -> RoundResult:
         """Process one round of SDK messages."""
         tools: list[str] = []
         chunks: list[str] = []
@@ -55,7 +55,7 @@ class StreamProcessor:
         final_status: str | None = None
 
         async for message in self._client.receive_response():
-            action = await self._check_event(is_ceo)
+            action = await self._check_event(is_planning)
             if action == "stop":
                 should_stop = True
                 final_status = "stopped"
@@ -68,10 +68,10 @@ class StreamProcessor:
                 continue
 
             if isinstance(message, AssistantMessage):
-                self._collect_content(message, tools, chunks, is_ceo)
+                self._collect_content(message, tools, chunks, is_planning)
                 self._accumulate_usage(message)
 
-            elif isinstance(message, RateLimitEvent) and not is_ceo:
+            elif isinstance(message, RateLimitEvent) and not is_planning:
                 status = await self._handle_rate_limit(message)
                 if status:
                     should_stop = True
@@ -91,7 +91,7 @@ class StreamProcessor:
 
     # ── Event Handling ──
 
-    async def _check_event(self, is_ceo: bool) -> str | None:
+    async def _check_event(self, is_planning: bool) -> str | None:
         """Check for mid-round events. Returns action or None."""
         event = await self._events.drain()
         if not event:
@@ -108,7 +108,7 @@ class StreamProcessor:
             })
             return "stop"
 
-        if kind == "pause" and not is_ceo:
+        if kind == "pause" and not is_planning:
             await self._client.interrupt()
             async for _ in self._client.receive_response():
                 pass
@@ -129,12 +129,12 @@ class StreamProcessor:
             self._session.force_unlock()
             await db.log_audit(run_id, "session_unlocked", {})
 
-        if kind == "inject" and not is_ceo:
+        if kind == "inject" and not is_planning:
             await db.log_audit(run_id, "prompt_injected", {
                 "prompt": event.get("payload", ""), "delivery": "queued",
             })
 
-        if kind == "stuck_recovery" and not is_ceo:
+        if kind == "stuck_recovery" and not is_planning:
             stuck_info = event.get("payload", "[]")
             log.info("STUCK RECOVERY: interrupting for stuck subagents")
             await self._client.interrupt()
@@ -174,10 +174,10 @@ class StreamProcessor:
             })
 
     def _collect_content(
-        self, message: AssistantMessage, tools: list[str], chunks: list[str], is_ceo: bool,
+        self, message: AssistantMessage, tools: list[str], chunks: list[str], is_planning: bool,
     ) -> None:
         """Extract text chunks and tool names."""
-        tag = "[CEO] " if is_ceo else ""
+        tag = "[PLANNER] " if is_planning else ""
         for block in message.content:
             if isinstance(block, TextBlock):
                 log.info("%s%s", tag, block.text[:LOG_PREVIEW_LIMIT].replace("\n", " "))

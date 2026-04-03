@@ -1,6 +1,6 @@
 # Buddy by SignalPilot
 
-Autonomous coding agent powered by the Claude Agent SDK. Runs Claude in a timed CEO/Worker loop, makes commits to a GitHub repo, and opens PRs — supervised via a real-time monitor UI.
+Autonomous coding agent powered by the Claude Agent SDK. Runs Claude in a planner/builder/reviewer loop, makes commits to a GitHub repo, and opens PRs — supervised via a real-time monitor UI.
 
 ## Quick Start
 
@@ -58,17 +58,18 @@ docker compose up --build -d
 
 The core agent loop and its monitor:
 
-- **agent/** — Claude Agent SDK runner with CEO/Worker loop, git ops, permissions, audit hooks
-- **monitor/** — FastAPI backend: runs, tool calls, control signals (pause/resume/inject/stop)
-- **monitor-web/** — Next.js dashboard: real-time SSE feed, run list, control bar
-- **prompts/** — Markdown prompt templates (system, CEO, continuation, session gate)
+- **core/** — Agent loop, bootstrap, stream processing, teardown, event bus
+- **tools/** — SDK hooks: security gate, session gate, DB logger
+- **utils/** — Constants, DB, git, prompts, models, helpers
+- **dashboard/** — FastAPI backend + Next.js frontend: real-time SSE feed, run list, control bar
+- **prompts/** — Markdown prompt templates (system, planner, subagents)
 
-#### CEO/Worker Loop
+#### Planner/Worker Loop
 
 When a run has a duration lock (e.g. 4 hours):
 
-1. **Worker** executes the assigned task, then stops
-2. **CEO (Product Director)** reviews what was done, sees the original prompt, assigns the next task
+1. **Worker** executes: calls builder/reviewer subagents, runs git, commits
+2. **Planner** reviews round context, decides the next step
 3. Repeat until time expires or operator sends `unlock`
 
 Without a duration lock, it's single-shot: one round, then done.

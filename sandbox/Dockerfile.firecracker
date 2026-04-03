@@ -4,8 +4,9 @@
 # Defaults here are fallbacks for standalone docker build.
 
 ARG FIRECRACKER_VERSION=1.10.1
+ARG UBUNTU_VERSION=22.04
 
-FROM ubuntu:22.04 AS base
+FROM ubuntu:${UBUNTU_VERSION} AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG FIRECRACKER_VERSION

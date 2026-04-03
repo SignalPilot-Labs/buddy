@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "signalpilot-agent"
 version = "0.1.0"
-description = "Buddy agent — CEO/Worker loop powered by Claude Agent SDK"
+description = "Buddy agent — Planner/Builder/Reviewer loop powered by Claude Agent SDK"
 requires-python = ">=3.12"
 dependencies = [
     "claude-agent-sdk",
