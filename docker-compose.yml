@@ -43,9 +43,7 @@ services:
       - "3401:3401"
     volumes:
       - buddy-keys:/data
-      # Required for tunnel management (start/stop Cloudflare tunnel container).
-      # Grants host Docker access — tunnel endpoints are auth-gated via API key.
-      - /var/run/docker.sock:/var/run/docker.sock
+      - tunnel-url:/tunnel
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -84,10 +82,26 @@ services:
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: buddy-tunnel
-    restart: "no"
-    command: tunnel --no-autoupdate --url http://dashboard:3400
-    network_mode: "service:dashboard"
-    profiles: ["tunnel"]
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -f /tunnel/url.txt
+        cloudflared tunnel --no-autoupdate --url http://dashboard:3400 2>&1 | while IFS= read -r line; do
+          echo "$$line"
+          echo "$$line" | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' > /tunnel/url.txt || true
+        done
+    volumes:
+      - tunnel-url:/tunnel
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tunnel/url.txt && test -s /tunnel/url.txt"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      dashboard:
+        condition: service_started
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
@@ -121,6 +135,7 @@ services:
 volumes:
   buddy-db:
   buddy-keys:
+  tunnel-url:
   claude-agent-sessions:
   agent-repo:
   sandbox-overlays:

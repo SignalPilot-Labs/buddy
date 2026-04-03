@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import secrets
+import string
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -14,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS, TUNNEL_TOKEN_DB_KEY, TUNNEL_TOKEN_LENGTH
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -325,3 +327,22 @@ async def autofill_settings(master_key_path: str) -> None:
             await upsert_setting(s, key, stored_val, is_secret)
 
         await s.commit()
+
+
+async def generate_tunnel_token(master_key_path: str) -> str:
+    """Generate a fresh tunnel pairing code, encrypt it, and save to DB.
+
+    Returns the plaintext token (e.g. "A7X-K9M") for display in the UI.
+    Called on every startup so the token rotates with each restart.
+    """
+    alphabet = string.ascii_uppercase + string.digits
+    raw = "".join(secrets.choice(alphabet) for _ in range(TUNNEL_TOKEN_LENGTH))
+    token = f"{raw[:3]}-{raw[3:]}"
+
+    encrypted = crypto.encrypt(token, master_key_path)
+    async with session() as s:
+        await upsert_setting(s, TUNNEL_TOKEN_DB_KEY, encrypted, True)
+        await s.commit()
+
+    log.info("Tunnel pairing code generated (rotates on restart)")
+    return token

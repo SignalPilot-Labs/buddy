@@ -228,34 +228,19 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
 
 // ── Tunnel ───────────────────────────────────────────────────────────────────
 
-export interface TunnelStatus {
-  status: "running" | "exited" | "not_found" | "restarting" | "error";
+export interface TunnelInfo {
   url: string | null;
-  container_id?: string;
+  token: string | null;
 }
 
-export async function fetchTunnelStatus(): Promise<TunnelStatus> {
+export async function fetchTunnelInfo(): Promise<TunnelInfo> {
   try {
-    const res = await fetch(`${getApiBase()}/api/tunnel/status`);
-    if (!res.ok) return { status: "error", url: null };
+    const res = await fetch(`${getApiBase()}/api/tunnel-url`);
+    if (!res.ok) return { url: null, token: null };
     return res.json();
   } catch {
-    return { status: "error", url: null };
+    return { url: null, token: null };
   }
-}
-
-export async function startTunnel(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/tunnel/start`, {
-    method: "POST",
-  });
-  return res.json();
-}
-
-export async function stopTunnel(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/tunnel/stop`, {
-    method: "POST",
-  });
-  return res.json();
 }
 
 // ── Branches ─────────────────────────────────────────────────────────────────

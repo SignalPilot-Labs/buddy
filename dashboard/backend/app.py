@@ -11,7 +11,7 @@ from backend.endpoints.runs import router as runs_router
 from backend.endpoints.settings import router as settings_router
 from backend.endpoints.streaming import router as streaming_router
 from backend.endpoints.tunnel import router as tunnel_router
-from backend.utils import autofill_settings
+from backend.utils import autofill_settings, generate_tunnel_token
 from db.connection import connect, close
 
 _DEFAULT_CORS_ORIGINS = "http://localhost:3400"
@@ -32,10 +32,11 @@ def _cors_origins() -> list[str]:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(application: FastAPI):
     """Connect to DB on startup, close on shutdown."""
     await connect()
     await autofill_settings(MASTER_KEY_PATH)
+    application.state.tunnel_token = await generate_tunnel_token(MASTER_KEY_PATH)
     yield
     await close()
 
