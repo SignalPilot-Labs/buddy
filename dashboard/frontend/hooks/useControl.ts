@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   sendSignal,
   injectPrompt,
@@ -16,11 +16,13 @@ export function useControl(
   addEvent: (event: FeedEvent) => void
 ) {
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
 
   const exec = useCallback(
     async (action: () => Promise<unknown>, label: string) => {
-      if (busy) return;
+      if (busyRef.current) return;
       setBusy(true);
+      busyRef.current = true;
       try {
         await action();
         addEvent({
@@ -36,18 +38,25 @@ export function useControl(
         });
       } finally {
         setBusy(false);
+        busyRef.current = false;
       }
     },
-    [busy, addEvent]
+    [addEvent]
   );
 
   const pause = useCallback(
-    () => exec(() => sendSignal(runId!, "pause"), "Pause signal sent"),
+    () => {
+      if (!runId) return;
+      return exec(() => sendSignal(runId, "pause"), "Pause signal sent");
+    },
     [exec, runId]
   );
 
   const resume = useCallback(
-    () => exec(() => sendSignal(runId!, "resume"), "Resume signal sent"),
+    () => {
+      if (!runId) return;
+      return exec(() => sendSignal(runId, "resume"), "Resume signal sent");
+    },
     [exec, runId]
   );
 
@@ -64,29 +73,35 @@ export function useControl(
   );
 
   const inject = useCallback(
-    (prompt: string) =>
-      exec(
-        () => injectPrompt(runId!, prompt),
+    (prompt: string) => {
+      if (!runId) return;
+      return exec(
+        () => injectPrompt(runId, prompt),
         `Prompt injected (${prompt.length} chars)`
-      ),
+      );
+    },
     [exec, runId]
   );
 
   const unlock = useCallback(
-    () =>
-      exec(
-        () => unlockSession(runId!),
+    () => {
+      if (!runId) return;
+      return exec(
+        () => unlockSession(runId),
         "Session gate unlocked — agent can now call end_session"
-      ),
+      );
+    },
     [exec, runId]
   );
 
   const resumeSession = useCallback(
-    () =>
-      exec(
-        () => resumeRun(runId!),
+    () => {
+      if (!runId) return;
+      return exec(
+        () => resumeRun(runId),
         "Resuming previous session..."
-      ),
+      );
+    },
     [exec, runId]
   );
 

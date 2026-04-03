@@ -9,11 +9,12 @@ just keeps it running and handles control events between rounds.
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
-from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
+from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
 from utils.git import GitWorkspace
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
@@ -34,6 +35,9 @@ class AgentLoop:
     def __init__(self, git: GitWorkspace, prompts: PromptLoader):
         self._git = git
         self._prompts = prompts
+        self._last_plan: str = ""
+        self._last_review: str = ""
+        self._operator_messages: list[tuple[str, str]] = []  # (timestamp, message)
 
     async def execute(
         self, options: ClaudeAgentOptions, ctx: RunContext,
@@ -52,16 +56,19 @@ class AgentLoop:
                 await client.query(initial_prompt)
 
                 for round_num in range(MAX_ROUNDS):
-                    is_planning = ctx.agent_role == "planner"
-                    log.info("Round %d [%s] | Elapsed: %.0fm | Remaining: %s",
-                             round_num + 1, ctx.agent_role.upper(),
+                    log.info("Round %d | Elapsed: %.0fm | Remaining: %s",
+                             round_num + 1,
                              session.elapsed_minutes(), session.time_remaining_str())
 
                     result = await stream.process(round_num, False)
 
-                    # Reset to worker after planner round
-                    if is_planning:
-                        ctx.agent_role = "worker"
+                    # Capture subagent outputs for planner context
+                    round_text = "\n".join(result.round_text_chunks)
+                    if round_text:
+                        if "reviewer" in result.round_tools:
+                            self._last_review = round_text[-ROUND_SUMMARY_LIMIT:]
+                        if "planner" in result.round_tools:
+                            self._last_plan = round_text[-ROUND_SUMMARY_LIMIT:]
 
                     if result.should_stop:
                         status = result.final_status or "stopped"
@@ -109,15 +116,16 @@ class AgentLoop:
                             continue
                         break
                     else:
-                        # Time-locked: switch to planner mode, send round context
-                        ctx.agent_role = "planner"
-                        planner_prompt, planner_meta = self._build_planner_prompt(ctx, session, result, round_num, custom_prompt)
+                        # Time-locked: call planner subagent for next step
                         if pending_inject:
-                            planner_prompt += f"\n\nOperator message: {pending_inject}"
+                            ts = datetime.now(timezone.utc).strftime("%H:%M")
+                            self._operator_messages.append((ts, pending_inject))
+                            self._operator_messages = self._operator_messages[-MAX_OPERATOR_MESSAGES:]
                             await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
                             pending_inject = None
+                        planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
                         await db.log_audit(ctx.run_id, "planner_invoked", planner_meta)
-                        await client.query(planner_prompt)
+                        await client.query(f"Call the planner subagent with this context:\n\n{planner_msg}")
 
         except asyncio.CancelledError:
             status = "killed"
@@ -167,11 +175,11 @@ class AgentLoop:
 
         return None
 
-    def _build_planner_prompt(
+    def _build_planner_message(
         self, ctx: RunContext, session: SessionGate,
         result: RoundResult, round_num: int, custom_prompt: str | None,
     ) -> tuple[str, dict]:
-        """Build the planner query prompt with round context. Returns (prompt, audit_meta)."""
+        """Build the message sent to the planner subagent. Returns (message, audit_meta)."""
         work_dir = self._git.get_work_dir()
 
         tool_counts: dict[str, int] = {}
@@ -192,7 +200,7 @@ class AgentLoop:
 
         round_summary = "\n".join(result.round_text_chunks)[-ROUND_SUMMARY_LIMIT:] or "Agent worked silently."
 
-        prompt = self._prompts.build_planner_prompt(
+        message = self._prompts.build_planner_message(
             round_num=round_num + 1,
             elapsed_minutes=session.elapsed_minutes(),
             duration_minutes=ctx.duration_minutes,
@@ -202,6 +210,9 @@ class AgentLoop:
             cost_so_far=ctx.total_cost,
             round_summary=round_summary,
             original_prompt=custom_prompt or "General improvement pass.",
+            last_plan=self._last_plan,
+            last_review=self._last_review,
+            operator_messages=self._operator_messages,
         )
 
         meta = {
@@ -211,4 +222,4 @@ class AgentLoop:
             "round_summary": round_summary[:ROUND_SUMMARY_AUDIT_LIMIT],
         }
 
-        return prompt, meta
+        return message, meta

@@ -249,13 +249,19 @@ class RunBootstrap:
                 description="Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
                 prompt=self._prompts.load_subagent_prompt("reviewer"),
                 model="opus",
-                tools=["Read", "Write", "Edit", "Glob", "Grep", "Bash"],
+                tools=["Read", "Glob", "Grep", "Bash"],
             ),
             "explorer": AgentDefinition(
                 description="Explore codebase, find patterns, read docs. Read-only research.",
                 prompt=self._prompts.load_subagent_prompt("explorer"),
                 model="sonnet",
                 tools=["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+            ),
+            "planner": AgentDefinition(
+                description="Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
+                prompt=self._prompts.load_subagent_prompt("planner"),
+                model="sonnet",
+                tools=["Read", "Write", "Glob", "Grep", "Bash"],
             ),
         }
 

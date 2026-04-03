@@ -273,13 +273,14 @@ export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string
   }, [runId]);
 
   // Also refresh periodically for live runs
+  const isLiveDiff = diffData?.source === "live";
   useEffect(() => {
-    if (!runId || !diffData || diffData.source !== "live") return;
+    if (!runId || !isLiveDiff) return;
     const id = setInterval(() => {
       fetchRunDiff(runId).then(setDiffData).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
-  }, [runId, diffData?.source]);
+  }, [runId, isLiveDiff]);
 
   // Live changes from event stream
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);

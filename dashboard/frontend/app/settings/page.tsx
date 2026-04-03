@@ -14,7 +14,7 @@ import { getApiBase } from "@/lib/constants";
 interface FieldConfig {
   key: keyof Settings;
   label: string;
-  statusKey: keyof SettingsStatus;
+  statusKey?: keyof SettingsStatus;
   placeholder: string;
   secret: boolean;
   helpText: string;
@@ -41,7 +41,6 @@ const FIELDS: FieldConfig[] = [
   {
     key: "max_budget_usd",
     label: "Default Max Budget (USD)",
-    statusKey: "has_github_repo", // not a real gate, always optional
     placeholder: "50",
     secret: false,
     helpText: "Optional. Default max spend per run. Can be overridden when starting a run.",
@@ -132,9 +131,10 @@ export default function SettingsPage() {
 
   const handleRemoveRepo = async (slug: string) => {
     try {
-      await fetch(`${getApiBase()}/api/repos/${encodeURIComponent(slug)}`, {
+      const res = await fetch(`${getApiBase()}/api/repos/${encodeURIComponent(slug)}`, {
         method: "DELETE",
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const r = await fetchRepos();
       setRepos(r);
     } catch (err) {
@@ -144,11 +144,12 @@ export default function SettingsPage() {
 
   const handleSetActive = async (slug: string) => {
     try {
-      await fetch(`${getApiBase()}/api/repos/active`, {
+      const res = await fetch(`${getApiBase()}/api/repos/active`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo: slug }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const [s, cfg] = await Promise.all([fetchSettingsStatus(), fetchSettings()]);
       setStatus(s);
       setSettings(cfg);
@@ -389,7 +390,7 @@ export default function SettingsPage() {
           {FIELDS.map((field) => {
             const currentValue = settings[field.key] || "";
             const editValue = edits[field.key];
-            const isSet = field.key !== "max_budget_usd" && status?.[field.statusKey as keyof SettingsStatus];
+            const isSet = field.statusKey ? status?.[field.statusKey] : false;
             const isSecret = field.secret;
             const show = showSecrets[field.key] || false;
 

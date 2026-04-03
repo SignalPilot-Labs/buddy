@@ -36,6 +36,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
 # Install Claude Code CLI
 RUN npm install -g @anthropic-ai/claude-code
 
+# Frontend dev tools (no package.json for agent, so global install)
+RUN npm install -g \
+    typescript \
+    eslint \
+    prettier
+
 WORKDIR /app
 
 # Config (required by db/connection.py)
@@ -49,7 +55,7 @@ COPY db/ /app/db/
 
 # Buddy packages
 COPY buddy/pyproject.toml /app/pyproject.toml
-RUN pip install --no-cache-dir /app/
+RUN pip install --no-cache-dir "/app/[dev]"
 COPY buddy/core/ /app/core/
 COPY buddy/tools/ /app/tools/
 COPY buddy/utils/ /app/utils/

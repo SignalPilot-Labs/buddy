@@ -6,7 +6,7 @@ import { getToolCategory, type ToolCategory } from "./types";
 export type GroupedEvent =
   | { type: "llm_message"; role: string; text: string; thinking: string; ts: string }
   | { type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; ts: string }
+  | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string }
   | { type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
@@ -81,6 +81,22 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
     case "rate_limit_paused":
       return { type: "milestone", label: "Rate Limited", detail: `wait ${d.wait_seconds || "?"}s`, color: "#ffaa00", ts, event };
+    case "prompt_injected":
+      return { type: "milestone", label: "Prompt Injected", detail: String(d.prompt || "").slice(0, 100), color: "#88ccff", ts, event };
+    case "session_resumed":
+      return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };
+    case "auto_commit":
+      return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
+    case "push_failed":
+      return { type: "milestone", label: "Push Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+    case "permission_denied":
+      return { type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
+    case "run_ended":
+      return { type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
+    case "permission_allowed":
+    case "subagent_stuck":
+    case "subagent_timeout":
+      return null; // Skip — permission_allowed too frequent, subagent_stuck/subagent_timeout not currently emitted
     case "sdk_config":
       return null; // Too noisy, skip
     case "rate_limit":
@@ -139,6 +155,15 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       const tuid = ev.data.details?.tool_use_id as string;
       const text = ev.data.details?.final_text as string;
       if (tuid && text) subagentFinalTexts.set(tuid, text);
+    }
+  }
+
+  const subagentTypes = new Map<string, string>();
+  for (const ev of events) {
+    if (ev._kind === "audit" && ev.data.event_type === "subagent_start") {
+      const tuid = ev.data.details?.tool_use_id as string;
+      const agentType = ev.data.details?.agent_type as string;
+      if (tuid && agentType) subagentTypes.set(tuid, agentType);
     }
   }
 
@@ -233,7 +258,8 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       if (cat === AGENT_CATEGORY) {
         const children = (tc.tool_use_id && agentCallToChildren.get(tc.tool_use_id)) || [];
         const finalText = (tc.tool_use_id && subagentFinalTexts.get(tc.tool_use_id)) || "";
-        result.push({ type: "agent_run", tool: tc, childTools: children, finalText, ts: tc.ts });
+        const agentType = (tc.tool_use_id && subagentTypes.get(tc.tool_use_id)) || "";
+        result.push({ type: "agent_run", tool: tc, childTools: children, finalText, agentType, ts: tc.ts });
         i++;
         continue;
       }

@@ -3,6 +3,7 @@ export interface Run {
   started_at: string;
   ended_at: string | null;
   branch_name: string;
+  base_branch: string;
   status: RunStatus;
   pr_url: string | null;
   total_tool_calls: number;
@@ -251,7 +252,8 @@ export type AuditEventType =
   | "rate_limit_fallback"
   | "rate_limit_waiting"
   | "permission_allowed"
-  | "permission_denied";
+  | "permission_denied"
+  | "run_ended";
 
 export interface AuditEventMeta {
   label: string;
@@ -287,6 +289,9 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   rate_limit_fallback: { label: "Model Fallback",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   rate_limit_waiting:  { label: "Rate Limit Wait",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   permission_denied:   { label: "Permission Denied", color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  permission_allowed:  { label: "Permission Allowed", color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
+  subagent_stuck:      { label: "Subagent Stuck",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  run_ended:           { label: "Run Ended",        color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
 };
 
 /* ── WorkTree Types ── */
