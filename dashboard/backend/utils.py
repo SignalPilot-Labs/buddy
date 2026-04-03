@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS, TUNNEL_TOKEN_DB_KEY, TUNNEL_TOKEN_LENGTH
+from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS, TUNNEL_TOKEN_DB_KEY, TUNNEL_TOKEN_FILE, TUNNEL_TOKEN_LENGTH
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -343,6 +343,9 @@ async def generate_tunnel_token(master_key_path: str) -> str:
     async with session() as s:
         await upsert_setting(s, TUNNEL_TOKEN_DB_KEY, encrypted, True)
         await s.commit()
+
+    TUNNEL_TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    TUNNEL_TOKEN_FILE.write_text(token)
 
     log.info("Tunnel pairing code generated (rotates on restart)")
     return token

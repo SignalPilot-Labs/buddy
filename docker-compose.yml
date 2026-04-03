@@ -79,6 +79,19 @@ services:
       dashboard:
         condition: service_started
 
+  tunnel-auth:
+    image: nginx:alpine
+    container_name: buddy-tunnel-auth
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    volumes:
+      - ./tunnel/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      - ./tunnel/entrypoint.sh:/entrypoint.sh:ro
+      - tunnel-url:/tunnel
+    depends_on:
+      dashboard:
+        condition: service_started
+
   tunnel:
     image: cloudflare/cloudflared:latest
     container_name: buddy-tunnel
@@ -87,7 +100,7 @@ services:
     command:
       - |
         rm -f /tunnel/url.txt
-        cloudflared tunnel --no-autoupdate --url http://dashboard:3400 2>&1 | while IFS= read -r line; do
+        cloudflared tunnel --no-autoupdate --url http://tunnel-auth:3402 2>&1 | while IFS= read -r line; do
           echo "$$line"
           echo "$$line" | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' > /tunnel/url.txt || true
         done
@@ -100,7 +113,7 @@ services:
       retries: 3
       start_period: 15s
     depends_on:
-      dashboard:
+      tunnel-auth:
         condition: service_started
 
   # gVisor sandbox (default — works everywhere)
