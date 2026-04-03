@@ -25,7 +25,6 @@ from backend.constants import (
 )
 from backend.models import (
     ControlSignalRequest,
-    ResumeRunRequest,
     RunId,
     SetActiveRepoRequest,
     StartRunRequest,
@@ -185,19 +184,6 @@ async def agent_health():
     return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {"status": "unreachable"})
 
 
-@router.post("/agent/start")
-async def start_agent_run(body: StartRunRequest):
-    """Trigger a new improvement run."""
-    creds = await read_credentials()
-    return await agent_request("POST", "/start", AGENT_TIMEOUT_LONG, {
-        "prompt": body.prompt,
-        "max_budget_usd": body.max_budget_usd,
-        "duration_minutes": body.duration_minutes,
-        "base_branch": body.base_branch,
-        **creds,
-    }, None, None)
-
-
 @router.get("/agent/branches")
 async def list_branches():
     """List git branches from agent."""
@@ -242,25 +228,95 @@ async def get_run_diff(run_id: str = RunId):
     return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
 
 
-@router.post("/agent/stop")
-async def stop_agent_instant():
-    """Immediately stop the agent via HTTP."""
-    return await agent_request("POST", "/stop", AGENT_TIMEOUT_SHORT, None, None, None)
+# ---------------------------------------------------------------------------
+# Parallel Runner Proxy
+# ---------------------------------------------------------------------------
+
+PARALLEL_TIMEOUT = 15  # Seconds for most parallel ops
+PARALLEL_START_TIMEOUT = 180  # Starting a container takes longer
 
 
-@router.post("/agent/resume")
-async def resume_agent_run(body: ResumeRunRequest):
-    """Resume a previous run."""
+@router.get("/parallel/runs")
+async def parallel_list_runs():
+    """List all parallel worker slots."""
+    return await agent_request("GET", "/parallel/runs", PARALLEL_TIMEOUT, None, None, [])
+
+
+@router.post("/parallel/start")
+async def parallel_start(body: StartRunRequest):
+    """Start a new parallel worker container."""
     creds = await read_credentials()
-    return await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, {
-        "run_id": body.run_id, "max_budget_usd": body.max_budget_usd, **creds,
+    return await agent_request("POST", "/parallel/start", PARALLEL_START_TIMEOUT, {
+        "prompt": body.prompt,
+        "max_budget_usd": body.max_budget_usd,
+        "duration_minutes": body.duration_minutes,
+        "base_branch": body.base_branch,
+        **creds,
     }, None, None)
 
 
-@router.post("/agent/kill")
-async def kill_agent():
-    """Force-kill the agent process."""
-    return await agent_request("POST", "/kill", AGENT_TIMEOUT_SHORT, None, None, None)
+@router.get("/parallel/status")
+async def parallel_status():
+    """Get parallel runner status summary."""
+    return await agent_request("GET", "/parallel/status", PARALLEL_TIMEOUT, None, None, {
+        "total_slots": 0, "active": 0, "max_concurrent": 10, "slots": [],
+    })
+
+
+@router.get("/parallel/runs/{run_id}")
+async def parallel_get_run(run_id: str):
+    """Get a single parallel run by run_id."""
+    return await agent_request("GET", f"/parallel/runs/{run_id}", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.get("/parallel/runs/{run_id}/health")
+async def parallel_run_health(run_id: str):
+    """Health check for a specific parallel worker."""
+    return await agent_request("GET", f"/parallel/runs/{run_id}/health", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/stop")
+async def parallel_stop_run(run_id: str):
+    """Stop a parallel worker."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/stop", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/kill")
+async def parallel_kill_run(run_id: str):
+    """Kill a parallel worker."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/kill", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/pause")
+async def parallel_pause_run(run_id: str):
+    """Pause a parallel worker."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/pause", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/resume")
+async def parallel_resume_run(run_id: str):
+    """Resume a parallel worker."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/resume", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/inject")
+async def parallel_inject_run(run_id: str, body: ControlSignalRequest = Body()):
+    """Inject a prompt into a parallel worker."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/inject", PARALLEL_TIMEOUT, {
+        "payload": body.payload,
+    }, None, None)
+
+
+@router.post("/parallel/runs/{run_id}/unlock")
+async def parallel_unlock_run(run_id: str):
+    """Unlock a parallel worker session."""
+    return await agent_request("POST", f"/parallel/runs/{run_id}/unlock", PARALLEL_TIMEOUT, None, None, None)
+
+
+@router.post("/parallel/cleanup")
+async def parallel_cleanup():
+    """Clean up finished parallel containers."""
+    return await agent_request("POST", "/parallel/cleanup", PARALLEL_TIMEOUT, None, None, {"ok": True, "cleaned": 0})
 
 
 # ---------------------------------------------------------------------------

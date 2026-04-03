@@ -143,3 +143,25 @@ class Setting(Base):
     value: Mapped[str] = mapped_column(Text, nullable=False)
     encrypted: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=_utcnow)
+
+
+class Worker(Base):
+    """A parallel worker container managed by RunManager."""
+
+    __tablename__ = "workers"
+    __table_args__ = (
+        Index("ix_workers_status", "status"),
+    )
+
+    container_name: Mapped[str] = mapped_column(String, primary_key=True)
+    run_id: Mapped[str | None] = mapped_column(String, ForeignKey("runs.id"), nullable=True)
+    container_id: Mapped[str | None] = mapped_column(String)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="starting")
+    prompt: Mapped[str | None] = mapped_column(Text)
+    max_budget_usd: Mapped[float] = mapped_column(Float, default=0)
+    duration_minutes: Mapped[float] = mapped_column(Float, default=0)
+    base_branch: Mapped[str] = mapped_column(String, default="main")
+    volume_name: Mapped[str | None] = mapped_column(String)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_message: Mapped[str | None] = mapped_column(Text)

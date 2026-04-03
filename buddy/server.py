@@ -12,6 +12,7 @@ import traceback
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 from starlette.responses import JSONResponse
 import uvicorn
 
@@ -26,8 +27,23 @@ from core.agent_loop import AgentLoop
 from core.teardown import RunTeardown
 from core.event_bus import EventBus
 from tools.session import SessionGate
+from run_manager import RunManager, MAX_CONCURRENT
 
 log = logging.getLogger("server")
+
+
+class ParallelStartRequest(BaseModel):
+    prompt: str | None = None
+    max_budget_usd: float = 0
+    duration_minutes: float = 0
+    base_branch: str = "main"
+    claude_token: str | None = None
+    git_token: str | None = None
+    github_repo: str | None = None
+
+
+class ParallelSignalRequest(BaseModel):
+    payload: str | None = None
 
 
 class AgentServer:
@@ -72,9 +88,13 @@ class AgentServer:
     async def _lifespan(self, app: FastAPI):
         """Startup: connect DB. Shutdown: close DB."""
         await db.init_db()
-        crashed = await db.mark_crashed_runs()
-        if crashed:
-            log.info("Marked %d stale run(s) as crashed", crashed)
+        if not _is_worker():
+            crashed = await db.mark_crashed_runs()
+            if crashed:
+                log.info("Marked %d stale run(s) as crashed", crashed)
+            orphans = await _run_manager.cleanup_orphans()
+            if orphans:
+                log.info("Cleaned up %d orphaned worker containers", orphans)
         log.info("Ready — waiting for start command on :%d", SERVER_PORT)
         yield
         await db.close_db()
@@ -300,6 +320,114 @@ class AgentServer:
                 log.warning("Branch diff failed: %s", e)
                 return {"files": [], "error": "Failed to compute diff"}
 
+        # ── Parallel Runner Endpoints ──
+
+        @app.get("/parallel/runs")
+        async def parallel_list_runs():
+            return [RunManager.to_dict(s) for s in _run_manager.get_all_slots()]
+
+        @app.post("/parallel/start")
+        async def parallel_start(body: ParallelStartRequest):
+            creds = {}
+            if body.claude_token:
+                creds["claude_token"] = body.claude_token
+            if body.git_token:
+                creds["git_token"] = body.git_token
+            if body.github_repo:
+                creds["github_repo"] = body.github_repo
+            try:
+                slot = await _run_manager.start_run(
+                    prompt=body.prompt,
+                    max_budget_usd=body.max_budget_usd,
+                    duration_minutes=body.duration_minutes,
+                    base_branch=body.base_branch,
+                    credentials=creds,
+                )
+                return RunManager.to_dict(slot)
+            except RuntimeError as e:
+                raise HTTPException(status_code=409, detail=str(e))
+
+        @app.get("/parallel/status")
+        async def parallel_status():
+            slots = _run_manager.get_all_slots()
+            return {
+                "total_slots": len(slots),
+                "active": _run_manager.active_count(),
+                "max_concurrent": MAX_CONCURRENT,
+                "slots": [RunManager.to_dict(s) for s in slots],
+            }
+
+        @app.get("/parallel/runs/{run_id}")
+        async def parallel_get_run(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found in parallel slots")
+            return RunManager.to_dict(slot)
+
+        @app.get("/parallel/runs/{run_id}/health")
+        async def parallel_run_health(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            try:
+                return await _run_manager.get_worker_health(slot.container_name)
+            except Exception as e:
+                raise HTTPException(status_code=502, detail=str(e))
+
+        @app.post("/parallel/runs/{run_id}/stop")
+        async def parallel_stop(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.stop_run(slot.container_name, "Stopped via dashboard")
+
+        @app.post("/parallel/runs/{run_id}/kill")
+        async def parallel_kill(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.kill_run(slot.container_name)
+
+        @app.post("/parallel/runs/{run_id}/pause")
+        async def parallel_pause(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.pause_run(slot.container_name)
+
+        @app.post("/parallel/runs/{run_id}/resume")
+        async def parallel_resume(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.resume_run(slot.container_name)
+
+        @app.post("/parallel/runs/{run_id}/inject")
+        async def parallel_inject(run_id: str, body: ParallelSignalRequest = ParallelSignalRequest()):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.inject_prompt(slot.container_name, {"payload": body.payload})
+
+        @app.post("/parallel/runs/{run_id}/unlock")
+        async def parallel_unlock(run_id: str):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return await _run_manager.unlock_run(slot.container_name)
+
+        @app.post("/parallel/cleanup")
+        async def parallel_cleanup():
+            cleaned = _run_manager.cleanup_all_finished(remove_volumes=True)
+            return {"ok": True, "cleaned": cleaned}
+
+
+def _is_worker() -> bool:
+    """Check if this container is a worker (not orchestrator)."""
+    hostname = os.environ.get("HOSTNAME", "")
+    return hostname.startswith("buddy-worker-") or os.environ.get("WORKER_MODE") == "1"
+
+_run_manager = RunManager()
 
 _server = AgentServer()
 app = _server.app

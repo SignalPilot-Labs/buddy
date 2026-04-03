@@ -11,10 +11,10 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func, update
+from sqlalchemy import desc, func, select, update
 
 from db.connection import connect, close, get_session_factory
-from db.models import AuditLog, Run, ToolCall
+from db.models import AuditLog, Run, ToolCall, Worker
 
 log = logging.getLogger("agent.db")
 
@@ -221,6 +221,142 @@ async def mark_crashed_runs() -> int:
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),
                 error_message="Agent container restarted while run was in progress",
+            )
+        )
+        await s.commit()
+        return result.rowcount  # type: ignore[attr-defined]  # SQLAlchemy CursorResult
+
+
+@swallow_errors
+async def upsert_worker(
+    container_name: str,
+    run_id: str | None = None,
+    container_id: str | None = None,
+    status: str = "starting",
+    prompt: str | None = None,
+    max_budget_usd: float = 0,
+    duration_minutes: float = 0,
+    base_branch: str = "main",
+    volume_name: str | None = None,
+) -> None:
+    """Insert or update a worker row."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+    async with get_session_factory()() as s:
+        stmt = pg_insert(Worker).values(
+            container_name=container_name,
+            run_id=run_id,
+            container_id=container_id,
+            status=status,
+            prompt=prompt,
+            max_budget_usd=max_budget_usd,
+            duration_minutes=duration_minutes,
+            base_branch=base_branch,
+            volume_name=volume_name,
+        ).on_conflict_do_update(
+            index_elements=["container_name"],
+            set_={
+                "run_id": run_id,
+                "container_id": container_id,
+                "status": status,
+                "prompt": prompt,
+                "max_budget_usd": max_budget_usd,
+                "duration_minutes": duration_minutes,
+                "base_branch": base_branch,
+                "volume_name": volume_name,
+            },
+        )
+        await s.execute(stmt)
+        await s.commit()
+
+
+@swallow_errors
+async def update_worker_status(
+    container_name: str, status: str, error_message: str | None = None,
+) -> None:
+    """Update worker status. Set ended_at if terminal."""
+    values: dict = {"status": status}
+    if error_message is not None:
+        values["error_message"] = error_message
+    if status in ("completed", "stopped", "error", "killed"):
+        values["ended_at"] = datetime.now(timezone.utc)
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Worker).where(Worker.container_name == container_name).values(**values)
+        )
+        await s.commit()
+
+
+@swallow_errors
+async def update_worker_run_id(container_name: str, run_id: str) -> None:
+    """Set the run_id once the worker starts its run."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Worker).where(Worker.container_name == container_name).values(run_id=run_id)
+        )
+        await s.commit()
+
+
+async def get_active_workers() -> list[dict]:
+    """Get workers with status in (starting, running)."""
+    async with get_session_factory()() as s:
+        result = await s.execute(
+            select(Worker).where(Worker.status.in_(["starting", "running"]))
+        )
+        workers = result.scalars().all()
+        return [
+            {
+                "container_name": w.container_name,
+                "run_id": w.run_id,
+                "container_id": w.container_id,
+                "status": w.status,
+                "prompt": w.prompt,
+                "max_budget_usd": w.max_budget_usd,
+                "duration_minutes": w.duration_minutes,
+                "base_branch": w.base_branch,
+                "volume_name": w.volume_name,
+                "started_at": w.started_at.isoformat() if w.started_at else None,
+                "error_message": w.error_message,
+            }
+            for w in workers
+        ]
+
+
+async def get_all_workers(limit: int = 50) -> list[dict]:
+    """Get all workers ordered by started_at desc."""
+    async with get_session_factory()() as s:
+        result = await s.execute(
+            select(Worker).order_by(desc(Worker.started_at)).limit(limit)
+        )
+        workers = result.scalars().all()
+        return [
+            {
+                "container_name": w.container_name,
+                "run_id": w.run_id,
+                "container_id": w.container_id,
+                "status": w.status,
+                "prompt": w.prompt,
+                "max_budget_usd": w.max_budget_usd,
+                "duration_minutes": w.duration_minutes,
+                "base_branch": w.base_branch,
+                "volume_name": w.volume_name,
+                "started_at": w.started_at.isoformat() if w.started_at else None,
+                "ended_at": w.ended_at.isoformat() if w.ended_at else None,
+                "error_message": w.error_message,
+            }
+            for w in workers
+        ]
+
+
+async def mark_orphaned_workers() -> int:
+    """Mark starting/running workers as killed on startup."""
+    async with get_session_factory()() as s:
+        result = await s.execute(
+            update(Worker)
+            .where(Worker.status.in_(["starting", "running"]))
+            .values(
+                status="killed",
+                ended_at=datetime.now(timezone.utc),
+                error_message="Orchestrator restarted while worker was active",
             )
         )
         await s.commit()
