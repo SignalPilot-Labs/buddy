@@ -6,6 +6,7 @@ the key via ?api_key= query parameter (EventSource can't send headers).
 """
 
 import hmac
+import logging
 import os
 
 from fastapi import HTTPException, Query, Security
@@ -13,8 +14,13 @@ from fastapi.security import APIKeyHeader
 
 from backend.constants import DASHBOARD_API_KEY_ENV, DEFAULT_DASHBOARD_API_KEY
 
+log = logging.getLogger("backend.auth")
+
 _api_key = os.environ.get(DASHBOARD_API_KEY_ENV, DEFAULT_DASHBOARD_API_KEY)
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+if _api_key == DEFAULT_DASHBOARD_API_KEY:
+    log.warning("Using default API key — set %s env var for security", DASHBOARD_API_KEY_ENV)
 
 
 def _check(key: str | None) -> None:

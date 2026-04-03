@@ -38,6 +38,7 @@ DASHBOARD_API_KEY_ENV = "DASHBOARD_API_KEY"
 
 # Network / ports
 UI_PORT = 3400
+DOCKER_HOST_INTERNAL = "host.docker.internal"
 
 # Polling
 POLL_LIMIT_DEFAULT = 100
