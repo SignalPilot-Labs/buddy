@@ -92,6 +92,7 @@ class SecurityGate:
         return (
             self._check_token_exposure(cmd)
             or self._check_dangerous(cmd)
+            or self._check_git_branch_creation(cmd)
             or self._check_git_push(cmd)
             or self._check_repo_exploration(cmd)
         )
@@ -113,6 +114,23 @@ class SecurityGate:
         """Check for destructive system commands."""
         if self._dangerous_re.search(cmd):
             return "Blocked dangerous system command"
+        return None
+
+    def _check_git_branch_creation(self, cmd: str) -> str | None:
+        """Block git branch creation/switching and git clean."""
+        if re.search(r"git\s+checkout\s+-b\b", cmd):
+            return "Cannot create branches — the system manages branching"
+        if re.search(r"git\s+switch\s+-c\b", cmd):
+            return "Cannot create branches — the system manages branching"
+        if re.search(r"git\s+branch\s+(?!-[dD])\S", cmd):
+            return "Cannot create branches — the system manages branching"
+        if re.search(r"git\s+switch\s+(?!-)\S", cmd):
+            return "Cannot switch branches — stay on the current branch"
+        # git checkout <branch> (but allow git checkout -- <file>)
+        if re.search(r"git\s+checkout\s+(?!-)\S", cmd) and "--" not in cmd:
+            return "Cannot switch branches — use 'git checkout -- <file>' to revert files"
+        if re.search(r"git\s+clean\s+-[a-zA-Z]*f", cmd):
+            return "git clean -f is blocked — it deletes untracked files permanently"
         return None
 
     def _check_git_push(self, cmd: str) -> str | None:
