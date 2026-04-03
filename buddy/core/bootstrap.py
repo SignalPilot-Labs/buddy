@@ -257,6 +257,36 @@ class RunBootstrap:
                 model="sonnet",
                 tools=["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             ),
+            "plan-reviewer": AgentDefinition(
+                description="Review implementation plans BEFORE writing code. Evaluates architecture, scope, and approach. Use when planning complex features or when asked to review a plan.",
+                prompt=self._prompts.load_subagent_prompt("plan-reviewer"),
+                model="opus",
+                tools=["Read", "Glob", "Grep", "Bash"],
+            ),
+            "design-reviewer": AgentDefinition(
+                description="Review UI/UX quality AFTER frontend changes. Scores 6 design dimensions (0-10). Use after building frontend features to audit visual quality.",
+                prompt=self._prompts.load_subagent_prompt("design-reviewer"),
+                model="opus",
+                tools=["Read", "Glob", "Grep", "Bash"],
+            ),
+            "qa": AgentDefinition(
+                description="Full QA cycle: find bugs, write tests to prove them, fix bugs, verify fixes. Use for comprehensive testing and bug fixing.",
+                prompt=self._prompts.load_subagent_prompt("qa"),
+                model="sonnet",
+                tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            ),
+            "investigator": AgentDefinition(
+                description="Systematic debugging with root-cause analysis. Use for complex bugs or when stuck. NEVER fixes symptoms - always finds root cause first.",
+                prompt=self._prompts.load_subagent_prompt("investigator"),
+                model="sonnet",
+                tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            ),
+            "security-guard": AgentDefinition(
+                description="Deep OWASP Top 10 security audit. Use before shipping or when security review is needed. Finds SQL injection, XSS, auth gaps, credential exposure.",
+                prompt=self._prompts.load_subagent_prompt("security-guard"),
+                model="opus",
+                tools=["Read", "Glob", "Grep", "Bash"],
+            ),
         }
 
     def _build_sdk_options(
