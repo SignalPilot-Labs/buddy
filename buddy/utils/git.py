@@ -192,10 +192,7 @@ class GitWorkspace:
         """Get file-level diff stats between base and branch."""
         self._ensure_repo()
         try:
-            try:
-                self.run_git(["fetch", "origin", base_branch])
-            except RuntimeError:
-                pass
+            self.run_git(["fetch", "origin", base_branch, "--depth", "1"])
             raw = self.run_git(["diff", "--numstat", f"origin/{base_branch}...{branch_name}"])
             if not raw.strip():
                 return []
@@ -209,10 +206,7 @@ class GitWorkspace:
         """Get diff stats including uncommitted changes."""
         self._ensure_repo()
         try:
-            try:
-                self.run_git(["fetch", "origin", base_branch])
-            except RuntimeError:
-                pass
+            self.run_git(["fetch", "origin", base_branch, "--depth", "1"])
             raw = self.run_git(["diff", "--numstat", f"origin/{base_branch}...HEAD"])
             uncommitted = self.run_git(["diff", "--numstat", "HEAD"])
             all_lines = (raw.strip() + "\n" + uncommitted.strip()).strip()
