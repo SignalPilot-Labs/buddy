@@ -37,13 +37,6 @@ function getTs(e: FeedEvent): number {
   return new Date(e.ts).getTime();
 }
 
-function getTsStr(e: FeedEvent): string {
-  if (e._kind === "tool") return e.data.ts;
-  if (e._kind === "audit") return e.data.ts;
-  if (e._kind === "usage") return e.data.ts;
-  return e.ts;
-}
-
 function extractFilePath(tc: ToolCall): string {
   const input = tc.input_data || {};
   const output = tc.output_data || {};

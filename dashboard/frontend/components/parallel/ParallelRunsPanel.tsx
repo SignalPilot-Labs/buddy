@@ -57,7 +57,6 @@ export function ParallelRunsPanel({
     stopRun,
     killRun,
     pauseRun,
-    resumeRun,
     unlockRun,
     injectPrompt,
   } = useParallelRuns();
@@ -119,7 +118,6 @@ export function ParallelRunsPanel({
                 onStop={() => slot.run_id && stopRun(slot.run_id)}
                 onKill={() => slot.run_id && killRun(slot.run_id)}
                 onPause={() => slot.run_id && pauseRun(slot.run_id)}
-                onResume={() => slot.run_id && resumeRun(slot.run_id)}
                 onUnlock={() => slot.run_id && unlockRun(slot.run_id)}
                 onInject={
                   slot.run_id ? (p) => handleInject(slot.run_id!, p) : undefined

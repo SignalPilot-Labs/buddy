@@ -10,7 +10,6 @@ export interface SlotCardProps {
   onStop: () => void;
   onKill: () => void;
   onPause: () => void;
-  onResume: () => void;
   onUnlock: () => void;
   onInject?: (prompt: string) => void;
   onHealthCheck?: () => void;
@@ -31,7 +30,6 @@ export function SlotCard({
   onStop,
   onKill,
   onPause,
-  onResume,
   onUnlock,
   onInject,
   onHealthCheck,

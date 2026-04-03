@@ -228,7 +228,6 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
   const [expanded, setExpanded] = useState(false);
   const denied = !tc.permitted;
   const isPlanner = tc.agent_role === "planner";
-  const isComplete = tc.phase === "post" || !!tc.output_data;
   const isPending = tc.phase === "pre" && !tc.output_data;
 
   const category = getToolCategory(tc.tool_name);
