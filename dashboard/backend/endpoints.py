@@ -14,7 +14,6 @@ from backend.constants import (
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
-    DEFAULT_STOP_REASON,
     MASK_PREFIX_CLAUDE_TOKEN,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
@@ -37,7 +36,6 @@ from backend.utils import (
     model_to_dict,
     read_credentials,
     save_repo_list,
-    send_control_signal,
     session,
     upsert_setting,
 )
@@ -107,71 +105,6 @@ async def get_audit_log(
             .offset(offset)
         )
         return [model_to_dict(r) for r in result.scalars().all()]
-
-
-# ---------------------------------------------------------------------------
-# Control Signals
-# ---------------------------------------------------------------------------
-
-@router.post("/runs/{run_id}/pause")
-async def pause_run(run_id: str = RunId):
-    """Pause a running agent."""
-    return await send_control_signal(run_id, "pause", {"running"}, None)
-
-
-@router.post("/runs/{run_id}/resume")
-async def resume_run(run_id: str = RunId):
-    """Resume a paused agent."""
-    return await send_control_signal(run_id, "resume", {"paused"}, None)
-
-
-@router.post("/runs/{run_id}/inject")
-async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()):
-    """Inject a prompt into a running, paused, or completed agent.
-
-    For running/paused runs: pushes an inject event to the agent.
-    For completed/stopped runs: auto-resumes the run with the prompt as initial context.
-    """
-    if not body.payload or not body.payload.strip():
-        raise HTTPException(status_code=400, detail="Payload (prompt text) is required")
-    prompt = body.payload.strip()
-
-    async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
-
-        if run.status in ("running", "paused", "rate_limited"):
-            return await send_control_signal(run_id, "inject", {"running", "paused", "rate_limited"}, prompt)
-
-        if run.status in ("completed", "stopped", "error"):
-            creds = await read_credentials()
-            resume_body = {
-                "run_id": run_id,
-                "prompt": prompt,
-                "claude_token": creds.get("claude_token"),
-                "git_token": creds.get("git_token"),
-                "github_repo": creds.get("github_repo"),
-            }
-            result = await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
-            run.status = "running"
-            await s.commit()
-            return {"ok": True, "signal": "inject_resume", "run_id": run_id, "resumed": True}
-
-        raise HTTPException(status_code=409, detail=f"Cannot inject into run with status '{run.status}'")
-
-
-@router.post("/runs/{run_id}/stop")
-async def stop_run(run_id: str = RunId, body: ControlSignalRequest = Body()):
-    """Stop a running agent."""
-    reason = (body.payload or "").strip() or DEFAULT_STOP_REASON
-    return await send_control_signal(run_id, "stop", {"running", "paused", "rate_limited"}, reason)
-
-
-@router.post("/runs/{run_id}/unlock")
-async def unlock_run(run_id: str = RunId):
-    """Unlock a session time gate."""
-    return await send_control_signal(run_id, "unlock", {"running", "paused", "rate_limited"}, None)
 
 
 # ---------------------------------------------------------------------------

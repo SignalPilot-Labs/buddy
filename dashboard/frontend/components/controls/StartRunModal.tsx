@@ -250,10 +250,10 @@ export function StartRunModal({
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
-                      Start Improvement Run
+                      Launch Bot
                     </h2>
                     <p className="text-[9px] text-[#999] mt-0.5">
-                      Creates a branch, makes improvements, opens a PR
+                      Spawns an isolated container with its own sandbox
                     </p>
                   </div>
                 </div>
@@ -419,7 +419,7 @@ export function StartRunModal({
                       </svg>
                     }
                   >
-                    {busy ? "Starting..." : "Start Run"}
+                    {busy ? "Starting..." : "Launch Bot"}
                   </Button>
                 </div>
               </div>
