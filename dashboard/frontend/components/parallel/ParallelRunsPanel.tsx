@@ -5,6 +5,7 @@ import { useParallelRuns } from "@/hooks/useParallelRuns";
 import { Button } from "@/components/ui/Button";
 import { getApiBase } from "@/lib/constants";
 import { SlotCard } from "./SlotCard";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import type { ParallelRunSlot } from "@/lib/types";
 
 export interface ParallelRunsPanelProps {
@@ -109,22 +110,23 @@ export function ParallelRunsPanel({
       {activeSlots.length > 0 && (
         <div className="space-y-2">
           {activeSlots.map((slot) => (
-            <SlotCard
-              key={slot.container_name}
-              slot={slot}
-              onStop={() => slot.run_id && stopRun(slot.run_id)}
-              onKill={() => slot.run_id && killRun(slot.run_id)}
-              onPause={() => slot.run_id && pauseRun(slot.run_id)}
-              onResume={() => slot.run_id && resumeRun(slot.run_id)}
-              onUnlock={() => slot.run_id && unlockRun(slot.run_id)}
-              onInject={
-                slot.run_id ? (p) => handleInject(slot.run_id!, p) : undefined
-              }
-              onHealthCheck={() => handleHealthCheck(slot)}
-              health={
-                slot.run_id ? (healthMap[slot.run_id] ?? "unknown") : "unknown"
-              }
-            />
+            <ErrorBoundary key={slot.container_name}>
+              <SlotCard
+                slot={slot}
+                onStop={() => slot.run_id && stopRun(slot.run_id)}
+                onKill={() => slot.run_id && killRun(slot.run_id)}
+                onPause={() => slot.run_id && pauseRun(slot.run_id)}
+                onResume={() => slot.run_id && resumeRun(slot.run_id)}
+                onUnlock={() => slot.run_id && unlockRun(slot.run_id)}
+                onInject={
+                  slot.run_id ? (p) => handleInject(slot.run_id!, p) : undefined
+                }
+                onHealthCheck={() => handleHealthCheck(slot)}
+                health={
+                  slot.run_id ? (healthMap[slot.run_id] ?? "unknown") : "unknown"
+                }
+              />
+            </ErrorBoundary>
           ))}
         </div>
       )}

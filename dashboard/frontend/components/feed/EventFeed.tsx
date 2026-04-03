@@ -6,6 +6,7 @@ import type { FeedEvent } from "@/lib/types";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 export function EventFeed({ events }: { events: FeedEvent[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,12 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
           </div>
         ) : (
           grouped.map((gev, i) => (
-            <GroupedEventCard key={`g-${i}`} event={gev} isLast={i === grouped.length - 1} />
+            <ErrorBoundary
+              key={`g-${i}`}
+              fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+            >
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} />
+            </ErrorBoundary>
           ))
         )}
       </div>

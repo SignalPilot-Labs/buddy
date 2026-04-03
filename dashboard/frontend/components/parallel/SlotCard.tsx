@@ -101,7 +101,11 @@ export function SlotCard({
         <div className="flex items-center gap-2">
           <span className="text-[9px] text-[#666] tabular-nums">{time}</span>
           {onHealthCheck && (
-            <button onClick={onHealthCheck} className="p-0.5 rounded hover:bg-white/[0.04]">
+            <button
+              onClick={onHealthCheck}
+              aria-label="Check health"
+              className="p-0.5 rounded hover:bg-white/[0.04]"
+            >
               <span className={`block h-1.5 w-1.5 rounded-full ${healthDot}`} />
             </button>
           )}
