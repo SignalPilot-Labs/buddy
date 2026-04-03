@@ -1,7 +1,5 @@
 """Dashboard backend constants."""
 
-from pathlib import Path
-
 from config.loader import load as _load_config
 
 APP_TITLE = "Buddy Dashboard API"
@@ -28,17 +26,18 @@ MASK_PREFIX_CLAUDE_TOKEN = 8
 MASK_PREFIX_DEFAULT = 6
 
 # Settings keys that must be encrypted at rest
-SECRET_KEYS = frozenset({"claude_token", "git_token", "dashboard_api_key"})
+SECRET_KEYS = frozenset({"claude_token", "git_token"})
 
 # Default values
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
 
-# Tunnel (shared volume between dashboard, nginx, and cloudflared)
-TUNNEL_URL_FILE = Path("/tunnel/url.txt")
-TUNNEL_URL_PATTERN = r"https://[a-zA-Z0-9-]+\.trycloudflare\.com"
-TUNNEL_TOKEN_DB_KEY = "tunnel_token"
-TUNNEL_TOKEN_LENGTH = 6
+# Authentication
+DEFAULT_DASHBOARD_API_KEY = "hell0buddy"
+DASHBOARD_API_KEY_ENV = "DASHBOARD_API_KEY"
+
+# Network / ports
+UI_PORT = 3400
 
 # Polling
 POLL_LIMIT_DEFAULT = 100

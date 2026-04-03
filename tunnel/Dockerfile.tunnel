@@ -1,6 +1,0 @@
-FROM cloudflare/cloudflared:latest AS cloudflared
-FROM alpine:3.20
-
-COPY --from=cloudflared /usr/local/bin/cloudflared /usr/local/bin/cloudflared
-
-VOLUME /tunnel

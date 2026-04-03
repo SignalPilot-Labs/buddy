@@ -18,7 +18,7 @@ from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.streaming")
 
-router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
+router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_query)])
 
 _RUN_ENDED_STATUSES = frozenset({"completed", "stopped", "killed", "crashed", "error"})
 

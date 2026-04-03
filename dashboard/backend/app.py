@@ -10,8 +10,8 @@ from backend.constants import APP_TITLE, MASTER_KEY_PATH
 from backend.endpoints.runs import router as runs_router
 from backend.endpoints.settings import router as settings_router
 from backend.endpoints.streaming import router as streaming_router
-from backend.endpoints.tunnel import router as tunnel_router
-from backend.utils import autofill_settings, generate_tunnel_token
+from backend.endpoints.network import router as network_router
+from backend.utils import autofill_settings
 from db.connection import connect, close
 
 _DEFAULT_CORS_ORIGINS = "http://localhost:3400"
@@ -36,7 +36,6 @@ async def lifespan(application: FastAPI):
     """Connect to DB on startup, close on shutdown."""
     await connect()
     await autofill_settings(MASTER_KEY_PATH)
-    application.state.tunnel_token = await generate_tunnel_token(MASTER_KEY_PATH)
     yield
     await close()
 
@@ -61,4 +60,4 @@ app.add_middleware(
 app.include_router(runs_router)
 app.include_router(settings_router)
 app.include_router(streaming_router)
-app.include_router(tunnel_router)
+app.include_router(network_router)

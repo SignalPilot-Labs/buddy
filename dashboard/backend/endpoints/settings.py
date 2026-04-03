@@ -87,7 +87,6 @@ async def update_settings(body: UpdateSettingsRequest) -> dict:
         if "github_repo" in updates and updates["github_repo"]:
             await ensure_repo_in_list(s, updates["github_repo"])
         await s.commit()
-    auth.clear_cache()
     return {"ok": True, "updated": list(updates.keys())}
 
 

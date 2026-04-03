@@ -25,7 +25,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
-import { TunnelPopover } from "@/components/ui/TunnelPopover";
+import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 
@@ -286,7 +286,7 @@ export default function MonitorPage() {
         />
 
         {/* Tunnel manager */}
-        <TunnelPopover />
+        <MobileAccessPopover />
 
         {/* Run status */}
         {selectedRun && <StatusBadge status={selectedRun.status as RunStatus} size="md" />}
@@ -355,7 +355,7 @@ export default function MonitorPage() {
         <div className="flex-1" />
 
         {/* Tunnel manager */}
-        <TunnelPopover />
+        <MobileAccessPopover />
 
         <div className="w-px h-4 bg-[#1a1a1a]" />
 

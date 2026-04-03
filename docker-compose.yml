@@ -38,12 +38,12 @@ services:
     restart: unless-stopped
     environment:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      DASHBOARD_API_KEY: ${DASHBOARD_API_KEY:-hell0buddy}
     ports:
       - "3400:3400"
       - "3401:3401"
     volumes:
       - buddy-keys:/data
-      - tunnel-url:/tunnel
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -79,45 +79,6 @@ services:
       dashboard:
         condition: service_started
 
-  tunnel-auth:
-    image: nginx:alpine
-    container_name: buddy-tunnel-auth
-    restart: unless-stopped
-    volumes:
-      - ./tunnel/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      dashboard:
-        condition: service_started
-
-  tunnel:
-    build:
-      context: .
-      dockerfile: tunnel/Dockerfile.tunnel
-    container_name: buddy-tunnel
-    restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        rm -f /tunnel/url.txt
-        cloudflared tunnel --no-autoupdate --url http://tunnel-auth:3402 > /tmp/cf.log 2>&1 &
-        CF_PID=$$!
-        while ! grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cf.log > /tunnel/url.txt 2>/dev/null; do
-          sleep 1
-        done
-        echo "[tunnel] URL written to /tunnel/url.txt"
-        wait $$CF_PID
-    volumes:
-      - tunnel-url:/tunnel
-    healthcheck:
-      test: ["CMD-SHELL", "test -f /tunnel/url.txt && test -s /tunnel/url.txt"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-      start_period: 15s
-    depends_on:
-      tunnel-auth:
-        condition: service_started
-
   # gVisor sandbox (default — works everywhere)
   sandbox:
     build:
@@ -150,7 +111,6 @@ services:
 volumes:
   buddy-db:
   buddy-keys:
-  tunnel-url:
   claude-agent-sessions:
   agent-repo:
   sandbox-overlays:

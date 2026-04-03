@@ -1,16 +1,27 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { getApiBase } from "./constants";
+import { API_KEY, getApiBase } from "./constants";
+
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  return { "X-API-Key": API_KEY, ...extra };
+}
+
+async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const headers = authHeaders(
+    init?.headers as Record<string, string> | undefined,
+  );
+  return fetch(`${getApiBase()}${path}`, { ...init, headers });
+}
 
 export async function fetchRuns(repo?: string): Promise<Run[]> {
   const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
-  const res = await fetch(`${getApiBase()}/api/runs${params}`);
+  const res = await apiFetch(`/api/runs${params}`);
   if (!res.ok) throw new Error("Failed to fetch runs");
   return res.json();
 }
 
 export async function fetchRepos(): Promise<RepoInfo[]> {
   try {
-    const res = await fetch(`${getApiBase()}/api/repos`);
+    const res = await apiFetch(`/api/repos`);
     if (!res.ok) return [];
     return res.json();
   } catch (err) {
@@ -20,7 +31,7 @@ export async function fetchRepos(): Promise<RepoInfo[]> {
 }
 
 export async function setActiveRepo(repo: string): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/repos/active`, {
+  const res = await apiFetch(`/api/repos/active`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ repo }),
@@ -33,7 +44,7 @@ export async function setActiveRepo(repo: string): Promise<{ ok: boolean }> {
 }
 
 export async function fetchRun(id: string): Promise<Run> {
-  const res = await fetch(`${getApiBase()}/api/runs/${id}`);
+  const res = await apiFetch(`/api/runs/${id}`);
   if (!res.ok) throw new Error("Failed to fetch run");
   return res.json();
 }
@@ -42,7 +53,7 @@ export async function fetchToolCalls(
   runId: string,
   limit = 500
 ): Promise<ToolCall[]> {
-  const res = await fetch(`${getApiBase()}/api/runs/${runId}/tools?limit=${limit}`);
+  const res = await apiFetch(`/api/runs/${runId}/tools?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch tool calls");
   return res.json();
 }
@@ -51,7 +62,7 @@ export async function fetchAuditLog(
   runId: string,
   limit = 500
 ): Promise<AuditEvent[]> {
-  const res = await fetch(`${getApiBase()}/api/runs/${runId}/audit?limit=${limit}`);
+  const res = await apiFetch(`/api/runs/${runId}/audit?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch audit log");
   return res.json();
 }
@@ -61,7 +72,7 @@ export async function sendSignal(
   signal: "pause" | "resume" | "stop",
   payload?: string
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/runs/${runId}/${signal}`, {
+  const res = await apiFetch(`/api/runs/${runId}/${signal}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payload: payload || null }),
@@ -77,7 +88,7 @@ export async function injectPrompt(
   runId: string,
   prompt: string
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/runs/${runId}/inject`, {
+  const res = await apiFetch(`/api/runs/${runId}/inject`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payload: prompt }),
@@ -90,7 +101,9 @@ export async function injectPrompt(
 }
 
 export function createSSE(runId: string): EventSource {
-  return new EventSource(`${getApiBase()}/api/stream/${runId}`);
+  return new EventSource(
+    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}`,
+  );
 }
 
 export interface PollResult {
@@ -103,8 +116,8 @@ export async function pollEvents(
   afterTool: number,
   afterAudit: number,
 ): Promise<PollResult> {
-  const res = await fetch(
-    `${getApiBase()}/api/poll/${runId}?after_tool=${afterTool}&after_audit=${afterAudit}`,
+  const res = await apiFetch(
+    `/api/poll/${runId}?after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
   if (!res.ok) throw new Error("Failed to poll events");
   return res.json();
@@ -121,7 +134,7 @@ export interface AgentHealth {
 
 export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
-    const res = await fetch(`${getApiBase()}/api/agent/health`);
+    const res = await apiFetch(`/api/agent/health`);
     if (!res.ok) return { status: "unreachable", current_run_id: null };
     return res.json();
   } catch (err) {
@@ -136,7 +149,7 @@ export async function startRun(
   durationMinutes = 0,
   baseBranch = "main"
 ): Promise<{ ok: boolean; run_id?: string }> {
-  const res = await fetch(`${getApiBase()}/api/agent/start`, {
+  const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -157,7 +170,7 @@ export async function resumeRun(
   runId: string,
   maxBudgetUsd = 0
 ): Promise<{ ok: boolean; run_id?: string }> {
-  const res = await fetch(`${getApiBase()}/api/agent/resume`, {
+  const res = await apiFetch(`/api/agent/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ run_id: runId, max_budget_usd: maxBudgetUsd }),
@@ -170,7 +183,7 @@ export async function resumeRun(
 }
 
 export async function stopAgentInstant(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/agent/stop`, { method: "POST" });
+  const res = await apiFetch(`/api/agent/stop`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -179,7 +192,7 @@ export async function stopAgentInstant(): Promise<{ ok: boolean }> {
 }
 
 export async function killAgent(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/agent/kill`, { method: "POST" });
+  const res = await apiFetch(`/api/agent/kill`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -190,7 +203,7 @@ export async function killAgent(): Promise<{ ok: boolean }> {
 export async function unlockSession(
   runId: string
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/runs/${runId}/unlock`, {
+  const res = await apiFetch(`/api/runs/${runId}/unlock`, {
     method: "POST",
   });
   if (!res.ok) {
@@ -217,7 +230,7 @@ export interface DiffStats {
 
 export async function fetchRunDiff(runId: string): Promise<DiffStats> {
   try {
-    const res = await fetch(`${getApiBase()}/api/runs/${runId}/diff`);
+    const res = await apiFetch(`/api/runs/${runId}/diff`);
     if (!res.ok) return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
     return res.json();
   } catch (err) {
@@ -226,20 +239,21 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
   }
 }
 
-// ── Tunnel ───────────────────────────────────────────────────────────────────
+// ── Network ──────────────────────────────────────────────────────────────────
 
-export interface TunnelInfo {
+export interface NetworkInfo {
   url: string | null;
-  token: string | null;
+  ip: string | null;
+  port: number;
 }
 
-export async function fetchTunnelInfo(): Promise<TunnelInfo> {
+export async function fetchNetworkInfo(): Promise<NetworkInfo> {
   try {
-    const res = await fetch(`${getApiBase()}/api/tunnel-url`);
-    if (!res.ok) return { url: null, token: null };
+    const res = await apiFetch(`/api/network-info`);
+    if (!res.ok) return { url: null, ip: null, port: 3400 };
     return res.json();
   } catch {
-    return { url: null, token: null };
+    return { url: null, ip: null, port: 3400 };
   }
 }
 
@@ -247,7 +261,7 @@ export async function fetchTunnelInfo(): Promise<TunnelInfo> {
 
 export async function fetchBranches(): Promise<string[]> {
   try {
-    const res = await fetch(`${getApiBase()}/api/agent/branches`);
+    const res = await apiFetch(`/api/agent/branches`);
     if (!res.ok) return ["main"];
     return res.json();
   } catch (err) {
