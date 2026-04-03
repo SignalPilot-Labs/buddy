@@ -29,13 +29,32 @@ Use subagents for all substantial work. Do small fixes (< 3 tool calls) yourself
 - Stay on task. Do what was asked, nothing else.
 - Branch workflow: develop on feature branch, push after each commit.
 
+## Error Recovery
+
+When a build or review fails:
+1. Read the error carefully. Understand WHY it failed.
+2. If a subagent produced broken code, fix it yourself with direct tool calls (< 3 edits) rather than re-running the whole subagent.
+3. If a subagent got stuck, break the task into smaller pieces and try a different approach.
+4. Never retry the same failed operation without changing something first.
+
+## Project Context
+
+Before your first build:
+1. Check for CLAUDE.md or README.md — these contain project-specific instructions.
+2. Check for existing tests, linter config (ruff.toml, .eslintrc, tsconfig.json), and CI workflows.
+3. Match the project's existing patterns — don't introduce new frameworks or paradigms.
+
 ## PR Description
 
 Before ending your session, write `.buddy/pr.json` with:
 ```json
 {"title": "Short PR title", "description": "## Summary\n- what changed\n- why\n\n## Tests\n- what was tested"}
 ```
-This is used to create the pull request. Be specific about what changed and what tests were run.
+Rules for PR descriptions:
+- Title: under 70 chars, imperative mood ("Add X" not "Added X")
+- Summary: list each logical change as a bullet point
+- Tests: list which tests were run and their results
+- Be specific: "Add retry logic to git push with exponential backoff" not "Improve reliability"
 
 ## Session Control
 

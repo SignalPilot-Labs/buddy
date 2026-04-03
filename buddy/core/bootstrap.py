@@ -151,16 +151,7 @@ class RunBootstrap:
         await db.update_run_status(run_id, "running")
         await db.log_audit(run_id, "session_resumed", {"branch": ctx.branch_name})
 
-        if prompt:
-            initial = (
-                "You are resuming a previous session on an existing branch. "
-                f"Operator feedback: {prompt}"
-            )
-        else:
-            initial = (
-                "You are resuming a previous session. Continue where you left off. "
-                "Check your recent commits with `git log --oneline -5`."
-            )
+        initial = self._build_resume_prompt(run_info, prompt)
         return ctx, options, session, events, logger, initial
 
     # ── Git ──
@@ -180,11 +171,41 @@ class RunBootstrap:
             self._git.run_git(["fetch", "origin", branch_name], cwd=work_dir)
             self._git.run_git(["checkout", branch_name], cwd=work_dir)
             self._git.run_git(["pull", "origin", branch_name], cwd=work_dir)
-        except Exception:
+        except (RuntimeError, OSError) as e:
+            log.warning("Could not fetch/checkout %s: %s — trying local checkout", branch_name, e)
             try:
                 self._git.run_git(["checkout", branch_name], cwd=work_dir)
-            except Exception:
+            except (RuntimeError, OSError) as e2:
+                log.warning("Local checkout failed too: %s — creating fresh branch", e2)
                 self._git.create_branch(branch_name, base_branch)
+
+    def _build_resume_prompt(self, run_info: dict, operator_prompt: str | None) -> str:
+        """Build a context-rich resume prompt from run history."""
+        parts = ["You are resuming a previous session. Here is your context:\n"]
+
+        branch = run_info.get("branch_name", "unknown")
+        parts.append(f"- **Branch:** `{branch}`")
+
+        prev_status = run_info.get("status", "unknown")
+        parts.append(f"- **Previous status:** {prev_status}")
+
+        original_task = run_info.get("custom_prompt")
+        if original_task:
+            task_preview = original_task[:PROMPT_SUMMARY_LIMIT]
+            parts.append(f"- **Original task:** {task_preview}")
+
+        cost = run_info.get("total_cost_usd") or 0
+        if cost > 0:
+            parts.append(f"- **Cost so far:** ${cost:.2f}")
+
+        parts.append("\nCheck your recent commits with `git log --oneline -5`.")
+
+        if operator_prompt:
+            parts.append(f"\n**Operator message:** {operator_prompt}")
+        else:
+            parts.append("\nContinue where you left off.")
+
+        return "\n".join(parts)
 
     def _copy_skills(self) -> None:
         """Copy buddy/skills/ → .claude/skills/ in the cloned repo. Always."""

@@ -39,12 +39,25 @@ class RunTeardown:
     async def _push_and_pr(self, ctx: RunContext) -> str | None:
         """Push branch and create PR. Returns PR URL or None."""
         try:
-            if self._git.get_current_branch() == ctx.branch_name:
-                self._git.push_branch(ctx.branch_name)
-                pr_url = self._git.create_pr(ctx.branch_name, ctx.run_id, ctx.base_branch)
-                log.info("PR created: %s", pr_url)
-                await db.log_audit(ctx.run_id, "pr_created", {"url": pr_url})
-                return pr_url
+            if self._git.get_current_branch() != ctx.branch_name:
+                log.warning("Not on expected branch %s, skipping push/PR", ctx.branch_name)
+                return None
+
+            # Save any uncommitted work before pushing
+            if self._git.has_changes():
+                log.info("Committing uncommitted changes before push")
+                try:
+                    self._git.run_git(["add", "-u"])
+                    self._git.run_git(["commit", "-m", "Auto-commit: save uncommitted work at session end"])
+                    await db.log_audit(ctx.run_id, "auto_commit", {"reason": "uncommitted changes at teardown"})
+                except RuntimeError as e:
+                    log.warning("Auto-commit failed: %s", e)
+
+            self._git.push_branch(ctx.branch_name)
+            pr_url = self._git.create_pr(ctx.branch_name, ctx.run_id, ctx.base_branch)
+            log.info("PR created: %s", pr_url)
+            await db.log_audit(ctx.run_id, "pr_created", {"url": pr_url})
+            return pr_url
         except Exception as e:
             log.error("PR failed: %s", e)
             await db.log_audit(ctx.run_id, "pr_failed", {"error": str(e)})
@@ -54,5 +67,6 @@ class RunTeardown:
         """Capture diff stats. Returns list or None on failure."""
         try:
             return self._git.get_branch_diff(ctx.branch_name, ctx.base_branch)
-        except Exception:
+        except (RuntimeError, OSError, ValueError) as e:
+            log.warning("Failed to capture diff stats: %s", e)
             return None

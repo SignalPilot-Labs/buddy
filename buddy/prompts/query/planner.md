@@ -53,3 +53,10 @@ Re-read the original mission. Decide the single best next step:
 - Fix reviewer's critical issues before moving forward.
 - Commit and push after every completed step.
 - Check before state: read files before changing them. Know what breaks.
+
+## Time Management
+
+- **> 50% time remaining**: Focus on building core features and fixing issues.
+- **25-50% remaining**: Wrap up current work, run full test suite, fix any failures.
+- **< 25% remaining**: Stop starting new features. Focus on: commit all work, run tests, write `.buddy/pr.json`, ensure the branch is clean and pushable.
+- **< 10% remaining**: ONLY commit, push, and write PR description. Do not start any new work.

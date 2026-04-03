@@ -3,7 +3,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
 # ── Runtime Context ──
@@ -48,6 +50,27 @@ class StartRequest(BaseModel):
     git_token: str | None = None
     github_repo: str | None = None
 
+    @field_validator("max_budget_usd")
+    @classmethod
+    def budget_non_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("max_budget_usd must be non-negative")
+        return v
+
+    @field_validator("duration_minutes")
+    @classmethod
+    def duration_non_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("duration_minutes must be non-negative")
+        return v
+
+    @field_validator("base_branch")
+    @classmethod
+    def base_branch_valid(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("base_branch must not be empty")
+        return v.strip()
+
 
 class ResumeRequest(BaseModel):
     """POST /resume request body."""
@@ -59,8 +82,29 @@ class ResumeRequest(BaseModel):
     git_token: str | None = None
     github_repo: str | None = None
 
+    @field_validator("max_budget_usd")
+    @classmethod
+    def budget_non_negative(cls, v: float) -> float:
+        if v < 0:
+            raise ValueError("max_budget_usd must be non-negative")
+        return v
+
+    @field_validator("run_id")
+    @classmethod
+    def run_id_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("run_id must not be empty")
+        return v.strip()
+
 
 class InjectRequest(BaseModel):
     """POST /inject request body."""
 
     payload: str | None = None
+
+    @field_validator("payload")
+    @classmethod
+    def payload_max_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > INJECT_PAYLOAD_MAX_LEN:
+            raise ValueError(f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters")
+        return v

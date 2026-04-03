@@ -92,11 +92,11 @@ export default function MonitorPage() {
     fetchRepos().then(setRepos);
   }, [clearEvents]);
 
-  // Auto-select first running or latest run
+  // Auto-select first active run or latest run
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
-      const running = runs.find((r) => r.status === "running");
-      setSelectedRunId(running?.id || runs[0].id);
+      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+      setSelectedRunId(active?.id || runs[0].id);
     }
   }, [runs, selectedRunId]);
 
@@ -200,8 +200,8 @@ export default function MonitorPage() {
         );
 
         setHistoryEvents(merged);
-      } catch {
-        // SSE will pick up live events
+      } catch (err) {
+        console.warn("Failed to load historical events, SSE will provide live data:", err);
       }
 
       refreshRuns();
@@ -318,7 +318,13 @@ export default function MonitorPage() {
             style={!agentIdle && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
           />
           <span className="text-[10px] text-[#888]">
-            {!agentReachable ? "Offline" : agentIdle ? "Idle" : "Active"}
+            {!agentReachable
+              ? "Offline"
+              : agentIdle
+                ? "Idle"
+                : agentHealth?.elapsed_minutes != null
+                  ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
+                  : "Active"}
           </span>
         </div>
 

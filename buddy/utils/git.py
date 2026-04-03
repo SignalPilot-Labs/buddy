@@ -10,11 +10,12 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, WORK_DIR
+from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, WORK_DIR
 from utils.helpers import validate_branch_name
 
 log = logging.getLogger("agent.git")
@@ -56,6 +57,20 @@ class GitWorkspace:
     def run_git(self, args: list[str], cwd: str | None = None) -> str:
         """Run a git command in the work directory."""
         return self._run(["git"] + args, cwd=cwd or WORK_DIR, timeout=CMD_TIMEOUT, extra_env=self._git_auth_env())
+
+    def _retry(self, fn) -> str:
+        """Retry a git operation with exponential backoff. Uses constants for config."""
+        last_error: RuntimeError = RuntimeError("_retry: no attempts")
+        for attempt in range(GIT_RETRY_ATTEMPTS):
+            try:
+                return fn()
+            except RuntimeError as e:
+                last_error = e
+                if attempt < GIT_RETRY_ATTEMPTS - 1:
+                    wait = GIT_RETRY_DELAY_SEC * (2 ** attempt)
+                    log.info("Retry %d/%d after %.0fs: %s", attempt + 1, GIT_RETRY_ATTEMPTS - 1, wait, e)
+                    time.sleep(wait)
+        raise last_error
 
     def _run_gh(self, args: list[str]) -> str:
         """Run a gh CLI command."""
@@ -121,7 +136,8 @@ class GitWorkspace:
         try:
             self.run_git(["fetch", "origin", base_branch])
             self.run_git(["checkout", "-B", base_branch, f"origin/{base_branch}"])
-        except RuntimeError:
+        except RuntimeError as e:
+            log.warning("Could not reset to origin/%s: %s", base_branch, e)
             try:
                 self.run_git(["checkout", base_branch])
             except RuntimeError:
@@ -147,8 +163,8 @@ class GitWorkspace:
             self._create_missing_branch(base_branch)
 
     def push_branch(self, branch_name: str) -> None:
-        """Push the current branch to origin."""
-        self.run_git(["push", "-u", "origin", branch_name])
+        """Push the current branch to origin with retries."""
+        self._retry(lambda: self.run_git(["push", "-u", "origin", branch_name]))
 
     def create_pr(self, branch_name: str, run_id: str, base_branch: str) -> str:
         """Create or update a PR. Reads .buddy/pr.json if agent wrote one. Returns PR URL."""
@@ -163,17 +179,18 @@ class GitWorkspace:
             self._run_gh(["pr", "edit", existing_url, "--title", title, "--body", body])
             return existing_url
 
-        return self._run_gh([
+        return self._retry(lambda: self._run_gh([
             "pr", "create", "--base", base_branch,
             "--head", branch_name, "--title", title, "--body", body,
-        ])
+        ]))
 
     def _find_existing_pr(self, branch_name: str) -> str | None:
         """Find an open PR for this branch. Returns URL or None."""
         try:
             url = self._run_gh(["pr", "view", branch_name, "--json", "url", "-q", ".url"])
             return url.strip() if url.strip() else None
-        except Exception:
+        except (RuntimeError, OSError) as e:
+            log.debug("No existing PR for %s: %s", branch_name, e)
             return None
 
     def _read_agent_pr(self) -> tuple[str | None, str | None]:
@@ -185,7 +202,8 @@ class GitWorkspace:
             data = json.loads(pr_file.read_text())
             pr_file.unlink()
             return data.get("title"), data.get("description")
-        except Exception:
+        except (json.JSONDecodeError, OSError, KeyError) as e:
+            log.warning("Failed to read .buddy/pr.json: %s", e)
             return None, None
 
     def get_branch_diff(self, branch_name: str, base_branch: str) -> list[dict]:
@@ -198,7 +216,7 @@ class GitWorkspace:
                 return []
             status_raw = self.run_git(["diff", "--name-status", f"origin/{base_branch}...{branch_name}"])
             return _parse_numstat(raw, _parse_name_status(status_raw))
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError) as e:
             log.warning("Failed to get branch diff: %s", e)
             return []
 
@@ -213,7 +231,7 @@ class GitWorkspace:
             if not all_lines:
                 return []
             return _aggregate_live_diff(all_lines)
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError) as e:
             log.warning("Failed to get live diff: %s", e)
             return []
 

@@ -49,6 +49,7 @@ class DBLogger:
         return [
             {
                 "agent_id": aid,
+                "agent_type": self._subagent_types.get(aid, "unknown"),
                 "idle_seconds": int(now - self._subagent_last_tool.get(aid, start_t)),
                 "total_seconds": int(now - start_t),
             }

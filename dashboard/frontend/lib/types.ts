@@ -243,7 +243,15 @@ export type AuditEventType =
   | "subagent_complete"
   | "subagent_stuck"
   | "subagent_timeout"
-  | "stuck_recovery";
+  | "stuck_recovery"
+  | "prompt_injected"
+  | "session_resumed"
+  | "push_failed"
+  | "auto_commit"
+  | "rate_limit_fallback"
+  | "rate_limit_waiting"
+  | "permission_allowed"
+  | "permission_denied";
 
 export interface AuditEventMeta {
   label: string;
@@ -268,6 +276,17 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  subagent_timeout:    { label: "Subagent Timeout",  color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  stuck_recovery:      { label: "Stuck Recovery",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  prompt_injected:     { label: "Prompt Injected",   color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  session_resumed:     { label: "Session Resumed",   color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
+  push_failed:         { label: "Push Failed",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  auto_commit:         { label: "Auto Commit",       color: "text-[#888]",     bg: "bg-[#888]/[0.04]",    iconColor: "#888888" },
+  rate_limit_fallback: { label: "Model Fallback",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  rate_limit_waiting:  { label: "Rate Limit Wait",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  permission_denied:   { label: "Permission Denied", color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
 };
 
 /* ── WorkTree Types ── */

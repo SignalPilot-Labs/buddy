@@ -25,6 +25,7 @@ from core.bootstrap import RunBootstrap
 from core.agent_loop import AgentLoop
 from core.teardown import RunTeardown
 from core.event_bus import EventBus
+from tools.session import SessionGate
 
 log = logging.getLogger("server")
 
@@ -44,6 +45,7 @@ class AgentServer:
         self._teardown = RunTeardown(self._git)
         self._task: asyncio.Task | None = None
         self._events: EventBus | None = None
+        self._session: SessionGate | None = None
         self.current_run_id: str | None = None
         self.app = FastAPI(title="Buddy Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
@@ -89,12 +91,14 @@ class AgentServer:
         )
         self.current_run_id = ctx.run_id
         self._events = events
+        self._session = session
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
         finally:
             events.stop_pulse_checker()
             self._events = None
+            self._session = None
 
         await self._teardown.finalize(ctx, status)
         self.current_run_id = None
@@ -104,12 +108,14 @@ class AgentServer:
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
         self.current_run_id = ctx.run_id
         self._events = events
+        self._session = session
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, None)
         finally:
             events.stop_pulse_checker()
             self._events = None
+            self._session = None
 
         await self._teardown.finalize(ctx, status)
         self.current_run_id = None
@@ -149,6 +155,12 @@ class AgentServer:
                 log.error("Run task crashed:\n%s", tb)
         except asyncio.CancelledError:
             pass
+        finally:
+            # Always clean up so new runs can start after a crash
+            self.current_run_id = None
+            self._task = None
+            self._events = None
+            self._session = None
 
     # ── Routes ──
 
@@ -160,7 +172,12 @@ class AgentServer:
         async def health():
             if not self.current_run_id:
                 return {"status": "idle", "current_run_id": None}
-            return {"status": "running", "current_run_id": self.current_run_id}
+            result: dict = {"status": "running", "current_run_id": self.current_run_id}
+            if self._session:
+                result["elapsed_minutes"] = round(self._session.elapsed_minutes(), 1)
+                result["time_remaining"] = self._session.time_remaining_str()
+                result["session_unlocked"] = self._session.is_unlocked()
+            return result
 
         @app.post("/start")
         async def start_run(body: StartRequest = StartRequest()):
@@ -232,8 +249,8 @@ class AgentServer:
             await asyncio.sleep(KILL_WAIT_SEC)
             try:
                 await db.finish_run(run_id, "killed", None, None, None, None, None, None, None)
-            except Exception:
-                pass
+            except Exception as e:
+                log.error("Failed to mark run %s as killed in DB: %s", run_id, e)
             self.current_run_id = None
             return {"ok": True, "event": "kill", "run_id": run_id}
 
@@ -244,7 +261,8 @@ class AgentServer:
                 output = self._git.run_git(["branch", "-r", "--format", "%(refname:short)"])
                 branches = [b.replace("origin/", "") for b in output.strip().split("\n") if b.strip() and "HEAD" not in b]
                 return sorted(set(branches))
-            except Exception:
+            except Exception as e:
+                log.warning("Failed to list branches: %s", e)
                 return ["main"]
 
         @app.get("/diff/live")

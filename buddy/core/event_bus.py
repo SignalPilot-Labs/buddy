@@ -72,6 +72,7 @@ class EventBus:
                 return f"inject:{payload}"
             if kind == "unlock":
                 return "unlock"
+            log.warning("Unknown event during pause: %s", kind)
 
     def start_pulse_checker(self, run_id: str, logger: DBLogger) -> None:
         """Start (or restart) the background stuck-subagent checker."""

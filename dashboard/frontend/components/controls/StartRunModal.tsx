@@ -143,10 +143,10 @@ const QUICK_PROMPTS = [
     desc: "Default: security, bugs, tests, quality",
   },
   {
-    label: "Security audit fixes",
+    label: "Security hardening",
     prompt:
-      "Focus on fixing the CRITICAL and HIGH security findings from SECURITY_AUDIT.md. Start there and work through each one.",
-    desc: "Address audit findings",
+      "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.",
+    desc: "Fix security issues",
   },
   {
     label: "Test coverage",
@@ -155,10 +155,10 @@ const QUICK_PROMPTS = [
     desc: "Add missing tests",
   },
   {
-    label: "Gateway hardening",
+    label: "Bug fixes",
     prompt:
-      "Focus on hardening the gateway module: add authentication, fix CORS, add rate limiting, improve error handling.",
-    desc: "Auth, CORS, rate limits",
+      "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.",
+    desc: "Find and fix bugs",
   },
 ];
 
