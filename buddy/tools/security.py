@@ -118,17 +118,21 @@ class SecurityGate:
 
     def _check_git_branch_creation(self, cmd: str) -> str | None:
         """Block git branch creation/switching and git clean."""
+        # Branch creation
         if re.search(r"git\s+checkout\s+-b\b", cmd):
             return "Cannot create branches — the system manages branching"
         if re.search(r"git\s+switch\s+-c\b", cmd):
             return "Cannot create branches — the system manages branching"
-        if re.search(r"git\s+branch\s+(?!-[dD])\S", cmd):
+        # git branch <name> (but allow flags: -d, -D, -v, -a, --list, etc.)
+        if re.search(r"git\s+branch\s+(?!-)\S", cmd):
             return "Cannot create branches — the system manages branching"
+        # Branch switching
         if re.search(r"git\s+switch\s+(?!-)\S", cmd):
             return "Cannot switch branches — stay on the current branch"
-        # git checkout <branch> (but allow git checkout -- <file>)
-        if re.search(r"git\s+checkout\s+(?!-)\S", cmd) and "--" not in cmd:
+        # git checkout <branch> — block unless it's a file revert (has -- or starts with .)
+        if re.search(r"git\s+checkout\s+(?!-)\S", cmd) and "--" not in cmd and not re.search(r"git\s+checkout\s+\.", cmd):
             return "Cannot switch branches — use 'git checkout -- <file>' to revert files"
+        # Destructive cleanup
         if re.search(r"git\s+clean\s+-[a-zA-Z]*f", cmd):
             return "git clean -f is blocked — it deletes untracked files permanently"
         return None
