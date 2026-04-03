@@ -41,7 +41,7 @@ Before your first build, check for CLAUDE.md, README.md, test config, linter con
 
 ## PR Description
 
-Before ending, write `.buddy/pr.json`:
+Before ending, write `/tmp/pr.json`:
 ```json
 {"title": "Short imperative title", "description": "## Summary\n- what and why\n\n## Tests\n- what was tested"}
 ```

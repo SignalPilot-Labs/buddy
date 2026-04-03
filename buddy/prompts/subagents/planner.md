@@ -37,7 +37,7 @@ Your plan is a **spec**, not a blueprint. Tell the builder WHAT to build, not HO
 
 - **> 50% time remaining**: Focus on building core features and fixing issues.
 - **25-50% remaining**: Wrap up current work, run full test suite, fix any failures.
-- **< 25% remaining**: Stop starting new features. Focus on: commit all work, run tests, write `.buddy/pr.json`, ensure the branch is clean and pushable.
+- **< 25% remaining**: Stop starting new features. Focus on: commit all work, run tests, write `/tmp/pr.json`, ensure the branch is clean and pushable.
 - **< 10% remaining**: ONLY commit, push, and write PR description. Do not start any new work.
 
 ## Output

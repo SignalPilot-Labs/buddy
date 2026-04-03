@@ -202,8 +202,8 @@ class GitWorkspace:
             return None
 
     def _read_agent_pr(self) -> tuple[str | None, str | None]:
-        """Read and delete .buddy/pr.json written by the agent. Returns (title, description)."""
-        pr_file = Path(WORK_DIR) / ".buddy" / "pr.json"
+        """Read and delete /tmp/pr.json written by the agent. Returns (title, description)."""
+        pr_file = Path("/tmp/pr.json")
         if not pr_file.exists():
             return None, None
         try:
@@ -211,7 +211,7 @@ class GitWorkspace:
             pr_file.unlink()
             return data.get("title"), data.get("description")
         except (json.JSONDecodeError, OSError, KeyError) as e:
-            log.warning("Failed to read .buddy/pr.json: %s", e)
+            log.warning("Failed to read /tmp/pr.json: %s", e)
             return None, None
 
     def get_branch_diff(self, branch_name: str, base_branch: str) -> list[dict]:
