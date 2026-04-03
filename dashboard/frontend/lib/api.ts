@@ -40,7 +40,7 @@ export async function fetchRun(id: string): Promise<Run> {
 
 export async function fetchToolCalls(
   runId: string,
-  limit = 500
+  limit: number
 ): Promise<ToolCall[]> {
   const res = await fetch(`${getApiBase()}/api/runs/${runId}/tools?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch tool calls");
@@ -49,7 +49,7 @@ export async function fetchToolCalls(
 
 export async function fetchAuditLog(
   runId: string,
-  limit = 500
+  limit: number
 ): Promise<AuditEvent[]> {
   const res = await fetch(`${getApiBase()}/api/runs/${runId}/audit?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch audit log");
@@ -131,10 +131,10 @@ export async function fetchAgentHealth(): Promise<AgentHealth> {
 }
 
 export async function startRun(
-  prompt?: string,
-  maxBudgetUsd = 0,
-  durationMinutes = 0,
-  baseBranch = "main"
+  prompt: string | undefined,
+  maxBudgetUsd: number,
+  durationMinutes: number,
+  baseBranch: string
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await fetch(`${getApiBase()}/api/agent/start`, {
     method: "POST",
@@ -155,7 +155,7 @@ export async function startRun(
 
 export async function resumeRun(
   runId: string,
-  maxBudgetUsd = 0
+  maxBudgetUsd: number
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await fetch(`${getApiBase()}/api/agent/resume`, {
     method: "POST",

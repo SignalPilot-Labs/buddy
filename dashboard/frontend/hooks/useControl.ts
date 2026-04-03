@@ -9,6 +9,7 @@ import {
   killAgent,
   resumeRun,
 } from "@/lib/api";
+import { DEFAULT_BUDGET_USD } from "@/lib/constants";
 import type { FeedEvent } from "@/lib/types";
 
 export function useControl(
@@ -98,7 +99,7 @@ export function useControl(
     () => {
       if (!runId) return;
       return exec(
-        () => resumeRun(runId),
+        () => resumeRun(runId, DEFAULT_BUDGET_USD),
         "Resuming previous session..."
       );
     },

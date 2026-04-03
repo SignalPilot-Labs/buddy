@@ -7,9 +7,7 @@ import {
   stopTunnel as apiStop,
 } from "@/lib/api";
 import type { TunnelStatus } from "@/lib/api";
-
-const POLL_INTERVAL = 10_000;
-const RAPID_POLLS = [1000, 3000, 5000];
+import { TUNNEL_POLL_INTERVAL_MS, TUNNEL_RAPID_POLLS_MS } from "@/lib/constants";
 
 export function useTunnel() {
   const [status, setStatus] = useState<TunnelStatus["status"]>("not_found");
@@ -26,7 +24,7 @@ export function useTunnel() {
   // Rapid-poll after an action to catch URL propagation
   const rapidRefresh = useCallback(() => {
     rapidTimers.current.forEach(clearTimeout);
-    rapidTimers.current = RAPID_POLLS.map((ms) =>
+    rapidTimers.current = TUNNEL_RAPID_POLLS_MS.map((ms) =>
       setTimeout(() => refresh(), ms),
     );
   }, [refresh]);
@@ -56,7 +54,7 @@ export function useTunnel() {
   // Poll on interval
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, POLL_INTERVAL);
+    const id = setInterval(refresh, TUNNEL_POLL_INTERVAL_MS);
     return () => {
       clearInterval(id);
       rapidTimers.current.forEach(clearTimeout);

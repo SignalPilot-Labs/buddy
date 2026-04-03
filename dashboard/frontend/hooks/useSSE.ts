@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
+import { SSE_FALLBACK_TIMEOUT_MS, SSE_POLL_INTERVAL_MS } from "@/lib/constants";
 
 function processTool(prev: FeedEvent[], data: ToolCall): FeedEvent[] {
   if (data.phase === "post") {
@@ -81,7 +82,6 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
   return [...prev, { _kind: "audit", data: { ...raw, details } }];
 }
 
-const POLL_INTERVAL = 1000;
 
 export function useSSE(runId: string | null) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
@@ -125,7 +125,7 @@ export function useSSE(runId: string | null) {
         } catch {
           // ignore poll errors
         }
-      }, POLL_INTERVAL);
+      }, SSE_POLL_INTERVAL_MS);
     }
 
     function switchToPolling() {
@@ -144,7 +144,7 @@ export function useSSE(runId: string | null) {
     // If no SSE message within 3s, assume SSE is blocked and switch to polling
     const sseTimeout = setTimeout(() => {
       if (!sseGotMessage) switchToPolling();
-    }, 3000);
+    }, SSE_FALLBACK_TIMEOUT_MS);
 
     es.addEventListener("connected", () => {
       sseGotMessage = true;

@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, startRun, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
+import { DEFAULT_FETCH_LIMIT, MOBILE_BREAKPOINT } from "@/lib/constants";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { useRuns } from "@/hooks/useRuns";
@@ -43,7 +44,7 @@ export default function MonitorPage() {
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
-  const isMobile = useMobile();
+  const isMobile = useMobile(MOBILE_BREAKPOINT);
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
 
@@ -167,8 +168,8 @@ export default function MonitorPage() {
 
       try {
         const [tools, audits] = await Promise.all([
-          fetchToolCalls(id, 500),
-          fetchAuditLog(id, 500),
+          fetchToolCalls(id, DEFAULT_FETCH_LIMIT),
+          fetchAuditLog(id, DEFAULT_FETCH_LIMIT),
         ]);
 
         if (gen !== selectGenRef.current) return;

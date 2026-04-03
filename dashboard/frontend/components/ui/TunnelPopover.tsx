@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTunnel } from "@/hooks/useTunnel";
 import { Button } from "./Button";
+import { COPY_FEEDBACK_DURATION_MS } from "@/lib/constants";
 
 export function TunnelPopover() {
   const [open, setOpen] = useState(false);
@@ -29,7 +30,7 @@ export function TunnelPopover() {
     if (!url) return;
     await navigator.clipboard.writeText(url);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
   };
 
   const statusColor = isRunning
