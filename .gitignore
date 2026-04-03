@@ -17,6 +17,7 @@ buddy/monitor-web/node_modules/
 buddy/monitor-web/package-lock.json
 dashboard/frontend/.next/
 dashboard/frontend/node_modules/
+dashboard/frontend/package-lock.json
 dashboard/frontend/tsconfig.tsbuildinfo
 buddy/monitor/static/
 
