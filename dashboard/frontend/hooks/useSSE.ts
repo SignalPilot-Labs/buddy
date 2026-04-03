@@ -3,30 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
-
-function processTool(prev: FeedEvent[], data: ToolCall): FeedEvent[] {
-  if (data.phase === "post") {
-    for (let i = prev.length - 1; i >= 0; i--) {
-      const ev = prev[i];
-      if (ev._kind !== "tool" || ev.data.phase !== "pre" || ev.data.output_data)
-        continue;
-      const idMatch =
-        data.tool_use_id && ev.data.tool_use_id === data.tool_use_id;
-      const nameMatch =
-        !data.tool_use_id && ev.data.tool_name === data.tool_name;
-      if (idMatch || nameMatch) {
-        const merged = { ...ev.data };
-        merged.output_data = data.output_data;
-        merged.duration_ms = data.duration_ms;
-        merged.phase = "post";
-        const next = [...prev];
-        next[i] = { _kind: "tool", data: merged };
-        return next;
-      }
-    }
-  }
-  return [...prev, { _kind: "tool", data }];
-}
+import { mergeToolEvent } from "@/lib/eventMerge";
 
 function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
   const details =
@@ -113,17 +90,24 @@ export function useSSE(runId: string | null) {
               let next = prev;
               for (const tc of result.tool_calls) {
                 afterTool = Math.max(afterTool, tc.id ?? 0);
-                next = processTool(next, tc);
+                next = mergeToolEvent(next, tc);
               }
+              let runEnded = false;
               for (const ae of result.audit_events) {
                 afterAudit = Math.max(afterAudit, ae.id ?? 0);
                 next = processAudit(next, ae);
+                if (ae.event_type === "run_ended") runEnded = true;
+              }
+              if (runEnded && pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+                setConnected(false);
               }
               return next;
             });
           }
-        } catch {
-          // ignore poll errors
+        } catch (err) {
+          console.warn("Poll request failed:", err);
         }
       }, POLL_INTERVAL);
     }
@@ -160,8 +144,10 @@ export function useSSE(runId: string | null) {
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
-        setEvents((prev) => processTool(prev, data));
-      } catch {}
+        setEvents((prev) => mergeToolEvent(prev, data));
+      } catch (err) {
+        console.warn("Failed to parse tool_call SSE event:", err);
+      }
     });
 
     es.addEventListener("audit", (e) => {
@@ -169,7 +155,9 @@ export function useSSE(runId: string | null) {
       try {
         const raw: AuditEvent = JSON.parse(e.data);
         setEvents((prev) => processAudit(prev, raw));
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse audit SSE event:", err);
+      }
     });
 
     es.addEventListener("run_ended", (e) => {
@@ -180,9 +168,16 @@ export function useSSE(runId: string | null) {
           ...prev,
           { _kind: "audit", data: { id: 0, run_id: runId ?? "", event_type: "run_ended", details: data, ts: new Date().toISOString() } },
         ]);
-      } catch {}
+      } catch (err) {
+        console.warn("Failed to parse run_ended SSE event:", err);
+      }
       setConnected(false);
       es.close();
+      // Stop polling if it was active — run is done
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     });
 
     es.onerror = () => {

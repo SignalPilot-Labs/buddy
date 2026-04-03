@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
 
+const EMPTY_EVENTS: FeedEvent[] = [];
+
 function formatTokens(n: number | null): string {
   if (!n) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -55,7 +57,7 @@ function Stat({
 export function StatsBar({
   run,
   connected,
-  events = [],
+  events = EMPTY_EVENTS,
 }: {
   run: Run | null;
   connected: boolean;

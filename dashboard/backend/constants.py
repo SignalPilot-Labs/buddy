@@ -31,3 +31,15 @@ SECRET_KEYS = frozenset({"claude_token", "git_token", "dashboard_api_key"})
 # Default values
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
+
+# Tunnel
+TUNNEL_CONTAINER = "buddy-tunnel"
+TUNNEL_IMAGE = "cloudflare/cloudflared:latest"
+TUNNEL_COMMAND = "tunnel --no-autoupdate --url http://localhost:3400"
+TUNNEL_NETWORK_TARGET = "buddy-dashboard"
+TUNNEL_LOG_TAIL_LINES = 50
+TUNNEL_STOP_TIMEOUT = 5
+TUNNEL_URL_PATTERN = r"https://[a-zA-Z0-9-]+\.trycloudflare\.com"
+
+# Polling
+POLL_LIMIT_DEFAULT = 100

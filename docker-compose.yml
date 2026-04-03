@@ -43,6 +43,8 @@ services:
       - "3401:3401"
     volumes:
       - buddy-keys:/data
+      # Required for tunnel management (start/stop Cloudflare tunnel container).
+      # Grants host Docker access — tunnel endpoints are auth-gated via API key.
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db-init:
@@ -55,7 +57,8 @@ services:
     container_name: buddy-agent
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SP_SANDBOX_URL: http://sandbox:8080

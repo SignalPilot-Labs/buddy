@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, startRun, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
+import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { useRuns } from "@/hooks/useRuns";
@@ -50,48 +51,10 @@ export default function MonitorPage() {
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
   // Merge live events into history — SSE post events need to find their pre in history
-  const allEvents = useMemo(() => {
-    if (liveEvents.length === 0) return historyEvents;
-    const preIndex = new Map<string, number>();
-    const merged = [...historyEvents];
-    for (let i = 0; i < merged.length; i++) {
-      const ev = merged[i];
-      if (
-        ev._kind === "tool" &&
-        ev.data.phase === "pre" &&
-        !ev.data.output_data &&
-        ev.data.tool_use_id
-      ) {
-        preIndex.set(ev.data.tool_use_id, i);
-      }
-    }
-    for (const ev of liveEvents) {
-      if (
-        ev._kind === "tool" &&
-        ev.data.phase === "post" &&
-        ev.data.tool_use_id &&
-        preIndex.has(ev.data.tool_use_id)
-      ) {
-        const idx = preIndex.get(ev.data.tool_use_id)!;
-        const pre = merged[idx];
-        if (pre._kind === "tool") {
-          merged[idx] = {
-            _kind: "tool",
-            data: {
-              ...pre.data,
-              output_data: ev.data.output_data,
-              duration_ms: ev.data.duration_ms,
-              phase: "post",
-            },
-          };
-        }
-        preIndex.delete(ev.data.tool_use_id);
-      } else {
-        merged.push(ev);
-      }
-    }
-    return merged;
-  }, [historyEvents, liveEvents]);
+  const allEvents = useMemo(
+    () => mergeHistoryWithLive(historyEvents, liveEvents),
+    [historyEvents, liveEvents],
+  );
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
