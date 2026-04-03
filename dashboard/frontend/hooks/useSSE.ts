@@ -27,14 +27,14 @@ export function useSSE(runId: string | null) {
     cancelledRef.current = false;
 
     function connect() {
-      if (cancelledRef.current) return;
+      if (cancelledRef.current || !runId) return;
 
       // Close any previous connection
       if (esRef.current) {
         esRef.current.close();
       }
 
-      const es = createSSE(runId!);
+      const es = createSSE(runId);
       esRef.current = es;
 
       es.addEventListener("connected", () => {

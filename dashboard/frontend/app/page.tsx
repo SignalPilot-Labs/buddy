@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -38,6 +38,7 @@ export default function MonitorPage() {
   const [branches, setBranches] = useState<string[]>(["main"]);
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const selectGenRef = useRef(0);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
   const allEvents = [...historyEvents, ...liveEvents];
@@ -111,6 +112,7 @@ export default function MonitorPage() {
   // Load history when selecting a run
   const handleSelectRun = useCallback(
     async (id: string) => {
+      const gen = ++selectGenRef.current;
       setSelectedRunId(id);
       setHistoryEvents([]);
       clearEvents();
@@ -120,6 +122,9 @@ export default function MonitorPage() {
           fetchToolCalls(id, 500),
           fetchAuditLog(id, 500),
         ]);
+
+        // Guard against stale results if user switched runs during fetch
+        if (gen !== selectGenRef.current) return;
 
         // API returns DESC order — sort ASC so pre comes before post
         tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());

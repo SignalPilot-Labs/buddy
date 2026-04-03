@@ -25,6 +25,10 @@ export async function setActiveRepo(repo: string): Promise<{ ok: boolean }> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ repo }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -62,6 +66,10 @@ export async function sendSignal(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payload: payload || null }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -74,6 +82,10 @@ export async function injectPrompt(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ payload: prompt }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -93,6 +105,7 @@ export interface AgentHealth {
 export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
     const res = await fetch(`${getApiBase()}/api/agent/health`);
+    if (!res.ok) return { status: "unreachable", current_run_id: null };
     return res.json();
   } catch (err) {
     console.warn("Agent health check failed:", err);
@@ -141,11 +154,19 @@ export async function resumeRun(
 
 export async function stopAgentInstant(): Promise<{ ok: boolean }> {
   const res = await fetch(`${getApiBase()}/api/agent/stop`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
 export async function killAgent(): Promise<{ ok: boolean }> {
   const res = await fetch(`${getApiBase()}/api/agent/kill`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -155,6 +176,10 @@ export async function unlockSession(
   const res = await fetch(`${getApiBase()}/api/runs/${runId}/unlock`, {
     method: "POST",
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
   return res.json();
 }
 
