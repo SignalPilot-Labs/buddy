@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { ParallelRunSlot } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { elapsed } from "@/lib/format";
 
 export interface SlotCardProps {
   slot: ParallelRunSlot;
@@ -14,15 +15,6 @@ export interface SlotCardProps {
   onInject?: (prompt: string) => void;
   onHealthCheck?: () => void;
   health?: "ok" | "degraded" | "unknown";
-}
-
-function elapsed(startedAt: number): string {
-  const secs = Math.floor(Date.now() / 1000 - startedAt);
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m`;
-  const hrs = Math.floor(mins / 60);
-  return `${hrs}h ${mins % 60}m`;
 }
 
 const STATUS_COLORS: Record<string, string> = {

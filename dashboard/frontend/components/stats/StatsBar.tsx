@@ -2,13 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
-
-function formatTokens(n: number | null): string {
-  if (!n) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.floor(n / 1_000)}k`;
-  return n.toString();
-}
+import { formatTokens } from "@/lib/format";
 
 function Stat({
   icon,
