@@ -1,6 +1,7 @@
 """Dashboard utility functions — agent HTTP proxy, ORM helpers, DB access helpers."""
 
 import json
+import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -16,6 +17,10 @@ from backend import crypto
 from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
+
+_AGENT_INTERNAL_SECRET = os.environ.get("AGENT_INTERNAL_SECRET", "")
+
+log = logging.getLogger("backend.utils")
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +106,7 @@ async def send_control_signal(
     allowed_statuses: set[str],
     payload: str | None,
 ) -> dict:
-    """Validate run status, insert signal, forward to agent."""
+    """Validate run status, persist signal, then forward to agent."""
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
@@ -147,8 +152,9 @@ async def agent_request(
     """
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
+            headers = {"X-Internal-Secret": _AGENT_INTERNAL_SECRET} if _AGENT_INTERNAL_SECRET else {}
             res = await client.request(
-                method, f"{AGENT_API_URL}{path}", json=json_body, params=params,
+                method, f"{AGENT_API_URL}{path}", json=json_body, params=params, headers=headers,
             )
             if res.status_code == 409:
                 raise HTTPException(status_code=409, detail=res.json().get("detail", "Conflict"))
@@ -158,7 +164,8 @@ async def agent_request(
     except Exception as e:
         if fallback is not None:
             return fallback
-        raise HTTPException(status_code=502, detail=f"Agent unreachable: {e}")
+        log.error("Agent request failed: %s %s — %s", method, path, e)
+        raise HTTPException(status_code=502, detail="Agent service unavailable")
 
 
 async def send_agent_signal(signal: str, payload: str | None) -> None:

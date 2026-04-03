@@ -36,6 +36,7 @@ class UpdateSettingsRequest(BaseModel):
     git_token: str | None = Field(None, min_length=1, max_length=4096)
     github_repo: str | None = Field(None, min_length=1, max_length=256, pattern=r"^[\w\-\.]+/[\w\-\.]+$")
     max_budget_usd: str | None = Field(None, min_length=1, max_length=20)
+    dashboard_api_key: str | None = Field(None, min_length=20, max_length=256)
 
 
 class SetActiveRepoRequest(BaseModel):

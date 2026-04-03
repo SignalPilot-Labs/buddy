@@ -43,6 +43,8 @@ CLONE_DEPTH = 50
 CLONE_TIMEOUT = 300
 CMD_TIMEOUT = 120
 PROTECTED_BRANCHES = frozenset({"main", "master", "staging", "prod", "production"})
+BRANCH_NAME_PATTERN = r'^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$'
+BRANCH_NAME_MAX_LEN = 256
 
 # ── Security Patterns ──
 CREDENTIAL_PATTERNS = [

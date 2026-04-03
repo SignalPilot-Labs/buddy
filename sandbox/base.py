@@ -51,10 +51,11 @@ class ExecutorBase(abc.ABC):
         except asyncio.TimeoutError:
             return self._error_result(vm_id, start_time, "Execution timed out")
         except RuntimeError as e:
-            return self._error_result(vm_id, start_time, str(e))
+            log.error("Sandbox runtime error: %s", e)
+            return self._error_result(vm_id, start_time, "Execution failed")
         except Exception as e:
             log.exception("Unexpected error in execute()")
-            return self._error_result(vm_id, start_time, f"Internal sandbox error: {e}")
+            return self._error_result(vm_id, start_time, "Internal sandbox error")
         finally:
             self._remove(vm_id)
 

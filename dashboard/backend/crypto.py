@@ -5,10 +5,13 @@ implementation. The master key is auto-generated on first boot and stored
 in a file on the shared Docker volume.
 """
 
+import logging
 import os
 from pathlib import Path
 
 from cryptography.fernet import Fernet
+
+log = logging.getLogger("backend.crypto")
 
 
 _fernet: Fernet | None = None
@@ -23,14 +26,20 @@ def _get_fernet(key_path: str) -> Fernet:
     p = Path(key_path)
     if p.exists():
         key = p.read_bytes().strip()
+        try:
+            mode = os.stat(str(p)).st_mode & 0o777
+            if mode & 0o077:  # Group or world readable/writable
+                log.warning("Key file %s has overly permissive mode %o — should be 0600", p, mode)
+        except OSError:
+            pass
     else:
         key = Fernet.generate_key()
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(key)
         try:
             os.chmod(str(p), 0o600)
-        except OSError:
-            pass  # Best-effort on Windows / Docker
+        except OSError as exc:
+            log.warning("Could not set secure permissions on %s: %s", p, exc)
 
     _fernet = Fernet(key)
     return _fernet

@@ -2,12 +2,13 @@
 
 import asyncio
 import json
+import re
 
-from fastapi import APIRouter, Body, Query, HTTPException
+from fastapi import APIRouter, Body, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func, desc
 
-from backend import crypto
+from backend import auth, crypto
 from backend.constants import (
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
@@ -43,7 +44,7 @@ from backend.utils import (
 from db.models import AuditLog, Run, Setting, ToolCall
 
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
 
 
 # ---------------------------------------------------------------------------
@@ -364,6 +365,7 @@ async def update_settings(body: UpdateSettingsRequest):
         if "github_repo" in updates and updates["github_repo"]:
             await ensure_repo_in_list(s, updates["github_repo"])
         await s.commit()
+    auth.clear_cache()
     return {"ok": True, "updated": list(updates.keys())}
 
 
@@ -401,6 +403,8 @@ async def set_active_repo(body: SetActiveRepoRequest):
 @router.delete("/repos/{repo_slug:path}")
 async def remove_repo(repo_slug: str):
     """Remove a repo from the list (does not delete runs)."""
+    if not re.match(r'^[\w\-\.]+/[\w\-\.]+$', repo_slug):
+        raise HTTPException(status_code=400, detail="Invalid repo slug format")
     async with session() as s:
         repos = [r for r in await get_repo_list(s) if r != repo_slug]
         await save_repo_list(s, repos)
