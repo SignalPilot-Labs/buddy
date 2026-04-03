@@ -83,11 +83,8 @@ services:
     image: nginx:alpine
     container_name: buddy-tunnel-auth
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     volumes:
-      - ./tunnel/nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
-      - ./tunnel/entrypoint.sh:/entrypoint.sh:ro
-      - tunnel-url:/tunnel
+      - ./tunnel/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       dashboard:
         condition: service_started

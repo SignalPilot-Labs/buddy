@@ -36,7 +36,6 @@ DEFAULT_STOP_REASON = "Operator requested stop"
 
 # Tunnel (shared volume between dashboard, nginx, and cloudflared)
 TUNNEL_URL_FILE = Path("/tunnel/url.txt")
-TUNNEL_TOKEN_FILE = Path("/tunnel/token.txt")
 TUNNEL_URL_PATTERN = r"https://[a-zA-Z0-9-]+\.trycloudflare\.com"
 TUNNEL_TOKEN_DB_KEY = "tunnel_token"
 TUNNEL_TOKEN_LENGTH = 6
