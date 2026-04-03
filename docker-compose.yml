@@ -90,7 +90,9 @@ services:
         condition: service_started
 
   tunnel:
-    image: cloudflare/cloudflared:latest
+    build:
+      context: .
+      dockerfile: tunnel/Dockerfile.tunnel
     container_name: buddy-tunnel
     restart: unless-stopped
     entrypoint: ["/bin/sh", "-c"]
