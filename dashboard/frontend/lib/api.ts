@@ -93,6 +93,23 @@ export function createSSE(runId: string): EventSource {
   return new EventSource(`${getApiBase()}/api/stream/${runId}`);
 }
 
+export interface PollResult {
+  tool_calls: ToolCall[];
+  audit_events: AuditEvent[];
+}
+
+export async function pollEvents(
+  runId: string,
+  afterTool: number,
+  afterAudit: number,
+): Promise<PollResult> {
+  const res = await fetch(
+    `${getApiBase()}/api/poll/${runId}?after_tool=${afterTool}&after_audit=${afterAudit}`,
+  );
+  if (!res.ok) throw new Error("Failed to poll events");
+  return res.json();
+}
+
 export interface AgentHealth {
   status: "idle" | "running" | "unreachable";
   current_run_id: string | null;
@@ -208,6 +225,40 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
     return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
   }
 }
+
+// ── Tunnel ───────────────────────────────────────────────────────────────────
+
+export interface TunnelStatus {
+  status: "running" | "exited" | "not_found" | "restarting" | "error";
+  url: string | null;
+  container_id?: string;
+}
+
+export async function fetchTunnelStatus(): Promise<TunnelStatus> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/tunnel/status`);
+    if (!res.ok) return { status: "error", url: null };
+    return res.json();
+  } catch {
+    return { status: "error", url: null };
+  }
+}
+
+export async function startTunnel(): Promise<{ ok: boolean }> {
+  const res = await fetch(`${getApiBase()}/api/tunnel/start`, {
+    method: "POST",
+  });
+  return res.json();
+}
+
+export async function stopTunnel(): Promise<{ ok: boolean }> {
+  const res = await fetch(`${getApiBase()}/api/tunnel/stop`, {
+    method: "POST",
+  });
+  return res.json();
+}
+
+// ── Branches ─────────────────────────────────────────────────────────────────
 
 export async function fetchBranches(): Promise<string[]> {
   try {

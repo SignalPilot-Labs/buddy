@@ -43,6 +43,7 @@ services:
       - "3401:3401"
     volumes:
       - buddy-keys:/data
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -54,8 +55,7 @@ services:
     container_name: buddy-agent
     restart: unless-stopped
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SP_SANDBOX_URL: http://sandbox:8080
@@ -77,6 +77,14 @@ services:
         condition: service_completed_successfully
       dashboard:
         condition: service_started
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: buddy-tunnel
+    restart: "no"
+    command: tunnel --no-autoupdate --url http://dashboard:3400
+    network_mode: "service:dashboard"
+    profiles: ["tunnel"]
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
