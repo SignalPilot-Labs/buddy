@@ -1,4 +1,4 @@
-import type { SettingsStatus, Settings } from "./types";
+import type { SettingsStatus, Settings, PoolToken } from "./types";
 import { getApiBase } from "./constants";
 
 export async function fetchSettingsStatus(): Promise<SettingsStatus> {
@@ -27,5 +27,33 @@ export async function updateSettings(
     body: JSON.stringify(settings),
   });
   if (!res.ok) throw new Error("Failed to update settings");
+  return res.json();
+}
+
+export async function fetchPoolTokens(): Promise<PoolToken[]> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/tokens`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+export async function addPoolToken(token: string): Promise<{ ok: boolean; count: number }> {
+  const res = await fetch(`${getApiBase()}/api/tokens`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) throw new Error("Failed to add token");
+  return res.json();
+}
+
+export async function removePoolToken(index: number): Promise<{ ok: boolean; count: number }> {
+  const res = await fetch(`${getApiBase()}/api/tokens/${index}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to remove token");
   return res.json();
 }

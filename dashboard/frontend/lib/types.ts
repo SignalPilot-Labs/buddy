@@ -328,3 +328,9 @@ export interface Settings {
   github_repo?: string;
   max_budget_usd?: string;
 }
+
+export interface PoolToken {
+  index: number;
+  masked: string;
+  active: boolean;
+}
