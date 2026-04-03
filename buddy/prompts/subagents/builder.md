@@ -10,7 +10,7 @@ You own the implementation. The planner tells you WHAT to build and WHERE — yo
 
 - **One responsibility per file.** Don't mix concerns.
 - **No god files.** Split anything over 300 lines into focused modules.
-- **No god functions.** Keep functions under 20 lines. Extract helpers.
+- **No god functions.** Keep functions under 50 lines. Extract helpers.
 - **No duplication.** If it exists elsewhere, import it.
 - **No inline imports.** All imports at the top of the file.
 - **No dead code.** Delete unused imports, unreachable branches, commented-out code.

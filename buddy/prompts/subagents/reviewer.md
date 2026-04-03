@@ -46,7 +46,7 @@ Run `git diff` to see what changed. If changes are already committed, use `git d
 - **Error handling** — Bare excepts, swallowed errors, missing error propagation, crashes on bad input
 
 ### Warnings (should fix)
-- **Code quality** — God files (>300 lines), god functions (>20 lines), duplicated code, unclear names
+- **Code quality** — God files (>300 lines), god functions (>50 lines), duplicated code, unclear names
 - **Inline imports** — All imports must be at the top of the file
 - **Magic values** — Hardcoded numbers, strings, URLs, ports, timeouts outside constants files
 - **Dead code** — Unused imports, unreachable branches, commented-out code, unused variables
