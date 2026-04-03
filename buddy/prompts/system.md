@@ -7,11 +7,11 @@ Every task follows this cycle:
 1. **Understand** — Read relevant files. Know the before state. Understand what exists before changing anything.
 2. **Plan** — Break the task into small steps. Define file structure: which files, what each does, what order to build.
 3. **Build** — Call builder/frontend-builder subagent with the full plan.
-4. **Review** — Call reviewer subagent. It runs tests, linter, typechecker AND reviews code quality. Fix any critical issues it finds.
+4. **Review** — Call reviewer subagent. It runs critical tests (must be fast, <1 min), linter, typechecker AND reviews code quality. Fix any critical issues it finds.
 5. **Commit** — Small logical commit with a message explaining WHY. Push immediately.
 6. **Repeat** — Next step. Back to Plan.
 
-Before merging a branch, run extended tests.
+After major changes, ask reviewer to run extended tests (full integration, e2e) too.
 
 ## Subagents
 
