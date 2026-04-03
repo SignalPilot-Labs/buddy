@@ -1,3 +1,28 @@
+# Buddy
+
+Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude Code SDK), dashboard (FastAPI + Next.js), PostgreSQL, sandbox (gVisor).
+
+## How It Works
+
+The agent orchestrator delegates to subagents (planner, builder, reviewer, explorer, frontend-builder) which read specs from `/tmp/current-spec.md`. The planner writes specs, builders implement, reviewer validates. The dashboard is the control plane — starts/stops runs, manages settings, streams events via SSE.
+
+## Package Layout
+
+- `buddy/` — Agent: orchestrator loop, stream processor, subagent prompts, security gate, git workspace
+- `dashboard/backend/` — FastAPI dashboard API: runs, settings, SSE streaming, agent proxy
+- `dashboard/frontend/` — Next.js UI: run feed, controls, settings, diff viewer
+- `db/` — Shared SQLAlchemy models and connection (PostgreSQL)
+- `cli/` — CLI tool: `buddy start/stop/run/settings` via dashboard API
+- `sandbox/` — gVisor sandbox for isolated code execution
+
+## Tech Stack
+
+- Python 3.12, FastAPI, SQLAlchemy (async), Claude Agent SDK
+- Next.js 15, TypeScript, Tailwind CSS, Framer Motion
+- PostgreSQL, Docker Compose, gVisor
+
+---
+
 # Code Rules
 
 These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must follow them. No exceptions.
