@@ -51,7 +51,7 @@ def mock_read_credentials():
 @pytest.mark.asyncio
 async def test_list_parallel_runs_success(client, mock_agent_request, mock_read_credentials):
     """Proxies GET /parallel/runs to agent and returns the response."""
-    expected = [{"run_id": "run-1", "status": "running"}]
+    expected = [{"run_id": "aa111111", "status": "running"}]
     mock_agent_request.return_value = expected
 
     resp = await client.get("/api/parallel/runs")
@@ -165,12 +165,12 @@ async def test_stop_parallel_run(client, mock_agent_request, mock_read_credentia
     """Proxies stop signal to agent for the given run ID."""
     mock_agent_request.return_value = {"ok": True}
 
-    resp = await client.post("/api/parallel/runs/run-1/stop")
+    resp = await client.post("/api/parallel/runs/aa111111/stop")
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
     mock_agent_request.assert_called_once()
-    assert "run-1/stop" in mock_agent_request.call_args[0][1]
+    assert "aa111111/stop" in mock_agent_request.call_args[0][1]
 
 
 @pytest.mark.asyncio
@@ -178,11 +178,11 @@ async def test_kill_parallel_run(client, mock_agent_request, mock_read_credentia
     """Proxies kill signal to agent for the given run ID."""
     mock_agent_request.return_value = {"ok": True}
 
-    resp = await client.post("/api/parallel/runs/run-2/kill")
+    resp = await client.post("/api/parallel/runs/bb222222/kill")
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
-    assert "run-2/kill" in mock_agent_request.call_args[0][1]
+    assert "bb222222/kill" in mock_agent_request.call_args[0][1]
 
 
 @pytest.mark.asyncio
@@ -190,11 +190,11 @@ async def test_pause_parallel_run(client, mock_agent_request, mock_read_credenti
     """Proxies pause signal to agent for the given run ID."""
     mock_agent_request.return_value = {"ok": True, "signal": "pause"}
 
-    resp = await client.post("/api/parallel/runs/run-3/pause")
+    resp = await client.post("/api/parallel/runs/cc333333/pause")
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
-    assert "run-3/pause" in mock_agent_request.call_args[0][1]
+    assert "cc333333/pause" in mock_agent_request.call_args[0][1]
 
 
 @pytest.mark.asyncio
@@ -202,11 +202,11 @@ async def test_resume_parallel_run(client, mock_agent_request, mock_read_credent
     """Proxies resume signal to agent for the given run ID."""
     mock_agent_request.return_value = {"ok": True, "signal": "resume"}
 
-    resp = await client.post("/api/parallel/runs/run-4/resume")
+    resp = await client.post("/api/parallel/runs/dd444444/resume")
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
-    assert "run-4/resume" in mock_agent_request.call_args[0][1]
+    assert "dd444444/resume" in mock_agent_request.call_args[0][1]
 
 
 @pytest.mark.asyncio
@@ -215,14 +215,14 @@ async def test_inject_parallel_run(client, mock_agent_request, mock_read_credent
     mock_agent_request.return_value = {"ok": True, "signal": "inject"}
 
     resp = await client.post(
-        "/api/parallel/runs/run-5/inject",
+        "/api/parallel/runs/ee555555/inject",
         json={"payload": "please focus on performance"},
     )
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
     mock_agent_request.assert_called_once()
-    assert "run-5/inject" in mock_agent_request.call_args[0][1]
+    assert "ee555555/inject" in mock_agent_request.call_args[0][1]
     body_arg = mock_agent_request.call_args[0][3]  # json_body is 4th positional arg
     assert body_arg == {"payload": "please focus on performance"}
 
@@ -232,11 +232,11 @@ async def test_unlock_parallel_run(client, mock_agent_request, mock_read_credent
     """Proxies unlock signal to agent for the given run ID."""
     mock_agent_request.return_value = {"ok": True, "signal": "unlock"}
 
-    resp = await client.post("/api/parallel/runs/run-6/unlock")
+    resp = await client.post("/api/parallel/runs/ff666666/unlock")
 
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
-    assert "run-6/unlock" in mock_agent_request.call_args[0][1]
+    assert "ff666666/unlock" in mock_agent_request.call_args[0][1]
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +268,7 @@ async def test_parallel_stop_agent_unreachable(client, mock_agent_request, mock_
     from fastapi import HTTPException
     mock_agent_request.side_effect = HTTPException(status_code=502, detail="Agent unreachable")
 
-    resp = await client.post("/api/parallel/runs/some-run-id/stop")
+    resp = await client.post("/api/parallel/runs/12345678/stop")
 
     assert resp.status_code == 502
     assert "unreachable" in resp.json()["detail"].lower()
@@ -281,7 +281,7 @@ async def test_parallel_inject_agent_unreachable(client, mock_agent_request, moc
     mock_agent_request.side_effect = HTTPException(status_code=502, detail="Agent unreachable")
 
     resp = await client.post(
-        "/api/parallel/runs/some-run-id/inject",
+        "/api/parallel/runs/12345678/inject",
         json={"payload": "focus on docs"},
     )
 
@@ -306,26 +306,26 @@ async def test_parallel_cleanup_agent_unreachable(client, mock_agent_request, mo
 @pytest.mark.asyncio
 async def test_parallel_get_run(client, mock_agent_request, mock_read_credentials):
     """GET /api/parallel/runs/{run_id} returns a single run's data."""
-    mock_agent_request.return_value = {"run_id": "run-abc", "status": "running"}
+    mock_agent_request.return_value = {"run_id": "abcdef01", "status": "running"}
 
-    resp = await client.get("/api/parallel/runs/run-abc")
+    resp = await client.get("/api/parallel/runs/abcdef01")
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["run_id"] == "run-abc"
+    assert data["run_id"] == "abcdef01"
     mock_agent_request.assert_called_once()
-    assert "run-abc" in mock_agent_request.call_args[0][1]
+    assert "abcdef01" in mock_agent_request.call_args[0][1]
 
 
 @pytest.mark.asyncio
 async def test_parallel_run_health(client, mock_agent_request, mock_read_credentials):
     """GET /api/parallel/runs/{run_id}/health returns health data."""
-    mock_agent_request.return_value = {"status": "running", "current_run_id": "run-abc"}
+    mock_agent_request.return_value = {"status": "running", "current_run_id": "abcdef01"}
 
-    resp = await client.get("/api/parallel/runs/run-abc/health")
+    resp = await client.get("/api/parallel/runs/abcdef01/health")
 
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "running"
     mock_agent_request.assert_called_once()
-    assert "run-abc/health" in mock_agent_request.call_args[0][1]
+    assert "abcdef01/health" in mock_agent_request.call_args[0][1]

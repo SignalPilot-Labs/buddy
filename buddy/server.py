@@ -11,7 +11,7 @@ import os
 import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Path
 from pydantic import BaseModel
 from starlette.responses import JSONResponse
 import uvicorn
@@ -358,14 +358,14 @@ class AgentServer:
             }
 
         @app.get("/parallel/runs/{run_id}")
-        async def parallel_get_run(run_id: str):
+        async def parallel_get_run(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found in parallel slots")
             return RunManager.to_dict(slot)
 
         @app.get("/parallel/runs/{run_id}/health")
-        async def parallel_run_health(run_id: str):
+        async def parallel_run_health(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
@@ -375,42 +375,42 @@ class AgentServer:
                 raise HTTPException(status_code=502, detail=str(e))
 
         @app.post("/parallel/runs/{run_id}/stop")
-        async def parallel_stop(run_id: str):
+        async def parallel_stop(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.stop_run(slot.container_name, "Stopped via dashboard")
 
         @app.post("/parallel/runs/{run_id}/kill")
-        async def parallel_kill(run_id: str):
+        async def parallel_kill(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.kill_run(slot.container_name)
 
         @app.post("/parallel/runs/{run_id}/pause")
-        async def parallel_pause(run_id: str):
+        async def parallel_pause(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.pause_run(slot.container_name)
 
         @app.post("/parallel/runs/{run_id}/resume")
-        async def parallel_resume(run_id: str):
+        async def parallel_resume(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.resume_run(slot.container_name)
 
         @app.post("/parallel/runs/{run_id}/inject")
-        async def parallel_inject(run_id: str, body: ParallelSignalRequest = ParallelSignalRequest()):
+        async def parallel_inject(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$"), body: ParallelSignalRequest = ParallelSignalRequest()):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.inject_prompt(slot.container_name, {"payload": body.payload})
 
         @app.post("/parallel/runs/{run_id}/unlock")
-        async def parallel_unlock(run_id: str):
+        async def parallel_unlock(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$")):
             slot = _run_manager.get_slot_by_run_id(run_id)
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")

@@ -358,10 +358,10 @@ class TestParallelProxyEndpoints:
     @pytest.mark.asyncio
     async def test_parallel_get_run(self, client):
         """agent_request returns run data — GET /api/parallel/runs/{id} returns 200."""
-        run_data = {"run_id": "r1", "status": "running"}
+        run_data = {"run_id": "ab1234cd", "status": "running"}
 
         with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=run_data):
-            resp = await client.get("/api/parallel/runs/r1")
+            resp = await client.get("/api/parallel/runs/ab1234cd")
 
         assert resp.status_code == 200
         assert resp.json() == run_data
@@ -372,11 +372,11 @@ class TestParallelProxyEndpoints:
         mock_agent_request = AsyncMock(return_value={"ok": True})
 
         with patch("backend.endpoints.agent_request", mock_agent_request):
-            resp = await client.post("/api/parallel/runs/r1/stop")
+            resp = await client.post("/api/parallel/runs/ab1234cd/stop")
 
         assert resp.status_code == 200
         call_args = mock_agent_request.call_args
-        assert "/parallel/runs/r1/stop" in call_args[0][1]
+        assert "/parallel/runs/ab1234cd/stop" in call_args[0][1]
 
     @pytest.mark.asyncio
     async def test_parallel_kill_run(self, client):
@@ -384,11 +384,11 @@ class TestParallelProxyEndpoints:
         mock_agent_request = AsyncMock(return_value={"ok": True})
 
         with patch("backend.endpoints.agent_request", mock_agent_request):
-            resp = await client.post("/api/parallel/runs/r1/kill")
+            resp = await client.post("/api/parallel/runs/ab1234cd/kill")
 
         assert resp.status_code == 200
         call_args = mock_agent_request.call_args
-        assert "/parallel/runs/r1/kill" in call_args[0][1]
+        assert "/parallel/runs/ab1234cd/kill" in call_args[0][1]
 
     @pytest.mark.asyncio
     async def test_parallel_cleanup(self, client):

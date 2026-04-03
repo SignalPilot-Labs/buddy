@@ -15,7 +15,7 @@ from httpx import ASGITransport
 def _make_slot(**kwargs):
     from run_manager import RunSlot
     defaults = {
-        "run_id": "test-run-123",
+        "run_id": "a1b2c3d4",
         "container_name": "buddy-worker-abc12345",
         "status": "running",
         "container_id": "abc123",
@@ -100,7 +100,7 @@ async def test_parallel_runs_empty(client, mock_manager):
 @pytest.mark.asyncio
 async def test_parallel_start_success(client, mock_manager):
     """Mocks RunManager.start_run and verifies a successful response."""
-    slot = _make_slot(run_id="new-run-456", status="running")
+    slot = _make_slot(run_id="e5f6a7b8", status="running")
     mock_manager.start_run = AsyncMock(return_value=slot)
 
     resp = await client.post("/parallel/start", json={
@@ -111,7 +111,7 @@ async def test_parallel_start_success(client, mock_manager):
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["run_id"] == "new-run-456"
+    assert data["run_id"] == "e5f6a7b8"
     mock_manager.start_run.assert_awaited_once()
 
 
@@ -136,17 +136,17 @@ async def test_parallel_run_get(client, mock_manager):
     slot = _make_slot()
     mock_manager.get_slot_by_run_id.return_value = slot
 
-    resp = await client.get("/parallel/runs/test-run-123")
+    resp = await client.get("/parallel/runs/a1b2c3d4")
 
     assert resp.status_code == 200
-    assert resp.json()["run_id"] == "test-run-123"
+    assert resp.json()["run_id"] == "a1b2c3d4"
 
 
 @pytest.mark.asyncio
 async def test_parallel_run_get_not_found(client, mock_manager):
     """Returns 404 when run ID does not exist."""
     mock_manager.get_slot_by_run_id.return_value = None
-    resp = await client.get("/parallel/runs/nonexistent-run")
+    resp = await client.get("/parallel/runs/00000000")
     assert resp.status_code == 404
     assert "not found" in resp.json()["detail"].lower()
 
@@ -162,7 +162,7 @@ async def test_parallel_run_stop(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.stop_run = AsyncMock(return_value={"ok": True, "signal": "stop"})
 
-    resp = await client.post("/parallel/runs/test-run-123/stop")
+    resp = await client.post("/parallel/runs/a1b2c3d4/stop")
     assert resp.status_code == 200
     mock_manager.stop_run.assert_awaited_once_with(slot.container_name, "Stopped via dashboard")
 
@@ -172,7 +172,7 @@ async def test_parallel_run_stop_not_found(client, mock_manager):
     """Returns 404 when run is not found."""
     mock_manager.get_slot_by_run_id.return_value = None
 
-    resp = await client.post("/parallel/runs/ghost-run/stop")
+    resp = await client.post("/parallel/runs/ffffffff/stop")
     assert resp.status_code == 404
 
 
@@ -187,7 +187,7 @@ async def test_parallel_run_kill(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.kill_run = AsyncMock(return_value={"ok": True, "signal": "kill"})
 
-    resp = await client.post("/parallel/runs/test-run-123/kill")
+    resp = await client.post("/parallel/runs/a1b2c3d4/kill")
     assert resp.status_code == 200
     mock_manager.kill_run.assert_awaited_once_with(slot.container_name)
 
@@ -196,7 +196,7 @@ async def test_parallel_run_kill(client, mock_manager):
 async def test_parallel_run_kill_not_found(client, mock_manager):
     """Returns 404 when run ID does not exist for kill."""
     mock_manager.get_slot_by_run_id.return_value = None
-    resp = await client.post("/parallel/runs/ghost-run/kill")
+    resp = await client.post("/parallel/runs/ffffffff/kill")
     assert resp.status_code == 404
 
 
@@ -211,7 +211,7 @@ async def test_parallel_run_pause(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.pause_run = AsyncMock(return_value={"ok": True, "signal": "pause"})
 
-    resp = await client.post("/parallel/runs/test-run-123/pause")
+    resp = await client.post("/parallel/runs/a1b2c3d4/pause")
     assert resp.status_code == 200
     mock_manager.pause_run.assert_awaited_once_with(slot.container_name)
 
@@ -220,7 +220,7 @@ async def test_parallel_run_pause(client, mock_manager):
 async def test_parallel_run_pause_not_found(client, mock_manager):
     """Returns 404 when run is not found for pause."""
     mock_manager.get_slot_by_run_id.return_value = None
-    resp = await client.post("/parallel/runs/ghost-run/pause")
+    resp = await client.post("/parallel/runs/ffffffff/pause")
     assert resp.status_code == 404
 
 
@@ -235,7 +235,7 @@ async def test_parallel_run_resume(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.resume_run = AsyncMock(return_value={"ok": True, "signal": "resume"})
 
-    resp = await client.post("/parallel/runs/test-run-123/resume")
+    resp = await client.post("/parallel/runs/a1b2c3d4/resume")
     assert resp.status_code == 200
     mock_manager.resume_run.assert_awaited_once_with(slot.container_name)
 
@@ -252,7 +252,7 @@ async def test_parallel_run_inject(client, mock_manager):
     mock_manager.inject_prompt = AsyncMock(return_value={"ok": True, "signal": "inject"})
 
     resp = await client.post(
-        "/parallel/runs/test-run-123/inject",
+        "/parallel/runs/a1b2c3d4/inject",
         json={"payload": "focus on tests"},
     )
     assert resp.status_code == 200
@@ -265,7 +265,7 @@ async def test_parallel_run_inject(client, mock_manager):
 async def test_parallel_run_inject_not_found(client, mock_manager):
     """Returns 404 when run is not found for inject."""
     mock_manager.get_slot_by_run_id.return_value = None
-    resp = await client.post("/parallel/runs/ghost-run/inject", json={"payload": "test"})
+    resp = await client.post("/parallel/runs/ffffffff/inject", json={"payload": "test"})
     assert resp.status_code == 404
 
 
@@ -280,7 +280,7 @@ async def test_parallel_run_unlock(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.unlock_run = AsyncMock(return_value={"ok": True, "signal": "unlock"})
 
-    resp = await client.post("/parallel/runs/test-run-123/unlock")
+    resp = await client.post("/parallel/runs/a1b2c3d4/unlock")
     assert resp.status_code == 200
     mock_manager.unlock_run.assert_awaited_once_with(slot.container_name)
 
@@ -313,10 +313,10 @@ async def test_parallel_run_health(client, mock_manager):
     mock_manager.get_slot_by_run_id.return_value = slot
     mock_manager.get_worker_health = AsyncMock(return_value={
         "status": "running",
-        "current_run_id": "test-run-123",
+        "current_run_id": "a1b2c3d4",
     })
 
-    resp = await client.get("/parallel/runs/test-run-123/health")
+    resp = await client.get("/parallel/runs/a1b2c3d4/health")
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "running"
@@ -327,7 +327,7 @@ async def test_parallel_run_health(client, mock_manager):
 async def test_parallel_run_health_not_found(client, mock_manager):
     """Returns 404 when run does not exist for health check."""
     mock_manager.get_slot_by_run_id.return_value = None
-    resp = await client.get("/parallel/runs/ghost-run/health")
+    resp = await client.get("/parallel/runs/ffffffff/health")
     assert resp.status_code == 404
 
 
@@ -340,5 +340,5 @@ async def test_parallel_run_health_unreachable(client, mock_manager):
         side_effect=Exception("connection refused")
     )
 
-    resp = await client.get("/parallel/runs/test-run-123/health")
+    resp = await client.get("/parallel/runs/a1b2c3d4/health")
     assert resp.status_code == 502

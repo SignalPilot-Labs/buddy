@@ -24,6 +24,7 @@ from backend.constants import (
 )
 from backend.models import (
     ControlSignalRequest,
+    ParallelRunId,
     RunId,
     SetActiveRepoRequest,
     StartRunRequest,
@@ -197,43 +198,43 @@ async def parallel_status():
 
 
 @router.get("/parallel/runs/{run_id}")
-async def parallel_get_run(run_id: str):
+async def parallel_get_run(run_id: str = ParallelRunId):
     """Get a single parallel run by run_id."""
     return await agent_request("GET", f"/parallel/runs/{run_id}", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.get("/parallel/runs/{run_id}/health")
-async def parallel_run_health(run_id: str):
+async def parallel_run_health(run_id: str = ParallelRunId):
     """Health check for a specific parallel worker."""
     return await agent_request("GET", f"/parallel/runs/{run_id}/health", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.post("/parallel/runs/{run_id}/stop")
-async def parallel_stop_run(run_id: str):
+async def parallel_stop_run(run_id: str = ParallelRunId):
     """Stop a parallel worker."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/stop", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.post("/parallel/runs/{run_id}/kill")
-async def parallel_kill_run(run_id: str):
+async def parallel_kill_run(run_id: str = ParallelRunId):
     """Kill a parallel worker."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/kill", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.post("/parallel/runs/{run_id}/pause")
-async def parallel_pause_run(run_id: str):
+async def parallel_pause_run(run_id: str = ParallelRunId):
     """Pause a parallel worker."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/pause", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.post("/parallel/runs/{run_id}/resume")
-async def parallel_resume_run(run_id: str):
+async def parallel_resume_run(run_id: str = ParallelRunId):
     """Resume a parallel worker."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/resume", PARALLEL_TIMEOUT, None, None, None)
 
 
 @router.post("/parallel/runs/{run_id}/inject")
-async def parallel_inject_run(run_id: str, body: ControlSignalRequest = Body()):
+async def parallel_inject_run(run_id: str = ParallelRunId, body: ControlSignalRequest = Body()):
     """Inject a prompt into a parallel worker."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/inject", PARALLEL_TIMEOUT, {
         "payload": body.payload,
@@ -241,7 +242,7 @@ async def parallel_inject_run(run_id: str, body: ControlSignalRequest = Body()):
 
 
 @router.post("/parallel/runs/{run_id}/unlock")
-async def parallel_unlock_run(run_id: str):
+async def parallel_unlock_run(run_id: str = ParallelRunId):
     """Unlock a parallel worker session."""
     return await agent_request("POST", f"/parallel/runs/{run_id}/unlock", PARALLEL_TIMEOUT, None, None, None)
 

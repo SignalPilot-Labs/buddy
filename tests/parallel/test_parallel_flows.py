@@ -70,7 +70,7 @@ class TestFullLifecycleFlows:
     @pytest.mark.asyncio
     async def test_start_inject_stop_cleanup(self, client, mock_manager):
         """Start a run, inject a prompt, stop it, then clean up."""
-        run_id = "flow-run-001"
+        run_id = "f1000001"
         slot = _make_slot(run_id=run_id, status="running")
 
         # --- Step 1: Start ---
@@ -111,7 +111,7 @@ class TestFullLifecycleFlows:
     @pytest.mark.asyncio
     async def test_start_pause_resume_stop(self, client, mock_manager):
         """Start a run, pause it, resume it, then stop it."""
-        run_id = "flow-run-002"
+        run_id = "f1000002"
         slot = _make_slot(run_id=run_id, status="running")
         mock_manager.get_slot_by_run_id.return_value = slot
 
@@ -149,7 +149,7 @@ class TestFullLifecycleFlows:
     @pytest.mark.asyncio
     async def test_start_unlock_complete(self, client, mock_manager):
         """Start a run, then unlock its session gate."""
-        run_id = "flow-run-003"
+        run_id = "f1000003"
         slot = _make_slot(run_id=run_id, status="running")
 
         mock_manager.start_run = AsyncMock(return_value=slot)
@@ -166,7 +166,7 @@ class TestFullLifecycleFlows:
     @pytest.mark.asyncio
     async def test_start_kill_cleanup(self, client, mock_manager):
         """Start a run, kill it immediately, then clean up."""
-        run_id = "flow-run-004"
+        run_id = "f1000004"
         slot = _make_slot(run_id=run_id, status="running")
 
         mock_manager.start_run = AsyncMock(return_value=slot)
@@ -199,8 +199,9 @@ class TestMultiRunFlows:
     @pytest.mark.asyncio
     async def test_three_concurrent_runs_independent_signals(self, client, mock_manager):
         """Start 3 runs, send different signals to each, verify each got the right one."""
+        multi_ids = ["a0000001", "a0000002", "a0000003"]
         slots = [
-            _make_slot(run_id=f"multi-run-{i}", container_name=f"buddy-worker-{i:08x}", status="running")
+            _make_slot(run_id=multi_ids[i], container_name=f"buddy-worker-{i:08x}", status="running")
             for i in range(3)
         ]
 
@@ -215,20 +216,20 @@ class TestMultiRunFlows:
 
         # Stop run-0
         mock_manager.stop_run = AsyncMock(return_value={"ok": True, "signal": "stop"})
-        resp = await client.post("/parallel/runs/multi-run-0/stop")
+        resp = await client.post(f"/parallel/runs/{multi_ids[0]}/stop")
         assert resp.status_code == 200
         mock_manager.stop_run.assert_awaited_once_with(slots[0].container_name, "Stopped via dashboard")
 
         # Pause run-1
         mock_manager.pause_run = AsyncMock(return_value={"ok": True, "signal": "pause"})
-        resp = await client.post("/parallel/runs/multi-run-1/pause")
+        resp = await client.post(f"/parallel/runs/{multi_ids[1]}/pause")
         assert resp.status_code == 200
         mock_manager.pause_run.assert_awaited_once_with(slots[1].container_name)
 
         # Inject into run-2
         mock_manager.inject_prompt = AsyncMock(return_value={"ok": True, "signal": "inject"})
         resp = await client.post(
-            "/parallel/runs/multi-run-2/inject",
+            f"/parallel/runs/{multi_ids[2]}/inject",
             json={"payload": "focus on docs"},
         )
         assert resp.status_code == 200
@@ -239,8 +240,9 @@ class TestMultiRunFlows:
     @pytest.mark.asyncio
     async def test_start_runs_stop_one_others_continue(self, client, mock_manager):
         """Start 3 runs, stop one, verify others still reflected in status."""
+        cont_ids = ["b0000001", "b0000002", "b0000003"]
         slots = [
-            _make_slot(run_id=f"cont-run-{i}", container_name=f"buddy-worker-c{i:07x}", status="running")
+            _make_slot(run_id=cont_ids[i], container_name=f"buddy-worker-c{i:07x}", status="running")
             for i in range(3)
         ]
         mock_manager.start_run = AsyncMock(side_effect=slots)
@@ -253,7 +255,7 @@ class TestMultiRunFlows:
             (s for s in slots if s.run_id == rid), None
         )
         mock_manager.stop_run = AsyncMock(return_value={"ok": True, "signal": "stop"})
-        resp = await client.post("/parallel/runs/cont-run-1/stop")
+        resp = await client.post(f"/parallel/runs/{cont_ids[1]}/stop")
         assert resp.status_code == 200
 
         # Simulate state update
@@ -308,7 +310,7 @@ class TestEdgeCases:
         mock_manager.get_slot_by_run_id.return_value = None
 
         for endpoint in ("stop", "pause", "resume", "kill", "unlock"):
-            resp = await client.post(f"/parallel/runs/ghost-run-999/{endpoint}", json={})
+            resp = await client.post(f"/parallel/runs/deadbeef/{endpoint}", json={})
             assert resp.status_code == 404, f"Expected 404 for /{endpoint}, got {resp.status_code}"
             assert "not found" in resp.json()["detail"].lower()
 
@@ -317,7 +319,7 @@ class TestEdgeCases:
         """Inject with payload returns 404 for unknown run ID."""
         mock_manager.get_slot_by_run_id.return_value = None
         resp = await client.post(
-            "/parallel/runs/ghost-run-999/inject",
+            "/parallel/runs/deadbeef/inject",
             json={"payload": "test"},
         )
         assert resp.status_code == 404
@@ -325,11 +327,11 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_kill_completed_run(self, client, mock_manager):
         """Kill endpoint has no status guard — it always calls through."""
-        slot = _make_slot(run_id="killed-run", status="killed")
+        slot = _make_slot(run_id="b1aded00", status="killed")
         mock_manager.get_slot_by_run_id.return_value = slot
         mock_manager.kill_run = AsyncMock(return_value={"ok": True, "signal": "kill"})
 
-        resp = await client.post("/parallel/runs/killed-run/kill")
+        resp = await client.post("/parallel/runs/b1aded00/kill")
         assert resp.status_code == 200
         mock_manager.kill_run.assert_awaited_once_with(slot.container_name)
 
@@ -347,8 +349,9 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_status_reflects_active_count(self, client, mock_manager):
         """After stopping one of 3 runs, status active count drops to 2."""
+        cnt_ids = ["c0000001", "c0000002", "c0000003"]
         slots = [
-            _make_slot(run_id=f"cnt-{i}", container_name=f"buddy-worker-n{i:07x}", status="running")
+            _make_slot(run_id=cnt_ids[i], container_name=f"buddy-worker-n{i:07x}", status="running")
             for i in range(3)
         ]
         mock_manager.get_slot_by_run_id.side_effect = lambda rid: next(
@@ -356,7 +359,7 @@ class TestEdgeCases:
         )
         mock_manager.stop_run = AsyncMock(return_value={"ok": True})
 
-        resp = await client.post("/parallel/runs/cnt-0/stop")
+        resp = await client.post(f"/parallel/runs/{cnt_ids[0]}/stop")
         assert resp.status_code == 200
         slots[0].status = "stopped"
 

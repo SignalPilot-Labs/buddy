@@ -465,7 +465,7 @@ class TestConcurrentErrorRecovery:
     @pytest.mark.asyncio
     async def test_rapid_stop_kill_same_run(self, client, mock_manager):
         """Issue stop then immediately kill on the same run; both handled gracefully."""
-        run_id = "rapid-sk-run"
+        run_id = "a1a2a3a4"
         slot = _make_slot(run_id=run_id, container_name="buddy-worker-sk001", status="running")
         mock_manager.get_slot_by_run_id.return_value = slot
         mock_manager.stop_run = AsyncMock(return_value={"ok": True, "signal": "stop"})
@@ -484,7 +484,7 @@ class TestConcurrentErrorRecovery:
     @pytest.mark.asyncio
     async def test_inject_during_stop(self, client, mock_manager):
         """Inject a prompt while also sending a stop; both operations complete without crashing."""
-        run_id = "inject-stop-run"
+        run_id = "b1b2b3b4"
         slot = _make_slot(run_id=run_id, container_name="buddy-worker-is001", status="running")
         mock_manager.get_slot_by_run_id.return_value = slot
         mock_manager.inject_prompt = AsyncMock(return_value={"ok": True, "signal": "inject"})
