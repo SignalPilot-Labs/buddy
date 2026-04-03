@@ -105,6 +105,7 @@ class RunBootstrap:
         self,
         run_id: str,
         max_budget: float,
+        prompt: str | None = None,
     ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
         """Bootstrap a resumed run. Returns (ctx, options, session, events, logger, initial_prompt)."""
         run_info = await db.get_run_for_resume(run_id)
@@ -150,10 +151,16 @@ class RunBootstrap:
         await db.update_run_status(run_id, "running")
         await db.log_audit(run_id, "session_resumed", {"branch": ctx.branch_name})
 
-        initial = (
-            "You are resuming a previous session. Continue where you left off. "
-            "Check your recent commits with `git log --oneline -5`."
-        )
+        if prompt:
+            initial = (
+                "You are resuming a previous session on an existing branch. "
+                f"Operator feedback: {prompt}"
+            )
+        else:
+            initial = (
+                "You are resuming a previous session. Continue where you left off. "
+                "Check your recent commits with `git log --oneline -5`."
+            )
         return ctx, options, session, events, logger, initial
 
     # ── Git ──

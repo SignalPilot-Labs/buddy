@@ -52,6 +52,7 @@ class ResumeRequest(BaseModel):
     """POST /resume request body."""
 
     run_id: str
+    prompt: str | None = None
     max_budget_usd: float = 0
     claude_token: str | None = None
     git_token: str | None = None
