@@ -1,13 +1,13 @@
 <div align="center">
 
-```
+<pre>
   _               _     _
  | |__  _   _  __| | __| |_   _
  | '_ \| | | |/ _` |/ _` | | | |
  | |_) | |_| | (_| | (_| | |_| |
  |_.__/ \__,_|\__,_|\__,_|\__, |
                            |___/
-```
+</pre>
 
 **autonomous coding agent. give it a repo, get back a PR.**
 
