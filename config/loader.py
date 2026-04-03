@@ -44,6 +44,22 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
+def _ensure_gitignore_entry() -> None:
+    """Append .buddy/ to .gitignore if not already listed."""
+    gitignore = _REPO_ROOT / ".gitignore"
+    entry = ".buddy/"
+    if gitignore.exists():
+        content = gitignore.read_text()
+        if entry in content.splitlines():
+            return
+        if not content.endswith("\n"):
+            content += "\n"
+        gitignore.write_text(content + entry + "\n")
+    else:
+        gitignore.write_text(entry + "\n")
+    log.info("Added %s to %s", entry, gitignore)
+
+
 def _ensure_project_config() -> None:
     """Copy default config to .buddy/config.yml on first run."""
     if _PROJECT_CONFIG.exists():
@@ -52,6 +68,7 @@ def _ensure_project_config() -> None:
         return
     _PROJECT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(_DEFAULT_CONFIG, _PROJECT_CONFIG)
+    _ensure_gitignore_entry()
     log.info("Created %s from defaults", _PROJECT_CONFIG)
 
 

@@ -288,7 +288,7 @@ export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string
   // Git diff tree
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
-  const hasGitDiff = diffData && diffData.files.length > 0;
+  const hasGitDiff = diffData && diffData.files && diffData.files.length > 0;
   const hasLive = liveChanges.filter(c => c.action !== "read").length > 0;
 
   const totalFiles = diffData?.total_files || 0;
@@ -382,7 +382,7 @@ export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
 
-            {activeTab === "files" && diffData && diffData.files.length > 0 && (
+            {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
               <FileList files={diffData.files} />
             )}
 

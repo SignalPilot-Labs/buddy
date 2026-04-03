@@ -1,4 +1,4 @@
-"""Self-improve agent HTTP server.
+"""Buddy agent HTTP server.
 
 AgentServer wraps FastAPI and orchestrates bootstrap → loop → teardown.
 Control events are pushed to the active EventBus.
@@ -42,7 +42,7 @@ class AgentServer:
         self._task: asyncio.Task | None = None
         self._events: EventBus | None = None
         self.current_run_id: str | None = None
-        self.app = FastAPI(title="Self-Improve Agent", lifespan=self._lifespan)
+        self.app = FastAPI(title="Buddy Agent", lifespan=self._lifespan)
         self._register_routes()
 
     @asynccontextmanager

@@ -1,4 +1,4 @@
-# Buddy by SignalPilot
+# Buddy
 
 Autonomous coding agent powered by the Claude Agent SDK. Runs Claude in a planner/builder/reviewer loop, makes commits to a GitHub repo, and opens PRs — supervised via a real-time monitor UI.
 
@@ -83,16 +83,6 @@ Safe code execution with auto-detecting backend:
 
 Same `POST /execute` API regardless of backend.
 
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GIT_TOKEN` | Yes | GitHub PAT with repo scope |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Yes | Claude Code OAuth token |
-| `GITHUB_REPO` | Yes | Target repo slug (e.g. `SignalPilot-Labs/buddy`) |
-| `MAX_BUDGET_USD` | No | Max budget per agent run, 0 = unlimited (default: `0`) |
 
 ---
 

@@ -182,7 +182,7 @@ class AgentLoop:
             commits=commits,
             cost_so_far=ctx.total_cost,
             round_summary=round_summary,
-            original_prompt=custom_prompt or "General self-improvement pass.",
+            original_prompt=custom_prompt or "General improvement pass.",
         )
 
         meta = {

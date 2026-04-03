@@ -70,7 +70,7 @@ const STEPS = [
     key: "github_repo",
     label: "GitHub Repository",
     statusKey: "has_github_repo" as const,
-    placeholder: "your-org/SignalPilot",
+    placeholder: "your-org/your-repo",
     type: "text" as const,
     help: (
       <p className="text-[10px] text-[#888] leading-relaxed">
@@ -169,11 +169,11 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
               <div className="px-5 py-4 border-b border-[#1a1a1a]">
                 <div className="flex items-center gap-2.5">
                   <div className="flex items-center justify-center h-7 w-7 rounded bg-white/[0.04] border border-white/[0.08]">
-                    <Image src="/logo.svg" alt="SignalPilot" width={16} height={16} />
+                    <Image src="/logo.svg" alt="Buddy" width={16} height={16} />
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
-                      Welcome to Self-Improve
+                      Welcome to Buddy
                     </h2>
                     <p className="text-[9px] text-[#999] mt-0.5">
                       Set up your credentials to get started
