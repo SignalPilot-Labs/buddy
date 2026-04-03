@@ -3,14 +3,12 @@
 from __future__ import annotations
 
 import json as _json
-import sys
-from typing import Optional
+from typing import Callable, Optional
 
 import typer
 from InquirerPy import inquirer
-from rich.console import Console
 
-from cli.client import get_client
+from cli.client import BuddyClient, get_client
 from cli.config import state
 from cli.output import (
     console,
@@ -28,6 +26,9 @@ from cli.output import (
 )
 
 app = typer.Typer(help="Manage agent runs")
+
+TOOL_LIST_LIMIT = 50
+TOOL_LIST_OFFSET = 0
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
@@ -93,27 +94,73 @@ def _show_run_detail(run: dict) -> None:
     print_detail(display, title="Run Details")
 
 
+# ── Action handlers ──────────────────────────────────────────────────────────
+
+
+def _handle_pause(client: BuddyClient, run_id: str) -> None:
+    """Pause the run."""
+    client.post(f"/api/runs/{run_id}/pause")
+    print_success("Run paused")
+
+
+def _handle_resume(client: BuddyClient, run_id: str) -> None:
+    """Resume the run with a new budget."""
+    budget = typer.prompt("Max budget USD (0 = unlimited)", type=float)
+    client.post("/api/agent/resume", json={"run_id": run_id, "max_budget_usd": budget})
+    print_success("Run resumed")
+
+
+def _handle_stop(client: BuddyClient, run_id: str) -> None:
+    """Stop the run with a reason."""
+    reason = typer.prompt("Reason")
+    client.post(f"/api/runs/{run_id}/stop", json={"payload": reason})
+    print_success("Stop signal sent")
+
+
+def _handle_inject(client: BuddyClient, run_id: str) -> None:
+    """Inject a prompt into the run."""
+    prompt = typer.prompt("Prompt to inject")
+    if not prompt.strip():
+        print_error("Prompt cannot be empty")
+        return
+    client.post(f"/api/runs/{run_id}/inject", json={"payload": prompt})
+    print_success("Prompt injected")
+
+
+def _handle_unlock(client: BuddyClient, run_id: str) -> None:
+    """Unlock the time gate for the run."""
+    client.post(f"/api/runs/{run_id}/unlock")
+    print_success("Time gate unlocked")
+
+
+_ACTION_HANDLERS: dict[str, Callable[[BuddyClient, str], None]] = {
+    "pause": _handle_pause,
+    "resume": _handle_resume,
+    "stop": _handle_stop,
+    "inject": _handle_inject,
+    "unlock": _handle_unlock,
+}
+
+
 def _action_menu(run: dict) -> None:
     """Show an action menu for the selected run."""
     run_id = run["id"]
     status = run.get("status", "unknown")
 
-    # Build actions based on current status
     actions: list[dict] = [{"name": "Show details", "value": "details"}]
-
     if status in ("running", "paused", "rate_limited"):
         if status == "running":
             actions.append({"name": "Pause", "value": "pause"})
         if status == "paused":
             actions.append({"name": "Resume", "value": "resume"})
-        actions.append({"name": "Stop", "value": "stop"})
-        actions.append({"name": "Inject prompt", "value": "inject"})
-        actions.append({"name": "Unlock time gate", "value": "unlock"})
-        actions.append({"name": "Stream live events", "value": "stream"})
-
+        actions.extend([
+            {"name": "Stop", "value": "stop"},
+            {"name": "Inject prompt", "value": "inject"},
+            {"name": "Unlock time gate", "value": "unlock"},
+            {"name": "Stream live events", "value": "stream"},
+        ])
     if status in ("completed", "stopped", "error"):
         actions.append({"name": "Resume (inject + restart)", "value": "inject"})
-
     actions.extend([
         {"name": "Tool calls", "value": "tools"},
         {"name": "Audit log", "value": "audit"},
@@ -126,51 +173,24 @@ def _action_menu(run: dict) -> None:
         choices=actions,
     ).execute()
 
-    client = get_client()
+    _dispatch_action(action, run, run_id)
 
+
+def _dispatch_action(action: str, run: dict, run_id: str) -> None:
+    """Dispatch the selected action to the appropriate handler."""
+    client = get_client()
     if action == "details":
         _show_run_detail(run)
-
-    elif action == "pause":
-        client.post(f"/api/runs/{run_id}/pause")
-        print_success("Run paused")
-
-    elif action == "resume":
-        budget = typer.prompt("Max budget USD (0 = unlimited)", default="0", type=float)
-        client.post("/api/agent/resume", json={"run_id": run_id, "max_budget_usd": budget})
-        print_success("Run resumed")
-
-    elif action == "stop":
-        reason = typer.prompt("Reason", default="Operator requested stop")
-        client.post(f"/api/runs/{run_id}/stop", json={"payload": reason})
-        print_success("Stop signal sent")
-
-    elif action == "inject":
-        prompt = typer.prompt("Prompt to inject")
-        if not prompt.strip():
-            print_error("Prompt cannot be empty")
-            return
-        client.post(f"/api/runs/{run_id}/inject", json={"payload": prompt})
-        print_success("Prompt injected")
-
-    elif action == "unlock":
-        client.post(f"/api/runs/{run_id}/unlock")
-        print_success("Time gate unlocked")
-
+    elif action in _ACTION_HANDLERS:
+        _ACTION_HANDLERS[action](client, run_id)
     elif action == "stream":
         _stream_run(run_id)
-
     elif action == "tools":
-        _show_tools(run_id)
-
+        _show_tools(run_id, TOOL_LIST_LIMIT, TOOL_LIST_OFFSET)
     elif action == "audit":
-        _show_audit(run_id)
-
+        _show_audit(run_id, TOOL_LIST_LIMIT, TOOL_LIST_OFFSET)
     elif action == "diff":
         _show_diff(run_id)
-
-    elif action == "back":
-        return
 
 
 def _stream_run(run_id: str) -> None:
@@ -186,18 +206,9 @@ def _stream_run(run_id: str) -> None:
             elif etype == "connected":
                 console.print("[dim]Connected to event stream[/dim]")
             elif etype == "tool_call":
-                name = data.get("tool_name", "?")
-                phase = data.get("phase", "")
-                dur = data.get("duration_ms")
-                dur_str = f" ({dur}ms)" if dur else ""
-                permitted = data.get("permitted", True)
-                icon = "[green]✓[/green]" if permitted else "[red]✗[/red]"
-                console.print(f"  {icon} [bold]{name}[/bold] [{phase}]{dur_str}")
+                _print_tool_call_event(data)
             elif etype == "audit":
-                et = data.get("event_type", "?")
-                details = data.get("details", {})
-                snippet = str(details)[:80] if details else ""
-                console.print(f"  [cyan]▸[/cyan] {et}  {snippet}")
+                _print_audit_event(data)
             elif etype == "run_ended":
                 st = data.get("status", "unknown")
                 console.print(f"\n[bold]Run ended: {status_styled(st)}[/bold]")
@@ -208,7 +219,26 @@ def _stream_run(run_id: str) -> None:
         console.print("\n[dim]Stream disconnected.[/dim]")
 
 
-def _show_tools(run_id: str, limit: int = 50, offset: int = 0) -> None:
+def _print_tool_call_event(data: dict) -> None:
+    """Print a formatted tool_call SSE event."""
+    name = data.get("tool_name", "?")
+    phase = data.get("phase", "")
+    dur = data.get("duration_ms")
+    dur_str = f" ({dur}ms)" if dur else ""
+    permitted = data.get("permitted", True)
+    icon = "[green]✓[/green]" if permitted else "[red]✗[/red]"
+    console.print(f"  {icon} [bold]{name}[/bold] [{phase}]{dur_str}")
+
+
+def _print_audit_event(data: dict) -> None:
+    """Print a formatted audit SSE event."""
+    et = data.get("event_type", "?")
+    details = data.get("details", {})
+    snippet = str(details)[:80] if details else ""
+    console.print(f"  [cyan]▸[/cyan] {et}  {snippet}")
+
+
+def _show_tools(run_id: str, limit: int, offset: int) -> None:
     """Show tool calls for a run."""
     data = get_client().get(f"/api/runs/{run_id}/tools", params={"limit": limit, "offset": offset})
     if state.json_mode:
@@ -230,7 +260,7 @@ def _show_tools(run_id: str, limit: int = 50, offset: int = 0) -> None:
     ], title=f"Tool Calls — {short_id(run_id)}")
 
 
-def _show_audit(run_id: str, limit: int = 50, offset: int = 0) -> None:
+def _show_audit(run_id: str, limit: int, offset: int) -> None:
     """Show audit log for a run."""
     data = get_client().get(f"/api/runs/{run_id}/audit", params={"limit": limit, "offset": offset})
     if state.json_mode:

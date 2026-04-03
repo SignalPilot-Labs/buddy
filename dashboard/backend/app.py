@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.constants import APP_TITLE, MASTER_KEY_PATH
 from backend.endpoints import router
+from backend.endpoints_settings import router as settings_router
+from backend.endpoints_streaming import router as streaming_router
+from backend.endpoints_tunnel import router as tunnel_router
 from backend.utils import autofill_settings
 from db.connection import connect, close
 
@@ -55,3 +58,6 @@ app.add_middleware(
     allow_headers=_ALLOWED_HEADERS,
 )
 app.include_router(router)
+app.include_router(streaming_router)
+app.include_router(settings_router)
+app.include_router(tunnel_router)

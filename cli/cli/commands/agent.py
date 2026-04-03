@@ -5,7 +5,7 @@ from __future__ import annotations
 import typer
 
 from cli.client import get_client
-from cli.output import console, print_detail, print_json, print_success, status_styled
+from cli.output import console, print_json, status_styled
 from cli.config import state
 
 app = typer.Typer(help="Agent container status")

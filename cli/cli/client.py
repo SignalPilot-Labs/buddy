@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from typing import Any, Iterator
 
@@ -10,6 +11,8 @@ from httpx_sse import connect_sse
 from rich.console import Console
 
 from cli.config import resolve_api_key, resolve_api_url
+
+HTTP_TIMEOUT_SEC = 15
 
 err = Console(stderr=True)
 
@@ -23,7 +26,7 @@ class BuddyClient:
         headers: dict[str, str] = {}
         if api_key:
             headers["X-API-Key"] = api_key
-        self._http = httpx.Client(base_url=base_url, headers=headers, timeout=15)
+        self._http = httpx.Client(base_url=base_url, headers=headers, timeout=HTTP_TIMEOUT_SEC)
         self.base_url = base_url
 
     # -- convenience verbs ---------------------------------------------------
@@ -47,15 +50,13 @@ class BuddyClient:
 
         Each yielded dict has ``event`` (str) and ``data`` (parsed JSON).
         """
-        import json as _json
-
         with connect_sse(
             self._http, "GET", path, timeout=httpx.Timeout(None)
         ) as source:
             for event in source.iter_sse():
                 try:
-                    data = _json.loads(event.data) if event.data else {}
-                except _json.JSONDecodeError:
+                    data = json.loads(event.data) if event.data else {}
+                except json.JSONDecodeError:
                     data = {"raw": event.data}
                 yield {"event": event.event, "data": data}
 
