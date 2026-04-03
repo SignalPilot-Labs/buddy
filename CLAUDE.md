@@ -32,7 +32,7 @@ These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must
 
 ## Size Limits
 
-- No function longer than 20 lines. Extract helpers.
+- No function longer than 50 lines except in critical cases. Extract helpers.
 - No file longer than 400 lines. Split into focused modules.
 
 ## Verification
