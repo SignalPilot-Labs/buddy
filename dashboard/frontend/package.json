@@ -5,24 +5,41 @@
   "scripts": {
     "dev": "next dev --port 3400",
     "build": "next build",
-    "start": "next start --port 3400"
+    "start": "next start --port 3400",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.0.0",
     "@heroicons/react": "^2.2.0",
+    "@prisma/client": "^6.0.0",
     "@radix-ui/react-dialog": "^1.1.15",
+    "bcryptjs": "^2.4.3",
     "clsx": "^2.1.0",
     "framer-motion": "^12.0.0",
     "next": "^16.2.2",
+    "next-auth": "^5.0.0-beta.25",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "jsdom": "^25.0.0",
     "postcss": "^8.5.0",
+    "prisma": "^6.0.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }
