@@ -12,10 +12,11 @@ benchmark/results/
 benchmark/skills/improvements_*.json
 
 # Self-improve build artifacts
-self-improve/monitor-web/.next/
-self-improve/monitor-web/node_modules/
-self-improve/monitor-web/package-lock.json
-self-improve/monitor/static/
+buddy/monitor-web/.next/
+buddy/monitor-web/node_modules/
+buddy/monitor-web/package-lock.json
+buddy/monitor/static/
 
 # Docker volumes / runtime
 *.log
+.buddy/

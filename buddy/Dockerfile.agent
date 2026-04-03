@@ -1,0 +1,84 @@
+# Versions pinned in build.sh (source of truth).
+ARG PYTHON_VERSION=3.12
+ARG NODE_VERSION=22
+
+FROM python:${PYTHON_VERSION}-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    jq \
+    gosu \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI (official static binary — no daemon, just the client)
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.5.1.tgz \
+    | tar xz --strip-components=1 -C /usr/local/bin docker/docker \
+    && chmod +x /usr/local/bin/docker
+
+# Install GitHub CLI
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js (required for Claude Code CLI)
+ARG NODE_VERSION
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
+
+WORKDIR /app
+
+# Config (required by db/connection.py)
+COPY config/ /app/config/
+
+# Shared DB package (models + connection pool)
+COPY db/pyproject.toml /app/db/pyproject.toml
+COPY db/__init__.py /app/db/__init__.py
+RUN pip install --no-cache-dir /app/db/
+COPY db/ /app/db/
+
+# Buddy packages
+COPY buddy/pyproject.toml /app/pyproject.toml
+RUN pip install --no-cache-dir /app/
+COPY buddy/core/ /app/core/
+COPY buddy/tools/ /app/tools/
+COPY buddy/utils/ /app/utils/
+COPY buddy/prompts/ /app/prompts/
+COPY buddy/skills/ /app/skills/
+COPY buddy/server.py /app/server.py
+
+# Run as non-root — Claude CLI refuses --dangerously-skip-permissions as root
+RUN useradd -m agentuser \
+    && mkdir -p /home/agentuser/.claude \
+    && echo '{}' > /home/agentuser/.claude.json \
+    && chown -R agentuser:agentuser /app /home/agentuser/.claude /home/agentuser/.claude.json
+
+# Give agentuser access to docker socket (will be mounted)
+RUN groupadd -g 998 dockerhost || true \
+    && usermod -aG dockerhost agentuser 2>/dev/null || true
+
+USER agentuser
+
+# Git config as agentuser
+RUN git config --global user.name "Buddy Bot" \
+    && git config --global user.email "buddy-bot@noreply.github.com" \
+    && git config --global --add safe.directory /workspace \
+    && git config --global --add safe.directory '*'
+
+ENV PYTHONPATH="/app"
+
+# Entrypoint: fix docker socket permissions at runtime, then exec as agentuser
+COPY --chown=root:root buddy/agent-entrypoint.sh /app/agent-entrypoint.sh
+
+USER root
+RUN chmod +x /app/agent-entrypoint.sh
+ENTRYPOINT ["/app/agent-entrypoint.sh"]
+CMD ["python", "-m", "server"]
