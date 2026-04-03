@@ -34,6 +34,9 @@ SECRET_KEYS = frozenset({"claude_token", "git_token", "dashboard_api_key"})
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
 
+# Auth — localhost requests bypass API key checks
+LOCALHOST_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
 # Tunnel (read-only — URL written by tunnel container to shared volume)
 TUNNEL_URL_FILE = Path("/tunnel/url.txt")
 TUNNEL_URL_PATTERN = r"https://[a-zA-Z0-9-]+\.trycloudflare\.com"

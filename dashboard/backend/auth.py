@@ -13,16 +13,13 @@ from fastapi import HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 
 from backend import crypto
-from backend.constants import MASTER_KEY_PATH, TUNNEL_TOKEN_DB_KEY
+from backend.constants import LOCALHOST_HOSTS, MASTER_KEY_PATH, TUNNEL_TOKEN_DB_KEY
 from backend.utils import session
 from db.models import Setting
 
 log = logging.getLogger("backend.auth")
 
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-_LOCALHOST_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
-
 
 class AuthCache:
     """Caches the dashboard API key and tunnel token loaded from the DB."""
@@ -98,7 +95,7 @@ async def verify_api_key(
     3. X-API-Key matches the ephemeral tunnel token
     """
     client_host = request.client.host if request.client else None
-    if client_host in _LOCALHOST_HOSTS:
+    if client_host in LOCALHOST_HOSTS:
         return
 
     if api_key:
