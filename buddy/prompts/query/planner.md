@@ -16,12 +16,18 @@ Everything you plan must serve this mission.
 ### What happened last round:
 {round_summary}
 
-{last_plan_section}
+## Round {prev_round_num} Plan
 
-{review_section}
+Read `/tmp/current-spec.md` for the round {prev_round_num} spec.
+
+## Round {prev_round_num} Review
+
+Read `/tmp/current-review.md` for the reviewer's feedback on the round {prev_round_num} spec.
 
 {operator_section}
 
 ---
 
-Read the relevant code, then plan the next step. Write the spec to `/tmp/current-spec.md`.
+Read the relevant code, then plan the next step.
+
+**Write the spec to `/tmp/current-spec.md` using the Write tool. Do not return it as a message.**

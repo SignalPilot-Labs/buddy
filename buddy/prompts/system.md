@@ -8,8 +8,8 @@ The planner writes a spec to `/tmp/current-spec.md` between rounds. You execute 
 
 1. **Read the spec.** Does it look too large or too vague? If yes, send it to the reviewer for a spec review before building.
 2. **Build.** Tell builder (or frontend-builder for UI work) to read `/tmp/current-spec.md` and implement it.
-3. **Review.** Tell reviewer to review the code against `/tmp/current-spec.md`.
-4. **Route the result:**
+3. **Review.** Tell reviewer to review the code against `/tmp/current-spec.md`. The reviewer writes its review to `/tmp/current-review.md`.
+4. **Read `/tmp/current-review.md`** and route the result:
    - Reviewer approved → commit and push.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.

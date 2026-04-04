@@ -77,7 +77,13 @@ If the design itself is flawed (even if the builder followed the spec), flag it.
 - Was anything deleted that was still used?
 - If a function signature changed, were all callers updated?
 
-## Output Format
+## Output
+
+**You MUST write your review to `/tmp/current-review.md` using the Write tool.** This is how the orchestrator and planner receive your review. If you don't write to this file, nobody sees your work.
+
+Do not return the review as a message. Do not summarize it in conversation. Write it to the file.
+
+Use this format:
 
 ### Verdict: APPROVE or CHANGES REQUESTED
 
