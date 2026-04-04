@@ -89,6 +89,16 @@ export function OnboardingModal({ open, onComplete, initialStatus, onStartRun }:
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setStep(0);
+      setDone(false);
+      setError(null);
+      setShowPassword(false);
+    }
+  }, [open]);
+
   // Focus input on step change
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 150);

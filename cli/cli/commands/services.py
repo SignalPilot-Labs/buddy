@@ -131,7 +131,11 @@ def uninstall_buddy() -> None:
         "This will remove all Buddy containers, images, volumes, and the ~/.buddy/ directory. Continue?",
         abort=True,
     )
-    _compose(["down", "--volumes", "--rmi", "all"])
+    cmd = ["docker", "compose", "down", "--volumes", "--rmi", "all"]
+    console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    result = subprocess.run(cmd, cwd=BUDDY_HOME)
+    if result.returncode != 0:
+        console.print("[yellow]Docker cleanup failed — continuing with file removal[/yellow]")
     shutil.rmtree(BUDDY_HOME, ignore_errors=True)
     Path(BUDDY_BIN).unlink(missing_ok=True)
     console.print("[green]✓[/green] Buddy has been uninstalled")
