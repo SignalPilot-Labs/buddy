@@ -84,6 +84,8 @@ services:
         condition: service_completed_successfully
       dashboard:
         condition: service_healthy
+      sandbox:
+        condition: service_healthy
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
@@ -97,6 +99,12 @@ services:
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   # Firecracker sandbox (Linux with KVM only)
   sandbox-firecracker:

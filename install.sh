@@ -156,7 +156,8 @@ prompt_credentials() {
 
     if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
         printf "Anthropic API key: "
-        read -r ANTHROPIC_API_KEY < /dev/tty
+        read -rs ANTHROPIC_API_KEY < /dev/tty
+        printf "\n"
         if [ -z "$ANTHROPIC_API_KEY" ]; then
             _error "Anthropic API key cannot be empty."
             exit 1
@@ -167,7 +168,8 @@ prompt_credentials() {
 
     if [ -z "${GITHUB_TOKEN:-}" ]; then
         printf "GitHub token: "
-        read -r GITHUB_TOKEN < /dev/tty
+        read -rs GITHUB_TOKEN < /dev/tty
+        printf "\n"
         if [ -z "$GITHUB_TOKEN" ]; then
             _error "GitHub token cannot be empty."
             exit 1

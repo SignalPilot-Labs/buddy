@@ -109,9 +109,20 @@ def doctor_cmd() -> None:
     doctor.run_doctor()
 
 
+@app.command("open")
+def open_cmd() -> None:
+    """Open the Buddy dashboard in your default browser.
+
+    \b
+    Example:
+      buddy open
+    """
+    services.open_dashboard()
+
+
 @app.command("kill")
 def kill() -> None:
-    """Remove all Buddy containers (docker compose down). Asks for confirmation.
+    """Remove all Buddy containers — data volumes are preserved (docker compose down). Asks for confirmation.
 
     \b
     Example:

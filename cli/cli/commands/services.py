@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import webbrowser
 from pathlib import Path
 
 import typer
@@ -104,11 +105,17 @@ def stop_services() -> None:
     console.print("[green]✓[/green] Buddy services stopped")
 
 
+def open_dashboard() -> None:
+    """Open the Buddy dashboard in the default browser."""
+    console.print(f"[dim]Opening {DASHBOARD_URL}...[/dim]")
+    webbrowser.open(DASHBOARD_URL)
+
+
 def kill_services() -> None:
     """Force-remove all Buddy containers and volumes."""
     typer.confirm(
-        "This will remove all Buddy containers. Continue?",
+        "This will remove all Buddy containers (data volumes are preserved). Continue?",
         abort=True,
     )
     _compose(["down"])
-    console.print("[green]✓[/green] Buddy containers removed")
+    console.print("[green]✓[/green] Buddy containers removed (volumes preserved — run 'buddy start' to restart)")
