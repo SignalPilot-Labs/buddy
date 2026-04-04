@@ -8,6 +8,7 @@ import typer
 
 from cli.commands import agent, config, repos, run, services, settings
 from cli.config import state
+from cli.constants import DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
 Buddy CLI — manage services, runs, settings, and repos.
@@ -81,6 +82,20 @@ def update() -> None:
       buddy update
     """
     services.update_services()
+
+
+@app.command("logs")
+def logs(
+    lines: int = typer.Argument(DEFAULT_LOG_TAIL_LINES, metavar="<lines>", help="Number of lines to tail"),
+) -> None:
+    """Stream Docker Compose logs. Pass a number to tail that many lines.
+
+    \b
+    Examples:
+      buddy logs            # tail last 100 lines + follow
+      buddy logs 50         # tail last 50 lines + follow
+    """
+    services.show_logs(lines)
 
 
 @app.command("kill")

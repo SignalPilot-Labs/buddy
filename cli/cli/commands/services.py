@@ -1,4 +1,4 @@
-"""buddy start / stop / kill / install / update — Docker Compose service management."""
+"""buddy start / stop / kill / update / logs — Docker Compose service management."""
 
 from __future__ import annotations
 
@@ -56,6 +56,11 @@ def update_services() -> None:
     """Update: git pull in BUDDY_HOME then rebuild."""
     _git_pull()
     build_services()
+
+
+def show_logs(tail_lines: int) -> None:
+    """Stream Docker Compose logs with optional tail."""
+    _compose(["logs", "--tail", str(tail_lines), "-f"])
 
 
 def stop_services() -> None:
