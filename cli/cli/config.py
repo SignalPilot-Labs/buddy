@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL
+from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL, DOCKER_EXEC_TIMEOUT_SECONDS
 
 CONFIG_PATH = Path(BUDDY_HOME) / "config.json"
 
@@ -42,17 +42,14 @@ def _save_config(cfg: dict) -> None:
 
 def _read_key_from_container() -> str | None:
     """Read the API key from the dashboard container's /data volume."""
-    try:
-        result = subprocess.run(
-            ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+    result = subprocess.run(
+        ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
+        capture_output=True,
+        text=True,
+        timeout=DOCKER_EXEC_TIMEOUT_SECONDS,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
     return None
 
 

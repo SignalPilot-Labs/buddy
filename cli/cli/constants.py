@@ -34,4 +34,17 @@ DASHBOARD_CONTAINER: str = "buddy-dashboard"
 API_KEY_CONTAINER_PATH: str = "/data/api.key"
 
 # Scripts
-START_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "start.sh")
+UP_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "up.sh")
+BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
+
+# Git
+GIT_REMOTE_ORIGIN: str = "origin"
+GIT_SLUG_SEPARATOR: str = "/"
+
+# Docker exec
+DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
+
+# Run defaults
+DEFAULT_BASE_BRANCH: str = "main"
+DEFAULT_RUN_BUDGET: float = 0.0
+DEFAULT_RUN_DURATION: float = 0.0

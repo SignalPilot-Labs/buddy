@@ -5,13 +5,10 @@ from __future__ import annotations
 from typing import Optional
 
 import typer
-from rich.console import Console
 
 from cli.config import CONFIG_PATH, _load_config, _save_config, state
 from cli.constants import DEFAULT_API_URL
-from cli.output import print_detail, print_json, print_success
-
-console = Console()
+from cli.output import console, print_detail, print_json, print_success
 
 app = typer.Typer(
     help="Manage CLI configuration. Settings are saved to ~/.buddy/config.json.",

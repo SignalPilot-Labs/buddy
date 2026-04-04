@@ -10,7 +10,14 @@ from InquirerPy import inquirer
 from cli.client import get_client
 from cli.commands.run_helpers import show_audit, show_diff, show_tools, stream_run
 from cli.config import state
-from cli.constants import FUZZY_MAX_HEIGHT, PROMPT_LIST_TRUNCATION, PROMPT_SELECTOR_TRUNCATION
+from cli.constants import (
+    DEFAULT_BASE_BRANCH,
+    DEFAULT_RUN_BUDGET,
+    DEFAULT_RUN_DURATION,
+    FUZZY_MAX_HEIGHT,
+    PROMPT_LIST_TRUNCATION,
+    PROMPT_SELECTOR_TRUNCATION,
+)
 from cli.output import (
     console,
     format_cost,
@@ -168,9 +175,9 @@ def _dispatch_action(action: str, run: dict) -> None:
 @app.command("new")
 def start_run(
     prompt: Optional[str] = typer.Option(None, "--prompt", "-p", metavar="<prompt>", help="Task prompt"),
-    budget: float = typer.Option(0, "--budget", "-b", metavar="<amount>", help="Max budget USD (0 = unlimited)"),
-    duration: float = typer.Option(0, "--duration", "-d", metavar="<minutes>", help="Duration in minutes (0 = unlimited)"),
-    base_branch: str = typer.Option("main", "--base-branch", metavar="<branch>", help="Branch to base work on"),
+    budget: float = typer.Option(DEFAULT_RUN_BUDGET, "--budget", "-b", metavar="<amount>", help="Max budget USD (0 = unlimited)"),
+    duration: float = typer.Option(DEFAULT_RUN_DURATION, "--duration", "-d", metavar="<minutes>", help="Duration in minutes (0 = unlimited)"),
+    base_branch: str = typer.Option(DEFAULT_BASE_BRANCH, "--base-branch", metavar="<branch>", help="Branch to base work on"),
 ) -> None:
     """Start a new agent run.
 
