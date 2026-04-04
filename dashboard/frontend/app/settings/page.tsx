@@ -350,7 +350,7 @@ export default function SettingsPage() {
                   value={newToken}
                   onChange={(e) => { setNewToken(e.target.value); setTokenError(null); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddToken(); } }}
-                  placeholder="sk-ant-oat01-..."
+                  placeholder="sk-ant-..."
                   className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
                   autoComplete="off"
                   spellCheck={false}
