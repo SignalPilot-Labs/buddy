@@ -43,6 +43,7 @@ def status() -> None:
         console.print("\n[green]All credentials configured.[/green]")
     else:
         console.print("\n[yellow]Some credentials are missing.[/yellow]")
+        console.print("[dim]Run: buddy settings set --claude-token <token> --git-token <token> --github-repo <owner/repo>[/dim]")
 
 
 @app.command("get")
