@@ -13,6 +13,7 @@ from cli.git import detect_local_repo
 from cli.commands.run_helpers import show_audit, show_diff, show_tools, stream_run
 from cli.config import state
 from cli.constants import (
+    DASHBOARD_URL,
     DEFAULT_BASE_BRANCH,
     DEFAULT_QUERY_LIMIT,
     DEFAULT_QUERY_OFFSET,
@@ -253,6 +254,7 @@ def start_run(
         return
     run_id = data.get("run_id", data.get("id", ""))
     print_success(f"Run started: {run_id}")
+    console.print(f"[dim]Monitor at {DASHBOARD_URL} or run: buddy run[/dim]")
 
 
 @app.command("list")
