@@ -18,8 +18,10 @@ from utils.constants import (
     DEFAULT_BASE_BRANCH,
     DEFAULT_FALLBACK_MODEL,
     PROMPT_SUMMARY_LIMIT,
+    RESEARCH_DIR,
     SKILLS_FALLBACK_PATH,
     SKILLS_SRC_PATH,
+    WORKSPACE_DIR,
 )
 from utils.git import GitWorkspace
 from utils.models import RunContext
@@ -297,7 +299,7 @@ class RunBootstrap:
             permission_mode="bypassPermissions",
             can_use_tool=gate.check_permission,
             cwd=self._git.get_work_dir(),
-            add_dirs=["/workspace", "/home/agentuser/research"],
+            add_dirs=[WORKSPACE_DIR, RESEARCH_DIR],
             setting_sources=["project"],
             max_budget_usd=budget if budget > 0 else None,
             include_partial_messages=True,
