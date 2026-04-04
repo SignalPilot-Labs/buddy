@@ -125,8 +125,7 @@ class StreamProcessor:
                 await self._client.query(self._prompts.build_continuation_prompt())
                 return "break"
             if result.startswith("inject:"):
-                await self._client.query(result[7:])
-                return "break"
+                return f"inject:{result[7:]}"
             if result == "unlock":
                 self._session.force_unlock()
                 await db.log_audit(run_id, "session_unlocked", {})
