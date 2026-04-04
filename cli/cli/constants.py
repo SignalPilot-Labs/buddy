@@ -62,4 +62,4 @@ DEFAULT_RUN_DURATION: float = 0.0
 
 # Doctor checks
 DOCTOR_HTTP_TIMEOUT_SECONDS: int = 5
-EXPECTED_COMPOSE_SERVICES: list[str] = ["buddy-dashboard", "buddy-agent", "buddy-db"]
+EXPECTED_COMPOSE_SERVICES: list[str] = ["buddy-dashboard", "buddy-agent", "buddy-db", "buddy-sandbox"]

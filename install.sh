@@ -102,7 +102,7 @@ clone_or_update() {
         else
             _error "$BUDDY_HOME exists but is not a git repository."
             _error "This looks like an old cp-based install. Remove it and re-run:"
-            _error "  rm -rf $BUDDY_HOME && curl -fsSL https://get.buddy.sh | bash"
+            _error "  rm -rf $BUDDY_HOME && curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | bash"
             exit 1
         fi
     else

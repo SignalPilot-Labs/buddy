@@ -48,7 +48,7 @@ def _git_pull() -> None:
     if not is_git_repo(BUDDY_HOME):
         console.print(
             "[red]~/.buddy is not a git repository (likely an old cp-based install).[/red]\n"
-            "[red]Re-run the installer to fix this: curl -fsSL https://get.buddy.sh | bash[/red]"
+            "[red]Re-run the installer to fix this: curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | bash[/red]"
         )
         sys.exit(1)
     console.print(f"[dim]→ git pull in {BUDDY_HOME}[/dim]")

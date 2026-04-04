@@ -118,7 +118,7 @@ class DoctorChecker:
         return CheckResult(
             label="Buddy home is git repo",
             ok=False,
-            detail="~/.buddy is not a git repo — re-run the installer: curl -fsSL https://get.buddy.sh | bash",
+            detail="~/.buddy is not a git repo — re-run the installer: curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | bash",
         )
 
 
