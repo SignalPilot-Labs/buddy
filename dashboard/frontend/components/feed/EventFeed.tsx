@@ -1,11 +1,23 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo, Fragment } from "react";
 import { clsx } from "clsx";
 import type { FeedEvent } from "@/lib/types";
-import { groupEvents } from "@/lib/groupEvents";
+import { groupEvents, type GroupedEvent } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
+
+function InjectionConnector({ agentType }: { agentType: string }) {
+  const label = agentType
+    ? `injected after ${agentType} finished`
+    : "injected after subagent finished";
+  return (
+    <div className="flex items-center gap-2 px-4 -mt-1 -mb-1">
+      <div className="ml-[17px] w-px h-3 shrink-0 bg-[#88ccff]/20" />
+      <span className="text-[9px] text-[#88ccff]/40 tracking-wide">{label}</span>
+    </div>
+  );
+}
 
 export function EventFeed({ events }: { events: FeedEvent[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,9 +81,21 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
             <EmptyEvents />
           </div>
         ) : (
-          grouped.map((gev, i) => (
-            <GroupedEventCard key={`g-${i}`} event={gev} isLast={i === grouped.length - 1} />
-          ))
+          grouped.map((gev, i) => {
+            const prev = grouped[i - 1];
+            const showConnector =
+              gev.type === "prompt_injection" &&
+              prev?.type === "agent_run";
+            const prevAgentType = showConnector
+              ? (prev as Extract<GroupedEvent, { type: "agent_run" }>).agentType
+              : "";
+            return (
+              <Fragment key={`g-${i}`}>
+                {showConnector && <InjectionConnector agentType={prevAgentType} />}
+                <GroupedEventCard event={gev} isLast={i === grouped.length - 1} />
+              </Fragment>
+            );
+          })
         )}
       </div>
 
