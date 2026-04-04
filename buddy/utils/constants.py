@@ -39,6 +39,7 @@ SKILLS_SRC_PATH = f"{WORKSPACE_DIR}/buddy/skills"
 SKILLS_FALLBACK_PATH = Path(__file__).parent.parent / "skills"
 PROMPTS_DIR = Path(f"{WORKSPACE_DIR}/buddy/prompts")
 PROMPTS_FALLBACK_DIR = Path(__file__).parent.parent / "prompts"
+PR_JSON_PATH = Path("/tmp/pr.json")
 ALLOWED_PATHS = (WORKSPACE_DIR, WORK_DIR, "/tmp")
 ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
 
