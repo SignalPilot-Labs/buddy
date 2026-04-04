@@ -40,7 +40,7 @@ class AgentServer:
     def __init__(self):
         self._git = GitWorkspace()
         self._prompts = PromptLoader()
-        self._bootstrap = RunBootstrap()
+        self._bootstrap = RunBootstrap(self._git)
         self._loop = AgentLoop(self._git, self._prompts)
         self._teardown = RunTeardown(self._git)
         self._task: asyncio.Task | None = None
