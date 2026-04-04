@@ -18,8 +18,8 @@ app = typer.Typer(
 )
 
 
-def _check_local_repo(repo_list: list[str]) -> str | None:
-    """Check if local git repo is in the repo list."""
+def _detect_and_warn_local_repo(repo_list: list[str]) -> str | None:
+    """Detect local git repo and warn if it's not in the configured list."""
     slug = detect_local_repo(Path.cwd())
     if slug is not None and slug not in repo_list:
         console.print(f"[yellow]Detected local repo: {slug} (not configured)[/yellow]")
@@ -44,7 +44,7 @@ def list_repos() -> None:
         title="Repositories",
     )
     repo_names = [r.get("repo", "") for r in data]
-    slug = _check_local_repo(repo_names)
+    slug = _detect_and_warn_local_repo(repo_names)
     if slug is not None and slug not in repo_names:
         if typer.confirm(f"Add {slug} and set as active?", default=False):
             get_client().put("/api/repos/active", json={"repo": slug})

@@ -41,16 +41,27 @@ def _save_config(cfg: dict) -> None:
 
 
 def _read_key_from_container() -> str | None:
-    """Read the API key from the dashboard container's /data volume."""
-    result = subprocess.run(
-        ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
-        capture_output=True,
-        text=True,
-        timeout=DOCKER_EXEC_TIMEOUT_SECONDS,
-    )
-    if result.returncode == 0 and result.stdout.strip():
-        return result.stdout.strip()
-    return None
+    """Read the API key from the dashboard container's /data volume.
+
+    Returns None if Docker is unavailable, the container is not running,
+    or the key file doesn't exist. This is a system boundary — the docker
+    CLI may not be installed or the daemon may be stopped.
+    """
+    try:
+        result = subprocess.run(
+            ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
+            capture_output=True,
+            text=True,
+            timeout=DOCKER_EXEC_TIMEOUT_SECONDS,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    key = result.stdout.strip()
+    if not key:
+        return None
+    return key
 
 
 def resolve_api_url() -> str:

@@ -23,34 +23,30 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ```bash
 git clone https://github.com/SignalPilot-Labs/buddy.git
 cd buddy
-./install.sh            # install the CLI
-buddy install            # build Docker images and start services
+./install.sh                         # install the CLI tool
+buddy install                        # build Docker images + start services
+buddy settings set \
+  --claude-token YOUR_ANTHROPIC_KEY \
+  --git-token YOUR_GITHUB_TOKEN \
+  --github-repo owner/repo
 ```
 
-Buddy can be managed entirely from the **CLI** or from the **Web UI** at [http://localhost:3400](http://localhost:3400).
-
-### 1. Configure credentials
-
-```bash
-buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
-```
-
-### 2. Run
+### Run
 
 ```bash
 buddy run new -p "Fix authentication bugs" -d 30
 ```
 
-Or, if you're inside a git repo, buddy auto-detects it:
+If you're inside a git repo, buddy auto-detects it — no need to specify `--github-repo`:
 
 ```bash
 cd your-project/
 buddy run new -p "Fix authentication bugs" -d 30
 ```
 
-### 3. Monitor
+### Monitor
 
-Use the CLI or open [http://localhost:3400](http://localhost:3400) in your browser.
+Use the CLI or open [http://localhost:3400](http://localhost:3400).
 
 ```bash
 buddy run                            # interactive run selector
