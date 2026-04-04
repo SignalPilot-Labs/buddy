@@ -40,7 +40,7 @@ def _save_config(cfg: dict) -> None:
     CONFIG_PATH.chmod(0o600)
 
 
-def _read_key_from_container() -> str | None:
+def read_key_from_container() -> str | None:
     """Read the API key from the dashboard container's /data volume.
 
     Returns None if Docker is unavailable, the container is not running,
@@ -90,4 +90,4 @@ def resolve_api_key() -> str | None:
     cfg_key = _load_config().get("api_key")
     if cfg_key:
         return str(cfg_key)
-    return _read_key_from_container()
+    return read_key_from_container()
