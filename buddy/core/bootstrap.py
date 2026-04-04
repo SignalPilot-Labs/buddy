@@ -14,7 +14,9 @@ from claude_agent_sdk.types import HookMatcher, AgentDefinition
 
 from utils import db
 from utils.constants import (
+    DEFAULT_AGENT_MODEL,
     DEFAULT_BASE_BRANCH,
+    DEFAULT_FALLBACK_MODEL,
     PROMPT_SUMMARY_LIMIT,
     SKILLS_FALLBACK_PATH,
     SKILLS_SRC_PATH,
@@ -51,8 +53,8 @@ class RunBootstrap:
         github_repo: str,
     ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
         """Bootstrap a new run. Returns (ctx, options, session, events, logger, initial_prompt)."""
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        model = os.environ.get("AGENT_MODEL", DEFAULT_AGENT_MODEL)
+        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
 
         branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
@@ -115,8 +117,8 @@ class RunBootstrap:
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
 
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        model = os.environ.get("AGENT_MODEL", DEFAULT_AGENT_MODEL)
+        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
 
         self._git.setup_auth(run_info.get("github_repo", ""))
         self._checkout_branch(
