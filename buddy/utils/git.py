@@ -29,6 +29,10 @@ class GitWorkspace:
         self._last_repo = ""
         self._auth_in_config = False
 
+    def is_ready(self) -> bool:
+        """Check if the repo is cloned and initialized. Safe to call from polling endpoints."""
+        return self._initialized
+
     def _get_repo(self) -> str:
         """Read GITHUB_REPO at call time so runtime changes are picked up."""
         return os.environ.get("GITHUB_REPO", "")
