@@ -39,6 +39,7 @@ def _run_script(script_path: str) -> None:
     result = subprocess.run(["bash", script_path])
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
+        console.print("[dim]Run 'buddy logs' to see what went wrong, or 'buddy doctor' to check prerequisites.[/dim]")
         sys.exit(result.returncode)
 
 
