@@ -40,6 +40,8 @@ PROMPTS_DIR = Path("/workspace/buddy/prompts")
 PROMPTS_FALLBACK_DIR = Path(__file__).parent.parent / "prompts"
 ALLOWED_PATHS = ("/workspace", "/home/agentuser/repo", "/tmp")
 ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
+COMMIT_MSG_PATH = "/tmp/commit-msg.txt"
+FALLBACK_COMMIT_MSG = "Round {round_num}"
 
 # ── Git ──
 CLONE_DEPTH = 50

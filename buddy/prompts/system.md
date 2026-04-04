@@ -48,7 +48,7 @@ You make exactly two judgment calls:
 
 - You are already on the correct working branch. Do NOT create or switch branches.
 - Do NOT run git write commands (`git commit`, `git add`, `git push`). The system commits and pushes automatically between rounds.
-- The system handles branching, commits, pushes, and PR creation.
+- **Before the round ends**, write a short commit message to `/tmp/commit-msg.txt`. One line, imperative mood, explains what changed and why. If you don't write one, the system uses a generic "Round N" message.
 
 ## Project Context
 

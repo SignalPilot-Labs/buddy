@@ -10,11 +10,12 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
-from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
+from utils.constants import COMMIT_MSG_PATH, FALLBACK_COMMIT_MSG, FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
 from utils.git import GitWorkspace
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
@@ -126,11 +127,12 @@ class AgentLoop:
         """Commit any changes and push between rounds."""
         if not self._git.has_changes():
             return
+        msg = self._read_commit_message(round_num + 1)
         try:
             self._git.run_git(["add", "-u"])
-            self._git.run_git(["commit", "-m", f"Round {round_num + 1}"])
-            await db.log_audit(ctx.run_id, "auto_commit", {"round": round_num + 1})
-            log.info("Committed round %d changes", round_num + 1)
+            self._git.run_git(["commit", "-m", msg])
+            await db.log_audit(ctx.run_id, "auto_commit", {"round": round_num + 1, "message": msg})
+            log.info("Committed round %d: %s", round_num + 1, msg)
         except RuntimeError as e:
             log.warning("Commit failed between rounds: %s", e)
             return
@@ -140,6 +142,16 @@ class AgentLoop:
         except Exception as e:
             log.warning("Push failed between rounds: %s", e)
             await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
+
+    def _read_commit_message(self, round_num: int) -> str:
+        """Read commit message from /tmp/commit-msg.txt, fall back to 'Round N'."""
+        path = Path(COMMIT_MSG_PATH)
+        if path.is_file():
+            msg = path.read_text().strip()
+            path.unlink()
+            if msg:
+                return msg
+        return FALLBACK_COMMIT_MSG.format(round_num=round_num)
 
     async def _handle_between_round_event(
         self, event: dict, client, stream: StreamProcessor,
