@@ -21,6 +21,20 @@ _python3_minor() {
     python3 -c "import sys; print(sys.version_info.minor)"
 }
 
+_open_browser() {
+    local url="$1"
+    case "$(uname -s)" in
+        Darwin)
+            open "$url" 2>/dev/null || true
+            ;;
+        *)
+            if command -v xdg-open >/dev/null 2>&1; then
+                xdg-open "$url" 2>/dev/null || true
+            fi
+            ;;
+    esac
+}
+
 # ---------------------------------------------------------------------------
 # 1. Prerequisite checks
 # ---------------------------------------------------------------------------
@@ -206,7 +220,12 @@ prompt_credentials() {
 # ---------------------------------------------------------------------------
 print_success() {
     printf "\n"
-    _ok "Buddy is running. Open the dashboard at: http://localhost:3400"
+    _ok "Buddy is ready at http://localhost:3400"
+    _info "Running post-install health checks..."
+    "$BUDDY_VENV/bin/buddy" doctor || true
+    printf "\n"
+    _info "Opening dashboard..."
+    _open_browser "http://localhost:3400"
 }
 
 # ---------------------------------------------------------------------------
