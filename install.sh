@@ -74,7 +74,7 @@ check_prereqs() {
             if python3 -m venv --help >/dev/null 2>&1; then
                 _ok "python3-venv found"
             else
-                _error "python3-venv not found — install with: sudo apt install python3-venv (Debian/Ubuntu)"
+                _error "python3-venv not found — install with: sudo apt install python3-venv (Debian/Ubuntu) or reinstall Python (macOS)"
                 missing=1
             fi
         else

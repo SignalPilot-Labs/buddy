@@ -142,7 +142,7 @@ def _evaluate_settings_body(body: dict[str, Any]) -> CheckResult:
     token_keys = ["has_claude_token", "has_git_token", "has_github_repo"]
     if body.get("configured") is True:
         return CheckResult(label="Credentials configured", ok=True, detail="")
-    missing = [k.replace("has_", "") for k in token_keys if not body.get(k)]
+    missing = [k.replace("has_", "").replace("_", "-") for k in token_keys if not body.get(k)]
     if missing:
         flags = ", ".join(f"buddy settings set --{m}" for m in missing)
         return CheckResult(
