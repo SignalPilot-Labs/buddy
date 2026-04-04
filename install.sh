@@ -36,6 +36,10 @@ check_prereqs() {
 
     if command -v docker >/dev/null 2>&1; then
         _ok "docker found: $(docker --version)"
+        if ! docker info >/dev/null 2>&1; then
+            _error "docker is installed but daemon is not running — start Docker and try again"
+            missing=1
+        fi
     else
         _error "docker not found — install with: https://docs.docker.com/get-docker/"
         missing=1
@@ -133,7 +137,15 @@ build_images() {
 }
 
 # ---------------------------------------------------------------------------
-# 6. Prompt for credentials and persist via CLI
+# 6. Start services
+# ---------------------------------------------------------------------------
+start_services() {
+    _info "Starting Buddy services..."
+    bash "$BUDDY_HOME/cli/scripts/up.sh"
+}
+
+# ---------------------------------------------------------------------------
+# 7. Prompt for credentials and persist via CLI
 # ---------------------------------------------------------------------------
 prompt_credentials() {
     if [ ! -t 0 ] && { [ -z "${ANTHROPIC_API_KEY:-}" ] || [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPO:-}" ]; }; then
@@ -182,14 +194,6 @@ prompt_credentials() {
 }
 
 # ---------------------------------------------------------------------------
-# 7. Start services
-# ---------------------------------------------------------------------------
-start_services() {
-    _info "Starting Buddy services..."
-    bash "$BUDDY_HOME/cli/scripts/up.sh"
-}
-
-# ---------------------------------------------------------------------------
 # 8. Success message
 # ---------------------------------------------------------------------------
 print_success() {
@@ -205,6 +209,6 @@ clone_or_update
 setup_venv
 install_wrapper
 build_images
-prompt_credentials
 start_services
+prompt_credentials
 print_success

@@ -8,7 +8,14 @@ from pathlib import Path
 
 import typer
 
-from cli.constants import BUDDY_HOME, BUDDY_VENV_PIP, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.constants import (
+    BUDDY_HOME,
+    BUDDY_VENV_PIP,
+    BUILD_SCRIPT,
+    DASHBOARD_URL,
+    SIGINT_EXIT_CODE,
+    UP_SCRIPT,
+)
 from cli.output import console
 
 
@@ -65,6 +72,7 @@ def start_services() -> None:
     """Run up.sh — docker compose up -d only. No build."""
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] Buddy services started")
+    console.print(f"[dim]Dashboard: {DASHBOARD_URL}[/dim]")
 
 
 def _reinstall_cli() -> None:

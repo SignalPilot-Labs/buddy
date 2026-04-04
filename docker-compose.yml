@@ -47,6 +47,12 @@ services:
     depends_on:
       db-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3401/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
 
   agent:
     build:
@@ -77,7 +83,7 @@ services:
       db-init:
         condition: service_completed_successfully
       dashboard:
-        condition: service_started
+        condition: service_healthy
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
