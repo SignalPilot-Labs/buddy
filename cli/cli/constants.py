@@ -44,6 +44,10 @@ BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
 GIT_REMOTE_ORIGIN: str = "origin"
 GIT_SLUG_SEPARATOR: str = "/"
 
+# Logs
+DEFAULT_LOG_TAIL_LINES: int = 100
+SIGINT_EXIT_CODE: int = 130
+
 # Docker exec
 DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
 

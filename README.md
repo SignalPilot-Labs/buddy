@@ -24,13 +24,17 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 git clone https://github.com/SignalPilot-Labs/buddy.git
 cd buddy && ./install.sh             # installs CLI + builds Docker images
 buddy start                          # start services
-buddy settings set \
-  --claude-token YOUR_ANTHROPIC_KEY \
-  --git-token YOUR_GITHUB_TOKEN \
-  --github-repo owner/repo
 ```
 
 To update an existing install: `buddy update`
+
+### Configure
+
+Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+
+```bash
+buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
+```
 
 ### Run
 
@@ -61,6 +65,8 @@ buddy run get <run_id>               # run details + action menu
 buddy start                          # start services (fast, no rebuild)
 buddy stop                           # stop all services
 buddy update                         # pull latest code + rebuild images
+buddy logs                           # stream all container logs (Ctrl+C to stop)
+buddy logs 50                        # tail last 50 lines + follow
 buddy kill                           # remove all containers
 
 # Runs

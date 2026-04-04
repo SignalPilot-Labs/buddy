@@ -1,4 +1,4 @@
-"""buddy start / stop / kill / install / update — Docker Compose service management."""
+"""buddy start / stop / kill / update / logs — Docker Compose service management."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import sys
 
 import typer
 
-from cli.constants import BUDDY_HOME, BUILD_SCRIPT, UP_SCRIPT
+from cli.constants import BUDDY_HOME, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
 from cli.output import console
 
 
@@ -56,6 +56,20 @@ def update_services() -> None:
     """Update: git pull in BUDDY_HOME then rebuild."""
     _git_pull()
     build_services()
+
+
+def show_logs(tail_lines: int) -> None:
+    """Stream Docker Compose logs with optional tail.
+
+    Ctrl+C (SIGINT) is a normal exit for log streaming, so exit code 130
+    is silently swallowed instead of printing an error.
+    """
+    cmd = ["docker", "compose", "logs", "--tail", str(tail_lines), "-f"]
+    console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    result = subprocess.run(cmd, cwd=BUDDY_HOME)
+    if result.returncode != 0 and result.returncode != SIGINT_EXIT_CODE:
+        console.print(f"[red]Command exited with code {result.returncode}[/red]")
+        sys.exit(result.returncode)
 
 
 def stop_services() -> None:
