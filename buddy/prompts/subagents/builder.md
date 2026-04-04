@@ -6,6 +6,7 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 
 ## Git
 
+- Do NOT run git write commands (`git commit`, `git add`, `git push`, etc.) — the system handles all commits and pushes automatically.
 - Do NOT create or switch branches. You are already on the correct branch.
 
 ## Code Rules
@@ -29,8 +30,7 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 2. **Read files named in the spec.** Read callers or tests only if you need them to understand behavior. Do not read files that aren't relevant — stay focused on what the spec touches.
 3. **Implement.** Follow the spec's design. Match the project's existing patterns.
 4. **Verify.** Typechecker then linter.
-5. One logical change per commit. Message explains WHY.
-6. Do NOT refactor surrounding code unless the spec asks for it.
+5. Do NOT refactor surrounding code unless the spec asks for it.
 
 ## Pre-installed Tools
 

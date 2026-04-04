@@ -4,6 +4,7 @@ Read `/tmp/current-spec.md` first — you need the spec's intent and design deci
 
 ## Git
 
+- Do NOT run git write commands (`git commit`, `git add`, `git push`, etc.) — the system handles all commits and pushes automatically.
 - Do NOT create or switch branches. You are already on the correct branch.
 
 ## Pre-installed Tools

@@ -10,11 +10,12 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
-from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
+from utils.constants import COMMIT_MSG_PATH, FALLBACK_COMMIT_MSG, FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
 from utils.git import GitWorkspace
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
@@ -89,33 +90,31 @@ class AgentLoop:
                         if action and action.startswith("inject:"):
                             pending_inject = action[7:]
 
-                    # Push commits between rounds
-                    try:
-                        self._git.push_branch(ctx.branch_name)
-                        log.info("Pushed branch %s", ctx.branch_name)
-                    except Exception as e:
-                        log.warning("Push failed between rounds: %s", e)
-                        await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
+                    # Commit and push between rounds
+                    await self._commit_and_push(ctx, round_num)
+
+                    # Deliver pending inject to orchestrator
+                    has_inject = bool(pending_inject)
+                    if pending_inject:
+                        ts = datetime.now(timezone.utc).strftime("%H:%M")
+                        self._operator_messages.append((ts, pending_inject))
+                        self._operator_messages = self._operator_messages[-MAX_OPERATOR_MESSAGES:]
+                        await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
+                        await client.query(f"Operator message: {pending_inject}")
+                        pending_inject = None
 
                     # Decide whether to continue
                     if session.is_unlocked():
-                        if pending_inject:
-                            await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
-                            await client.query(f"Operator message: {pending_inject}")
-                            pending_inject = None
-                            continue
-                        break
-                    else:
-                        # Time-locked: call planner subagent for next step
-                        if pending_inject:
-                            ts = datetime.now(timezone.utc).strftime("%H:%M")
-                            self._operator_messages.append((ts, pending_inject))
-                            self._operator_messages = self._operator_messages[-MAX_OPERATOR_MESSAGES:]
-                            await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
-                            pending_inject = None
-                        planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
-                        await db.log_audit(ctx.run_id, "planner_invoked", planner_meta)
-                        await client.query(f"Call the planner subagent with this context:\n\n{planner_msg}")
+                        if not has_inject:
+                            break
+                        # Unlocked with inject: orchestrator got the message,
+                        # give it one more round to act, then break next iteration.
+                        continue
+
+                    # Time-locked: call planner for next step
+                    planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
+                    await db.log_audit(ctx.run_id, "planner_invoked", planner_meta)
+                    await client.query(f"Call the planner subagent with this context:\n\n{planner_msg}")
 
         except asyncio.CancelledError:
             status = "killed"
@@ -126,6 +125,36 @@ class AgentLoop:
             await db.log_audit(ctx.run_id, "fatal_error", {"error": str(e)})
 
         return status
+
+    async def _commit_and_push(self, ctx: RunContext, round_num: int) -> None:
+        """Commit any changes and push between rounds."""
+        if not self._git.has_changes():
+            return
+        msg = self._read_commit_message(round_num + 1)
+        try:
+            self._git.run_git(["add", "."])
+            self._git.run_git(["commit", "-m", msg])
+            await db.log_audit(ctx.run_id, "auto_commit", {"round": round_num + 1, "message": msg})
+            log.info("Committed round %d: %s", round_num + 1, msg)
+        except RuntimeError as e:
+            log.warning("Commit failed between rounds: %s", e)
+            return
+        try:
+            self._git.push_branch(ctx.branch_name)
+            log.info("Pushed branch %s", ctx.branch_name)
+        except Exception as e:
+            log.warning("Push failed between rounds: %s", e)
+            await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
+
+    def _read_commit_message(self, round_num: int) -> str:
+        """Read commit message from /tmp/commit-msg.txt, fall back to 'Round N'."""
+        path = Path(COMMIT_MSG_PATH)
+        if path.is_file():
+            msg = path.read_text().strip()
+            path.unlink()
+            if msg:
+                return msg
+        return FALLBACK_COMMIT_MSG.format(round_num=round_num)
 
     async def _handle_between_round_event(
         self, event: dict, client, stream: StreamProcessor,

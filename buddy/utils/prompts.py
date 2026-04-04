@@ -93,14 +93,6 @@ class PromptLoader:
             operator_section=operator_section,
         )
 
-    def build_reviewer_message(self, round_num: int, extra_context: str) -> str:
-        """Build the message sent to the reviewer subagent."""
-        template = self._load("query/reviewer")
-        return template.format(
-            round_num=round_num,
-            extra_context=extra_context or "",
-        )
-
     def build_stop_prompt(self, reason: str) -> str:
         """Load the stop prompt, optionally prefixed with a reason."""
         base = self._load("query/stop")
