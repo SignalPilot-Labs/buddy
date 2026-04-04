@@ -65,6 +65,8 @@ buddy run get <run_id>               # run details + action menu
 buddy start                          # start services (fast, no rebuild)
 buddy stop                           # stop all services
 buddy update                         # pull latest code + rebuild images
+buddy logs                           # stream all container logs (Ctrl+C to stop)
+buddy logs 50                        # tail last 50 lines + follow
 buddy kill                           # remove all containers
 
 # Runs
