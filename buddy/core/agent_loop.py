@@ -88,7 +88,14 @@ class AgentLoop:
                         if action and action.startswith("inject:"):
                             pending_inject = action[7:]
 
-                    # Push between rounds
+                    # Auto-commit uncommitted changes and push between rounds
+                    if self._git.has_changes():
+                        try:
+                            self._git.run_git(["add", "."])
+                            self._git.run_git(["commit", "-m", f"Round {round_num + 1}"])
+                            log.info("Auto-committed round %d changes", round_num + 1)
+                        except RuntimeError as e:
+                            log.warning("Auto-commit failed: %s", e)
                     try:
                         self._git.push_branch(ctx.branch_name)
                         log.info("Pushed branch %s", ctx.branch_name)
