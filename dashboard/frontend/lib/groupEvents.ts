@@ -14,6 +14,7 @@ export type GroupedEvent =
   | { type: "usage_tick"; data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }
   | { type: "control"; text: string; ts: string }
   | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
+  | { type: "user_prompt"; prompt: string; ts: string }
   | { type: "divider"; label: string; ts: string };
 
 /* ── Grouping Logic ── */
@@ -82,7 +83,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "rate_limit_paused":
       return { type: "milestone", label: "Rate Limited", detail: `wait ${d.wait_seconds || "?"}s`, color: "#ffaa00", ts, event };
     case "prompt_injected":
-      return { type: "milestone", label: "Prompt Injected", detail: String(d.prompt || "").slice(0, 100), color: "#88ccff", ts, event };
+      return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
     case "session_resumed":
       return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };
     case "auto_commit":
