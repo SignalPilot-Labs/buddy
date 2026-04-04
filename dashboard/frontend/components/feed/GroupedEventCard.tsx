@@ -917,6 +917,41 @@ function ControlMessage({ text, ts }: { text: string; ts: string }) {
   );
 }
 
+/* ── Prompt Injection ── */
+const PROMPT_PREVIEW_CHARS = 500;
+
+function PromptInjectionCard({ prompt, ts }: { prompt: string; ts: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isTruncated = prompt.length > PROMPT_PREVIEW_CHARS;
+  const displayText = isTruncated && !expanded ? prompt.slice(0, PROMPT_PREVIEW_CHARS) + "…" : prompt;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="rounded-lg border border-[#88ccff]/20 border-l-2 border-l-[#88ccff]/60 bg-[#88ccff]/[0.04]">
+        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#88ccff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="6" cy="3.5" r="2" />
+            <path d="M1.5 10.5c0-2.485 2.015-4 4.5-4s4.5 1.515 4.5 4" />
+          </svg>
+          <span className="text-[10px] font-semibold text-[#88ccff]">You (Operator)</span>
+          <span className="ml-auto text-[9px] text-[#666] tabular-nums">{fmtTime(ts)}</span>
+        </div>
+        <div className="px-4 pb-3">
+          <span className="text-[11px] text-[#ccc] whitespace-pre-wrap leading-relaxed">{displayText}</span>
+          {isTruncated && (
+            <span
+              className="text-[9px] text-[#88ccff]/70 cursor-pointer hover:text-[#88ccff] mt-1 block"
+              onClick={() => setExpanded(e => !e)}
+            >
+              {expanded ? "Show less ▴" : "Show more ▸"}
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ── Milestone ── */
 function MilestoneCard({ label, detail, color, ts }: { label: string; detail: string; color: string; ts: string }) {
   return (
@@ -968,6 +1003,8 @@ export function GroupedEventCard({ event, isLast = false }: { event: GroupedEven
       return <UsageTick data={event.data} ts={event.ts} />;
     case "control":
       return <ControlMessage text={event.text} ts={event.ts} />;
+    case "prompt_injection":
+      return <PromptInjectionCard prompt={event.prompt} ts={event.ts} />;
     case "milestone":
       return <MilestoneCard label={event.label} detail={event.detail} color={event.color} ts={event.ts} />;
     case "divider":
