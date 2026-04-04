@@ -768,8 +768,8 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
             </div>
           )}
 
-          {/* Raw result */}
-          {tool.output_data && (
+          {/* Raw result — hidden when finalText is available since that's the actual output */}
+          {tool.output_data && !finalText && (
             <div className="border-t border-white/[0.03] px-4 py-3">
               <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
               <div className="text-[10px] text-[#888] whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto leading-relaxed">
