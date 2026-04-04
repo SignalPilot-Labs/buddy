@@ -93,6 +93,7 @@ class GitWorkspace:
         if self._initialized and self._last_repo and self._last_repo != repo:
             log.info("Repo changed from %s to %s — re-cloning", self._last_repo, repo)
             self._initialized = False
+            self._auth_in_config = False
 
         repo_dir = Path(WORK_DIR)
         remote_url = f"https://github.com/{repo}.git"
