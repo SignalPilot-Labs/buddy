@@ -23,7 +23,7 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ```bash
 git clone https://github.com/SignalPilot-Labs/buddy.git
 cd buddy
-pip install -e cli/
+./install.sh
 ```
 
 Buddy can be managed entirely from the **CLI** or from the **Web UI** at [http://localhost:3400](http://localhost:3400).

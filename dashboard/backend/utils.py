@@ -325,3 +325,5 @@ async def autofill_settings(master_key_path: str) -> None:
             await upsert_setting(s, key, stored_val, is_secret)
 
         await s.commit()
+
+

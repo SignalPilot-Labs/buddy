@@ -1,9 +1,9 @@
 import type { SettingsStatus, Settings, PoolToken } from "./types";
-import { getApiBase } from "./constants";
+import { apiFetch } from "./fetch";
 
 export async function fetchSettingsStatus(): Promise<SettingsStatus> {
   try {
-    const res = await fetch(`${getApiBase()}/api/settings/status`);
+    const res = await apiFetch(`/api/settings/status`);
     if (!res.ok) throw new Error("Failed to fetch settings status");
     return res.json();
   } catch (err) {
@@ -13,7 +13,7 @@ export async function fetchSettingsStatus(): Promise<SettingsStatus> {
 }
 
 export async function fetchSettings(): Promise<Settings> {
-  const res = await fetch(`${getApiBase()}/api/settings`);
+  const res = await apiFetch(`/api/settings`);
   if (!res.ok) throw new Error("Failed to fetch settings");
   return res.json();
 }
@@ -21,7 +21,7 @@ export async function fetchSettings(): Promise<Settings> {
 export async function updateSettings(
   settings: Partial<Settings>
 ): Promise<{ ok: boolean; updated: string[] }> {
-  const res = await fetch(`${getApiBase()}/api/settings`, {
+  const res = await apiFetch(`/api/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
@@ -32,7 +32,7 @@ export async function updateSettings(
 
 export async function fetchPoolTokens(): Promise<PoolToken[]> {
   try {
-    const res = await fetch(`${getApiBase()}/api/tokens`);
+    const res = await apiFetch(`/api/tokens`);
     if (!res.ok) return [];
     return res.json();
   } catch {
@@ -41,7 +41,7 @@ export async function fetchPoolTokens(): Promise<PoolToken[]> {
 }
 
 export async function addPoolToken(token: string): Promise<{ ok: boolean; count: number }> {
-  const res = await fetch(`${getApiBase()}/api/tokens`, {
+  const res = await apiFetch(`/api/tokens`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token }),
@@ -51,7 +51,7 @@ export async function addPoolToken(token: string): Promise<{ ok: boolean; count:
 }
 
 export async function removePoolToken(index: number): Promise<{ ok: boolean; count: number }> {
-  const res = await fetch(`${getApiBase()}/api/tokens/${index}`, {
+  const res = await apiFetch(`/api/tokens/${index}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to remove token");

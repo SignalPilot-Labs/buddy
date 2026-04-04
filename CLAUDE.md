@@ -41,7 +41,7 @@ These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must
 ## Types
 
 - Every function must have full type annotations (parameters and return type).
-- Run `pyright` before considering work done. It must pass at `basic` level (configured in `pyrightconfig.json`).
+- Run `pyright` before considering work done. It must pass at `standard` level (configured in `pyrightconfig.json`).
 
 ## No Defensive Coding
 

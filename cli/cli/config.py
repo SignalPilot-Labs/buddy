@@ -1,15 +1,16 @@
-"""Config resolution: CLI flags > env vars > ~/.buddy/cli.toml > defaults."""
+"""Config resolution: CLI flags > env vars > config.json > Docker volume."""
 
 from __future__ import annotations
 
+import json
 import os
-import tomllib
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from cli.constants import DEFAULT_API_URL
+from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL
 
-CONFIG_PATH = Path.home() / ".buddy" / "cli.toml"
+CONFIG_PATH = Path(BUDDY_HOME) / "config.json"
 
 
 @dataclass
@@ -19,18 +20,40 @@ class State:
     api_key: str | None = None
     api_url: str | None = None
     json_mode: bool = False
-    project_dir: str | None = None
 
 
 # Module-level singleton — written by main.py callback, read by commands.
 state = State()
 
 
-def _load_toml() -> dict:
-    """Load ~/.buddy/cli.toml if it exists."""
+def _load_config() -> dict:
+    """Load ~/.buddy/config.json if it exists."""
     if CONFIG_PATH.is_file():
-        return tomllib.loads(CONFIG_PATH.read_text())
+        return json.loads(CONFIG_PATH.read_text())
     return {}
+
+
+def _save_config(cfg: dict) -> None:
+    """Write config dict to ~/.buddy/config.json."""
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n")
+    CONFIG_PATH.chmod(0o600)
+
+
+def _read_key_from_container() -> str | None:
+    """Read the API key from the dashboard container's /data volume."""
+    try:
+        result = subprocess.run(
+            ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+    return None
 
 
 def resolve_api_url() -> str:
@@ -40,30 +63,23 @@ def resolve_api_url() -> str:
     env = os.environ.get("BUDDY_API_URL")
     if env:
         return env.rstrip("/")
-    cfg = _load_toml().get("api_url")
+    cfg = _load_config().get("api_url")
     if cfg:
         return str(cfg).rstrip("/")
     return DEFAULT_API_URL
 
 
 def resolve_api_key() -> str | None:
-    """Resolve the API key (None = auth not configured)."""
+    """Resolve the API key.
+
+    Priority: --api-key flag > BUDDY_API_KEY env > config.json > docker volume.
+    """
     if state.api_key:
         return state.api_key
     env = os.environ.get("BUDDY_API_KEY")
     if env:
         return env
-    return _load_toml().get("api_key")
-
-
-def resolve_project_dir() -> str:
-    """Resolve the Buddy project directory (where docker-compose.yml lives)."""
-    if state.project_dir:
-        return state.project_dir
-    env = os.environ.get("BUDDY_PROJECT_DIR")
-    if env:
-        return env
-    cfg = _load_toml().get("project_dir")
-    if cfg:
-        return str(cfg)
-    return os.getcwd()
+    cfg_key = _load_config().get("api_key")
+    if cfg_key:
+        return str(cfg_key)
+    return _read_key_from_container()

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+# Buddy home — everything lives here after install
+BUDDY_HOME: str = str(Path.home() / ".buddy")
+
 # HTTP client
 HTTP_TIMEOUT_SECONDS: int = 15
 
@@ -23,3 +28,10 @@ FUZZY_MAX_HEIGHT: str = "70%"
 
 # API
 DEFAULT_API_URL: str = "http://localhost:3401"
+
+# Docker container name for reading secrets from the volume
+DASHBOARD_CONTAINER: str = "buddy-dashboard"
+API_KEY_CONTAINER_PATH: str = "/data/api.key"
+
+# Scripts
+START_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "start.sh")

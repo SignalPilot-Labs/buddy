@@ -7,7 +7,10 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.constants import APP_TITLE, MASTER_KEY_PATH
-from backend.endpoints import router
+from backend.endpoints.runs import router as runs_router
+from backend.endpoints.settings import router as settings_router
+from backend.endpoints.streaming import router as streaming_router
+from backend.endpoints.network import router as network_router
 from backend.utils import autofill_settings
 from db.connection import connect, close
 
@@ -29,7 +32,7 @@ def _cors_origins() -> list[str]:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_application: FastAPI):
     """Connect to DB on startup, close on shutdown."""
     await connect()
     await autofill_settings(MASTER_KEY_PATH)
@@ -54,4 +57,7 @@ app.add_middleware(
     allow_methods=_ALLOWED_METHODS,
     allow_headers=_ALLOWED_HEADERS,
 )
-app.include_router(router)
+app.include_router(runs_router)
+app.include_router(settings_router)
+app.include_router(streaming_router)
+app.include_router(network_router)

@@ -259,7 +259,7 @@ function FileList({ files }: { files: DiffFile[] }) {
 }
 
 /* ── Main WorkTree Panel ── */
-export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string | null }) {
+export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId: string | null; mobile?: boolean }) {
   const [activeTab, setActiveTab] = useState<"tree" | "files" | "live">("tree");
   const [collapsed, setCollapsed] = useState(false);
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
@@ -297,7 +297,12 @@ export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string
   const totalRemoved = diffData?.total_removed || 0;
 
   return (
-    <div className={clsx("flex flex-col border-l border-[#1a1a1a] bg-[#030303] transition-all duration-200 mr-1", collapsed ? "w-[32px]" : "w-[280px]")}>
+    <div className={clsx(
+        "flex flex-col bg-[#030303] transition-all duration-200",
+        mobile
+          ? "flex-1"
+          : clsx("border-l border-[#1a1a1a] mr-1", collapsed ? "w-[32px]" : "w-[280px]"),
+      )}>
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#1a1a1a]">
         {!collapsed && (
@@ -321,14 +326,14 @@ export function WorkTree({ events, runId }: { events: FeedEvent[]; runId: string
             <span className="text-[10px] text-[#777] tabular-nums ml-auto">{totalFiles} files</span>
           </>
         )}
-        <button onClick={() => setCollapsed(!collapsed)} className="text-[#777] hover:text-[#ccc] transition-colors p-0.5">
+        {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-[#777] hover:text-[#ccc] transition-colors p-0.5">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             {collapsed ? <polyline points="3 2 7 5 3 8" /> : <polyline points="7 2 3 5 7 8" />}
           </svg>
-        </button>
+        </button>}
       </div>
 
-      {!collapsed && (
+      {(!collapsed || mobile) && (
         <>
           {/* Stats */}
           {(totalAdded > 0 || totalRemoved > 0) && (

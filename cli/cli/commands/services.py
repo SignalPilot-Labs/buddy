@@ -8,27 +8,28 @@ import sys
 import typer
 from rich.console import Console
 
-from cli.config import resolve_project_dir
+from cli.constants import BUDDY_HOME, START_SCRIPT
 
 console = Console()
 
-app = typer.Typer(help="Docker service management (internal)")
 
-
-def _compose(args: list[str], *, project_dir: str | None = None) -> None:
-    """Run ``docker compose <args>`` in the project directory, streaming output."""
-    cwd = project_dir or resolve_project_dir()
+def _compose(args: list[str]) -> None:
+    """Run ``docker compose <args>`` in the Buddy home directory."""
     cmd = ["docker", "compose"] + args
-    console.print(f"[dim]→ {' '.join(cmd)}  (in {cwd})[/dim]")
-    result = subprocess.run(cmd, cwd=cwd)
+    console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    result = subprocess.run(cmd, cwd=BUDDY_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
         sys.exit(result.returncode)
 
 
 def start_services() -> None:
-    """Start all Buddy services."""
-    _compose(["up", "--build", "-d"])
+    """Start all Buddy services via start.sh."""
+    console.print("[dim]→ bash start.sh -d[/dim]")
+    result = subprocess.run(["bash", START_SCRIPT, "-d"])
+    if result.returncode != 0:
+        console.print(f"[red]Command exited with code {result.returncode}[/red]")
+        sys.exit(result.returncode)
     console.print("[green]✓[/green] Buddy services started")
 
 

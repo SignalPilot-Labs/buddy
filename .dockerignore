@@ -1,0 +1,36 @@
+# Local dev artifacts — keep out of Docker build context
+# so layer cache invalidation works on source changes only.
+
+# Frontend build artifacts + deps (rebuilt inside Docker)
+dashboard/frontend/node_modules/
+dashboard/frontend/.next/
+dashboard/frontend/package-lock.json
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git / CI
+.git/
+.github/
+.gitignore
+
+# Env / secrets
+.env
+.env.*
+
+# Runtime / logs
+*.log
+.buddy/
+
+# Research / benchmarks (not needed in any container)
+/research/
+benchmark/datasets/
+benchmark/results/
