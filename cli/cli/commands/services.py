@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 
 import typer
 
-from cli.constants import BUDDY_HOME, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.constants import BUDDY_HOME, BUDDY_VENV_PIP, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
 from cli.output import console
 
 
@@ -66,9 +67,20 @@ def start_services() -> None:
     console.print("[green]✓[/green] Buddy services started")
 
 
+def _reinstall_cli() -> None:
+    """Reinstall the CLI package into the venv after a git pull."""
+    cmd = [BUDDY_VENV_PIP, "install", "-e", str(Path(BUDDY_HOME) / "cli")]
+    console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        console.print(f"[red]Command exited with code {result.returncode}[/red]")
+        sys.exit(result.returncode)
+
+
 def update_services() -> None:
-    """Update: git pull in BUDDY_HOME then rebuild."""
+    """Update: git pull in BUDDY_HOME, reinstall CLI, then rebuild images."""
     _git_pull()
+    _reinstall_cli()
     build_services()
 
 

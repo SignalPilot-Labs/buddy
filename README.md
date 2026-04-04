@@ -21,20 +21,19 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/buddy.git
-cd buddy && ./install.sh             # installs CLI + builds Docker images
-buddy start                          # start services
+curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | sh
 ```
 
-To update an existing install: `buddy update`
-
-### Configure
-
-Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+Prompts for credentials interactively. For non-interactive or CI installs, set env vars before piping:
 
 ```bash
-buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
+ANTHROPIC_API_KEY=sk-ant-... GITHUB_TOKEN=ghp_... GITHUB_REPO=owner/repo \
+  curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | sh
 ```
+
+Credentials are saved automatically during install. To update them later, use `buddy settings set` or the web UI at [http://localhost:3400](http://localhost:3400).
+
+To update an existing install: `buddy update`
 
 ### Run
 
