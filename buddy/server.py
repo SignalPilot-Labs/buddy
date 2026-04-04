@@ -256,19 +256,21 @@ class AgentServer:
 
         @app.get("/branches")
         async def list_branches():
+            if not self._git.is_ready():
+                return []
             try:
-                self._git.setup_auth()
                 output = self._git.run_git(["branch", "-r", "--format", "%(refname:short)"])
                 branches = [b.replace("origin/", "") for b in output.strip().split("\n") if b.strip() and "HEAD" not in b]
                 return sorted(set(branches))
-            except Exception as e:
+            except RuntimeError as e:
                 log.warning("Failed to list branches: %s", e)
-                return ["main"]
+                return []
 
         @app.get("/diff/live")
         async def get_live_diff():
+            if not self._git.is_ready():
+                return {"files": []}
             try:
-                self._git.setup_auth()
                 base = "main"
                 if self.current_run_id:
                     run_base = await db.get_run_base_branch(self.current_run_id)
@@ -280,25 +282,26 @@ class AgentServer:
                     "total_added": sum(f["added"] for f in stats),
                     "total_removed": sum(f["removed"] for f in stats),
                 }
-            except Exception as e:
+            except RuntimeError as e:
                 log.warning("Live diff failed: %s", e)
-                return {"files": [], "error": "Failed to compute diff"}
+                return {"files": []}
 
         @app.get("/diff/{branch}")
         async def get_branch_diff(branch: str, base: str = "main"):
+            if not self._git.is_ready():
+                return {"files": []}
             try:
                 validate_branch_name(branch)
                 validate_branch_name(base)
-                self._git.setup_auth()
                 stats = self._git.get_branch_diff(branch, base)
                 return {
                     "files": stats, "total_files": len(stats),
                     "total_added": sum(f["added"] for f in stats),
                     "total_removed": sum(f["removed"] for f in stats),
                 }
-            except Exception as e:
+            except RuntimeError as e:
                 log.warning("Branch diff failed: %s", e)
-                return {"files": [], "error": "Failed to compute diff"}
+                return {"files": []}
 
 
 _server = AgentServer()
