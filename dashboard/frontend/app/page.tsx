@@ -251,7 +251,7 @@ export default function MonitorPage() {
         setStartBusy(false);
       }
     },
-    [addEvent, refreshRuns, handleSelectRun]
+    [addEvent, refreshRuns]
   );
 
   const runStatus: RunStatus | null =
