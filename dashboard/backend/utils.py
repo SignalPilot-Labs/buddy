@@ -49,6 +49,18 @@ def model_to_dict(obj: Base) -> dict[str, object]:
 
 
 # ---------------------------------------------------------------------------
+# Run helpers
+# ---------------------------------------------------------------------------
+
+async def require_run(s: AsyncSession, run_id: str) -> Run:
+    """Fetch a run by ID or raise 404."""
+    run = await s.get(Run, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return run
+
+
+# ---------------------------------------------------------------------------
 # Settings data access
 # ---------------------------------------------------------------------------
 
@@ -226,9 +238,7 @@ async def send_control_signal(
 ) -> dict:
     """Validate run status, persist signal, then forward to agent."""
     async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
+        run = await require_run(s, run_id)
         if run.status not in allowed_statuses:
             raise HTTPException(status_code=409, detail=f"Cannot {signal} run with status '{run.status}'")
         s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
