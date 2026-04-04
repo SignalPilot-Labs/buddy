@@ -153,7 +153,11 @@ SHIM
 # ---------------------------------------------------------------------------
 build_images() {
     _info "Building Docker images (this may take a while)..."
-    bash "$BUDDY_HOME/cli/scripts/build.sh"
+    if ! bash "$BUDDY_HOME/cli/scripts/build.sh"; then
+        _error "Docker image build failed."
+        _error "Check the output above for details, or run: docker compose build --no-cache"
+        exit 1
+    fi
 }
 
 # ---------------------------------------------------------------------------
