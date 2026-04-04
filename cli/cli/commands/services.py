@@ -51,11 +51,6 @@ def start_services() -> None:
     console.print("[green]✓[/green] Buddy services started")
 
 
-def install_services() -> None:
-    """First-time setup: build then start."""
-    build_services()
-    start_services()
-
 
 def update_services() -> None:
     """Update: git pull in BUDDY_HOME then rebuild."""

@@ -58,7 +58,6 @@ buddy run get <run_id>               # run details + action menu
 
 ```
 # Services
-buddy install                        # first-time setup: build images + start
 buddy start                          # start services (fast, no rebuild)
 buddy stop                           # stop all services
 buddy update                         # pull latest code + rebuild images

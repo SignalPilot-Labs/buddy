@@ -14,7 +14,7 @@ Buddy CLI — manage services, runs, settings, and repos.
 
 \b
 Getting started:
-  buddy install                               Build images and start all services (run once after cloning)
+  buddy start                                  Start all services
   buddy settings set --claude-token <token>   Configure credentials
   buddy run new -p "Fix auth bugs" -d 30      Start a 30-minute run
   buddy run                                   Select and manage a run
@@ -70,16 +70,6 @@ def stop() -> None:
     """
     services.stop_services()
 
-
-@app.command("install")
-def install() -> None:
-    """Build Docker images and start all Buddy services. Run once after cloning.
-
-    \b
-    Example:
-      buddy install
-    """
-    services.install_services()
 
 
 @app.command("update")
