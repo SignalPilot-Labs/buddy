@@ -36,6 +36,7 @@ DEFAULT_STOP_REASON = "Operator requested stop"
 
 # Network / ports
 UI_PORT = 3400
+HOST_IP_ENV = "HOST_IP"
 
-# Polling
+# Polling (incremental — frontend HISTORY_FETCH_LIMIT=500 is for initial load)
 POLL_LIMIT_DEFAULT = 100

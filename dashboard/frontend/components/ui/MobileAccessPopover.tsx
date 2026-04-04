@@ -93,8 +93,10 @@ export function MobileAccessPopover() {
                   </p>
                 </>
               ) : (
-                <p className="text-[10px] text-[#666]">
-                  Could not detect local network IP.
+                <p className="text-[10px] text-[#666] leading-relaxed">
+                  Could not detect local network IP. Start with{" "}
+                  <span className="font-mono text-[#888]">./start.sh</span> or set{" "}
+                  <span className="font-mono text-[#888]">HOST_IP</span> env var.
                 </p>
               )}
             </div>

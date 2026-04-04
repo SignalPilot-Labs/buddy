@@ -5,12 +5,22 @@ BUDDY_HOME="$HOME/.buddy"
 
 echo "[install] Installing Buddy to ${BUDDY_HOME}/"
 
-# Copy repo to ~/.buddy/ (overwrite existing)
+# Copy repo to ~/.buddy/
 if [ -d "$BUDDY_HOME" ]; then
-    # Preserve config and Docker volumes
     echo "[install] Updating existing installation"
-    rsync -a --exclude='cli.toml' --exclude='node_modules' --exclude='.next' --exclude='__pycache__' \
-        ./ "$BUDDY_HOME/"
+    # Preserve config.json if it exists
+    CONFIG_BAK=""
+    if [ -f "$BUDDY_HOME/config.json" ]; then
+        CONFIG_BAK="$(mktemp)"
+        cp "$BUDDY_HOME/config.json" "$CONFIG_BAK"
+    fi
+    rm -rf "$BUDDY_HOME"
+    mkdir -p "$BUDDY_HOME"
+    cp -R . "$BUDDY_HOME/"
+    # Restore config
+    if [ -n "$CONFIG_BAK" ]; then
+        mv "$CONFIG_BAK" "$BUDDY_HOME/config.json"
+    fi
 else
     mkdir -p "$BUDDY_HOME"
     cp -R . "$BUDDY_HOME/"
