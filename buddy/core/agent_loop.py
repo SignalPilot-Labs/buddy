@@ -99,12 +99,11 @@ class AgentLoop:
                     try:
                         self._git.push_branch(ctx.branch_name)
                         log.info("Pushed branch %s", ctx.branch_name)
-                    except Exception as e:
+                    except RuntimeError as e:
                         log.warning("Push failed between rounds: %s", e)
                         await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
 
                     # Deliver pending inject to orchestrator
-                    has_inject = bool(pending_inject)
                     if pending_inject:
                         ts = datetime.now(timezone.utc).strftime("%H:%M")
                         self._operator_messages.append((ts, pending_inject))
@@ -112,14 +111,12 @@ class AgentLoop:
                         await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
                         await client.query(f"Operator message: {pending_inject}")
                         pending_inject = None
+                        # Let orchestrator act on the inject next round
+                        continue
 
                     # Decide whether to continue
                     if session.is_unlocked():
-                        if not has_inject:
-                            break
-                        # Unlocked with inject: orchestrator got the message,
-                        # give it one more round to act, then break next iteration.
-                        continue
+                        break
 
                     # Time-locked: call planner for next step
                     planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
@@ -190,11 +187,11 @@ class AgentLoop:
 
         try:
             files_changed = self._git.run_git(["diff", "--name-only", "HEAD~5..HEAD"], cwd=work_dir)
-        except Exception:
+        except RuntimeError:
             files_changed = "(unable to determine)"
         try:
             commits = self._git.run_git(["log", "--oneline", "-5"], cwd=work_dir)
-        except Exception:
+        except RuntimeError:
             commits = "(none yet)"
 
         round_summary = "\n".join(result.round_text_chunks)[-ROUND_SUMMARY_LIMIT:] or "Agent worked silently."
