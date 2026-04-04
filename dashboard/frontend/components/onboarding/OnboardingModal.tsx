@@ -180,7 +180,7 @@ export function OnboardingModal({ open, onComplete, initialStatus, onStartRun }:
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="w-[480px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
+              className="w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
             >
               {/* Header */}
               <div className="px-5 py-4 border-b border-[#1a1a1a]">

@@ -51,6 +51,11 @@ BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
 GIT_REMOTE_ORIGIN: str = "origin"
 GIT_SLUG_SEPARATOR: str = "/"
 
+# Credential format validation
+CLAUDE_TOKEN_PREFIX: str = "sk-ant-"
+GITHUB_TOKEN_PREFIXES: list[str] = ["ghp_", "github_pat_", "gho_"]
+GITHUB_REPO_PATTERN: str = r"^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$"
+
 # Logs
 DEFAULT_LOG_TAIL_LINES: int = 100
 SIGINT_EXIT_CODE: int = 130
