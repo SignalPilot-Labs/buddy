@@ -40,13 +40,12 @@ PROMPTS_DIR = Path("/workspace/buddy/prompts")
 PROMPTS_FALLBACK_DIR = Path(__file__).parent.parent / "prompts"
 ALLOWED_PATHS = ("/workspace", "/home/agentuser/repo", "/tmp")
 ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
-COMMIT_MSG_PATH = "/tmp/commit-msg.txt"
-FALLBACK_COMMIT_MSG = "Round {round_num}"
 
 # ── Git ──
 CLONE_DEPTH = 50
 CLONE_TIMEOUT = 300
 CMD_TIMEOUT = 120
+NPM_INSTALL_TIMEOUT = 300
 BRANCH_NAME_PATTERN = r'^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$'
 BRANCH_NAME_MAX_LEN = 256
 GIT_RETRY_ATTEMPTS = 3
@@ -79,9 +78,6 @@ DANGEROUS_PATTERNS = [
 ]
 
 SECRET_ENV_VARS = "GIT_TOKEN|ANTHROPIC_API_KEY|GH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|FGAT_GIT_TOKEN"
-
-# Git write commands — blocked for all agents. The system commits/pushes in Python.
-GIT_WRITE_COMMANDS = r"git\s+(commit|add|push|revert|merge|rebase|cherry-pick)\b"
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000

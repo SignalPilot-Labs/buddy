@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, WORK_DIR
+from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, NPM_INSTALL_TIMEOUT, WORK_DIR
 from utils.helpers import validate_branch_name
 
 log = logging.getLogger("agent.git")
@@ -119,7 +119,7 @@ class GitWorkspace:
         self._initialized = True
 
     def setup_auth(self) -> None:
-        """Initialize the repo clone and configure auth in local git config."""
+        """Initialize the repo clone, configure auth, and install dependencies."""
         token = os.environ.get("GIT_TOKEN", "")
         if token and not os.environ.get("GH_TOKEN"):
             os.environ["GH_TOKEN"] = token
@@ -129,6 +129,26 @@ class GitWorkspace:
             b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
             self.run_git(["config", "http.extraHeader", f"Authorization: Basic {b64}"])
             self._auth_in_config = True
+        self._install_deps()
+
+    def _install_deps(self) -> None:
+        """Run npm install in directories that have package.json but no node_modules."""
+        work_dir = Path(WORK_DIR)
+        for pkg_json in work_dir.rglob("package.json"):
+            # Skip nested node_modules
+            if "node_modules" in pkg_json.parts:
+                continue
+            pkg_dir = pkg_json.parent
+            if (pkg_dir / "node_modules").exists():
+                continue
+            log.info("Installing npm deps in %s", pkg_dir)
+            try:
+                self._run(["npm", "ci"], cwd=str(pkg_dir), timeout=NPM_INSTALL_TIMEOUT)
+            except RuntimeError:
+                try:
+                    self._run(["npm", "install"], cwd=str(pkg_dir), timeout=NPM_INSTALL_TIMEOUT)
+                except RuntimeError as e:
+                    log.warning("npm install failed in %s: %s", pkg_dir, e)
 
     def get_branch_name(self) -> str:
         """Generate a unique branch name."""
