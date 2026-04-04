@@ -30,4 +30,4 @@ fi
 pip install -e "$BUDDY_HOME/cli/" --quiet
 
 echo ""
-echo "[install] Done. Run 'buddy start' to launch."
+echo "[install] Done. Run 'buddy install' to build and launch services."

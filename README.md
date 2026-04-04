@@ -23,30 +23,32 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ```bash
 git clone https://github.com/SignalPilot-Labs/buddy.git
 cd buddy
-./install.sh
+./install.sh            # install the CLI
+buddy install            # build Docker images and start services
 ```
 
 Buddy can be managed entirely from the **CLI** or from the **Web UI** at [http://localhost:3400](http://localhost:3400).
 
-### 1. Start services
-
-```bash
-buddy start
-```
-
-### 2. Configure credentials
+### 1. Configure credentials
 
 ```bash
 buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
 ```
 
-### 3. Run
+### 2. Run
 
 ```bash
 buddy run new -p "Fix authentication bugs" -d 30
 ```
 
-### 4. Monitor
+Or, if you're inside a git repo, buddy auto-detects it:
+
+```bash
+cd your-project/
+buddy run new -p "Fix authentication bugs" -d 30
+```
+
+### 3. Monitor
 
 Use the CLI or open [http://localhost:3400](http://localhost:3400) in your browser.
 
@@ -58,26 +60,35 @@ buddy run get <run_id>               # run details + action menu
 ## CLI reference
 
 ```
-buddy start                          # start all Docker services
-buddy stop                           # stop all Docker services
+# Services
+buddy install                        # first-time setup: build images + start
+buddy start                          # start services (fast, no rebuild)
+buddy stop                           # stop all services
+buddy update                         # pull latest code + rebuild images
 buddy kill                           # remove all containers
 
+# Runs
 buddy run                            # interactive run selector
 buddy run new -p "Fix auth bugs"     # start a new run
 buddy run list                       # list recent runs
 buddy run get <run_id>               # show run details + action menu
 
+# Settings & config
 buddy settings status                # check credential config
 buddy settings get                   # show all settings (masked)
 buddy settings set --claude-token TOKEN --git-token TOKEN --github-repo owner/repo
 
+# Repos (auto-detects local git repo)
 buddy repos list                     # list repos with run counts
+buddy repos detect                   # detect git repo in current directory
 buddy repos set-active owner/repo    # set active repo
 buddy repos remove owner/repo        # remove a repo
 
+# Agent
 buddy agent health                   # check agent status
 buddy agent branches                 # list git branches
 
+# CLI config
 buddy config get                     # show CLI config
 buddy config set --api-key KEY       # update CLI config
 ```
