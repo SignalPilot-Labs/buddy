@@ -57,6 +57,12 @@ check_prereqs() {
         minor="$(_python3_minor)"
         if [ "$minor" -ge "$MIN_PYTHON_MINOR" ]; then
             _ok "python3 found: $(python3 --version)"
+            if python3 -m venv --help >/dev/null 2>&1; then
+                _ok "python3-venv found"
+            else
+                _error "python3-venv not found — install with: sudo apt install python3-venv (Debian/Ubuntu)"
+                missing=1
+            fi
         else
             _error "python3.${MIN_PYTHON_MINOR}+ required, found 3.${minor} — install with: https://www.python.org/downloads/"
             missing=1

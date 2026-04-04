@@ -18,9 +18,9 @@ interface OnboardingModalProps {
 const STEPS = [
   {
     key: "claude_token",
-    label: "Claude OAuth Token",
+    label: "Anthropic API Key",
     statusKey: "has_claude_token" as const,
-    placeholder: "sk-ant-oat01-...",
+    placeholder: "sk-ant-...",
     type: "password" as const,
     help: (
       <>
@@ -30,11 +30,9 @@ const STEPS = [
         <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
           <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
           <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
-            <li>
-              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> in your terminal
-            </li>
-            <li>Follow the prompts to authenticate</li>
-            <li>Copy the token that is output</li>
+            <li>Go to console.anthropic.com &rarr; API Keys</li>
+            <li>Click &ldquo;Create Key&rdquo;</li>
+            <li>Copy the generated key</li>
           </ol>
         </div>
       </>

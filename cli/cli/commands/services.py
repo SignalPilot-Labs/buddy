@@ -79,10 +79,11 @@ def _reinstall_cli() -> None:
 
 
 def update_services() -> None:
-    """Update: git pull in BUDDY_HOME, reinstall CLI, then rebuild images."""
+    """Update: git pull in BUDDY_HOME, reinstall CLI, rebuild images, and restart."""
     _git_pull()
     _reinstall_cli()
     build_services()
+    start_services()
 
 
 def show_logs(tail_lines: int) -> None:

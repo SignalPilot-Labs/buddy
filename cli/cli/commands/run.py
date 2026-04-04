@@ -102,6 +102,25 @@ def _show_run_detail(run: dict) -> None:
     print_detail(display, title="Run Details")
 
 
+def _check_credentials() -> None:
+    """Exit early with a clear message if required credentials are not configured."""
+    status = get_client().get("/api/settings/status")
+    if status.get("configured"):
+        return
+    missing: list[str] = []
+    if not status.get("has_claude_token"):
+        missing.append("claude_token")
+    if not status.get("has_git_token"):
+        missing.append("git_token")
+    if not status.get("has_github_repo"):
+        missing.append("github_repo")
+    print_error(
+        f"Missing credentials: {', '.join(missing)}. "
+        "Run 'buddy settings set' or configure them in the dashboard."
+    )
+    raise typer.Exit(1)
+
+
 def _resolve_repo_for_run() -> str | None:
     """Detect local git repo and sync with server active repo."""
     slug = detect_local_repo(Path.cwd())
@@ -220,6 +239,7 @@ def start_run(
       buddy run new -p "Add dark mode" -d 60 -b 5.00
       buddy run new -p "Refactor API" --base-branch develop
     """
+    _check_credentials()
     _resolve_repo_for_run()
     body = {
         "prompt": prompt,
