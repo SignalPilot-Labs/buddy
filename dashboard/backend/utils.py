@@ -154,7 +154,8 @@ async def _read_token_pool(s: AsyncSession) -> list[str]:
         return []
     try:
         return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-    except Exception:
+    except Exception as e:
+        log.error("Failed to read token pool: %s", e)
         return []
 
 

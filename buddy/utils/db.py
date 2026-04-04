@@ -105,6 +105,7 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "total_cost_usd": run.total_cost_usd,
             "total_input_tokens": run.total_input_tokens,
             "total_output_tokens": run.total_output_tokens,
+            "github_repo": run.github_repo,
         }
 
 
