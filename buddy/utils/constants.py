@@ -79,6 +79,9 @@ DANGEROUS_PATTERNS = [
 
 SECRET_ENV_VARS = "GIT_TOKEN|ANTHROPIC_API_KEY|GH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN|FGAT_GIT_TOKEN"
 
+# Git write commands — blocked for all agents. The system commits/pushes in Python.
+GIT_WRITE_COMMANDS = r"git\s+(commit|add|push|stash|reset|revert|merge|rebase|cherry-pick)\b"
+
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
 MAX_OPERATOR_MESSAGES = 25

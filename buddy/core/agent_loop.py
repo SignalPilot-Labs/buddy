@@ -89,13 +89,8 @@ class AgentLoop:
                         if action and action.startswith("inject:"):
                             pending_inject = action[7:]
 
-                    # Push commits between rounds
-                    try:
-                        self._git.push_branch(ctx.branch_name)
-                        log.info("Pushed branch %s", ctx.branch_name)
-                    except Exception as e:
-                        log.warning("Push failed between rounds: %s", e)
-                        await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
+                    # Commit and push between rounds
+                    await self._commit_and_push(ctx, round_num)
 
                     # Decide whether to continue
                     if session.is_unlocked():
@@ -126,6 +121,25 @@ class AgentLoop:
             await db.log_audit(ctx.run_id, "fatal_error", {"error": str(e)})
 
         return status
+
+    async def _commit_and_push(self, ctx: RunContext, round_num: int) -> None:
+        """Commit any changes and push between rounds."""
+        if not self._git.has_changes():
+            return
+        try:
+            self._git.run_git(["add", "-u"])
+            self._git.run_git(["commit", "-m", f"Round {round_num + 1}"])
+            await db.log_audit(ctx.run_id, "auto_commit", {"round": round_num + 1})
+            log.info("Committed round %d changes", round_num + 1)
+        except RuntimeError as e:
+            log.warning("Commit failed between rounds: %s", e)
+            return
+        try:
+            self._git.push_branch(ctx.branch_name)
+            log.info("Pushed branch %s", ctx.branch_name)
+        except Exception as e:
+            log.warning("Push failed between rounds: %s", e)
+            await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
 
     async def _handle_between_round_event(
         self, event: dict, client, stream: StreamProcessor,

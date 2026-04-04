@@ -10,7 +10,7 @@ The planner writes a spec to `/tmp/current-spec.md` between rounds. You execute 
 2. **Build.** Tell builder (or frontend-builder for UI work) to read `/tmp/current-spec.md` and implement it.
 3. **Review.** Tell reviewer: "Review round N changes against the round N spec in `/tmp/current-spec.md`. Write your review to `/tmp/current-review.md`." Replace N with the current round number.
 4. **Read `/tmp/current-review.md`** and route the result:
-   - Reviewer approved → commit and push.
+   - Reviewer approved → done for this round. The system commits and pushes automatically between rounds.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
 
@@ -41,14 +41,14 @@ You make exactly two judgment calls:
 
 - Stay on task. Execute the spec, nothing else.
 - Operator messages can redirect work. The planner sees them and adjusts the spec accordingly.
-- Commit when reviewer approves. Not after every subagent call.
 - Don't copy spec into messages — tell subagents to read the file.
 - On failure: understand why, fix root cause, don't retry blindly.
 
 ## Git
 
 - You are already on the correct working branch. Do NOT create or switch branches.
-- Commit all work to the current branch. The system handles branching and PR creation.
+- Do NOT run git write commands (`git commit`, `git add`, `git push`). The system commits and pushes automatically between rounds.
+- The system handles branching, commits, pushes, and PR creation.
 
 ## Project Context
 
