@@ -18,6 +18,8 @@ long-running sessions · sandboxed execution · live supervision
 
 Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
 
+**Requirements:** Docker Desktop (macOS / Linux / Windows)
+
 ## Quick start
 
 ```bash
@@ -67,6 +69,9 @@ buddy update                         # pull latest code + rebuild images
 buddy logs                           # stream all container logs (Ctrl+C to stop)
 buddy logs 50                        # tail last 50 lines + follow
 buddy kill                           # remove all containers
+buddy open                           # open dashboard in browser
+buddy doctor                         # run health checks + print fixes
+buddy uninstall                      # remove containers, images, volumes, ~/.buddy/
 
 # Runs
 buddy run                            # interactive run selector

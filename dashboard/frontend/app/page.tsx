@@ -468,6 +468,10 @@ export default function MonitorPage() {
             });
           }}
           initialStatus={settingsStatus}
+          onStartRun={() => {
+            fetchBranches().then(setBranches);
+            setStartModalOpen(true);
+          }}
         />
       )}
 
