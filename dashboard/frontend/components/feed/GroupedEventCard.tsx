@@ -917,6 +917,21 @@ function ControlMessage({ text, ts }: { text: string; ts: string }) {
   );
 }
 
+/* ── User Prompt Chat Bubble ── */
+function UserPromptCard({ prompt, ts }: { prompt: string; ts: string }) {
+  return (
+    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex justify-end px-4 py-1.5">
+      <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-[#88ccff]/10 border border-[#88ccff]/20 px-4 py-2.5">
+        <div className="flex items-center justify-between gap-4 mb-1">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
+          <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
+        </div>
+        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ── Milestone ── */
 function MilestoneCard({ label, detail, color, ts }: { label: string; detail: string; color: string; ts: string }) {
   return (
@@ -968,6 +983,8 @@ export function GroupedEventCard({ event, isLast = false }: { event: GroupedEven
       return <UsageTick data={event.data} ts={event.ts} />;
     case "control":
       return <ControlMessage text={event.text} ts={event.ts} />;
+    case "user_prompt":
+      return <UserPromptCard prompt={event.prompt} ts={event.ts} />;
     case "milestone":
       return <MilestoneCard label={event.label} detail={event.detail} color={event.color} ts={event.ts} />;
     case "divider":
