@@ -1,20 +1,19 @@
-## User Prompt
+## Mission
 
 > {original_prompt}
 
-**Everything you do must directly serve this mission. Nothing else.**
+Everything you plan must serve this mission.
 
 ---
 
-## Round {round_num} Status
+## State
 
-- **Time elapsed:** {elapsed} of {duration} ({pct_complete}% complete)
-- **Tools used:** {tool_summary}
+- **Round:** {round_num} | **Time:** {elapsed} of {duration} ({pct_complete}%)
+- **Cost:** ${cost_so_far}
 - **Files touched:** {files_changed}
-- **Commits made:** {commits}
-- **Cost so far:** ${cost_so_far}
+- **Commits:** {commits}
 
-### What was accomplished:
+### What happened last round:
 {round_summary}
 
 {last_plan_section}
@@ -25,4 +24,4 @@
 
 ---
 
-Plan the next step.
+Read the relevant code, then plan the next step. Write the spec to `/tmp/current-spec.md`.
