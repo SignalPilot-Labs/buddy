@@ -37,8 +37,8 @@ class RunBootstrap:
         setup_resume(run_id, budget) -> tuple of all run objects
     """
 
-    def __init__(self):
-        self._git = GitWorkspace()
+    def __init__(self, git: GitWorkspace):
+        self._git = git
         self._prompts = PromptLoader()
 
     async def setup_new(
