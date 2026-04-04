@@ -140,7 +140,7 @@ class SecurityGate:
         """Block git remote modifications to non-configured repos."""
         if "git remote" not in cmd:
             return None
-        repo = os.environ.get("GITHUB_REPO", "")
+        repo = self._ctx.github_repo or ""
         if repo and repo not in cmd:
             return f"Cannot modify git remotes — only {repo} is allowed"
         return None
@@ -148,11 +148,11 @@ class SecurityGate:
     def _check_repo_exploration(self, cmd: str) -> str | None:
         """Block commands that try to clone or explore other repos."""
         if "git clone" in cmd:
-            repo = os.environ.get("GITHUB_REPO", "")
+            repo = self._ctx.github_repo or ""
             if repo and repo not in cmd:
                 return f"Cannot clone other repositories — stay within {repo}"
             if not repo:
-                return "Cannot clone repositories — GITHUB_REPO not configured"
+                return "Cannot clone repositories — repo not configured"
 
         cd_match = re.search(r"cd\s+([^\s;&|]+)", cmd)
         if cd_match:

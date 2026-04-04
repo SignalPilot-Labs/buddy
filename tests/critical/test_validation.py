@@ -244,7 +244,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-123"
@@ -261,7 +261,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-456"
@@ -276,7 +276,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-789"
@@ -355,7 +355,7 @@ class TestSessionGate:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=duration_minutes,
+            duration_minutes=duration_minutes, github_repo="owner/repo",
         )
         return SessionGate(ctx)
 
