@@ -143,9 +143,12 @@ class GitWorkspace:
                 continue
             log.info("Installing npm deps in %s", pkg_dir)
             try:
-                self._run(["npm", "install"], cwd=str(pkg_dir), timeout=NPM_INSTALL_TIMEOUT)
-            except RuntimeError as e:
-                log.warning("npm install failed in %s: %s", pkg_dir, e)
+                self._run(["npm", "ci"], cwd=str(pkg_dir), timeout=NPM_INSTALL_TIMEOUT)
+            except RuntimeError:
+                try:
+                    self._run(["npm", "install"], cwd=str(pkg_dir), timeout=NPM_INSTALL_TIMEOUT)
+                except RuntimeError as e:
+                    log.warning("npm install failed in %s: %s", pkg_dir, e)
 
     def get_branch_name(self) -> str:
         """Generate a unique branch name."""

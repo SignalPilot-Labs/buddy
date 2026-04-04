@@ -6,8 +6,8 @@ ARG NODE_VERSION=22
 FROM node:${NODE_VERSION}-slim AS builder
 
 WORKDIR /app
-COPY dashboard/frontend/package.json ./
-RUN npm install
+COPY dashboard/frontend/package.json dashboard/frontend/package-lock.json* ./
+RUN npm ci || npm install
 COPY dashboard/frontend/ ./
 RUN npm run build
 
