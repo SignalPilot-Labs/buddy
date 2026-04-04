@@ -92,6 +92,7 @@ class AgentServer:
         self.current_run_id = ctx.run_id
         self._events = events
         self._session = session
+        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
@@ -109,6 +110,7 @@ class AgentServer:
         self.current_run_id = ctx.run_id
         self._events = events
         self._session = session
+        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, None)
