@@ -97,6 +97,7 @@ buddy agent branches                 # list git branches
 # CLI config
 buddy config get                     # show CLI config
 buddy config set --api-key KEY       # update CLI config
+buddy config show-key                # print the dashboard API key
 ```
 
 Use `--json` on any command for machine-readable output.
