@@ -66,7 +66,8 @@ export function InjectPanel({
 
   const submitLabel = isTerminal(status) ? "Resume with Prompt" : "Send to Agent";
 
-  const isSubmitDisabled = (isTerminal(status) && !text.trim()) || busy;
+  const isSubmitDisabled =
+    ((isTerminal(status) || status === "running") && !text.trim()) || busy;
 
   const handleSend = () => {
     const trimmed = text.trim();
