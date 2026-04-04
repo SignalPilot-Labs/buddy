@@ -108,15 +108,10 @@ def _check_credentials() -> None:
     status = get_client().get("/api/settings/status")
     if status.get("configured"):
         return
-    missing: list[str] = []
-    if not status.get("has_claude_token"):
-        missing.append("claude_token")
-    if not status.get("has_git_token"):
-        missing.append("git_token")
-    if not status.get("has_github_repo"):
-        missing.append("github_repo")
+    labels = {"has_claude_token": "Anthropic API key", "has_git_token": "GitHub token", "has_github_repo": "GitHub repo"}
+    missing = [labels[k] for k in labels if not status.get(k)]
     print_error(
-        f"Missing credentials: {', '.join(missing)}. "
+        f"Missing: {', '.join(missing)}. "
         "Run 'buddy settings set' or configure them in the dashboard."
     )
     raise typer.Exit(1)
