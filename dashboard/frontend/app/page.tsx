@@ -489,6 +489,8 @@ export default function MonitorPage() {
             activeId={selectedRunId}
             onSelect={handleSelectRun}
             loading={runsLoading}
+            onNewRun={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
+            disabled={!agentIdle || !agentReachable || !isConfigured}
           />
         </div>
 
@@ -517,6 +519,8 @@ export default function MonitorPage() {
                 }}
                 loading={runsLoading}
                 mobile
+                onNewRun={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
+                disabled={!agentIdle || !agentReachable || !isConfigured}
               />
             )}
 

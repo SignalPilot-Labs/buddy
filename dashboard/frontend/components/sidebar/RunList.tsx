@@ -11,12 +11,16 @@ export function RunList({
   onSelect,
   loading,
   mobile,
+  onNewRun,
+  disabled,
 }: {
   runs: Run[];
   activeId: string | null;
   onSelect: (id: string) => void;
   loading: boolean;
   mobile?: boolean;
+  onNewRun?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <aside className={mobile ? "flex-1 flex flex-col bg-[#030303]" : "w-[280px] flex-shrink-0 flex flex-col border-r border-[#1a1a1a] bg-[#030303]"}>
@@ -40,7 +44,7 @@ export function RunList({
             <div className="inline-flex h-5 w-5 rounded-full border-2 border-[#333] border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
           </div>
         ) : runs.length === 0 ? (
-          <EmptyRuns />
+          <EmptyRuns onNewRun={onNewRun} disabled={disabled} />
         ) : (
           <AnimatePresence mode="popLayout">
             {runs.map((run) => (

@@ -27,7 +27,6 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode=None,
     context_settings={"help_option_names": ["-h", "--help"]},
-    add_completion=False,
 )
 
 # ── Global options ──────────────────────────────────────────────────────────
@@ -129,6 +128,17 @@ def kill() -> None:
       buddy kill
     """
     services.kill_services()
+
+
+@app.command("uninstall")
+def uninstall() -> None:
+    """Remove all Buddy containers, images, volumes, ~/.buddy/, and the buddy shim. Asks for confirmation.
+
+    \b
+    Example:
+      buddy uninstall
+    """
+    services.uninstall_buddy()
 
 
 # ── Subcommand groups ───────────────────────────────────────────────────────

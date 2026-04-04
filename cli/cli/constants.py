@@ -7,6 +7,7 @@ from pathlib import Path
 # Buddy home — everything lives here after install
 BUDDY_HOME: str = str(Path.home() / ".buddy")
 BUDDY_VENV_PIP: str = str(Path(BUDDY_HOME) / ".venv" / "bin" / "pip")
+BUDDY_BIN: str = str(Path.home() / ".local" / "bin" / "buddy")
 
 # HTTP client
 HTTP_TIMEOUT_SECONDS: int = 15

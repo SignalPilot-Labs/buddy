@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 import webbrowser
@@ -10,6 +11,7 @@ from pathlib import Path
 import typer
 
 from cli.constants import (
+    BUDDY_BIN,
     BUDDY_HOME,
     BUDDY_VENV_PIP,
     BUILD_SCRIPT,
@@ -120,3 +122,15 @@ def kill_services() -> None:
     )
     _compose(["down"])
     console.print("[green]✓[/green] Buddy containers removed (volumes preserved — run 'buddy start' to restart)")
+
+
+def uninstall_buddy() -> None:
+    """Remove all Buddy containers, images, volumes, ~/.buddy/, and the buddy shim."""
+    typer.confirm(
+        "This will remove all Buddy containers, images, volumes, and the ~/.buddy/ directory. Continue?",
+        abort=True,
+    )
+    _compose(["down", "--volumes", "--rmi", "all"])
+    shutil.rmtree(BUDDY_HOME, ignore_errors=True)
+    Path(BUDDY_BIN).unlink(missing_ok=True)
+    console.print("[green]✓[/green] Buddy has been uninstalled")
