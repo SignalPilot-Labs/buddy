@@ -35,6 +35,24 @@ _open_browser() {
     esac
 }
 
+_rc_file_for_shell() {
+    case "$SHELL" in
+        */zsh)  printf "%s/.zshrc" "$HOME" ;;
+        *)      printf "%s/.bashrc" "$HOME" ;;
+    esac
+}
+
+_append_path_to_rc() {
+    local rc_file
+    rc_file="$(_rc_file_for_shell)"
+    local export_line='export PATH="$HOME/.local/bin:$PATH"'
+    if ! grep -qF '.local/bin' "$rc_file" 2>/dev/null; then
+        printf '\n# Added by Buddy installer\n%s\n' "$export_line" >> "$rc_file"
+        _ok "Added ~/.local/bin to PATH in $rc_file"
+    fi
+    _info "Run: source $rc_file  (or open a new terminal) to use 'buddy'"
+}
+
 # ---------------------------------------------------------------------------
 # 1. Prerequisite checks
 # ---------------------------------------------------------------------------
@@ -141,9 +159,7 @@ SHIM
         *":$HOME/.local/bin:"*)
             ;;
         *)
-            _info "~/.local/bin is not on your PATH."
-            _info "Add this to your shell rc file (~/.bashrc, ~/.zshrc, etc.):"
-            _info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+            _append_path_to_rc
             ;;
     esac
 }
@@ -227,6 +243,7 @@ print_success() {
     _ok "Buddy is ready at http://localhost:3400"
     _info "Running post-install health checks..."
     "$BUDDY_VENV/bin/buddy" doctor || true
+    _info "To use 'buddy' in this shell: source $(_rc_file_for_shell)  (or open a new terminal)"
     printf "\n"
     _info "Opening dashboard..."
     _open_browser "http://localhost:3400"
