@@ -61,7 +61,7 @@ export default function MonitorPage() {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
-  const { pause, resume, stop, kill, inject, unlock, resumeSession, busy } = useControl(
+  const { pause, resume, stop, inject, resumeSession, busy } = useControl(
     selectedRunId,
     addEvent
   );
@@ -422,15 +422,8 @@ export default function MonitorPage() {
         <ControlBar
           status={runStatus}
           onPause={pause}
-          onResume={resume}
-          onStop={stop}
-          onKill={kill}
-          onUnlock={unlock}
-          onToggleInject={() => setInjectOpen(!injectOpen)}
-          onResumeRun={resumeSession}
+          onOpenInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
-          sessionLocked={agentHealth?.session_unlocked === false}
-          timeRemaining={agentHealth?.time_remaining || null}
         />
       </header>
 
@@ -439,7 +432,12 @@ export default function MonitorPage() {
         open={injectOpen}
         onClose={() => setInjectOpen(false)}
         onSend={inject}
+        onResumePlain={resume}
+        onStop={stop}
         busy={busy}
+        status={runStatus}
+        sessionLocked={agentHealth?.session_unlocked === false}
+        timeRemaining={agentHealth?.time_remaining || null}
       />
 
       {/* Start Run Modal */}
@@ -566,11 +564,7 @@ export default function MonitorPage() {
         onClose={() => setControlsOpen(false)}
         status={runStatus}
         onPause={pause}
-        onResume={resume}
-        onStop={stop}
-        onKill={kill}
-        onUnlock={unlock}
-        onToggleInject={() => { setInjectOpen(!injectOpen); }}
+        onOpenInject={() => { setInjectOpen(!injectOpen); }}
         busy={busy}
         repos={repos}
         activeRepo={activeRepoFilter}

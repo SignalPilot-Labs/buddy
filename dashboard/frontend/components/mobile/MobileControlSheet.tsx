@@ -9,20 +9,13 @@ import { RepoSelector } from "@/components/ui/RepoSelector";
 interface MobileControlSheetProps {
   open: boolean;
   onClose: () => void;
-  // Run controls
   status: RunStatus | null;
   onPause: () => void;
-  onResume: () => void;
-  onStop: () => void;
-  onKill: () => void;
-  onUnlock: () => void;
-  onToggleInject: () => void;
+  onOpenInject: () => void;
   busy: boolean;
-  // Repo
   repos: RepoInfo[];
   activeRepo: string | null;
   onRepoSelect: (repo: string) => void;
-  // New run
   onNewRun: () => void;
   isConfigured: boolean;
 }
@@ -32,11 +25,7 @@ export function MobileControlSheet({
   onClose,
   status,
   onPause,
-  onResume,
-  onStop,
-  onKill,
-  onUnlock,
-  onToggleInject,
+  onOpenInject,
   busy,
   repos,
   activeRepo,
@@ -44,11 +33,6 @@ export function MobileControlSheet({
   onNewRun,
   isConfigured,
 }: MobileControlSheetProps) {
-  const isActive = ["running", "paused", "rate_limited"].includes(status || "");
-  const canPause = status === "running";
-  const canResume = status === "paused";
-  const canInject = ["running", "paused"].includes(status || "");
-
   // Lock body scroll when open
   useEffect(() => {
     if (open) {
@@ -56,6 +40,9 @@ export function MobileControlSheet({
       return () => { document.body.style.overflow = ""; };
     }
   }, [open]);
+
+  const showPause = status === "running";
+  const showResume = status !== null && status !== "running";
 
   return (
     <AnimatePresence>
@@ -113,104 +100,40 @@ export function MobileControlSheet({
                 {isConfigured ? "New Run" : "Setup Required"}
               </Button>
 
-              {/* Run controls grid */}
-              {status && (
-                <>
-                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#666] font-semibold block">
-                    Run Controls
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button
-                      variant="warning"
-                      size="lg"
-                      disabled={!canPause || busy}
-                      onClick={() => { onPause(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <rect x="2" y="2" width="2" height="6" rx="0.5" />
-                          <rect x="6" y="2" width="2" height="6" rx="0.5" />
-                        </svg>
-                      }
-                    >
-                      Pause
-                    </Button>
-                    <Button
-                      variant="success"
-                      size="lg"
-                      disabled={!canResume || busy}
-                      onClick={() => { onResume(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <polygon points="3 2 8 5 3 8" />
-                        </svg>
-                      }
-                    >
-                      Resume
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="lg"
-                      disabled={!canInject || busy}
-                      onClick={() => { onToggleInject(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                          <path d="M1 7c0-1.5 1-2 3-2s3 .5 3 2" />
-                          <path d="M7.5 1.5l1.5 3-3 3" />
-                        </svg>
-                      }
-                    >
-                      Inject
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="lg"
-                      disabled={!isActive || busy}
-                      onClick={() => { onStop(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <rect x="2" y="2" width="6" height="6" rx="0.5" />
-                        </svg>
-                      }
-                    >
-                      Stop
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="lg"
-                      disabled={!isActive || busy}
-                      onClick={() => { onKill(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="5" cy="5" r="4" />
-                          <line x1="3" y1="3" x2="7" y2="7" />
-                          <line x1="7" y1="3" x2="3" y2="7" />
-                        </svg>
-                      }
-                    >
-                      Kill
-                    </Button>
-                    <Button
-                      variant="warning"
-                      size="lg"
-                      disabled={!isActive || busy}
-                      onClick={() => { onUnlock(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <rect x="2" y="5" width="6" height="4" rx="0.5" />
-                          <path d="M3.5 5V3.5a1.5 1.5 0 013 0" />
-                        </svg>
-                      }
-                    >
-                      Unlock
-                    </Button>
-                  </div>
-                </>
+              {/* Run action button */}
+              {showPause && (
+                <Button
+                  variant="warning"
+                  size="lg"
+                  disabled={busy}
+                  onClick={() => { onPause(); onClose(); }}
+                  className="w-full justify-center"
+                  icon={
+                    <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <rect x="2" y="2" width="2" height="6" rx="0.5" />
+                      <rect x="6" y="2" width="2" height="6" rx="0.5" />
+                    </svg>
+                  }
+                >
+                  Pause
+                </Button>
+              )}
+
+              {showResume && (
+                <Button
+                  variant="success"
+                  size="lg"
+                  disabled={busy}
+                  onClick={() => { onOpenInject(); onClose(); }}
+                  className="w-full justify-center"
+                  icon={
+                    <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <polygon points="3 2 8 5 3 8" />
+                    </svg>
+                  }
+                >
+                  Resume
+                </Button>
               )}
             </div>
           </motion.div>
