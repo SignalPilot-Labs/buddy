@@ -84,12 +84,12 @@ class AgentServer:
 
     async def _run_agent(
         self, custom_prompt: str | None, max_budget: float,
-        duration_minutes: float, base_branch: str,
+        duration_minutes: float, base_branch: str, github_repo: str,
     ) -> None:
         """Bootstrap → execute → teardown for a new run."""
         self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_new(
-            custom_prompt, max_budget, duration_minutes, base_branch,
+            custom_prompt, max_budget, duration_minutes, base_branch, github_repo,
         )
         self.current_run_id = ctx.run_id
         self._events = events
@@ -150,8 +150,6 @@ class AgentServer:
             os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = body.claude_token
         if body.git_token:
             os.environ["GIT_TOKEN"] = body.git_token
-        if body.github_repo:
-            os.environ["GITHUB_REPO"] = body.github_repo
 
     def _on_task_done(self, task: asyncio.Task) -> None:
         """Callback when the agent task finishes or crashes."""
@@ -197,6 +195,7 @@ class AgentServer:
 
             self._task = asyncio.create_task(self._run_agent(
                 body.prompt, budget, body.duration_minutes, body.base_branch,
+                body.github_repo or "",
             ))
             self._task.add_done_callback(self._on_task_done)
 
