@@ -9,7 +9,7 @@ import json
 import logging
 
 from utils import db
-from utils.constants import PULSE_CHECK_INTERVAL_SEC
+from utils.constants import EVENT_BUS_POLL_TIMEOUT_SEC, PULSE_CHECK_INTERVAL_SEC
 from tools.db_logger import DBLogger
 
 log = logging.getLogger("core.events")
@@ -54,7 +54,7 @@ class EventBus:
         await db.update_run_status(run_id, "paused")
 
         while True:
-            event = await self.wait(timeout=2.0)
+            event = await self.wait(timeout=EVENT_BUS_POLL_TIMEOUT_SEC)
             if not event:
                 continue
             kind = event["event"]

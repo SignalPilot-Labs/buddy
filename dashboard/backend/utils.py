@@ -280,7 +280,8 @@ async def agent_request(
                 log.warning("Agent returned %d for %s %s", res.status_code, method, path)
                 try:
                     detail = res.json().get("detail", f"Agent error {res.status_code}")
-                except Exception:
+                except Exception as e:
+                    log.debug("Could not parse agent error response: %s", e)
                     detail = f"Agent error {res.status_code}"
                 raise HTTPException(status_code=502, detail=detail)
             return res.json()
