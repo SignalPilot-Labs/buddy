@@ -1,16 +1,16 @@
-"""Config resolution: CLI flags > env vars > ~/.buddy/cli.toml > Docker volume."""
+"""Config resolution: CLI flags > env vars > config.json > Docker volume."""
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
-import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL
 
-CONFIG_PATH = Path(BUDDY_HOME) / "cli.toml"
+CONFIG_PATH = Path(BUDDY_HOME) / "config.json"
 
 
 @dataclass
@@ -26,11 +26,18 @@ class State:
 state = State()
 
 
-def _load_toml() -> dict:
-    """Load ~/.buddy/cli.toml if it exists."""
+def _load_config() -> dict:
+    """Load ~/.buddy/config.json if it exists."""
     if CONFIG_PATH.is_file():
-        return tomllib.loads(CONFIG_PATH.read_text())
+        return json.loads(CONFIG_PATH.read_text())
     return {}
+
+
+def _save_config(cfg: dict) -> None:
+    """Write config dict to ~/.buddy/config.json."""
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n")
+    CONFIG_PATH.chmod(0o600)
 
 
 def _read_key_from_container() -> str | None:
@@ -56,7 +63,7 @@ def resolve_api_url() -> str:
     env = os.environ.get("BUDDY_API_URL")
     if env:
         return env.rstrip("/")
-    cfg = _load_toml().get("api_url")
+    cfg = _load_config().get("api_url")
     if cfg:
         return str(cfg).rstrip("/")
     return DEFAULT_API_URL
@@ -65,14 +72,14 @@ def resolve_api_url() -> str:
 def resolve_api_key() -> str | None:
     """Resolve the API key.
 
-    Priority: --api-key flag > BUDDY_API_KEY env > cli.toml > docker volume.
+    Priority: --api-key flag > BUDDY_API_KEY env > config.json > docker volume.
     """
     if state.api_key:
         return state.api_key
     env = os.environ.get("BUDDY_API_KEY")
     if env:
         return env
-    toml_key = _load_toml().get("api_key")
-    if toml_key:
-        return str(toml_key)
+    cfg_key = _load_config().get("api_key")
+    if cfg_key:
+        return str(cfg_key)
     return _read_key_from_container()
