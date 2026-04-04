@@ -1,4 +1,4 @@
-"""Config resolution: CLI flags > env vars > ~/.buddy/cli.toml > Docker volume > defaults."""
+"""Config resolution: CLI flags > env vars > ~/.buddy/cli.toml > Docker volume."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from cli.constants import API_KEY_CONTAINER_PATH, DASHBOARD_CONTAINER, DEFAULT_API_URL
+from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL
 
-CONFIG_PATH = Path.home() / ".buddy" / "cli.toml"
+CONFIG_PATH = Path(BUDDY_HOME) / "cli.toml"
 
 
 @dataclass
@@ -20,7 +20,6 @@ class State:
     api_key: str | None = None
     api_url: str | None = None
     json_mode: bool = False
-    project_dir: str | None = None
 
 
 # Module-level singleton — written by main.py callback, read by commands.
@@ -77,16 +76,3 @@ def resolve_api_key() -> str | None:
     if toml_key:
         return str(toml_key)
     return _read_key_from_container()
-
-
-def resolve_project_dir() -> str:
-    """Resolve the Buddy project directory (where docker-compose.yml lives)."""
-    if state.project_dir:
-        return state.project_dir
-    env = os.environ.get("BUDDY_PROJECT_DIR")
-    if env:
-        return env
-    cfg = _load_toml().get("project_dir")
-    if cfg:
-        return str(cfg)
-    return os.getcwd()

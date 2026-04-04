@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+BUDDY_HOME="$HOME/.buddy"
+cd "$BUDDY_HOME"
+
 # ─── Pinned versions (source of truth) ──────────────────────────────────────
 PYTHON_VERSION=3.12
 NODE_VERSION=22
@@ -15,7 +18,7 @@ if [ -z "${HOST_IP:-}" ]; then
     HOST_IP="$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}' || true)"
     export HOST_IP
 fi
-echo "[build] Host IP: ${HOST_IP:-not detected}"
+echo "[buddy] Host IP: ${HOST_IP:-not detected}"
 
 # ─── Build then run ─────────────────────────────────────────────────────────
 docker compose build \

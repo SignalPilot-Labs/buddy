@@ -50,7 +50,7 @@ def get_config() -> None:
     if not cfg:
         console.print(f"[dim]No config file found at {CONFIG_PATH}[/dim]")
         console.print("[dim]Using defaults. Run 'buddy config set' to configure.[/dim]")
-        cfg = {"api_url": DEFAULT_API_URL, "api_key": "(not set)", "project_dir": "(cwd)"}
+        cfg = {"api_url": DEFAULT_API_URL, "api_key": "(auto from container)"}
     if state.json_mode:
         print_json(cfg)
         return
@@ -60,14 +60,12 @@ def get_config() -> None:
 @app.command("set")
 def set_config(
     api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
-    project_dir: Optional[str] = typer.Option(None, "--project-dir", metavar="<path>", help="Buddy project directory (where docker-compose.yml lives)"),
 ) -> None:
     """Set CLI configuration values. Saved to ~/.buddy/cli.toml.
 
     \b
     Examples:
       buddy config set --api-key my-secret-key
-      buddy config set --project-dir /path/to/buddy
     """
     cfg = _read_config()
     updated: list[str] = []
@@ -75,9 +73,6 @@ def set_config(
     if api_key is not None:
         cfg["api_key"] = api_key
         updated.append("api_key")
-    if project_dir is not None:
-        cfg["project_dir"] = project_dir
-        updated.append("project_dir")
 
     if not updated:
         console.print("[yellow]Nothing to update. Pass at least one --option.[/yellow]")
