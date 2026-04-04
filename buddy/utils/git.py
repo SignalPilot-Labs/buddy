@@ -29,6 +29,10 @@ class GitWorkspace:
         self._last_repo = ""
         self._auth_in_config = False
 
+    def is_ready(self) -> bool:
+        """Check if the repo is cloned and initialized. Safe to call from polling endpoints."""
+        return self._initialized
+
     def _get_repo(self) -> str:
         """Read GITHUB_REPO at call time so runtime changes are picked up."""
         return os.environ.get("GITHUB_REPO", "")
@@ -120,7 +124,7 @@ class GitWorkspace:
         self._initialized = True
 
     def setup_auth(self) -> None:
-        """Initialize the repo clone, configure auth, and install dependencies."""
+        """Initialize the repo clone and configure auth."""
         token = os.environ.get("GIT_TOKEN", "")
         if token and not os.environ.get("GH_TOKEN"):
             os.environ["GH_TOKEN"] = token
@@ -130,6 +134,12 @@ class GitWorkspace:
             b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
             self.run_git(["config", "http.extraHeader", f"Authorization: Basic {b64}"])
             self._auth_in_config = True
+
+    def install_deps(self) -> None:
+        """Run npm install in directories that have package.json but no node_modules.
+
+        Meant to be called in a background task so it doesn't block run startup.
+        """
         self._install_deps()
 
     def _install_deps(self) -> None:
