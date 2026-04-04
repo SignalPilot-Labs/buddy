@@ -68,6 +68,9 @@ async def get_tool_calls(
 ) -> list:
     """List tool calls for a run."""
     async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
         result = await s.execute(
             select(ToolCall)
             .where(ToolCall.run_id == run_id)
@@ -86,6 +89,9 @@ async def get_audit_log(
 ) -> list:
     """List audit log entries for a run."""
     async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
         result = await s.execute(
             select(AuditLog)
             .where(AuditLog.run_id == run_id)

@@ -98,6 +98,10 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
 @router.get("/stream/{run_id}")
 async def stream_events(run_id: str = RunId) -> StreamingResponse:
     """SSE endpoint — polls Postgres for new tool calls and audit events."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
 
     async def event_generator() -> AsyncGenerator[str, None]:
         last_tool_id, last_audit_id = await _init_cursors(run_id)
@@ -155,6 +159,9 @@ async def poll_events(
 ) -> dict:
     """Polling fallback for environments where SSE doesn't work."""
     async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
         tool_calls = await _query_recent_tool_calls(s, run_id, after_tool, limit)
         audit_events = await _query_recent_audit_events(s, run_id, after_audit, limit)
     return {"tool_calls": tool_calls, "audit_events": audit_events}
