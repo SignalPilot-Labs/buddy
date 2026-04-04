@@ -926,7 +926,7 @@ function UserPromptCard({ prompt, ts }: { prompt: string; ts: string }) {
           <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
           <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         </div>
-        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap">{prompt}</p>
+        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
       </div>
     </motion.div>
   );
