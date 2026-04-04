@@ -104,8 +104,12 @@ class AgentLoop:
                         pending_inject = None
 
                     # Decide whether to continue
-                    if session.is_unlocked() and not has_inject:
-                        break
+                    if session.is_unlocked():
+                        if not has_inject:
+                            break
+                        # Unlocked with inject: orchestrator got the message,
+                        # give it one more round to act, then break next iteration.
+                        continue
 
                     # Time-locked: call planner for next step
                     planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
