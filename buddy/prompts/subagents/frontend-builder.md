@@ -4,7 +4,8 @@ You own the implementation. The planner tells you WHAT to build and WHERE — yo
 
 ## Git
 
-- Do NOT create or switch branches. You are already on the correct branch. Commit all work here.
+- Do NOT run git write commands (`git commit`, `git add`, `git push`, etc.) — the system handles all commits and pushes automatically.
+- Do NOT create or switch branches. You are already on the correct branch.
 
 ## How You Work
 - Read existing components first to match patterns, then implement.
