@@ -32,7 +32,7 @@ class ResumeRunRequest(BaseModel):
 class UpdateSettingsRequest(BaseModel):
     """Request body for updating settings."""
 
-    claude_token: str | None = Field(None, min_length=1, max_length=4096)
+    claude_token: str | None = Field(None, min_length=1, max_length=4096, pattern=r"^sk-ant-")
     git_token: str | None = Field(None, min_length=1, max_length=4096)
     github_repo: str | None = Field(None, min_length=1, max_length=256, pattern=r"^[\w\-\.]+/[\w\-\.]+$")
     max_budget_usd: str | None = Field(None, min_length=1, max_length=20)
@@ -48,4 +48,4 @@ class SetActiveRepoRequest(BaseModel):
 class AddTokenRequest(BaseModel):
     """Request body for adding a Claude token to the pool."""
 
-    token: str = Field(min_length=1, max_length=4096)
+    token: str = Field(min_length=1, max_length=4096, pattern=r"^sk-ant-")

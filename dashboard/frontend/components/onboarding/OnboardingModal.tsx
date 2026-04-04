@@ -9,6 +9,8 @@ import { updateSettings } from "@/lib/settings-api";
 import type { SettingsStatus } from "@/lib/types";
 import { clsx } from "clsx";
 
+const CLAUDE_KEY_PREFIX = "sk-ant-";
+
 interface OnboardingModalProps {
   open: boolean;
   onComplete: () => void;
@@ -118,6 +120,11 @@ export function OnboardingModal({ open, onComplete, initialStatus, onStartRun }:
 
   const handleNext = async () => {
     if (!currentValue.trim()) return;
+
+    if (currentStep.key === "claude_token" && !currentValue.trim().startsWith(CLAUDE_KEY_PREFIX)) {
+      setError(`Anthropic API keys must start with ${CLAUDE_KEY_PREFIX}`);
+      return;
+    }
 
     setError(null);
     setSaving(true);
