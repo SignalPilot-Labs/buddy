@@ -10,7 +10,7 @@ The planner writes a spec to `/tmp/current-spec.md` between rounds. You execute 
 2. **Build.** Tell builder (or frontend-builder for UI work) to read `/tmp/current-spec.md` and implement it.
 3. **Review.** Tell reviewer: "Review round N changes against the round N spec in `/tmp/current-spec.md`. Write your review to `/tmp/current-review.md`." Replace N with the current round number.
 4. **Read `/tmp/current-review.md`** and route the result:
-   - Reviewer approved → done for this round. The system commits and pushes automatically between rounds.
+   - Reviewer approved → commit and move on.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
 
@@ -47,8 +47,8 @@ You make exactly two judgment calls:
 ## Git
 
 - You are already on the correct working branch. Do NOT create or switch branches.
-- Do NOT run git write commands (`git commit`, `git add`, `git push`). The system commits and pushes automatically between rounds.
-- **Before the round ends**, write a short commit message to `/tmp/commit-msg.txt`. One line, imperative mood, explains what changed and why. If you don't write one, the system uses a generic "Round N" message.
+- Commit when reviewer approves. One logical change per commit. Clear message explaining what and why.
+- The system pushes automatically between rounds — you do not need to push.
 
 ## Project Context
 

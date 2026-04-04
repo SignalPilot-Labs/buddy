@@ -20,7 +20,6 @@ from utils.constants import (
     ALLOWED_SYSTEM_PATHS,
     CREDENTIAL_PATTERNS,
     DANGEROUS_PATTERNS,
-    GIT_WRITE_COMMANDS,
     INPUT_SUMMARY_LIMIT,
     SECRET_ENV_VARS,
 )
@@ -44,7 +43,6 @@ class SecurityGate:
         self._ctx = ctx
         self._cred_re = re.compile("|".join(CREDENTIAL_PATTERNS), re.IGNORECASE)
         self._dangerous_re = re.compile("|".join(DANGEROUS_PATTERNS))
-        self._git_write_re = re.compile(GIT_WRITE_COMMANDS)
 
     async def check_permission(
         self, tool_name: str, input_data: dict, context: ToolPermissionContext,
@@ -93,17 +91,10 @@ class SecurityGate:
         return (
             self._check_token_exposure(cmd)
             or self._check_dangerous(cmd)
-            or self._check_git_write(cmd)
             or self._check_git_branch_creation(cmd)
             or self._check_git_remote(cmd)
             or self._check_repo_exploration(cmd)
         )
-
-    def _check_git_write(self, cmd: str) -> str | None:
-        """Block all git write operations — the system handles commits and pushes."""
-        if self._git_write_re.search(cmd):
-            return "Git write operations are blocked — the system commits and pushes automatically"
-        return None
 
     def _check_token_exposure(self, cmd: str) -> str | None:
         """Block commands that would print or expose tokens/secrets."""
