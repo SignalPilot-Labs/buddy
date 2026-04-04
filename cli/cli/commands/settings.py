@@ -7,7 +7,7 @@ from typing import Optional
 import typer
 
 from cli.client import get_client
-from cli.output import console, print_detail, print_json, print_success, print_table
+from cli.output import console, print_detail, print_json, print_success
 from cli.config import state
 
 app = typer.Typer(

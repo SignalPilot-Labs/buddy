@@ -2,21 +2,27 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import typer
 from InquirerPy import inquirer
 
 from cli.client import get_client
+from cli.git import detect_local_repo
 from cli.commands.run_helpers import show_audit, show_diff, show_tools, stream_run
 from cli.config import state
 from cli.constants import (
     DEFAULT_BASE_BRANCH,
+    DEFAULT_QUERY_LIMIT,
+    DEFAULT_QUERY_OFFSET,
     DEFAULT_RUN_BUDGET,
     DEFAULT_RUN_DURATION,
     FUZZY_MAX_HEIGHT,
     PROMPT_LIST_TRUNCATION,
     PROMPT_SELECTOR_TRUNCATION,
+    RUN_LABEL_PROMPT_WIDTH,
+    RUN_LABEL_STATUS_WIDTH,
 )
 from cli.output import (
     console,
@@ -50,7 +56,7 @@ def _run_label(r: dict) -> str:
     prompt = (r.get("custom_prompt") or "no prompt")[:PROMPT_SELECTOR_TRUNCATION]
     ago = relative_time(r.get("started_at"))
     icon = plain_status_icon(st)
-    return f"{icon}  {sid}  {st:<13} {prompt:<52} {ago}"
+    return f"{icon}  {sid}  {st:<{RUN_LABEL_STATUS_WIDTH}} {prompt:<{RUN_LABEL_PROMPT_WIDTH}} {ago}"
 
 
 def _select_run() -> dict:
@@ -96,39 +102,66 @@ def _show_run_detail(run: dict) -> None:
     print_detail(display, title="Run Details")
 
 
+def _resolve_repo_for_run() -> str | None:
+    """Detect local git repo and sync with server active repo."""
+    slug = detect_local_repo(Path.cwd())
+    if slug is None:
+        return None
+
+    settings = get_client().get("/api/settings")
+    server_repo = settings.get("github_repo")
+
+    if not server_repo:
+        get_client().put("/api/repos/active", json={"repo": slug})
+        console.print(f"[green]Auto-set active repo to {slug}[/green]")
+    elif server_repo == slug:
+        console.print(f"[dim]Repo matches server: {slug}[/dim]")
+    else:
+        console.print(
+            f"[yellow]Active repo is {server_repo} but you're in {slug}[/yellow]"
+        )
+
+    return slug
+
+
 def _action_menu(run: dict) -> None:
-    """Show an action menu for the selected run."""
-    run_id = run["id"]
-    status = run.get("status", "unknown")
+    """Show an action menu for the selected run, looping until 'back'."""
+    while True:
+        run_id = run["id"]
+        status = run.get("status", "unknown")
 
-    actions: list[dict] = [{"name": "Show details", "value": "details"}]
+        actions: list[dict] = [{"name": "Show details", "value": "details"}]
 
-    if status in ("running", "paused", "rate_limited"):
-        if status == "running":
-            actions.append({"name": "Pause", "value": "pause"})
-        if status == "paused":
-            actions.append({"name": "Resume", "value": "resume"})
-        actions.append({"name": "Stop", "value": "stop"})
-        actions.append({"name": "Inject prompt", "value": "inject"})
-        actions.append({"name": "Unlock time gate", "value": "unlock"})
-        actions.append({"name": "Stream live events", "value": "stream"})
+        if status in ("running", "paused", "rate_limited"):
+            if status == "running":
+                actions.append({"name": "Pause", "value": "pause"})
+            if status == "paused":
+                actions.append({"name": "Resume", "value": "resume"})
+            actions.append({"name": "Stop", "value": "stop"})
+            actions.append({"name": "Inject prompt", "value": "inject"})
+            actions.append({"name": "Unlock time gate", "value": "unlock"})
+            actions.append({"name": "Stream live events", "value": "stream"})
 
-    if status in ("completed", "stopped", "error"):
-        actions.append({"name": "Resume (inject + restart)", "value": "inject"})
+        if status in ("completed", "stopped", "error"):
+            actions.append({"name": "Resume (inject + restart)", "value": "inject"})
 
-    actions.extend([
-        {"name": "Tool calls", "value": "tools"},
-        {"name": "Audit log", "value": "audit"},
-        {"name": "Diff stats", "value": "diff"},
-        {"name": "← Back", "value": "back"},
-    ])
+        actions.extend([
+            {"name": "Tool calls", "value": "tools"},
+            {"name": "Audit log", "value": "audit"},
+            {"name": "Diff stats", "value": "diff"},
+            {"name": "← Back", "value": "back"},
+        ])
 
-    action = inquirer.select(
-        message=f"Run {short_id(run_id)} ({status}) — choose action:",
-        choices=actions,
-    ).execute()
+        action = inquirer.select(
+            message=f"Run {short_id(run_id)} ({status}) — choose action:",
+            choices=actions,
+        ).execute()
 
-    _dispatch_action(action, run)
+        if action == "back":
+            break
+
+        _dispatch_action(action, run)
+        run = get_client().get(f"/api/runs/{run_id}")
 
 
 def _dispatch_action(action: str, run: dict) -> None:
@@ -162,9 +195,9 @@ def _dispatch_action(action: str, run: dict) -> None:
     elif action == "stream":
         stream_run(run_id)
     elif action == "tools":
-        show_tools(run_id)
+        show_tools(run_id, DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_OFFSET)
     elif action == "audit":
-        show_audit(run_id)
+        show_audit(run_id, DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_OFFSET)
     elif action == "diff":
         show_diff(run_id)
 
@@ -187,6 +220,7 @@ def start_run(
       buddy run new -p "Add dark mode" -d 60 -b 5.00
       buddy run new -p "Refactor API" --base-branch develop
     """
+    _resolve_repo_for_run()
     body = {
         "prompt": prompt,
         "max_budget_usd": budget,

@@ -17,7 +17,8 @@ Getting started:
   buddy install                               Build images and start all services (run once after cloning)
   buddy settings set --claude-token <token>   Configure credentials
   buddy run new -p "Fix auth bugs" -d 30      Start a 30-minute run
-  buddy run                                   Select and manage a run"""
+  buddy run                                   Select and manage a run
+  buddy repos list                             See configured repos (auto-detects local repo)"""
 
 app = typer.Typer(
     name="buddy",

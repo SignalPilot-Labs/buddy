@@ -19,6 +19,10 @@ AUDIT_SNIPPET_LENGTH: int = 60
 SHORT_ID_LENGTH: int = 8
 ISO_FALLBACK_LENGTH: int = 19
 
+# Run label format widths
+RUN_LABEL_STATUS_WIDTH: int = 13
+RUN_LABEL_PROMPT_WIDTH: int = 52
+
 # Query defaults
 DEFAULT_QUERY_LIMIT: int = 50
 DEFAULT_QUERY_OFFSET: int = 0

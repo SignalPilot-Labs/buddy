@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from cli.config import state
-from cli.constants import ISO_FALLBACK_LENGTH, SHORT_ID_LENGTH
+from cli.constants import SHORT_ID_LENGTH
 
 console = Console()
 
