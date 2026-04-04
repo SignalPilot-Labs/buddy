@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 
@@ -12,7 +13,17 @@ from cli.config import resolve_project_dir
 
 console = Console()
 
-app = typer.Typer(help="Docker service management (internal)")
+
+def _detect_host_ip() -> str | None:
+    """Detect the host machine's LAN IP (macOS or Linux)."""
+    for cmd in (["ipconfig", "getifaddr", "en0"], ["hostname", "-I"]):
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip().split()[0]
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            continue
+    return None
 
 
 def _compose(args: list[str], *, project_dir: str | None = None) -> None:
@@ -28,6 +39,11 @@ def _compose(args: list[str], *, project_dir: str | None = None) -> None:
 
 def start_services() -> None:
     """Start all Buddy services."""
+    if not os.environ.get("HOST_IP"):
+        host_ip = _detect_host_ip()
+        if host_ip:
+            os.environ["HOST_IP"] = host_ip
+            console.print(f"[dim]Host IP: {host_ip}[/dim]")
     _compose(["up", "--build", "-d"])
     console.print("[green]✓[/green] Buddy services started")
 

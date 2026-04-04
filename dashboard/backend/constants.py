@@ -4,8 +4,9 @@ from config.loader import load as _load_config
 
 APP_TITLE = "Buddy Dashboard API"
 
-# Encryption key file path (inside Docker volume)
+# Secret files (inside Docker volume — buddy-keys:/data)
 MASTER_KEY_PATH = "/data/master.key"
+API_KEY_PATH = "/data/api.key"
 
 # Agent service URL (Docker network) — port from config/config.yml
 AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500)}"
@@ -32,8 +33,6 @@ SECRET_KEYS = frozenset({"claude_token", "git_token"})
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
 
-# Authentication — key is set by entrypoint.sh (generated or from env)
-DASHBOARD_API_KEY_ENV = "DASHBOARD_API_KEY"
 
 # Network / ports
 UI_PORT = 3400

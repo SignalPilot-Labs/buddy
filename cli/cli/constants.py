@@ -23,3 +23,7 @@ FUZZY_MAX_HEIGHT: str = "70%"
 
 # API
 DEFAULT_API_URL: str = "http://localhost:3401"
+
+# Docker container name for reading secrets from the volume
+DASHBOARD_CONTAINER: str = "buddy-dashboard"
+API_KEY_CONTAINER_PATH: str = "/data/api.key"
