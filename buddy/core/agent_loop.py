@@ -60,8 +60,6 @@ class AgentLoop:
 
                     result = await stream.process(round_num, False)
 
-                    round_text = "\n".join(result.round_text_chunks)
-
                     if result.should_stop:
                         status = result.final_status or "stopped"
                         break
