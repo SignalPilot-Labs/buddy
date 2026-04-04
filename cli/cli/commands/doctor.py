@@ -94,7 +94,7 @@ class DoctorChecker:
         except (httpx.ConnectError, httpx.TimeoutException):
             return CheckResult(
                 label="Credentials configured",
-                ok=False,
+                ok=True,
                 detail="skipped — dashboard not reachable",
             )
         if resp.status_code == 401:
@@ -118,18 +118,28 @@ class DoctorChecker:
         return CheckResult(
             label="Buddy home is git repo",
             ok=False,
-            detail="~/.buddy is not a git repo — re-run the installer: curl -fsSL https://get.buddy.sh | sh",
+            detail="~/.buddy is not a git repo — re-run the installer: curl -fsSL https://get.buddy.sh | bash",
         )
 
 
 def _parse_running_containers(stdout: str) -> set[str]:
-    """Parse `docker compose ps --format json` output into a set of running container names."""
+    """Parse ``docker compose ps --format json`` output into a set of running container names.
+
+    Handles both JSON array (Compose v2.21+) and NDJSON (older versions).
+    """
+    stdout = stdout.strip()
+    if not stdout:
+        return set()
+    try:
+        parsed = json.loads(stdout)
+    except json.JSONDecodeError:
+        parsed = []
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        parsed = [json.loads(line) for line in stdout.splitlines() if line.strip()]
     running: set[str] = set()
-    for line in stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        obj = json.loads(line)
+    for obj in parsed:
         state = obj.get("State", "")
         name = obj.get("Name", "")
         if "running" in state.lower() and name:

@@ -35,7 +35,6 @@ FUZZY_MAX_HEIGHT: str = "70%"
 DEFAULT_API_URL: str = "http://localhost:3401"
 DASHBOARD_URL: str = "http://localhost:3400"
 DASHBOARD_HEALTH_URL: str = "http://localhost:3401/api/health"
-DASHBOARD_HEALTH_TIMEOUT_SECONDS: int = 60
 
 # Docker container name for reading secrets from the volume
 DASHBOARD_CONTAINER: str = "buddy-dashboard"

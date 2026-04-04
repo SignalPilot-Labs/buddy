@@ -102,7 +102,7 @@ clone_or_update() {
         else
             _error "$BUDDY_HOME exists but is not a git repository."
             _error "This looks like an old cp-based install. Remove it and re-run:"
-            _error "  rm -rf $BUDDY_HOME && curl -fsSL https://get.buddy.sh | sh"
+            _error "  rm -rf $BUDDY_HOME && curl -fsSL https://get.buddy.sh | bash"
             exit 1
         fi
     else
@@ -170,7 +170,7 @@ start_services() {
 prompt_credentials() {
     if [ ! -t 0 ] && { [ -z "${ANTHROPIC_API_KEY:-}" ] || [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPO:-}" ]; }; then
         _error "stdin is not a terminal and credentials are not set via env vars."
-        _error "Set ANTHROPIC_API_KEY, GITHUB_TOKEN, and GITHUB_REPO before piping to sh."
+        _error "Set ANTHROPIC_API_KEY, GITHUB_TOKEN, and GITHUB_REPO before piping to bash."
         exit 1
     fi
 
