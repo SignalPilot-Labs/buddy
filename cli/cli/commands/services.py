@@ -16,6 +16,7 @@ from cli.constants import (
     SIGINT_EXIT_CODE,
     UP_SCRIPT,
 )
+from cli.git_utils import is_git_repo
 from cli.output import console
 
 
@@ -38,18 +39,9 @@ def _run_script(script_path: str) -> None:
         sys.exit(result.returncode)
 
 
-def _is_git_repo(path: str) -> bool:
-    """Return True if ``path`` is a git repository, False otherwise."""
-    result = subprocess.run(
-        ["git", "-C", path, "rev-parse", "--git-dir"],
-        capture_output=True,
-    )
-    return result.returncode == 0
-
-
 def _git_pull() -> None:
     """Run git pull in BUDDY_HOME to update the installation."""
-    if not _is_git_repo(BUDDY_HOME):
+    if not is_git_repo(BUDDY_HOME):
         console.print(
             "[red]~/.buddy is not a git repository (likely an old cp-based install).[/red]\n"
             "[red]Re-run the installer to fix this: curl -fsSL https://get.buddy.sh | sh[/red]"

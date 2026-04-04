@@ -6,7 +6,7 @@ from typing import Optional
 
 import typer
 
-from cli.commands import agent, config, repos, run, services, settings
+from cli.commands import agent, config, doctor, repos, run, services, settings
 from cli.config import state
 from cli.constants import DEFAULT_LOG_TAIL_LINES
 
@@ -96,6 +96,17 @@ def logs(
       buddy logs 50         # tail last 50 lines + follow
     """
     services.show_logs(lines)
+
+
+@app.command("doctor")
+def doctor_cmd() -> None:
+    """Run health checks against your Buddy setup and print actionable guidance.
+
+    \b
+    Example:
+      buddy doctor
+    """
+    doctor.run_doctor()
 
 
 @app.command("kill")

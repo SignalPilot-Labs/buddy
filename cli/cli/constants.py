@@ -59,3 +59,7 @@ DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
 DEFAULT_BASE_BRANCH: str = "main"
 DEFAULT_RUN_BUDGET: float = 0.0
 DEFAULT_RUN_DURATION: float = 0.0
+
+# Doctor checks
+DOCTOR_HTTP_TIMEOUT_SECONDS: int = 5
+EXPECTED_COMPOSE_SERVICES: list[str] = ["buddy-dashboard", "buddy-agent", "buddy-db"]
