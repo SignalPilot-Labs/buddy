@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from typing import Optional
 
 import typer
 
-from cli.commands import agent, config, repos, run, services, settings
+from cli.commands import agent, config, doctor, repos, run, services, settings
 from cli.config import state
-from cli.constants import DEFAULT_LOG_TAIL_LINES
+from cli.constants import CLI_PACKAGE_NAME, DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
 Buddy CLI — manage services, runs, settings, and repos.
@@ -17,9 +18,9 @@ Buddy CLI — manage services, runs, settings, and repos.
 Getting started:
   buddy start                                  Start all services
   buddy settings set --claude-token <token>   Configure credentials
+  buddy doctor                                 Verify setup is healthy
   buddy run new -p "Fix auth bugs" -d 30      Start a 30-minute run
-  buddy run                                   Select and manage a run
-  buddy repos list                             See configured repos (auto-detects local repo)"""
+  buddy open                                   Open the dashboard"""
 
 app = typer.Typer(
     name="buddy",
@@ -27,14 +28,21 @@ app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode=None,
     context_settings={"help_option_names": ["-h", "--help"]},
-    add_completion=False,
 )
 
 # ── Global options ──────────────────────────────────────────────────────────
 
 
+def _version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(f"buddy {version(CLI_PACKAGE_NAME)}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
+    _version: bool = typer.Option(False, "--version", "-V", callback=_version_callback, is_eager=True, help="Show version and exit"),
     api_url: Optional[str] = typer.Option(None, "--api-url", metavar="<url>", help="Dashboard API base URL"),
     api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
     json_mode: bool = typer.Option(False, "--json", help="Output raw JSON instead of formatted tables"),
@@ -52,7 +60,7 @@ def main(
 
 @app.command("start")
 def start() -> None:
-    """Start all Buddy services (docker compose up -d). Use 'buddy install' for first-time setup.
+    """Start all Buddy services (docker compose up -d).
 
     \b
     Example:
@@ -70,7 +78,6 @@ def stop() -> None:
       buddy stop
     """
     services.stop_services()
-
 
 
 @app.command("update")
@@ -98,15 +105,48 @@ def logs(
     services.show_logs(lines)
 
 
+@app.command("doctor")
+def doctor_cmd() -> None:
+    """Run health checks against your Buddy setup and print actionable guidance.
+
+    \b
+    Example:
+      buddy doctor
+    """
+    doctor.run_doctor()
+
+
+@app.command("open")
+def open_cmd() -> None:
+    """Open the Buddy dashboard in your default browser.
+
+    \b
+    Example:
+      buddy open
+    """
+    services.open_dashboard()
+
+
 @app.command("kill")
 def kill() -> None:
-    """Remove all Buddy containers (docker compose down). Asks for confirmation.
+    """Remove all Buddy containers — data volumes are preserved (docker compose down). Asks for confirmation.
 
     \b
     Example:
       buddy kill
     """
     services.kill_services()
+
+
+@app.command("uninstall")
+def uninstall() -> None:
+    """Remove all Buddy containers, images, volumes, ~/.buddy/, and the buddy shim. Asks for confirmation.
+
+    \b
+    Example:
+      buddy uninstall
+    """
+    services.uninstall_buddy()
 
 
 # ── Subcommand groups ───────────────────────────────────────────────────────

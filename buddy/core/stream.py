@@ -19,7 +19,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import RateLimitEvent, StreamEvent
 
 from utils import db
-from utils.constants import AUDIT_TEXT_LIMIT, LOG_PREVIEW_LIMIT, RATE_LIMIT_MAX_WAIT_SEC, RATE_LIMIT_SLEEP_BUFFER_SEC, TEXT_CHUNK_LIMIT
+from utils.constants import AUDIT_TEXT_LIMIT, LOG_PREVIEW_LIMIT, RATE_LIMIT_MAX_WAIT_SEC, RATE_LIMIT_POLL_INTERVAL_SEC, RATE_LIMIT_SLEEP_BUFFER_SEC, TEXT_CHUNK_LIMIT
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
 from core.event_bus import EventBus
@@ -260,8 +260,8 @@ class StreamProcessor:
             # Poll in 10s intervals so stop/inject events aren't blocked
             remaining = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
             while remaining > 0:
-                await asyncio.sleep(min(remaining, 10))
-                remaining -= 10
+                await asyncio.sleep(min(remaining, RATE_LIMIT_POLL_INTERVAL_SEC))
+                remaining -= RATE_LIMIT_POLL_INTERVAL_SEC
                 event = await self._events.drain()
                 if event and event["event"] == "stop":
                     return "rate_limited"

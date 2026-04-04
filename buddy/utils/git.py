@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, NPM_INSTALL_TIMEOUT, WORK_DIR
+from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, DEFAULT_BASE_BRANCH, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, NPM_INSTALL_TIMEOUT, PR_JSON_PATH, WORK_DIR
 from utils.helpers import validate_branch_name
 
 log = logging.getLogger("agent.git")
@@ -224,7 +224,7 @@ class GitWorkspace:
 
     def _read_agent_pr(self) -> tuple[str | None, str | None]:
         """Read and delete /tmp/pr.json written by the agent. Returns (title, description)."""
-        pr_file = Path("/tmp/pr.json")
+        pr_file = PR_JSON_PATH
         if not pr_file.exists():
             return None, None
         try:
@@ -232,7 +232,7 @@ class GitWorkspace:
             pr_file.unlink()
             return data.get("title"), data.get("description")
         except (json.JSONDecodeError, OSError, KeyError) as e:
-            log.warning("Failed to read /tmp/pr.json: %s", e)
+            log.warning("Failed to read %s: %s", PR_JSON_PATH, e)
             return None, None
 
     def get_branch_diff(self, branch_name: str, base_branch: str) -> list[dict]:
@@ -282,12 +282,12 @@ class GitWorkspace:
     def _bootstrap_empty_repo(self, base_branch: str) -> None:
         """Initialize an empty remote with main + staging branches."""
         try:
-            self.run_git(["checkout", "--orphan", "main"])
+            self.run_git(["checkout", "--orphan", DEFAULT_BASE_BRANCH])
             self.run_git(["commit", "--allow-empty", "-m", "Initialize repository"])
-            self.run_git(["push", "-u", "origin", "main"])
+            self.run_git(["push", "-u", "origin", DEFAULT_BASE_BRANCH])
             self.run_git(["checkout", "-b", "staging"])
             self.run_git(["push", "-u", "origin", "staging"])
-            if base_branch not in ("main", "staging"):
+            if base_branch not in (DEFAULT_BASE_BRANCH, "staging"):
                 self.run_git(["checkout", "-b", base_branch])
                 self.run_git(["push", "-u", "origin", base_branch])
             else:
@@ -317,7 +317,7 @@ class GitWorkspace:
                     return name
                 except RuntimeError:
                     continue
-            return "main"
+            return DEFAULT_BASE_BRANCH
 
 
 # ── Pure Helpers (no state) ──

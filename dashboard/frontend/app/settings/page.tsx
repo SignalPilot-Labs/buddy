@@ -290,7 +290,7 @@ export default function SettingsPage() {
           <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
             <div className="flex items-center justify-between mb-3">
               <label className="text-[10px] font-semibold text-[#ccc]">
-                Claude OAuth Tokens
+                Anthropic API Keys
               </label>
               <span className="text-[9px] text-[#666]">
                 {tokens.length} key{tokens.length !== 1 ? "s" : ""} — round-robin on resume
@@ -350,7 +350,7 @@ export default function SettingsPage() {
                   value={newToken}
                   onChange={(e) => { setNewToken(e.target.value); setTokenError(null); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddToken(); } }}
-                  placeholder="sk-ant-oat01-..."
+                  placeholder="sk-ant-..."
                   className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
                   autoComplete="off"
                   spellCheck={false}
@@ -371,8 +371,8 @@ export default function SettingsPage() {
             )}
 
             <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
-              Add multiple Claude OAuth tokens for automatic rotation. When a run hits a rate limit and is resumed, the next token is used automatically.
-              Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> to generate tokens.
+              Add multiple Anthropic API keys for automatic rotation. When a run hits a rate limit and is resumed, the next key is used automatically.
+              Get your API key at <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">console.anthropic.com</code> under API Keys.
             </p>
           </div>
 

@@ -34,11 +34,13 @@ ROUND_SUMMARY_AUDIT_LIMIT = 500   # Round summary stored in planner audit meta
 # ── Paths ──
 WORK_DIR = "/home/agentuser/repo"
 WORKSPACE_DIR = "/workspace"
-SKILLS_SRC_PATH = "/workspace/buddy/skills"
+RESEARCH_DIR = "/home/agentuser/research"
+SKILLS_SRC_PATH = f"{WORKSPACE_DIR}/buddy/skills"
 SKILLS_FALLBACK_PATH = Path(__file__).parent.parent / "skills"
-PROMPTS_DIR = Path("/workspace/buddy/prompts")
+PROMPTS_DIR = Path(f"{WORKSPACE_DIR}/buddy/prompts")
 PROMPTS_FALLBACK_DIR = Path(__file__).parent.parent / "prompts"
-ALLOWED_PATHS = ("/workspace", "/home/agentuser/repo", "/tmp")
+PR_JSON_PATH = Path("/tmp/pr.json")
+ALLOWED_PATHS = (WORKSPACE_DIR, WORK_DIR, "/tmp")
 ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
 
 # ── Git ──
@@ -87,3 +89,10 @@ MAX_OPERATOR_MESSAGES = 25
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
 KILL_WAIT_SEC = 0.5
+EVENT_BUS_POLL_TIMEOUT_SEC = 2.0
+RATE_LIMIT_POLL_INTERVAL_SEC = 10
+DEFAULT_BASE_BRANCH = "main"
+
+# ── Models ──
+DEFAULT_AGENT_MODEL = "opus"
+DEFAULT_FALLBACK_MODEL = "sonnet"

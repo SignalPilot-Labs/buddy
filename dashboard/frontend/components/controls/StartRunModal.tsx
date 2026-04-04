@@ -181,6 +181,14 @@ export function StartRunModal({
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
   }, [open]);
 
+  // Pick smart default branch when modal opens or branches list changes
+  useEffect(() => {
+    if (!open || branches.length === 0) return;
+    const preferred = ["main", "master"];
+    const match = preferred.find((b) => branches.includes(b));
+    setBaseBranch(match ?? branches[0]);
+  }, [open, branches]);
+
   // Lock body scroll when open
   useEffect(() => {
     if (open) {

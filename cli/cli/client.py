@@ -64,7 +64,7 @@ class BuddyClient:
     def _request(self, method: str, path: str, **kwargs: Any) -> Any:
         try:
             resp = self._http.request(method, path, **kwargs)
-        except httpx.ConnectError:
+        except (httpx.ConnectError, httpx.TimeoutException):
             err.print(
                 f"[red]Cannot connect to Buddy at {self.base_url}[/red]\n"
                 "Is Buddy running? Try: buddy start"

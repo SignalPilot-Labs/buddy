@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend import auth
 from backend.constants import POLL_LIMIT_DEFAULT, QUERY_MAX_LIMIT, SSE_POLL_INTERVAL_SEC
 from backend.models import RunId
-from backend.utils import model_to_dict, session
+from backend.utils import model_to_dict, require_run, session
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.streaming")
@@ -98,6 +98,8 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
 @router.get("/stream/{run_id}")
 async def stream_events(run_id: str = RunId) -> StreamingResponse:
     """SSE endpoint — polls Postgres for new tool calls and audit events."""
+    async with session() as s:
+        await require_run(s, run_id)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         last_tool_id, last_audit_id = await _init_cursors(run_id)
@@ -155,6 +157,7 @@ async def poll_events(
 ) -> dict:
     """Polling fallback for environments where SSE doesn't work."""
     async with session() as s:
+        await require_run(s, run_id)
         tool_calls = await _query_recent_tool_calls(s, run_id, after_tool, limit)
         audit_events = await _query_recent_audit_events(s, run_id, after_audit, limit)
     return {"tool_calls": tool_calls, "audit_events": audit_events}

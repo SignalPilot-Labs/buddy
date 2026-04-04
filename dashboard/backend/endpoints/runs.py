@@ -25,6 +25,7 @@ from backend.utils import (
     agent_request,
     model_to_dict,
     read_credentials,
+    require_run,
     send_control_signal,
     session,
 )
@@ -54,9 +55,7 @@ async def list_runs(repo: str | None = Query(default=None)) -> list:
 async def get_run(run_id: str = RunId) -> dict:
     """Get a single run by ID."""
     async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
+        run = await require_run(s, run_id)
         return model_to_dict(run)
 
 
@@ -68,6 +67,7 @@ async def get_tool_calls(
 ) -> list:
     """List tool calls for a run."""
     async with session() as s:
+        await require_run(s, run_id)
         result = await s.execute(
             select(ToolCall)
             .where(ToolCall.run_id == run_id)
@@ -86,6 +86,7 @@ async def get_audit_log(
 ) -> list:
     """List audit log entries for a run."""
     async with session() as s:
+        await require_run(s, run_id)
         result = await s.execute(
             select(AuditLog)
             .where(AuditLog.run_id == run_id)
@@ -136,9 +137,7 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
     prompt = body.payload.strip()
 
     async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
+        run = await require_run(s, run_id)
         if run.status in ("running", "paused", "rate_limited"):
             return await send_control_signal(run_id, "inject", {"running", "paused", "rate_limited"}, prompt)
         if run.status in ("completed", "stopped", "error"):
@@ -245,9 +244,7 @@ async def _fetch_live_or_agent_diff(is_active: bool, branch_name: str, base_bran
 async def get_run_diff(run_id: str = RunId) -> dict:
     """Get diff stats for a run — stored, live, or from agent."""
     async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
+        run = await require_run(s, run_id)
         diff_stats = run.diff_stats
         branch_name = run.branch_name
         base_branch = run.base_branch or DEFAULT_BASE_BRANCH

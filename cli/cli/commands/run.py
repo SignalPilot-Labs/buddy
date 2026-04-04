@@ -13,6 +13,7 @@ from cli.git import detect_local_repo
 from cli.commands.run_helpers import show_audit, show_diff, show_tools, stream_run
 from cli.config import state
 from cli.constants import (
+    DASHBOARD_URL,
     DEFAULT_BASE_BRANCH,
     DEFAULT_QUERY_LIMIT,
     DEFAULT_QUERY_OFFSET,
@@ -100,6 +101,20 @@ def _show_run_detail(run: dict) -> None:
         "Error": run.get("error_message") or "—",
     }
     print_detail(display, title="Run Details")
+
+
+def _check_credentials() -> None:
+    """Exit early with a clear message if required credentials are not configured."""
+    status = get_client().get("/api/settings/status")
+    if status.get("configured"):
+        return
+    labels = {"has_claude_token": "Anthropic API key", "has_git_token": "GitHub token", "has_github_repo": "GitHub repo"}
+    missing = [labels[k] for k in labels if not status.get(k)]
+    print_error(
+        f"Missing: {', '.join(missing)}. "
+        "Run 'buddy settings set' or configure them in the dashboard."
+    )
+    raise typer.Exit(1)
 
 
 def _resolve_repo_for_run() -> str | None:
@@ -220,6 +235,7 @@ def start_run(
       buddy run new -p "Add dark mode" -d 60 -b 5.00
       buddy run new -p "Refactor API" --base-branch develop
     """
+    _check_credentials()
     _resolve_repo_for_run()
     body = {
         "prompt": prompt,
@@ -233,6 +249,7 @@ def start_run(
         return
     run_id = data.get("run_id", data.get("id", ""))
     print_success(f"Run started: {run_id}")
+    console.print(f"[dim]Monitor at {DASHBOARD_URL} or run: buddy run[/dim]")
 
 
 @app.command("list")

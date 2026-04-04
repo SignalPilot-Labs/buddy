@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/Button";
+
 export function EmptyTerminal() {
   return (
     <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: "float 6s ease-in-out infinite" }}>
@@ -37,7 +39,12 @@ export function EmptyEvents() {
   );
 }
 
-export function EmptyRuns() {
+interface EmptyRunsProps {
+  onNewRun?: () => void;
+  disabled?: boolean;
+}
+
+export function EmptyRuns({ onNewRun, disabled }: EmptyRunsProps) {
   return (
     <div className="flex flex-col items-center gap-3 py-8 px-4">
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ animation: "float 6s ease-in-out infinite" }}>
@@ -53,6 +60,17 @@ export function EmptyRuns() {
         <p className="text-[11px] text-[#aaa]">No runs yet</p>
         <p className="text-[10px] text-[#777]">Start an improvement run to begin</p>
       </div>
+      {onNewRun && (
+        <Button
+          variant="success"
+          size="lg"
+          onClick={onNewRun}
+          disabled={disabled}
+          icon={<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="3 2 8 5 3 8" /></svg>}
+        >
+          Start your first run
+        </Button>
+      )}
     </div>
   );
 }

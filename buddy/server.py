@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 import uvicorn
 
 from utils import db
-from utils.constants import KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT
+from utils.constants import DEFAULT_BASE_BRANCH, KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT
 from utils.git import GitWorkspace
 from utils.helpers import validate_branch_name
 from utils.models import InjectRequest, ResumeRequest, StartRequest
@@ -95,7 +95,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
@@ -115,7 +115,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, None)
@@ -278,7 +278,7 @@ class AgentServer:
             if not self._git.is_ready():
                 return {"files": []}
             try:
-                base = "main"
+                base = DEFAULT_BASE_BRANCH
                 if self.current_run_id:
                     run_base = await db.get_run_base_branch(self.current_run_id)
                     if run_base:
@@ -294,7 +294,7 @@ class AgentServer:
                 return {"files": []}
 
         @app.get("/diff/{branch}")
-        async def get_branch_diff(branch: str, base: str = "main"):
+        async def get_branch_diff(branch: str, base: str = DEFAULT_BASE_BRANCH):
             if not self._git.is_ready():
                 return {"files": []}
             try:

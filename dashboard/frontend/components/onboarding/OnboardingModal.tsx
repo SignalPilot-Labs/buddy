@@ -9,18 +9,21 @@ import { updateSettings } from "@/lib/settings-api";
 import type { SettingsStatus } from "@/lib/types";
 import { clsx } from "clsx";
 
+const CLAUDE_KEY_PREFIX = "sk-ant-";
+
 interface OnboardingModalProps {
   open: boolean;
   onComplete: () => void;
   initialStatus: SettingsStatus;
+  onStartRun?: () => void;
 }
 
 const STEPS = [
   {
     key: "claude_token",
-    label: "Claude OAuth Token",
+    label: "Anthropic API Key",
     statusKey: "has_claude_token" as const,
-    placeholder: "sk-ant-oat01-...",
+    placeholder: "sk-ant-...",
     type: "password" as const,
     help: (
       <>
@@ -30,11 +33,9 @@ const STEPS = [
         <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
           <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
           <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
-            <li>
-              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> in your terminal
-            </li>
-            <li>Follow the prompts to authenticate</li>
-            <li>Copy the token that is output</li>
+            <li>Go to console.anthropic.com &rarr; API Keys</li>
+            <li>Click &ldquo;Create Key&rdquo;</li>
+            <li>Copy the generated key</li>
           </ol>
         </div>
       </>
@@ -81,13 +82,24 @@ const STEPS = [
   },
 ];
 
-export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingModalProps) {
+export function OnboardingModal({ open, onComplete, initialStatus, onStartRun }: OnboardingModalProps) {
   const [step, setStep] = useState(0);
+  const [done, setDone] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setStep(0);
+      setDone(false);
+      setError(null);
+      setShowPassword(false);
+    }
+  }, [open]);
 
   // Focus input on step change
   useEffect(() => {
@@ -109,12 +121,17 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
   const handleNext = async () => {
     if (!currentValue.trim()) return;
 
+    if (currentStep.key === "claude_token" && !currentValue.trim().startsWith(CLAUDE_KEY_PREFIX)) {
+      setError(`Anthropic API keys must start with ${CLAUDE_KEY_PREFIX}`);
+      return;
+    }
+
     setError(null);
     setSaving(true);
     try {
       await updateSettings({ [currentStep.key]: currentValue.trim() });
       if (isLastStep) {
-        onComplete();
+        setDone(true);
       } else {
         setStep(step + 1);
         setShowPassword(false);
@@ -128,7 +145,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
 
   const handleSkip = () => {
     if (isLastStep) {
-      onComplete();
+      setDone(true);
     } else {
       setStep(step + 1);
       setShowPassword(false);
@@ -163,7 +180,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="w-[480px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
+              className="w-[480px] max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
             >
               {/* Header */}
               <div className="px-5 py-4 border-b border-[#1a1a1a]">
@@ -188,7 +205,9 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                       <div
                         className={clsx(
                           "h-1.5 rounded-full transition-all duration-300",
-                          i === step
+                          done
+                            ? "w-4 bg-[#00ff88]/30"
+                            : i === step
                             ? "w-8 bg-[#00ff88]"
                             : i < step || initialStatus[s.statusKey]
                             ? "w-4 bg-[#00ff88]/30"
@@ -203,99 +222,142 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
               {/* Body */}
               <div className="p-5">
                 <AnimatePresence mode="wait">
-                  <motion.div
-                    key={step}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <label className="text-[9px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                      Step {step + 1} of {STEPS.length} &mdash; {currentStep.label}
-                    </label>
-
-                    <div className="mt-3 relative">
-                      <input
-                        ref={inputRef}
-                        type={currentStep.type === "password" && !showPassword ? "password" : "text"}
-                        value={currentValue}
-                        onChange={(e) =>
-                          setValues({ ...values, [currentStep.key]: e.target.value })
-                        }
-                        onKeyDown={handleKeyDown}
-                        placeholder={currentStep.placeholder}
-                        className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all pr-10"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      {currentStep.type === "password" && (
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#888] transition-colors"
-                          tabIndex={-1}
-                        >
-                          {showPassword ? (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                              <line x1="1" y1="1" x2="23" y2="23" />
-                            </svg>
-                          ) : (
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    {initialStatus[currentStep.statusKey] && !currentValue && (
-                      <p className="mt-2 text-[9px] text-[#00ff88]/60 flex items-center gap-1">
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <polyline points="2 5 4 7 8 3" />
+                  {done ? (
+                    <motion.div
+                      key="done"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex flex-col items-center justify-center py-8 gap-3"
+                    >
+                      <div className="flex items-center justify-center h-12 w-12 rounded-full bg-[#00ff88]/[0.08] border border-[#00ff88]/20">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        Already configured &mdash; leave blank to keep current value
+                      </div>
+                      <p className="text-[14px] font-semibold text-[#e8e8e8]">
+                        You&apos;re all set
                       </p>
-                    )}
+                      <p className="text-[11px] text-[#999]">
+                        Credentials saved. Start your first run.
+                      </p>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={step}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <label className="text-[9px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                        Step {step + 1} of {STEPS.length} &mdash; {currentStep.label}
+                      </label>
 
-                    {error && (
-                      <p className="mt-2 text-[9px] text-[#ff4444]">{error}</p>
-                    )}
+                      <div className="mt-3 relative">
+                        <input
+                          ref={inputRef}
+                          type={currentStep.type === "password" && !showPassword ? "password" : "text"}
+                          value={currentValue}
+                          onChange={(e) =>
+                            setValues({ ...values, [currentStep.key]: e.target.value })
+                          }
+                          onKeyDown={handleKeyDown}
+                          placeholder={currentStep.placeholder}
+                          className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all pr-10"
+                          autoComplete="off"
+                          spellCheck={false}
+                        />
+                        {currentStep.type === "password" && (
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#888] transition-colors"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                              </svg>
+                            ) : (
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            )}
+                          </button>
+                        )}
+                      </div>
 
-                    <div className="mt-4">{currentStep.help}</div>
-                  </motion.div>
+                      {initialStatus[currentStep.statusKey] && !currentValue && (
+                        <p className="mt-2 text-[9px] text-[#00ff88]/60 flex items-center gap-1">
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <polyline points="2 5 4 7 8 3" />
+                          </svg>
+                          Already configured &mdash; leave blank to keep current value
+                        </p>
+                      )}
+
+                      {error && (
+                        <p className="mt-2 text-[9px] text-[#ff4444]">{error}</p>
+                      )}
+
+                      <div className="mt-4">{currentStep.help}</div>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-3 border-t border-[#1a1a1a]">
-                <div className="flex items-center gap-2">
-                  {step > 0 && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => { setStep(step - 1); setShowPassword(false); }}
-                    >
-                      Back
-                    </Button>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {(initialStatus[currentStep.statusKey] || !currentValue.trim()) && (
-                    <Button variant="ghost" onClick={handleSkip}>
-                      {isLastStep ? "Done" : "Skip"}
-                    </Button>
-                  )}
+              {done ? (
+                <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#1a1a1a]">
+                  <Button variant="ghost" onClick={onComplete}>
+                    Done
+                  </Button>
                   <Button
                     variant="success"
                     size="md"
-                    onClick={handleNext}
-                    disabled={saving || !currentValue.trim()}
+                    onClick={() => { onStartRun?.(); onComplete(); }}
+                    icon={
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <polygon points="3 2 8 5 3 8" />
+                      </svg>
+                    }
                   >
-                    {saving ? "Saving..." : isLastStep ? "Save & Finish" : "Save & Continue"}
+                    Start your first run
                   </Button>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center justify-between px-5 py-3 border-t border-[#1a1a1a]">
+                  <div className="flex items-center gap-2">
+                    {step > 0 && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => { setStep(step - 1); setShowPassword(false); }}
+                      >
+                        Back
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {(initialStatus[currentStep.statusKey] || !currentValue.trim()) && (
+                      <Button variant="ghost" onClick={handleSkip}>
+                        {isLastStep ? "Done" : "Skip"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="success"
+                      size="md"
+                      onClick={handleNext}
+                      disabled={saving || !currentValue.trim()}
+                    >
+                      {saving ? "Saving..." : isLastStep ? "Save & Finish" : "Save & Continue"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         </>

@@ -14,9 +14,14 @@ from claude_agent_sdk.types import HookMatcher, AgentDefinition
 
 from utils import db
 from utils.constants import (
+    DEFAULT_AGENT_MODEL,
+    DEFAULT_BASE_BRANCH,
+    DEFAULT_FALLBACK_MODEL,
     PROMPT_SUMMARY_LIMIT,
+    RESEARCH_DIR,
     SKILLS_FALLBACK_PATH,
     SKILLS_SRC_PATH,
+    WORKSPACE_DIR,
 )
 from utils.git import GitWorkspace
 from utils.models import RunContext
@@ -50,8 +55,8 @@ class RunBootstrap:
         github_repo: str,
     ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
         """Bootstrap a new run. Returns (ctx, options, session, events, logger, initial_prompt)."""
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        model = os.environ.get("AGENT_MODEL", DEFAULT_AGENT_MODEL)
+        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
 
         branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
@@ -114,19 +119,19 @@ class RunBootstrap:
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
 
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        model = os.environ.get("AGENT_MODEL", DEFAULT_AGENT_MODEL)
+        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", DEFAULT_FALLBACK_MODEL)
 
         self._git.setup_auth(run_info.get("github_repo", ""))
         self._checkout_branch(
-            run_info["branch_name"], run_info.get("base_branch", "main")
+            run_info["branch_name"], run_info.get("base_branch", DEFAULT_BASE_BRANCH)
         )
 
         ctx = RunContext(
             run_id=run_id,
             agent_role="worker",
             branch_name=run_info["branch_name"],
-            base_branch=run_info.get("base_branch", "main"),
+            base_branch=run_info.get("base_branch", DEFAULT_BASE_BRANCH),
             duration_minutes=run_info.get("duration_minutes", 0),
             github_repo=run_info.get("github_repo", ""),
             total_cost=run_info.get("total_cost_usd", 0) or 0,
@@ -294,7 +299,7 @@ class RunBootstrap:
             permission_mode="bypassPermissions",
             can_use_tool=gate.check_permission,
             cwd=self._git.get_work_dir(),
-            add_dirs=["/workspace", "/home/agentuser/research"],
+            add_dirs=[WORKSPACE_DIR, RESEARCH_DIR],
             setting_sources=["project"],
             max_budget_usd=budget if budget > 0 else None,
             include_partial_messages=True,

@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator
 
-from utils.constants import INJECT_PAYLOAD_MAX_LEN
+from utils.constants import DEFAULT_BASE_BRANCH, INJECT_PAYLOAD_MAX_LEN
 
 
 # ── Runtime Context ──
@@ -46,7 +46,7 @@ class StartRequest(BaseModel):
     prompt: str | None = None
     max_budget_usd: float = 0
     duration_minutes: float = 0
-    base_branch: str = "main"
+    base_branch: str = DEFAULT_BASE_BRANCH
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None

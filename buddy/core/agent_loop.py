@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
-from utils.constants import FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
+from utils.constants import DEFAULT_AGENT_MODEL, FILES_CHANGED_LIMIT, LOG_PREVIEW_LIMIT, MAX_OPERATOR_MESSAGES, MAX_ROUNDS, ROUND_SUMMARY_AUDIT_LIMIT, ROUND_SUMMARY_LIMIT
 from utils.git import GitWorkspace
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
@@ -42,7 +42,7 @@ class AgentLoop:
         initial_prompt: str, custom_prompt: str | None,
     ) -> str:
         """Run the agent loop. Returns final status string."""
-        model = options.model or os.environ.get("AGENT_MODEL", "opus")
+        model = options.model or os.environ.get("AGENT_MODEL", DEFAULT_AGENT_MODEL)
         fallback_model = options.fallback_model
         status = "completed"
         pending_inject: str | None = None

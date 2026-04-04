@@ -229,12 +229,18 @@ export default function MonitorPage() {
       setStartBusy(true);
       setStartModalOpen(false);
       try {
-        await startRun(prompt, budget, durationMinutes, baseBranch);
+        const result = await startRun(prompt, budget, durationMinutes, baseBranch);
         addEvent({
           _kind: "control",
           text: `Starting run${prompt ? ` — ${prompt.slice(0, 80)}` : ""}`,
           ts: new Date().toISOString(),
         });
+        // Eagerly refresh runs so the new run appears in the sidebar sooner
+        if (result.run_id) {
+          setSelectedRunId(result.run_id);
+          setTimeout(() => refreshRuns(), 3000);
+          setTimeout(() => refreshRuns(), 8000);
+        }
       } catch (err) {
         addEvent({
           _kind: "control",
@@ -245,7 +251,7 @@ export default function MonitorPage() {
         setStartBusy(false);
       }
     },
-    [addEvent, refreshRuns, handleSelectRun]
+    [addEvent, refreshRuns]
   );
 
   const runStatus: RunStatus | null =
@@ -468,6 +474,10 @@ export default function MonitorPage() {
             });
           }}
           initialStatus={settingsStatus}
+          onStartRun={() => {
+            fetchBranches().then(setBranches);
+            setStartModalOpen(true);
+          }}
         />
       )}
 
@@ -489,6 +499,8 @@ export default function MonitorPage() {
             activeId={selectedRunId}
             onSelect={handleSelectRun}
             loading={runsLoading}
+            onNewRun={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
+            disabled={!agentIdle || !agentReachable || !isConfigured}
           />
         </div>
 
@@ -517,6 +529,8 @@ export default function MonitorPage() {
                 }}
                 loading={runsLoading}
                 mobile
+                onNewRun={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
+                disabled={!agentIdle || !agentReachable || !isConfigured}
               />
             )}
 

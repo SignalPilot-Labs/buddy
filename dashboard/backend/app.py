@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.constants import APP_TITLE, MASTER_KEY_PATH
+from backend.constants import APP_TITLE, DEFAULT_CORS_ORIGIN, MASTER_KEY_PATH
 from backend.endpoints.runs import router as runs_router
 from backend.endpoints.settings import router as settings_router
 from backend.endpoints.streaming import router as streaming_router
@@ -14,7 +14,7 @@ from backend.endpoints.network import router as network_router
 from backend.utils import autofill_settings
 from db.connection import connect, close
 
-_DEFAULT_CORS_ORIGINS = "http://localhost:3400"
+_DEFAULT_CORS_ORIGINS = DEFAULT_CORS_ORIGIN
 _ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 _ALLOWED_HEADERS = ["Content-Type", "X-API-Key", "Authorization"]
 

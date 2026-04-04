@@ -4,8 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Package metadata
+CLI_PACKAGE_NAME: str = "buddy-cli"
+
 # Buddy home — everything lives here after install
 BUDDY_HOME: str = str(Path.home() / ".buddy")
+BUDDY_VENV_PIP: str = str(Path(BUDDY_HOME) / ".venv" / "bin" / "pip")
+BUDDY_BIN: str = str(Path.home() / ".local" / "bin" / "buddy")
 
 # HTTP client
 HTTP_TIMEOUT_SECONDS: int = 15
@@ -31,6 +36,8 @@ FUZZY_MAX_HEIGHT: str = "70%"
 
 # API
 DEFAULT_API_URL: str = "http://localhost:3401"
+DASHBOARD_URL: str = "http://localhost:3400"
+DASHBOARD_HEALTH_URL: str = "http://localhost:3401/api/health"
 
 # Docker container name for reading secrets from the volume
 DASHBOARD_CONTAINER: str = "buddy-dashboard"
@@ -44,6 +51,11 @@ BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
 GIT_REMOTE_ORIGIN: str = "origin"
 GIT_SLUG_SEPARATOR: str = "/"
 
+# Credential format validation
+CLAUDE_TOKEN_PREFIX: str = "sk-ant-"
+GITHUB_TOKEN_PREFIXES: list[str] = ["ghp_", "github_pat_", "gho_"]
+GITHUB_REPO_PATTERN: str = r"^[a-zA-Z0-9_.\-]+/[a-zA-Z0-9_.\-]+$"
+
 # Logs
 DEFAULT_LOG_TAIL_LINES: int = 100
 SIGINT_EXIT_CODE: int = 130
@@ -55,3 +67,7 @@ DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
 DEFAULT_BASE_BRANCH: str = "main"
 DEFAULT_RUN_BUDGET: float = 0.0
 DEFAULT_RUN_DURATION: float = 0.0
+
+# Doctor checks
+DOCTOR_HTTP_TIMEOUT_SECONDS: int = 5
+EXPECTED_COMPOSE_SERVICES: list[str] = ["buddy-dashboard", "buddy-agent", "buddy-db", "buddy-sandbox"]

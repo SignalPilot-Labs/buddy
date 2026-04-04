@@ -6,9 +6,9 @@ from typing import Optional
 
 import typer
 
-from cli.config import CONFIG_PATH, _load_config, _save_config, state
+from cli.config import CONFIG_PATH, _load_config, _save_config, resolve_api_key, state
 from cli.constants import DEFAULT_API_URL
-from cli.output import console, print_detail, print_json, print_success
+from cli.output import console, print_detail, print_error, print_json, print_success
 
 app = typer.Typer(
     help="Manage CLI configuration. Settings are saved to ~/.buddy/config.json.",
@@ -59,6 +59,21 @@ def set_config(
 
     _save_config(cfg)
     print_success(f"Saved to {CONFIG_PATH}: {', '.join(updated)}")
+
+
+@app.command("show-key")
+def show_key() -> None:
+    """Print the dashboard API key. Reads from config, env, or the running container.
+
+    \b
+    Example:
+      buddy config show-key
+    """
+    key = resolve_api_key()
+    if key is None:
+        print_error("Could not resolve API key. Is Buddy running? Try: buddy start")
+        raise typer.Exit(1)
+    console.print(key)
 
 
 @app.command("path")

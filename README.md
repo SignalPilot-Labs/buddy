@@ -18,23 +18,24 @@ long-running sessions · sandboxed execution · live supervision
 
 Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
 
+**Requirements:** Docker Desktop (macOS / Linux / Windows)
+
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/buddy.git
-cd buddy && ./install.sh             # installs CLI + builds Docker images
-buddy start                          # start services
+curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | bash
 ```
 
-To update an existing install: `buddy update`
-
-### Configure
-
-Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+Prompts for credentials interactively. For non-interactive or CI installs, set env vars before piping:
 
 ```bash
-buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
+ANTHROPIC_API_KEY=sk-ant-... GITHUB_TOKEN=ghp_... GITHUB_REPO=owner/repo \
+  curl -fsSL https://raw.githubusercontent.com/SignalPilot-Labs/buddy/main/install.sh | bash
 ```
+
+Credentials are saved automatically during install. To update them later, use `buddy settings set` or the web UI at [http://localhost:3400](http://localhost:3400).
+
+To update an existing install: `buddy update`
 
 ### Run
 
@@ -68,6 +69,9 @@ buddy update                         # pull latest code + rebuild images
 buddy logs                           # stream all container logs (Ctrl+C to stop)
 buddy logs 50                        # tail last 50 lines + follow
 buddy kill                           # remove all containers
+buddy open                           # open dashboard in browser
+buddy doctor                         # run health checks + print fixes
+buddy uninstall                      # remove containers, images, volumes, ~/.buddy/
 
 # Runs
 buddy run                            # interactive run selector
@@ -93,6 +97,7 @@ buddy agent branches                 # list git branches
 # CLI config
 buddy config get                     # show CLI config
 buddy config set --api-key KEY       # update CLI config
+buddy config show-key                # print the dashboard API key
 ```
 
 Use `--json` on any command for machine-readable output.
