@@ -94,6 +94,7 @@ class AgentLoop:
                     await self._commit_and_push(ctx, round_num)
 
                     # Deliver pending inject to orchestrator
+                    has_inject = bool(pending_inject)
                     if pending_inject:
                         ts = datetime.now(timezone.utc).strftime("%H:%M")
                         self._operator_messages.append((ts, pending_inject))
@@ -103,7 +104,7 @@ class AgentLoop:
                         pending_inject = None
 
                     # Decide whether to continue
-                    if session.is_unlocked():
+                    if session.is_unlocked() and not has_inject:
                         break
 
                     # Time-locked: call planner for next step
@@ -127,7 +128,7 @@ class AgentLoop:
             return
         msg = self._read_commit_message(round_num + 1)
         try:
-            self._git.run_git(["add", "-u"])
+            self._git.run_git(["add", "."])
             self._git.run_git(["commit", "-m", msg])
             await db.log_audit(ctx.run_id, "auto_commit", {"round": round_num + 1, "message": msg})
             log.info("Committed round %d: %s", round_num + 1, msg)
