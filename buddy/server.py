@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 import uvicorn
 
 from utils import db
-from utils.constants import KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT, STARTUP_WAIT_SEC
+from utils.constants import KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT
 from utils.git import GitWorkspace
 from utils.helpers import validate_branch_name
 from utils.models import InjectRequest, ResumeRequest, StartRequest
@@ -46,6 +46,7 @@ class AgentServer:
         self._task: asyncio.Task | None = None
         self._events: EventBus | None = None
         self._session: SessionGate | None = None
+        self._bootstrapping = False
         self.current_run_id: str | None = None
         self.app = FastAPI(title="Buddy Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
@@ -86,12 +87,14 @@ class AgentServer:
         duration_minutes: float, base_branch: str,
     ) -> None:
         """Bootstrap → execute → teardown for a new run."""
+        self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_new(
             custom_prompt, max_budget, duration_minutes, base_branch,
         )
         self.current_run_id = ctx.run_id
         self._events = events
         self._session = session
+        self._bootstrapping = False
         asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
@@ -106,10 +109,12 @@ class AgentServer:
 
     async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None = None) -> None:
         """Bootstrap → execute → teardown for a resumed run."""
+        self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
         self.current_run_id = ctx.run_id
         self._events = events
         self._session = session
+        self._bootstrapping = False
         asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
@@ -163,6 +168,7 @@ class AgentServer:
             self._task = None
             self._events = None
             self._session = None
+            self._bootstrapping = False
 
     # ── Routes ──
 
@@ -172,6 +178,8 @@ class AgentServer:
 
         @app.get("/health")
         async def health():
+            if self._bootstrapping:
+                return {"status": "bootstrapping", "current_run_id": None}
             if not self.current_run_id:
                 return {"status": "idle", "current_run_id": None}
             result: dict = {"status": "running", "current_run_id": self.current_run_id}
@@ -191,10 +199,9 @@ class AgentServer:
                 body.prompt, budget, body.duration_minutes, body.base_branch,
             ))
             self._task.add_done_callback(self._on_task_done)
-            await asyncio.sleep(STARTUP_WAIT_SEC)
 
             return {
-                "ok": True, "run_id": self.current_run_id,
+                "ok": True, "status": "bootstrapping",
                 "prompt": body.prompt[:PROMPT_SUMMARY_LIMIT] if body.prompt else None,
                 "max_budget_usd": budget,
                 "duration_minutes": body.duration_minutes,
@@ -209,8 +216,7 @@ class AgentServer:
 
             self._task = asyncio.create_task(self._resume_agent(body.run_id, budget, body.prompt))
             self._task.add_done_callback(self._on_task_done)
-            await asyncio.sleep(STARTUP_WAIT_SEC)
-            return {"ok": True, "run_id": body.run_id, "resumed": True}
+            return {"ok": True, "status": "bootstrapping", "run_id": body.run_id, "resumed": True}
 
         @app.post("/pause")
         async def pause():

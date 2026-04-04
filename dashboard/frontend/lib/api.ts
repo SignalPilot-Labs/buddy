@@ -115,7 +115,7 @@ export async function pollEvents(
 }
 
 export interface AgentHealth {
-  status: "idle" | "running" | "unreachable";
+  status: "idle" | "running" | "bootstrapping" | "unreachable";
   current_run_id: string | null;
   elapsed_minutes?: number | null;
   time_remaining?: string | null;

@@ -66,16 +66,22 @@ export default function MonitorPage() {
     addEvent
   );
 
-  // Poll agent health
+  // Poll agent health — auto-select new runs when they appear
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
-      setAgentHealth(h);
+      setAgentHealth((prev) => {
+        if (h.current_run_id && h.current_run_id !== prev?.current_run_id) {
+          refreshRuns();
+          setSelectedRunId(h.current_run_id);
+        }
+        return h;
+      });
     };
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [refreshRuns]);
 
   // Check settings status on mount and load repos
   useEffect(() => {
@@ -223,19 +229,12 @@ export default function MonitorPage() {
       setStartBusy(true);
       setStartModalOpen(false);
       try {
-        const result = await startRun(prompt, budget, durationMinutes, baseBranch);
+        await startRun(prompt, budget, durationMinutes, baseBranch);
         addEvent({
           _kind: "control",
-          text: `New run started${prompt ? ` with custom prompt` : ""}`,
+          text: `Starting run${prompt ? ` — ${prompt.slice(0, 80)}` : ""}`,
           ts: new Date().toISOString(),
         });
-        setTimeout(async () => {
-          await refreshRuns();
-          if (result.run_id) {
-            setSelectedRunId(result.run_id);
-            handleSelectRun(result.run_id);
-          }
-        }, 2000);
       } catch (err) {
         addEvent({
           _kind: "control",
@@ -252,6 +251,7 @@ export default function MonitorPage() {
   const runStatus: RunStatus | null =
     (selectedRun?.status as RunStatus) || null;
   const agentIdle = agentHealth?.status === "idle";
+  const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const isConfigured = settingsStatus?.configured ?? false;
 
@@ -365,21 +365,25 @@ export default function MonitorPage() {
           <span
             className={`h-1.5 w-1.5 rounded-full ${
               agentReachable
-                ? agentIdle
-                  ? "bg-[#00ff88]/60"
-                  : "bg-[#00ff88]"
+                ? agentBootstrapping
+                  ? "bg-[#ffaa00] animate-pulse"
+                  : agentIdle
+                    ? "bg-[#00ff88]/60"
+                    : "bg-[#00ff88]"
                 : "bg-[#ff4444]/60"
             }`}
-            style={!agentIdle && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
+            style={!agentIdle && !agentBootstrapping && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
           />
           <span className="text-[10px] text-[#888]">
             {!agentReachable
               ? "Offline"
-              : agentIdle
-                ? "Idle"
-                : agentHealth?.elapsed_minutes != null
-                  ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
-                  : "Active"}
+              : agentBootstrapping
+                ? "Starting..."
+                : agentIdle
+                  ? "Idle"
+                  : agentHealth?.elapsed_minutes != null
+                    ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
+                    : "Active"}
           </span>
         </div>
 
