@@ -29,5 +29,11 @@ fi
 # Install CLI
 pip install -e "$BUDDY_HOME/cli/" --quiet
 
+# Build Docker images and start services
+echo "[install] Building Docker images..."
+bash "$BUDDY_HOME/cli/scripts/build.sh"
+echo "[install] Starting services..."
+bash "$BUDDY_HOME/cli/scripts/up.sh"
+
 echo ""
-echo "[install] Done. Run 'buddy install' to build and launch services."
+echo "[install] Done. Run 'buddy settings set' to configure credentials."
