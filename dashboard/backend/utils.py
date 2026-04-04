@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -16,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend import crypto
 from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS
 from db.connection import get_session_factory
-from db.models import ControlSignal, Run, Setting
+from db.models import Base, ControlSignal, Run, Setting
 
 _AGENT_INTERNAL_SECRET = os.environ.get("AGENT_INTERNAL_SECRET", "")
 
@@ -38,11 +39,11 @@ async def session() -> AsyncGenerator[AsyncSession]:
 # ORM helpers
 # ---------------------------------------------------------------------------
 
-def model_to_dict(obj) -> dict:
+def model_to_dict(obj: Base) -> dict[str, object]:
     """Convert an ORM model instance to a JSON-safe dict."""
     d = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
     for key, val in d.items():
-        if hasattr(val, "isoformat"):
+        if isinstance(val, datetime):
             d[key] = val.isoformat()
     return d
 
@@ -84,7 +85,7 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
         await save_repo_list(s, repos)
 
 
-async def read_credentials() -> dict:
+async def read_credentials() -> dict[str, str]:
     """Read and decrypt stored credentials. Picks next Claude token round-robin."""
     creds: dict[str, str] = {}
     async with session() as s:
@@ -153,7 +154,7 @@ async def _read_token_pool(s: AsyncSession) -> list[str]:
         return []
     try:
         return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-    except (json.JSONDecodeError, TypeError, Exception):
+    except Exception:
         return []
 
 
