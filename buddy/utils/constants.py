@@ -35,11 +35,11 @@ ROUND_SUMMARY_AUDIT_LIMIT = 500   # Round summary stored in planner audit meta
 WORK_DIR = "/home/agentuser/repo"
 WORKSPACE_DIR = "/workspace"
 RESEARCH_DIR = "/home/agentuser/research"
-SKILLS_SRC_PATH = "/workspace/buddy/skills"
+SKILLS_SRC_PATH = f"{WORKSPACE_DIR}/buddy/skills"
 SKILLS_FALLBACK_PATH = Path(__file__).parent.parent / "skills"
-PROMPTS_DIR = Path("/workspace/buddy/prompts")
+PROMPTS_DIR = Path(f"{WORKSPACE_DIR}/buddy/prompts")
 PROMPTS_FALLBACK_DIR = Path(__file__).parent.parent / "prompts"
-ALLOWED_PATHS = ("/workspace", "/home/agentuser/repo", "/tmp")
+ALLOWED_PATHS = (WORKSPACE_DIR, WORK_DIR, "/tmp")
 ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
 
 # ── Git ──
