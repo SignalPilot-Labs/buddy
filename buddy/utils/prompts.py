@@ -60,8 +60,6 @@ class PromptLoader:
         cost_so_far: float,
         round_summary: str,
         original_prompt: str,
-        last_plan: str,
-        last_review: str,
         operator_messages: list[tuple[str, str]],
     ) -> str:
         """Build the message sent to the planner subagent each round."""
@@ -74,14 +72,6 @@ class PromptLoader:
             elapsed_str = f"{int(elapsed_minutes)}m"
             duration_str = "unlimited"
 
-        last_plan_section = "## Last Plan\n\n(none)"
-        if last_plan:
-            last_plan_section = f"## Last Plan\n\n{last_plan}"
-
-        review_section = "## Last Review Results\n\n(none)"
-        if last_review:
-            review_section = f"## Last Review Results\n\n{last_review}"
-
         operator_section = "## Operator Messages\n\n(none)"
         if operator_messages:
             msgs = "\n".join(f"- [{ts}] {msg}" for ts, msg in operator_messages)
@@ -90,6 +80,7 @@ class PromptLoader:
         template = self._load("query/planner")
         return template.format(
             round_num=round_num,
+            prev_round_num=max(1, round_num - 1),
             elapsed=elapsed_str,
             duration=duration_str,
             pct_complete=pct,
@@ -99,15 +90,14 @@ class PromptLoader:
             cost_so_far=f"{cost_so_far:.2f}",
             round_summary=round_summary or "No summary available.",
             original_prompt=original_prompt or "General improvement pass.",
-            last_plan_section=last_plan_section,
-            review_section=review_section,
             operator_section=operator_section,
         )
 
-    def build_reviewer_message(self, extra_context: str) -> str:
+    def build_reviewer_message(self, round_num: int, extra_context: str) -> str:
         """Build the message sent to the reviewer subagent."""
         template = self._load("query/reviewer")
         return template.format(
+            round_num=round_num,
             extra_context=extra_context or "",
         )
 

@@ -35,7 +35,7 @@ Every spec must have:
 
 - **Intent** — One sentence: what this change accomplishes and why.
 - **Files** — Which files to create or modify. For new files: what responsibility they own. For existing files: what changes.
-- **Design** — Class hierarchy, public API, dependency direction, where constants go. The structural decisions.
+- **Design** — Class hierarchy, public API, dependency direction, where constants go. The structural decisions. Hierarchical file and folder organization.
 - **Constraints** — Performance, security, patterns from `CLAUDE.md`, backwards compat.
 - **Read list** — Files the builder should read for context.
 - **Build order** — If files depend on each other.
@@ -76,6 +76,8 @@ Build order: retry.py first, then callers.
 
 ## Output
 
-Write spec to `/tmp/current-spec.md`. The orchestrator tells builder and reviewer to read it.
+**You MUST write the spec to `/tmp/current-spec.md` using the Write tool.** This is how the builder and reviewer receive your plan. If you don't write to this file, nobody sees your work.
+
+Do not return the spec as a message. Do not summarize it in conversation. Write it to the file.
 
 Just the spec — no preamble, no meta-commentary.

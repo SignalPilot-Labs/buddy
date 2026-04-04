@@ -35,8 +35,6 @@ class AgentLoop:
     def __init__(self, git: GitWorkspace, prompts: PromptLoader):
         self._git = git
         self._prompts = prompts
-        self._last_plan: str = ""
-        self._last_review: str = ""
         self._operator_messages: list[tuple[str, str]] = []  # (timestamp, message)
 
     async def execute(
@@ -61,14 +59,6 @@ class AgentLoop:
                              session.elapsed_minutes(), session.time_remaining_str())
 
                     result = await stream.process(round_num, False)
-
-                    # Capture subagent outputs for planner context
-                    round_text = "\n".join(result.round_text_chunks)
-                    if round_text:
-                        if "reviewer" in result.round_tools:
-                            self._last_review = round_text[-ROUND_SUMMARY_LIMIT:]
-                        if "planner" in result.round_tools:
-                            self._last_plan = round_text[-ROUND_SUMMARY_LIMIT:]
 
                     if result.should_stop:
                         status = result.final_status or "stopped"
@@ -210,8 +200,6 @@ class AgentLoop:
             cost_so_far=ctx.total_cost,
             round_summary=round_summary,
             original_prompt=custom_prompt or "General improvement pass.",
-            last_plan=self._last_plan,
-            last_review=self._last_review,
             operator_messages=self._operator_messages,
         )
 
