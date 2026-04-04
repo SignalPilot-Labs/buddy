@@ -22,6 +22,7 @@ from utils.constants import (
     DANGEROUS_PATTERNS,
     INPUT_SUMMARY_LIMIT,
     SECRET_ENV_VARS,
+    WORKSPACE_DIR,
 )
 from utils.models import RunContext
 from utils.helpers import summarize_input
@@ -157,9 +158,9 @@ class SecurityGate:
         cd_match = re.search(r"cd\s+([^\s;&|]+)", cmd)
         if cd_match:
             target = cd_match.group(1)
-            if target.startswith("/") and not target.startswith("/workspace"):
+            if target.startswith("/") and not target.startswith(WORKSPACE_DIR):
                 if not any(target.startswith(p) for p in ALLOWED_SYSTEM_PATHS):
-                    return f"Cannot cd to '{target}' — operations confined to /workspace"
+                    return f"Cannot cd to '{target}' — operations confined to {WORKSPACE_DIR}"
         return None
 
 
