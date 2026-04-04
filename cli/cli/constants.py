@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Package metadata
+CLI_PACKAGE_NAME: str = "buddy-cli"
+
 # Buddy home — everything lives here after install
 BUDDY_HOME: str = str(Path.home() / ".buddy")
 BUDDY_VENV_PIP: str = str(Path(BUDDY_HOME) / ".venv" / "bin" / "pip")

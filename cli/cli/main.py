@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from typing import Optional
 
 import typer
 
 from cli.commands import agent, config, doctor, repos, run, services, settings
 from cli.config import state
-from cli.constants import DEFAULT_LOG_TAIL_LINES
+from cli.constants import CLI_PACKAGE_NAME, DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
 Buddy CLI — manage services, runs, settings, and repos.
@@ -32,8 +33,16 @@ app = typer.Typer(
 # ── Global options ──────────────────────────────────────────────────────────
 
 
+def _version_callback(value: bool) -> None:
+    """Print version and exit."""
+    if value:
+        typer.echo(f"buddy {version(CLI_PACKAGE_NAME)}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
+    _version: bool = typer.Option(False, "--version", "-V", callback=_version_callback, is_eager=True, help="Show version and exit"),
     api_url: Optional[str] = typer.Option(None, "--api-url", metavar="<url>", help="Dashboard API base URL"),
     api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
     json_mode: bool = typer.Option(False, "--json", help="Output raw JSON instead of formatted tables"),
