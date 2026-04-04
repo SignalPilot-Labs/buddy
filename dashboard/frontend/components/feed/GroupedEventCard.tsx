@@ -941,7 +941,7 @@ function PromptInjectionCard({ prompt, ts }: { prompt: string; ts: string }) {
           {isTruncated && (
             <span
               className="text-[9px] text-[#88ccff]/70 cursor-pointer hover:text-[#88ccff] mt-1 block"
-              onClick={() => setExpanded(e => !e)}
+              onClick={() => setExpanded(!expanded)}
             >
               {expanded ? "Show less ▴" : "Show more ▸"}
             </span>
