@@ -14,6 +14,7 @@ from claude_agent_sdk.types import HookMatcher, AgentDefinition
 
 from utils import db
 from utils.constants import (
+    DEFAULT_BASE_BRANCH,
     PROMPT_SUMMARY_LIMIT,
     SKILLS_FALLBACK_PATH,
     SKILLS_SRC_PATH,
@@ -119,14 +120,14 @@ class RunBootstrap:
 
         self._git.setup_auth(run_info.get("github_repo", ""))
         self._checkout_branch(
-            run_info["branch_name"], run_info.get("base_branch", "main")
+            run_info["branch_name"], run_info.get("base_branch", DEFAULT_BASE_BRANCH)
         )
 
         ctx = RunContext(
             run_id=run_id,
             agent_role="worker",
             branch_name=run_info["branch_name"],
-            base_branch=run_info.get("base_branch", "main"),
+            base_branch=run_info.get("base_branch", DEFAULT_BASE_BRANCH),
             duration_minutes=run_info.get("duration_minutes", 0),
             github_repo=run_info.get("github_repo", ""),
             total_cost=run_info.get("total_cost_usd", 0) or 0,

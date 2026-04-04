@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, NPM_INSTALL_TIMEOUT, WORK_DIR
+from utils.constants import CLONE_DEPTH, CLONE_TIMEOUT, CMD_TIMEOUT, DEFAULT_BASE_BRANCH, GIT_RETRY_ATTEMPTS, GIT_RETRY_DELAY_SEC, NPM_INSTALL_TIMEOUT, WORK_DIR
 from utils.helpers import validate_branch_name
 
 log = logging.getLogger("agent.git")
@@ -282,12 +282,12 @@ class GitWorkspace:
     def _bootstrap_empty_repo(self, base_branch: str) -> None:
         """Initialize an empty remote with main + staging branches."""
         try:
-            self.run_git(["checkout", "--orphan", "main"])
+            self.run_git(["checkout", "--orphan", DEFAULT_BASE_BRANCH])
             self.run_git(["commit", "--allow-empty", "-m", "Initialize repository"])
-            self.run_git(["push", "-u", "origin", "main"])
+            self.run_git(["push", "-u", "origin", DEFAULT_BASE_BRANCH])
             self.run_git(["checkout", "-b", "staging"])
             self.run_git(["push", "-u", "origin", "staging"])
-            if base_branch not in ("main", "staging"):
+            if base_branch not in (DEFAULT_BASE_BRANCH, "staging"):
                 self.run_git(["checkout", "-b", base_branch])
                 self.run_git(["push", "-u", "origin", base_branch])
             else:
@@ -317,7 +317,7 @@ class GitWorkspace:
                     return name
                 except RuntimeError:
                     continue
-            return "main"
+            return DEFAULT_BASE_BRANCH
 
 
 # ── Pure Helpers (no state) ──
