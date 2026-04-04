@@ -221,9 +221,9 @@ export default function MonitorPage() {
   const handleStartRun = useCallback(
     async (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string) => {
       setStartBusy(true);
+      setStartModalOpen(false);
       try {
         const result = await startRun(prompt, budget, durationMinutes, baseBranch);
-        setStartModalOpen(false);
         addEvent({
           _kind: "control",
           text: `New run started${prompt ? ` with custom prompt` : ""}`,
