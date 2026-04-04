@@ -29,5 +29,9 @@ fi
 # Install CLI
 pip install -e "$BUDDY_HOME/cli/" --quiet
 
+# Build Docker images
+echo "[install] Building Docker images..."
+bash "$BUDDY_HOME/cli/scripts/build.sh"
+
 echo ""
-echo "[install] Done. Run 'buddy start' to launch."
+echo "[install] Done. Run 'buddy start' to launch services."

@@ -17,7 +17,10 @@ STREAM_SNIPPET_LENGTH: int = 80
 STREAM_DATA_TRUNCATION: int = 100
 AUDIT_SNIPPET_LENGTH: int = 60
 SHORT_ID_LENGTH: int = 8
-ISO_FALLBACK_LENGTH: int = 19
+
+# Run label format widths
+RUN_LABEL_STATUS_WIDTH: int = 13
+RUN_LABEL_PROMPT_WIDTH: int = 52
 
 # Query defaults
 DEFAULT_QUERY_LIMIT: int = 50
@@ -34,4 +37,17 @@ DASHBOARD_CONTAINER: str = "buddy-dashboard"
 API_KEY_CONTAINER_PATH: str = "/data/api.key"
 
 # Scripts
-START_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "start.sh")
+UP_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "up.sh")
+BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
+
+# Git
+GIT_REMOTE_ORIGIN: str = "origin"
+GIT_SLUG_SEPARATOR: str = "/"
+
+# Docker exec
+DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
+
+# Run defaults
+DEFAULT_BASE_BRANCH: str = "main"
+DEFAULT_RUN_BUDGET: float = 0.0
+DEFAULT_RUN_DURATION: float = 0.0

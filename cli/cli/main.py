@@ -14,10 +14,11 @@ Buddy CLI — manage services, runs, settings, and repos.
 
 \b
 Getting started:
-  buddy start                                 Start all services
+  buddy start                                  Start all services
   buddy settings set --claude-token <token>   Configure credentials
   buddy run new -p "Fix auth bugs" -d 30      Start a 30-minute run
-  buddy run                                   Select and manage a run"""
+  buddy run                                   Select and manage a run
+  buddy repos list                             See configured repos (auto-detects local repo)"""
 
 app = typer.Typer(
     name="buddy",
@@ -50,7 +51,7 @@ def main(
 
 @app.command("start")
 def start() -> None:
-    """Start all Buddy services (docker compose up --build -d).
+    """Start all Buddy services (docker compose up -d). Use 'buddy install' for first-time setup.
 
     \b
     Example:
@@ -68,6 +69,18 @@ def stop() -> None:
       buddy stop
     """
     services.stop_services()
+
+
+
+@app.command("update")
+def update() -> None:
+    """Pull latest code and rebuild Docker images (git pull + docker compose build).
+
+    \b
+    Example:
+      buddy update
+    """
+    services.update_services()
 
 
 @app.command("kill")

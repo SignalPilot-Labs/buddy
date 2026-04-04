@@ -1,4 +1,4 @@
-"""buddy start / stop / kill — Docker Compose service management."""
+"""buddy start / stop / kill / install / update — Docker Compose service management."""
 
 from __future__ import annotations
 
@@ -6,11 +6,9 @@ import subprocess
 import sys
 
 import typer
-from rich.console import Console
 
-from cli.constants import BUDDY_HOME, START_SCRIPT
-
-console = Console()
+from cli.constants import BUDDY_HOME, BUILD_SCRIPT, UP_SCRIPT
+from cli.output import console
 
 
 def _compose(args: list[str]) -> None:
@@ -23,14 +21,41 @@ def _compose(args: list[str]) -> None:
         sys.exit(result.returncode)
 
 
-def start_services() -> None:
-    """Start all Buddy services via start.sh."""
-    console.print("[dim]→ bash start.sh -d[/dim]")
-    result = subprocess.run(["bash", START_SCRIPT, "-d"])
+def _run_script(script_path: str) -> None:
+    """Execute a shell script and exit on failure."""
+    console.print(f"[dim]→ bash {script_path}[/dim]")
+    result = subprocess.run(["bash", script_path])
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
         sys.exit(result.returncode)
+
+
+def _git_pull() -> None:
+    """Run git pull in BUDDY_HOME to update the installation."""
+    console.print(f"[dim]→ git pull in {BUDDY_HOME}[/dim]")
+    result = subprocess.run(["git", "pull"], cwd=BUDDY_HOME)
+    if result.returncode != 0:
+        console.print(f"[red]git pull exited with code {result.returncode}[/red]")
+        sys.exit(result.returncode)
+
+
+def build_services() -> None:
+    """Run build.sh — docker compose build only."""
+    _run_script(BUILD_SCRIPT)
+    console.print("[green]✓[/green] Buddy images built")
+
+
+def start_services() -> None:
+    """Run up.sh — docker compose up -d only. No build."""
+    _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] Buddy services started")
+
+
+
+def update_services() -> None:
+    """Update: git pull in BUDDY_HOME then rebuild."""
+    _git_pull()
+    build_services()
 
 
 def stop_services() -> None:

@@ -8,8 +8,6 @@ from cli.client import get_client
 from cli.config import state
 from cli.constants import (
     AUDIT_SNIPPET_LENGTH,
-    DEFAULT_QUERY_LIMIT,
-    DEFAULT_QUERY_OFFSET,
     STREAM_DATA_TRUNCATION,
     STREAM_SNIPPET_LENGTH,
 )
@@ -69,8 +67,8 @@ def _print_tool_call_event(data: dict) -> None:
 
 def show_tools(
     run_id: str,
-    limit: int = DEFAULT_QUERY_LIMIT,
-    offset: int = DEFAULT_QUERY_OFFSET,
+    limit: int,
+    offset: int,
 ) -> None:
     """Show tool calls for a run."""
     data = get_client().get(
@@ -98,8 +96,8 @@ def show_tools(
 
 def show_audit(
     run_id: str,
-    limit: int = DEFAULT_QUERY_LIMIT,
-    offset: int = DEFAULT_QUERY_OFFSET,
+    limit: int,
+    offset: int,
 ) -> None:
     """Show audit log for a run."""
     data = get_client().get(

@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL
+from cli.constants import API_KEY_CONTAINER_PATH, BUDDY_HOME, DASHBOARD_CONTAINER, DEFAULT_API_URL, DOCKER_EXEC_TIMEOUT_SECONDS
 
 CONFIG_PATH = Path(BUDDY_HOME) / "config.json"
 
@@ -41,19 +41,27 @@ def _save_config(cfg: dict) -> None:
 
 
 def _read_key_from_container() -> str | None:
-    """Read the API key from the dashboard container's /data volume."""
+    """Read the API key from the dashboard container's /data volume.
+
+    Returns None if Docker is unavailable, the container is not running,
+    or the key file doesn't exist. This is a system boundary — the docker
+    CLI may not be installed or the daemon may be stopped.
+    """
     try:
         result = subprocess.run(
             ["docker", "exec", DASHBOARD_CONTAINER, "cat", API_KEY_CONTAINER_PATH],
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=DOCKER_EXEC_TIMEOUT_SECONDS,
         )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    return None
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    key = result.stdout.strip()
+    if not key:
+        return None
+    return key
 
 
 def resolve_api_url() -> str:
