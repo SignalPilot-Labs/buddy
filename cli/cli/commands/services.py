@@ -30,8 +30,23 @@ def _run_script(script_path: str) -> None:
         sys.exit(result.returncode)
 
 
+def _is_git_repo(path: str) -> bool:
+    """Return True if ``path`` is a git repository, False otherwise."""
+    result = subprocess.run(
+        ["git", "-C", path, "rev-parse", "--git-dir"],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
 def _git_pull() -> None:
     """Run git pull in BUDDY_HOME to update the installation."""
+    if not _is_git_repo(BUDDY_HOME):
+        console.print(
+            "[red]~/.buddy is not a git repository (likely an old cp-based install).[/red]\n"
+            "[red]Re-run the installer to fix this: curl -fsSL https://get.buddy.sh | sh[/red]"
+        )
+        sys.exit(1)
     console.print(f"[dim]→ git pull in {BUDDY_HOME}[/dim]")
     result = subprocess.run(["git", "pull"], cwd=BUDDY_HOME)
     if result.returncode != 0:
@@ -49,7 +64,6 @@ def start_services() -> None:
     """Run up.sh — docker compose up -d only. No build."""
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] Buddy services started")
-
 
 
 def update_services() -> None:
