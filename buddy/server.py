@@ -107,7 +107,7 @@ class AgentServer:
         await self._teardown.finalize(ctx, status)
         self.current_run_id = None
 
-    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None = None) -> None:
+    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None) -> None:
         """Bootstrap → execute → teardown for a resumed run."""
         self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
