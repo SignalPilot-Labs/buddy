@@ -45,6 +45,7 @@ export default function MonitorPage() {
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
+  const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
@@ -100,6 +101,7 @@ export default function MonitorPage() {
 
   // Handle repo switch
   const handleRepoSwitch = useCallback(async (repo: string) => {
+    skipLastRunRestoreRef.current = true;
     setActiveRepoFilter(repo || null);
     setSelectedRunId(null);
     setSelectedRun(null);
@@ -110,14 +112,6 @@ export default function MonitorPage() {
     }
     fetchRepos().then(setRepos);
   }, [clearEvents]);
-
-  // Auto-select first active run or latest run
-  useEffect(() => {
-    if (!selectedRunId && runs.length > 0) {
-      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
-      setSelectedRunId(active?.id || runs[0].id);
-    }
-  }, [runs, selectedRunId]);
 
   // Keep selectedRun fresh
   useEffect(() => {
@@ -132,6 +126,7 @@ export default function MonitorPage() {
     async (id: string) => {
       const gen = ++selectGenRef.current;
       setSelectedRunId(id);
+      localStorage.setItem("buddy_last_run_id", id);
       setHistoryEvents([]);
       clearEvents();
 
@@ -222,6 +217,28 @@ export default function MonitorPage() {
     },
     [clearEvents, refreshRuns]
   );
+
+  // Auto-select: restore last viewed run on initial load, most recent on repo switch
+  useEffect(() => {
+    if (!selectedRunId && runs.length > 0) {
+      // Guard against stale runs from the previous repo — if a filter is active but
+      // none of the current runs match it, the new fetch hasn't arrived yet; skip.
+      if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) {
+        return;
+      }
+      const skipRestore = skipLastRunRestoreRef.current;
+      skipLastRunRestoreRef.current = false;
+      if (!skipRestore) {
+        const lastRunId = localStorage.getItem("buddy_last_run_id");
+        if (lastRunId && runs.some((r) => r.id === lastRunId)) {
+          handleSelectRun(lastRunId);
+          return;
+        }
+      }
+      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+      handleSelectRun(active?.id || runs[0].id);
+    }
+  }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
   // Start a new run
   const handleStartRun = useCallback(
