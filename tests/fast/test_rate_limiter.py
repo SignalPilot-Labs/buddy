@@ -1,45 +1,52 @@
-"""Tests for the server rate limiter."""
-
-import time
+"""Tests for the server capacity check."""
 
 import pytest
 from fastapi import HTTPException
 
-from utils.constants import START_RATE_LIMIT_MAX, START_RATE_LIMIT_WINDOW_SEC
+from utils.constants import MAX_CONCURRENT_RUNS
+from utils.models import ActiveRun
 
 
-class TestRateLimiter:
-    """Tests for sliding-window rate limiter logic."""
+class TestCapacityCheck:
+    """Tests for max concurrent runs enforcement."""
 
-    def _make_limiter(self):
-        """Create a minimal limiter matching server.py logic."""
-        timestamps: list[float] = []
+    def _make_server(self):
+        """Create a minimal mock matching AgentServer interface."""
 
-        def check() -> None:
-            now = time.monotonic()
-            timestamps[:] = [t for t in timestamps if now - t < START_RATE_LIMIT_WINDOW_SEC]
-            if len(timestamps) >= START_RATE_LIMIT_MAX:
-                raise HTTPException(status_code=429, detail="Too many start requests.")
-            timestamps.append(now)
+        class FakeServer:
+            def __init__(self):
+                self._runs: dict[str, ActiveRun] = {}
 
-        return check, timestamps
+            def _active_count(self) -> int:
+                return sum(1 for r in self._runs.values() if r.status in ("starting", "running"))
 
-    def test_allows_up_to_limit(self):
-        check, _ = self._make_limiter()
-        for _ in range(START_RATE_LIMIT_MAX):
-            check()
+            def _check_capacity(self) -> None:
+                if self._active_count() >= MAX_CONCURRENT_RUNS:
+                    raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
 
-    def test_rejects_over_limit(self):
-        check, _ = self._make_limiter()
-        for _ in range(START_RATE_LIMIT_MAX):
-            check()
+        return FakeServer()
+
+    def test_allows_when_under_limit(self):
+        server = self._make_server()
+        server._check_capacity()  # should not raise
+
+    def test_rejects_when_at_limit(self):
+        server = self._make_server()
+        for i in range(MAX_CONCURRENT_RUNS):
+            server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="running")
         with pytest.raises(HTTPException) as exc_info:
-            check()
-        assert exc_info.value.status_code == 429
+            server._check_capacity()
+        assert exc_info.value.status_code == 409
 
-    def test_allows_after_window_expires(self):
-        check, timestamps = self._make_limiter()
-        old = time.monotonic() - START_RATE_LIMIT_WINDOW_SEC - 1
-        for _ in range(START_RATE_LIMIT_MAX):
-            timestamps.append(old)
-        check()  # should not raise — old timestamps expired
+    def test_allows_when_terminal_runs_dont_count(self):
+        server = self._make_server()
+        for i in range(MAX_CONCURRENT_RUNS):
+            server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="completed")
+        server._check_capacity()  # should not raise — all are terminal
+
+    def test_counts_starting_as_active(self):
+        server = self._make_server()
+        for i in range(MAX_CONCURRENT_RUNS):
+            server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="starting")
+        with pytest.raises(HTTPException):
+            server._check_capacity()

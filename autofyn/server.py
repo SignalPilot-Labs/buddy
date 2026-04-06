@@ -8,7 +8,6 @@ import asyncio
 import hmac
 import logging
 import os
-import time
 import traceback
 from contextlib import asynccontextmanager
 
@@ -19,13 +18,12 @@ import uvicorn
 from config.loader import sandbox_config
 from utils import db
 from utils.constants import (
+    MAX_CONCURRENT_RUNS,
     SANDBOX_CLONE_TIMEOUT_DEFAULT,
     SANDBOX_EXEC_TIMEOUT_DEFAULT,
     SANDBOX_HEALTH_TIMEOUT_DEFAULT,
     SERVER_HOST,
     SERVER_PORT,
-    START_RATE_LIMIT_MAX,
-    START_RATE_LIMIT_WINDOW_SEC,
 )
 from utils.prompts import PromptLoader
 from utils.models import ActiveRun, StartRequest
@@ -51,7 +49,6 @@ class AgentServer:
         self._prompts = PromptLoader()
         self._pool = SandboxPool()
         self._runs: dict[str, ActiveRun] = {}
-        self._start_timestamps: list[float] = []
 
         self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
@@ -85,13 +82,10 @@ class AgentServer:
         await self._pool.destroy_all()
         await db.close_db()
 
-    def _check_rate_limit(self) -> None:
-        """Sliding-window rate limiter. Raises 429 on limit."""
-        now = time.monotonic()
-        self._start_timestamps[:] = [t for t in self._start_timestamps if now - t < START_RATE_LIMIT_WINDOW_SEC]
-        if len(self._start_timestamps) >= START_RATE_LIMIT_MAX:
-            raise HTTPException(status_code=429, detail="Too many start requests.")
-        self._start_timestamps.append(now)
+    def _check_capacity(self) -> None:
+        """Raise 409 if max concurrent runs reached."""
+        if self._active_count() >= MAX_CONCURRENT_RUNS:
+            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
 
     def _active_count(self) -> int:
         """Count non-terminal runs."""

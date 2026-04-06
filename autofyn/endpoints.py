@@ -53,10 +53,7 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
 
     @app.post("/start")
     async def start_run(body: StartRequest):
-        server._check_rate_limit()
-
-        if server._active_count() >= MAX_CONCURRENT_RUNS:
-            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
+        server._check_capacity()
 
         # Set credentials in env for this process. Tokens are per-account,
         # not per-run — each sandbox gets them via RepoOps._auth_env().

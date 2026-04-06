@@ -46,5 +46,6 @@ If `CLAUDE.md` specifies different tools, follow those instead.
 After writing code:
 1. `pyright` for Python, `tsc --noEmit` for TypeScript.
 2. `ruff check` for Python, `eslint` for JS/TS.
-3. New imports → verify module exists, import is at top.
-4. Changed function signature → grep all callers, update them.
+3. `pytest tests/fast/` (backend) and `cd dashboard/frontend && npx vitest run` (frontend).
+4. New imports → verify module exists, import is at top.
+5. Changed function signature → grep all callers, update them.
