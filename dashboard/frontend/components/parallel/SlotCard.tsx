@@ -23,6 +23,7 @@ const STATUS_COLORS: Record<string, string> = {
   stopped: "text-[#888]",
   error: "text-[#ff4444]",
   killed: "text-[#ff4444]",
+  rate_limited: "text-[#ffaa00]",
 };
 
 export function SlotCard({

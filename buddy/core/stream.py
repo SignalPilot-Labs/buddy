@@ -19,7 +19,7 @@ from claude_agent_sdk import (
 from claude_agent_sdk.types import RateLimitEvent, StreamEvent
 
 from utils import db
-from utils.constants import AUDIT_TEXT_LIMIT, LOG_PREVIEW_LIMIT, RATE_LIMIT_MAX_WAIT_SEC, RATE_LIMIT_SLEEP_BUFFER_SEC, TEXT_CHUNK_LIMIT
+from utils.constants import AUDIT_TEXT_LIMIT, LOG_PREVIEW_LIMIT, RATE_LIMIT_SLEEP_BUFFER_SEC, TEXT_CHUNK_LIMIT
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
 from core.event_bus import EventBus
@@ -47,6 +47,8 @@ class StreamProcessor:
         self._prompts = prompts
         self._model = model
         self._fallback_model = fallback_model
+        self._fell_back = False
+        self._last_resets_at: float | None = None
 
     async def process(self, round_num: int, is_planning: bool) -> RoundResult:
         """Process one round of SDK messages."""
@@ -86,6 +88,22 @@ class StreamProcessor:
             elif isinstance(message, ResultMessage):
                 result_msg = message
                 await self._handle_result(message, round_num)
+
+        # If we fell back to a secondary model and the round produced no tool calls,
+        # both models are rate limited — stop with rate_limited status.
+        if self._fell_back and not should_stop and not tools:
+            run_id = self._ctx.run_id
+            resets_at = self._last_resets_at
+            log.info("Both models rate limited — out of credits")
+            await db.update_run_status(run_id, "rate_limited")
+            if resets_at:
+                await db.save_rate_limit_reset(run_id, int(resets_at))
+            await db.log_audit(run_id, "rate_limit_paused", {
+                "resets_at": resets_at,
+                "reason": "All models exhausted",
+            })
+            should_stop = True
+            final_status = "rate_limited"
 
         return RoundResult(
             should_stop=should_stop, final_status=final_status,
@@ -239,17 +257,18 @@ class StreamProcessor:
             return None
 
         resets_at = info.resets_at
+        self._last_resets_at = resets_at
         wait_sec = max(0, resets_at - time.time()) if resets_at else 0
 
-        if self._fallback_model and self._fallback_model != self._model:
+        if self._fallback_model and self._fallback_model != self._model and not self._fell_back:
             log.info("Rate limited on %s, fallback to %s", self._model, self._fallback_model)
+            self._fell_back = True
             await db.log_audit(run_id, "rate_limit_fallback", {
                 "primary_model": self._model, "fallback_model": self._fallback_model,
             })
             return None
 
-        max_wait = RATE_LIMIT_MAX_WAIT_SEC
-        if resets_at and 0 < wait_sec <= max_wait:
+        if resets_at and wait_sec > 0:
             wait_min = int(wait_sec / 60)
             log.info("Rate limited. Waiting %dm for reset...", wait_min)
             await db.update_run_status(run_id, "rate_limited")
@@ -269,11 +288,10 @@ class StreamProcessor:
             log.info("Rate limit reset, resuming")
             return None
 
-        log.info("Rate limited. Resets in %dm (too long to wait).", int(wait_sec / 60))
+        # No reset time available — cannot wait
+        log.info("Rate limited with no reset time available")
         await db.update_run_status(run_id, "rate_limited")
-        if resets_at:
-            await db.save_rate_limit_reset(run_id, int(resets_at))
         await db.log_audit(run_id, "rate_limit_paused", {
-            "resets_at": resets_at, "wait_seconds": int(wait_sec) if resets_at else None,
+            "resets_at": resets_at, "wait_seconds": None,
         })
         return "rate_limited"

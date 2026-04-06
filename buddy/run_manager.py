@@ -37,6 +37,7 @@ PASSTHROUGH_ENV_VARS = [
 ]
 
 ALLOWED_CREDENTIAL_KEYS = {"claude_token", "git_token", "github_repo"}
+WORKER_LOG_DIR = "/app/worker-logs"
 
 
 @dataclass
@@ -215,6 +216,7 @@ class RunManager:
         duration_minutes: float,
         base_branch: str,
         credentials: dict[str, str],
+        extended_context: bool = False,
     ) -> RunSlot:
         safe_creds = {k: v for k, v in credentials.items() if k in ALLOWED_CREDENTIAL_KEYS}
 
@@ -250,6 +252,8 @@ class RunManager:
             "-e", "GIT_TERMINAL_PROMPT=0",
             "-e", "WORKER_MODE=1",
         ]
+        if extended_context:
+            env_flags += ["-e", "BUDDY_EXTENDED_CONTEXT=1"]
         if safe_creds.get("claude_token"):
             env_flags += ["-e", f"CLAUDE_CODE_OAUTH_TOKEN={safe_creds['claude_token']}"]
         if safe_creds.get("git_token"):
@@ -314,6 +318,8 @@ class RunManager:
             await db.update_worker_run_id(container_name, slot.run_id)
         log.info("Worker %s started run_id=%s", container_name, slot.run_id)
 
+        log_task = asyncio.create_task(self._stream_logs(container_name))
+        log_task.add_done_callback(self._on_monitor_done)
         task = asyncio.create_task(self._monitor_worker(container_name))
         task.add_done_callback(self._on_monitor_done)
         return slot
@@ -345,7 +351,7 @@ class RunManager:
         if not slot:
             return
 
-        TERMINAL_DB_STATUSES = {"completed", "failed", "crashed", "stopped", "killed"}
+        TERMINAL_DB_STATUSES = {"completed", "failed", "crashed", "stopped", "killed", "rate_limited"}
         idle_count = 0
 
         try:
@@ -361,7 +367,8 @@ class RunManager:
                         )
                         if state not in ("running", "created"):
                             log.info("%s exited (state=%s)", container_name, state)
-                            slot.status = "completed"
+                            # Check DB for actual run status (e.g. rate_limited)
+                            slot.status = await self._resolve_final_status(slot, "completed")
                             break
                     except Exception as e:
                         log.warning("inspect error for %s: %s", container_name, e)
@@ -373,6 +380,11 @@ class RunManager:
                         resp = await client.get(f"http://{container_name}:8500/health")
                         if resp.status_code == 200:
                             health = resp.json()
+                            # Capture run_id as soon as we see it
+                            if not slot.run_id and health.get("current_run_id"):
+                                slot.run_id = health["current_run_id"]
+                                await db.update_worker_run_id(container_name, slot.run_id)
+                                log.info("Monitor captured run_id=%s for %s", slot.run_id, container_name)
                             if health.get("status") == "idle":
                                 run_id = slot.run_id or health.get("current_run_id")
                                 if run_id:
@@ -389,8 +401,8 @@ class RunManager:
                                     idle_count += 1
 
                                 if idle_count >= 3:
-                                    log.info("%s confirmed idle — marking completed", container_name)
-                                    slot.status = "completed"
+                                    log.info("%s confirmed idle — resolving final status", container_name)
+                                    slot.status = await self._resolve_final_status(slot, "completed")
                                     break
                             else:
                                 idle_count = 0
@@ -408,6 +420,49 @@ class RunManager:
             log.error("Failed to update DB status for %s: %s", container_name, e)
         self.cleanup_container(container_name, remove_volume=True)
         log.info("Monitor done for %s: status=%s", container_name, slot.status)
+
+    async def _stream_logs(self, container_name: str) -> None:
+        """Stream docker logs to a local file in real-time."""
+        log_dir = WORKER_LOG_DIR
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, f"{container_name}.log")
+        await db.set_worker_log_path(container_name, log_path)
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "logs", "--follow", "--timestamps", container_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            with open(log_path, "w") as f:
+                while True:
+                    line_bytes = await proc.stdout.readline()
+                    if not line_bytes:
+                        break
+                    line = line_bytes.decode("utf-8", errors="replace")
+                    f.write(line)
+                    f.flush()
+            await proc.wait()
+        except Exception as e:
+            log.warning("Log streaming failed for %s: %s", container_name, e)
+
+    async def _resolve_final_status(self, slot: RunSlot, default: str) -> str:
+        """Check DB for the actual run status when a worker finishes."""
+        run_id = slot.run_id
+        if not run_id:
+            return default
+        try:
+            run_info = await db.get_run_for_resume(run_id)
+            db_status = run_info.get("status", "") if run_info else ""
+            if db_status == "rate_limited":
+                resets_at = run_info.get("rate_limit_resets_at") if run_info else None
+                slot.error_message = f"Rate limited — out of credits{f' until {resets_at}' if resets_at else ''}"
+                return "rate_limited"
+            if db_status in ("error", "crashed"):
+                return db_status
+        except Exception as e:
+            log.warning("Failed to resolve final status for %s: %s", run_id, e)
+        return default
 
     async def send_signal(
         self,
@@ -482,6 +537,16 @@ class RunManager:
                     log.info("Removed volume %s", slot.volume_name)
                 except Exception as e:
                     log.debug("volume rm %s (ignored): %s", slot.volume_name, e)
+
+    def read_logs(self, container_name: str, tail: int) -> dict:
+        """Read the last N lines from a worker's log file."""
+        log_path = os.path.join(WORKER_LOG_DIR, f"{container_name}.log")
+        if not os.path.exists(log_path):
+            return {"lines": [], "log_path": log_path, "found": False}
+        with open(log_path, "r") as f:
+            all_lines = f.readlines()
+        lines = [line.rstrip("\n") for line in all_lines[-tail:]]
+        return {"lines": lines, "log_path": log_path, "found": True, "total": len(all_lines)}
 
     def cleanup_all_finished(self, remove_volumes: bool = False) -> int:
         cleaned = 0

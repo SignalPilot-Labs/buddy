@@ -57,6 +57,7 @@ class ParallelStartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
+    extended_context: bool = False
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
@@ -135,11 +136,13 @@ class AgentServer:
     async def _run_agent(
         self, custom_prompt: str | None, max_budget: float,
         duration_minutes: float, base_branch: str, github_repo: str,
+        extended_context: bool = False,
     ) -> None:
         """Bootstrap → execute → teardown for a new run."""
         self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_new(
             custom_prompt, max_budget, duration_minutes, base_branch, github_repo,
+            extended_context,
         )
         self.current_run_id = ctx.run_id
         self._events = events
@@ -243,9 +246,10 @@ class AgentServer:
             self._inject_credentials(body)
             budget = body.max_budget_usd if body.max_budget_usd else float(os.environ.get("MAX_BUDGET_USD", "0"))
 
+            extended = body.extended_context or os.environ.get("BUDDY_EXTENDED_CONTEXT") == "1"
             self._task = asyncio.create_task(self._run_agent(
                 body.prompt, budget, body.duration_minutes, body.base_branch,
-                body.github_repo or "",
+                body.github_repo or "", extended,
             ))
             self._task.add_done_callback(self._on_task_done)
 
@@ -384,6 +388,7 @@ class AgentServer:
                     duration_minutes=body.duration_minutes,
                     base_branch=body.base_branch,
                     credentials=creds,
+                    extended_context=body.extended_context,
                 )
                 return RunManager.to_dict(slot)
             except RuntimeError as e:
@@ -457,6 +462,12 @@ class AgentServer:
             if not slot:
                 raise HTTPException(status_code=404, detail="Run not found")
             return await _run_manager.unlock_run(slot.container_name)
+
+        @app.get("/parallel/runs/{run_id}/logs")
+        async def parallel_run_logs(run_id: str = Path(min_length=8, max_length=8, pattern=r"^[a-f0-9]{8}$"), tail: int = 200):
+            slot = _run_manager.get_slot_by_run_id(run_id)
+            container_name = slot.container_name if slot else f"buddy-worker-{run_id}"
+            return _run_manager.read_logs(container_name, tail)
 
         @app.post("/parallel/cleanup")
         async def parallel_cleanup():

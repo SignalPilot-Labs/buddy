@@ -258,11 +258,12 @@ export default function MonitorPage() {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
+      extendedContext: boolean = false,
     ) => {
       setStartModalOpen(false);
       const existingIds = new Set(runs.map((r) => r.id));
 
-      startParallelRun(prompt, budget, durationMinutes, baseBranch).catch(
+      startParallelRun(prompt, budget, durationMinutes, baseBranch, extendedContext).catch(
         (err) => {
           addEvent({
             _kind: "control",
@@ -516,7 +517,15 @@ export default function MonitorPage() {
       {selectedRun?.status === "rate_limited" && selectedRun.rate_limit_resets_at && (
         <RateLimitBanner
           resetsAt={selectedRun.rate_limit_resets_at}
-          onResume={() => selectedRunId && parallelResume(selectedRunId)}
+          onRetry={() => {
+            if (!selectedRun) return;
+            handleStartRun(
+              selectedRun.custom_prompt || undefined,
+              0,
+              selectedRun.duration_minutes || 0,
+              selectedRun.base_branch || "main",
+            );
+          }}
           busy={parallelBusy}
         />
       )}

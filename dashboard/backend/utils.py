@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend import crypto
 from backend.constants import AGENT_API_URL, MASTER_KEY_PATH, SECRET_KEYS
 from db.connection import get_session_factory
-from db.models import Setting
+from db.models import ControlSignal, Run, Setting
 
 _AGENT_INTERNAL_SECRET = os.environ.get("AGENT_INTERNAL_SECRET", "")
 
@@ -45,6 +45,28 @@ def model_to_dict(obj) -> dict:
         if hasattr(val, "isoformat"):
             d[key] = val.isoformat()
     return d
+
+
+# ---------------------------------------------------------------------------
+# Control signals
+# ---------------------------------------------------------------------------
+
+async def send_control_signal(
+    run_id: str, signal: str, valid_statuses: set[str], payload: str | None,
+) -> dict:
+    """Insert a control signal for a run after validating its status."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status not in valid_statuses:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot send '{signal}' to run with status '{run.status}'",
+            )
+        s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
+        await s.commit()
+    return {"ok": True, "signal": signal, "run_id": run_id}
 
 
 # ---------------------------------------------------------------------------

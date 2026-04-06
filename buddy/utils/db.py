@@ -347,6 +347,15 @@ async def get_all_workers(limit: int = 50) -> list[dict]:
         ]
 
 
+async def set_worker_log_path(container_name: str, log_path: str) -> None:
+    """Store the path to the worker's log file."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Worker).where(Worker.container_name == container_name).values(log_path=log_path)
+        )
+        await s.commit()
+
+
 async def mark_orphaned_workers() -> int:
     """Mark starting/running workers as killed on startup."""
     async with get_session_factory()() as s:

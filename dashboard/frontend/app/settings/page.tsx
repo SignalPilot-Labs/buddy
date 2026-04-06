@@ -39,6 +39,51 @@ const FIELDS: FieldConfig[] = [
   },
 ];
 
+function ExtendedContextSetting() {
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("buddy_extended_context") === "1";
+    }
+    return false;
+  });
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    localStorage.setItem("buddy_extended_context", next ? "1" : "0");
+  };
+
+  return (
+    <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
+      <label
+        className="text-[10px] font-semibold text-[#ccc] flex items-center gap-2 cursor-pointer select-none"
+        onClick={toggle}
+      >
+        <span
+          className={clsx(
+            "flex items-center justify-center h-3.5 w-3.5 rounded border transition-all",
+            enabled
+              ? "bg-[#00ff88] border-[#00ff88]"
+              : "border-[#666] bg-transparent"
+          )}
+        >
+          {enabled && (
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
+              <polyline points="1.5 4 3 5.5 6.5 2" />
+            </svg>
+          )}
+        </span>
+        Always Enable Extended Context (1M)
+      </label>
+      <p className="mt-1.5 text-[9px] text-[#999] leading-relaxed ml-5">
+        When enabled, all new runs will use extended 1M context by default.
+        This uses more of your daily quota but supports larger context windows.
+        You can override this per-run in the launch modal.
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [status, setStatus] = useState<SettingsStatus | null>(null);
   const [settings, setSettings] = useState<Settings>({});
@@ -375,6 +420,9 @@ export default function SettingsPage() {
               Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> to generate tokens.
             </p>
           </div>
+
+          {/* Extended Context Default */}
+          <ExtendedContextSetting />
 
           {/* Repositories Section */}
           <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ParallelRunSlot, ParallelStatus } from "@/lib/types";
-import { getApiBase } from "@/lib/constants";
+import { apiFetch } from "@/lib/fetch";
 
 const SAFE_ID = /^[\w-]+$/;
 
@@ -14,7 +14,7 @@ export function useParallelRuns(pollInterval = 5000) {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBase()}/api/parallel/status`);
+      const res = await apiFetch(`/api/parallel/status`);
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -40,11 +40,12 @@ export function useParallelRuns(pollInterval = 5000) {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
+    extendedContext: boolean = false,
   ) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${getApiBase()}/api/parallel/start`, {
+      const res = await apiFetch(`/api/parallel/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,6 +53,7 @@ export function useParallelRuns(pollInterval = 5000) {
           max_budget_usd: budget,
           duration_minutes: durationMinutes,
           base_branch: baseBranch,
+          extended_context: extendedContext,
         }),
       });
       const data = await res.json();
@@ -74,7 +76,7 @@ export function useParallelRuns(pollInterval = 5000) {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBase()}/api/parallel/runs/${runId}/${signal}`, {
+      const res = await apiFetch(`/api/parallel/runs/${runId}/${signal}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payload }),
@@ -119,7 +121,7 @@ export function useParallelRuns(pollInterval = 5000) {
 
   const cleanup = useCallback(async () => {
     try {
-      await fetch(`${getApiBase()}/api/parallel/cleanup`, { method: "POST" });
+      await apiFetch(`/api/parallel/cleanup`, { method: "POST" });
       await fetchStatus();
     } catch {
       // ignore

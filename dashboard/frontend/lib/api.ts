@@ -240,7 +240,7 @@ export interface TunnelStatus {
 
 export async function fetchTunnelStatus(): Promise<TunnelStatus> {
   try {
-    const res = await fetch(`${getApiBase()}/api/tunnel/status`);
+    const res = await apiFetch(`/api/tunnel/status`);
     if (!res.ok) return { status: "error", url: null };
     return res.json();
   } catch {
@@ -249,12 +249,12 @@ export async function fetchTunnelStatus(): Promise<TunnelStatus> {
 }
 
 export async function startTunnel(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/tunnel/start`, { method: "POST" });
+  const res = await apiFetch(`/api/tunnel/start`, { method: "POST" });
   return res.json();
 }
 
 export async function stopTunnel(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${getApiBase()}/api/tunnel/stop`, { method: "POST" });
+  const res = await apiFetch(`/api/tunnel/stop`, { method: "POST" });
   return res.json();
 }
 

@@ -122,9 +122,10 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, extendedContext: boolean) => void;
   busy: boolean;
   branches: string[];
+  defaultExtendedContext?: boolean;
 }
 
 const DURATION_PRESETS = [
@@ -168,6 +169,7 @@ export function StartRunModal({
   onStart,
   busy,
   branches,
+  defaultExtendedContext = false,
 }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
@@ -175,6 +177,13 @@ export function StartRunModal({
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
+  const [extendedContext, setExtendedContext] = useState(() => {
+    if (defaultExtendedContext) return true;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("buddy_extended_context") === "1";
+    }
+    return false;
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -204,7 +213,7 @@ export function StartRunModal({
       selectedQuick !== null
         ? QUICK_PROMPTS[selectedQuick].prompt
         : customPrompt.trim() || undefined;
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch);
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -396,6 +405,32 @@ export function StartRunModal({
                       </span>
                     </div>
                   )}
+                </div>
+                {/* Extended Context */}
+                <div>
+                  <label
+                    className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold flex items-center gap-2 cursor-pointer select-none"
+                    onClick={() => setExtendedContext(!extendedContext)}
+                  >
+                    <span
+                      className={clsx(
+                        "flex items-center justify-center h-3 w-3 rounded border transition-all",
+                        extendedContext
+                          ? "bg-[#00ff88] border-[#00ff88]"
+                          : "border-[#666] bg-transparent"
+                      )}
+                    >
+                      {extendedContext && (
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
+                          <polyline points="1.5 4 3 5.5 6.5 2" />
+                        </svg>
+                      )}
+                    </span>
+                    Extended Context (1M)
+                  </label>
+                  <p className="text-[9px] text-[#666] mt-1 ml-5">
+                    Uses more of your daily quota but allows larger context windows
+                  </p>
                 </div>
               </div>
 

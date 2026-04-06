@@ -11,6 +11,8 @@ from backend.endpoints.runs import router as runs_router
 from backend.endpoints.settings import router as settings_router
 from backend.endpoints.streaming import router as streaming_router
 from backend.endpoints.network import router as network_router
+from backend.endpoints.parallel import router as parallel_router
+from backend.endpoints.tunnel import router as tunnel_router
 from backend.utils import autofill_settings
 from db.connection import connect, close
 
@@ -61,3 +63,5 @@ app.include_router(runs_router)
 app.include_router(settings_router)
 app.include_router(streaming_router)
 app.include_router(network_router)
+app.include_router(parallel_router)
+app.include_router(tunnel_router)

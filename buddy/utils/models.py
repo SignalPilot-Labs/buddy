@@ -47,6 +47,7 @@ class StartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
+    extended_context: bool = False
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None

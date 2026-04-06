@@ -178,6 +178,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
+        "extended_context": body.extended_context,
         **creds,
     }, None, None)
 

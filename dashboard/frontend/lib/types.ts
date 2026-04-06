@@ -13,6 +13,8 @@ export interface Run {
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;
+  custom_prompt: string | null;
+  duration_minutes: number;
 }
 
 export interface RepoInfo {

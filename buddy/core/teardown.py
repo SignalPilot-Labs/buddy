@@ -23,7 +23,7 @@ class RunTeardown:
         """Push, create PR, capture diff, finish DB. Returns PR URL or None."""
         pr_url = None
 
-        if status != "killed":
+        if status not in ("killed", "rate_limited"):
             pr_url = await self._push_and_pr(ctx)
 
         diff_stats = self._capture_diff(ctx)

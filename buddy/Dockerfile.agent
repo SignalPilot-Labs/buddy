@@ -61,6 +61,7 @@ COPY buddy/tools/ /app/tools/
 COPY buddy/utils/ /app/utils/
 COPY buddy/prompts/ /app/prompts/
 COPY buddy/skills/ /app/skills/
+COPY buddy/run_manager.py /app/run_manager.py
 COPY buddy/server.py /app/server.py
 
 # Run as non-root — Claude CLI refuses --dangerously-skip-permissions as root

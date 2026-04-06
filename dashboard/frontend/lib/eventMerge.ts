@@ -47,17 +47,19 @@ export function mergeHistoryWithLive(
   if (live.length === 0) return history;
 
   const preIndex = new Map<string, number>();
+  const seenAuditIds = new Set<number>();
+  const seenToolIds = new Set<number>();
   const merged = [...history];
 
   for (let i = 0; i < merged.length; i++) {
     const ev = merged[i];
-    if (
-      ev._kind === "tool" &&
-      ev.data.phase === "pre" &&
-      !ev.data.output_data &&
-      ev.data.tool_use_id
-    ) {
-      preIndex.set(ev.data.tool_use_id, i);
+    if (ev._kind === "tool") {
+      if (ev.data.phase === "pre" && !ev.data.output_data && ev.data.tool_use_id) {
+        preIndex.set(ev.data.tool_use_id, i);
+      }
+      if (ev.data.id) seenToolIds.add(ev.data.id);
+    } else if (ev._kind === "audit" && ev.data.id) {
+      seenAuditIds.add(ev.data.id);
     }
   }
 
@@ -82,6 +84,10 @@ export function mergeHistoryWithLive(
         };
       }
       preIndex.delete(ev.data.tool_use_id);
+    } else if (ev._kind === "audit" && ev.data.id && seenAuditIds.has(ev.data.id)) {
+      continue;
+    } else if (ev._kind === "tool" && ev.data.id && seenToolIds.has(ev.data.id)) {
+      continue;
     } else {
       merged.push(ev);
     }

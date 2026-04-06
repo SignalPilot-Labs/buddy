@@ -48,10 +48,14 @@ class RunBootstrap:
         duration_minutes: float,
         base_branch: str,
         github_repo: str,
+        extended_context: bool = False,
     ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
         """Bootstrap a new run. Returns (ctx, options, session, events, logger, initial_prompt)."""
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        if extended_context:
+            model = self._apply_extended_context(model)
+            fallback_model = self._apply_extended_context(fallback_model)
 
         branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
@@ -267,6 +271,13 @@ class RunBootstrap:
                 tools=["Read", "Write", "Glob", "Grep", "Bash"],
             ),
         }
+
+    @staticmethod
+    def _apply_extended_context(model: str) -> str:
+        """Append [1m] suffix to enable extended context if not already present."""
+        if model.endswith("[1m]"):
+            return model
+        return f"{model}[1m]"
 
     def _build_sdk_options(
         self,
