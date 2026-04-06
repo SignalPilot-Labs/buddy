@@ -1,14 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { motion } from "framer-motion";
-import Image from "next/image";
-import Link from "next/link";
 import type {
   Run,
   FeedEvent,
   RunStatus,
-  ToolCall,
   SettingsStatus,
   RepoInfo,
 } from "@/lib/types";
@@ -23,6 +19,7 @@ import {
 } from "@/lib/api";
 import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
+import { buildHistoryEvents } from "@/lib/mergeToolCalls";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { useRuns } from "@/hooks/useRuns";
@@ -30,24 +27,19 @@ import { useSSE } from "@/hooks/useSSE";
 import { useControl } from "@/hooks/useControl";
 import { useMobile } from "@/hooks/useMobile";
 import { RunList } from "@/components/sidebar/RunList";
-import { EventFeed } from "@/components/feed/EventFeed";
-import { ControlBar } from "@/components/controls/ControlBar";
 import { InjectPanel } from "@/components/controls/InjectPanel";
 import { StartRunModal } from "@/components/controls/StartRunModal";
-import { StatsBar } from "@/components/stats/StatsBar";
 import { RateLimitBanner } from "@/components/controls/RateLimitBanner";
-import { WorkTree } from "@/components/worktree/WorkTree";
-import { StatusBadge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { RepoSelector } from "@/components/ui/RepoSelector";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
-import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
-import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
-import { LocaleToggle } from "@/components/ui/LocaleToggle";
+import { MobileHeader } from "@/components/layout/MobileHeader";
+import { DesktopHeader } from "@/components/layout/DesktopHeader";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
+import { MobileContent } from "@/components/layout/MobileContent";
+import { DesktopContent } from "@/components/layout/DesktopContent";
 import { useTranslation } from "@/hooks/useTranslation";
 
-export default function MonitorPage() {
+export default function MonitorPage(): React.ReactElement {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(null);
   const [repos, setRepos] = useState<RepoInfo[]>([]);
   const {
@@ -78,7 +70,6 @@ export default function MonitorPage() {
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
-  // Merge live events into history — SSE post events need to find their pre in history
   const allEvents = useMemo(
     () => mergeHistoryWithLive(historyEvents, liveEvents),
     [historyEvents, liveEvents],
@@ -91,7 +82,6 @@ export default function MonitorPage() {
   const { pause, resume, stop, kill, inject, unlock, resumeSession, busy } =
     useControl(selectedRunId, addEvent);
 
-  // Poll agent health — auto-select new runs when they appear
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
@@ -123,7 +113,6 @@ export default function MonitorPage() {
     });
   }, []);
 
-  // Handle repo switch
   const handleRepoSwitch = useCallback(
     async (repo: string) => {
       skipLastRunRestoreRef.current = true;
@@ -148,7 +137,6 @@ export default function MonitorPage() {
     }
   }, [runs, selectedRunId]);
 
-  // Load history when selecting a run
   const handleSelectRun = useCallback(
     async (id: string) => {
       const gen = ++selectGenRef.current;
@@ -165,82 +153,7 @@ export default function MonitorPage() {
 
         if (gen !== selectGenRef.current) return;
 
-        tools.sort(
-          (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime(),
-        );
-        audits.sort(
-          (a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime(),
-        );
-
-        const mergedTools: ToolCall[] = [];
-
-        for (const t of tools) {
-          if (t.phase === "pre") {
-            mergedTools.push({ ...t });
-          } else {
-            let matched = false;
-
-            if (t.tool_use_id) {
-              for (let j = mergedTools.length - 1; j >= 0; j--) {
-                const pre = mergedTools[j];
-                if (pre.tool_use_id === t.tool_use_id && pre.phase === "pre") {
-                  pre.output_data = t.output_data;
-                  pre.duration_ms = t.duration_ms;
-                  pre.phase = "post";
-                  matched = true;
-                  break;
-                }
-              }
-            }
-
-            if (!matched) {
-              for (let j = mergedTools.length - 1; j >= 0; j--) {
-                const pre = mergedTools[j];
-                if (
-                  pre.tool_name === t.tool_name &&
-                  pre.phase === "pre" &&
-                  !pre.output_data
-                ) {
-                  pre.output_data = t.output_data;
-                  pre.duration_ms = t.duration_ms;
-                  pre.phase = "post";
-                  matched = true;
-                  break;
-                }
-              }
-            }
-
-            if (!matched) {
-              mergedTools.push({ ...t });
-            }
-          }
-        }
-
-        const toolEvents: FeedEvent[] = mergedTools.map((t) => ({
-          _kind: "tool" as const,
-          data: t,
-        }));
-
-        const auditEvents: FeedEvent[] = audits
-          .filter((a) => !["llm_text", "llm_thinking"].includes(a.event_type))
-          .map((a) => ({
-            _kind: "audit" as const,
-            data: a,
-          }));
-
-        const getTs = (e: FeedEvent): string =>
-          e._kind === "tool"
-            ? e.data.ts
-            : e._kind === "audit"
-              ? e.data.ts
-              : e._kind === "usage"
-                ? e.data.ts
-                : e.ts;
-        const merged = [...toolEvents, ...auditEvents].sort(
-          (a, b) => new Date(getTs(a)).getTime() - new Date(getTs(b)).getTime(),
-        );
-
-        setHistoryEvents(merged);
+        setHistoryEvents(buildHistoryEvents(tools, audits));
       } catch (err) {
         console.warn(
           "Failed to load historical events, SSE will provide live data:",
@@ -256,8 +169,6 @@ export default function MonitorPage() {
   // Auto-select: restore last viewed run on initial load, most recent on repo switch
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
-      // Guard against stale runs from the previous repo — if a filter is active but
-      // none of the current runs match it, the new fetch hasn't arrived yet; skip.
       if (
         activeRepoFilter &&
         !runs.some((r) => r.github_repo === activeRepoFilter)
@@ -280,7 +191,6 @@ export default function MonitorPage() {
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
-  // Start a new run
   const handleStartRun = useCallback(
     async (
       prompt: string | undefined,
@@ -319,287 +229,80 @@ export default function MonitorPage() {
   const agentReachable =
     agentHealth != null && agentHealth.status !== "unreachable";
   const isConfigured = settingsStatus?.configured ?? false;
+  const sessionLocked = agentHealth?.session_unlocked === false;
+  const timeRemaining = agentHealth?.time_remaining || null;
+
+  const handleStartRunClick = useCallback(() => {
+    fetchBranches().then(setBranches);
+    setStartModalOpen(true);
+  }, []);
+
+  const handleToggleInject = useCallback(() => {
+    setInjectOpen((prev) => !prev);
+  }, []);
+
+  const handleOnboardingComplete = useCallback(() => {
+    setOnboardingOpen(false);
+    fetchSettingsStatus().then(setSettingsStatus);
+    fetchRepos().then((r) => {
+      setRepos(r);
+      if (r.length > 0) setActiveRepoFilter(r[0].repo);
+    });
+  }, []);
+
+  const handleNewRun = useCallback(() => {
+    fetchBranches().then(setBranches);
+    setStartModalOpen(true);
+  }, []);
+
+  const handleControlsToggle = useCallback(() => {
+    setControlsOpen((prev) => !prev);
+  }, []);
+
+  const handleMobileSelectRun = useCallback(
+    (id: string) => {
+      handleSelectRun(id);
+      setMobilePanel("feed");
+    },
+    [handleSelectRun],
+  );
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">
-      {/* ── Mobile Top Bar ── */}
-      <header className="mobile-top-bar items-center gap-2 px-3 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow safe-area-top">
-        {/* Logo */}
-        <div className="relative flex items-center justify-center h-7 w-7">
-          <svg width="28" height="28" viewBox="0 0 28 28" className="absolute">
-            <circle
-              cx="14"
-              cy="14"
-              r="12"
-              fill="none"
-              stroke={
-                runStatus === "running"
-                  ? "rgba(0,255,136,0.2)"
-                  : "rgba(255,255,255,0.06)"
-              }
-              strokeWidth="1"
-              strokeDasharray="4 3"
-              style={
-                runStatus === "running"
-                  ? { animation: "spin 8s linear infinite" }
-                  : undefined
-              }
-            />
-          </svg>
-          <Image
-            src="/logo.svg"
-            alt="AutoFyn"
-            width={18}
-            height={18}
-            className="relative z-[1]"
-          />
-        </div>
+      <MobileHeader
+        runStatus={runStatus}
+        agentReachable={agentReachable}
+        agentIdle={agentIdle}
+        selectedRun={selectedRun}
+        t={t}
+      />
 
-        <div>
-          <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-            AutoFyn
-          </h1>
-          <p className="text-[8px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-            {t.monitor}
-          </p>
-        </div>
+      <DesktopHeader
+        runStatus={runStatus}
+        agentReachable={agentReachable}
+        agentIdle={agentIdle}
+        agentBootstrapping={agentBootstrapping}
+        agentHealth={agentHealth}
+        selectedRun={selectedRun}
+        repos={repos}
+        activeRepoFilter={activeRepoFilter}
+        isConfigured={isConfigured}
+        busy={busy}
+        sessionLocked={sessionLocked}
+        timeRemaining={timeRemaining}
+        injectOpen={injectOpen}
+        onRepoSwitch={handleRepoSwitch}
+        onStartRunClick={handleStartRunClick}
+        onPause={pause}
+        onResume={resume}
+        onStop={stop}
+        onKill={kill}
+        onUnlock={unlock}
+        onToggleInject={handleToggleInject}
+        onResumeRun={resumeSession}
+        t={t}
+      />
 
-        <div className="flex-1" />
-
-        {/* Agent health dot */}
-        <span
-          className={`h-2 w-2 rounded-full ${
-            agentReachable
-              ? agentIdle
-                ? "bg-[#00ff88]/60"
-                : "bg-[#00ff88]"
-              : "bg-[#ff4444]/60"
-          }`}
-          style={
-            !agentIdle && agentReachable
-              ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" }
-              : undefined
-          }
-        />
-
-        {/* Mobile access QR */}
-        <MobileAccessPopover />
-
-        {/* Run status */}
-        {selectedRun && (
-          <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-        )}
-
-        {/* Locale Toggle */}
-        <LocaleToggle />
-
-        {/* Settings */}
-        <Link
-          href="/settings"
-          className="p-2 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </Link>
-      </header>
-
-      {/* ── Desktop Header ── */}
-      <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center justify-center h-7 w-7">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 28 28"
-              className="absolute"
-            >
-              <circle
-                cx="14"
-                cy="14"
-                r="12"
-                fill="none"
-                stroke={
-                  runStatus === "running"
-                    ? "rgba(0,255,136,0.2)"
-                    : "rgba(255,255,255,0.06)"
-                }
-                strokeWidth="1"
-                strokeDasharray="4 3"
-                style={
-                  runStatus === "running"
-                    ? { animation: "spin 8s linear infinite" }
-                    : undefined
-                }
-              />
-            </svg>
-            <Image
-              src="/logo.svg"
-              alt="AutoFyn"
-              width={18}
-              height={18}
-              className="relative z-[1]"
-            />
-          </div>
-          <div>
-            <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-              AutoFyn
-            </h1>
-            <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-              {t.monitor}
-            </p>
-          </div>
-        </div>
-
-        {/* Repo Selector */}
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-        <RepoSelector
-          repos={repos}
-          activeRepo={activeRepoFilter}
-          onSelect={handleRepoSwitch}
-        />
-
-        {selectedRun && (
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2.5 ml-1"
-          >
-            <div className="w-px h-4 bg-[#1a1a1a]" />
-            <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-            <span className="text-[10px] text-[#888] font-medium">
-              {selectedRun.branch_name.replace("autofyn/", "")}
-            </span>
-          </motion.div>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Mobile access QR */}
-        <MobileAccessPopover />
-
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-
-        {/* Agent health indicator */}
-        <div className="flex items-center gap-1.5 mr-2">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              agentReachable
-                ? agentBootstrapping
-                  ? "bg-[#ffaa00] animate-pulse"
-                  : agentIdle
-                    ? "bg-[#00ff88]/60"
-                    : "bg-[#00ff88]"
-                : "bg-[#ff4444]/60"
-            }`}
-            style={
-              !agentIdle && !agentBootstrapping && agentReachable
-                ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" }
-                : undefined
-            }
-          />
-          <span className="text-[10px] text-[#888]">
-            {!agentReachable
-              ? t.agentStatus.offline
-              : agentBootstrapping
-                ? t.agentStatus.starting
-                : agentIdle
-                  ? t.agentStatus.idle
-                  : agentHealth?.elapsed_minutes != null
-                    ? `${t.agentStatus.active} · ${Math.round(agentHealth.elapsed_minutes)}m`
-                    : t.agentStatus.active}
-          </span>
-        </div>
-
-        {/* Locale Toggle */}
-        <LocaleToggle />
-
-        {/* Settings link */}
-        <Link
-          href="/settings"
-          className="p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-          title={t.nav.settings}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </Link>
-
-        {/* Start Run button */}
-        <Button
-          variant="success"
-          size="md"
-          onClick={() => {
-            fetchBranches().then(setBranches);
-            setStartModalOpen(true);
-          }}
-          disabled={!agentIdle || !agentReachable || !isConfigured}
-          title={
-            !isConfigured
-              ? t.run.configureFirst
-              : undefined
-          }
-          icon={
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <polygon points="3 2 8 5 3 8" />
-            </svg>
-          }
-        >
-          {!isConfigured
-            ? t.run.setupRequired
-            : !agentReachable
-              ? t.run.offline
-              : !agentIdle
-                ? t.run.running
-                : t.run.newRun}
-        </Button>
-
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-
-        <ControlBar
-          status={runStatus}
-          onPause={pause}
-          onResume={resume}
-          onStop={stop}
-          onKill={kill}
-          onUnlock={unlock}
-          onToggleInject={() => setInjectOpen(!injectOpen)}
-          onResumeRun={resumeSession}
-          busy={busy}
-          sessionLocked={agentHealth?.session_unlocked === false}
-          timeRemaining={agentHealth?.time_remaining || null}
-        />
-      </header>
-
-      {/* Inject Panel */}
       <InjectPanel
         open={injectOpen}
         onClose={() => setInjectOpen(false)}
@@ -607,7 +310,6 @@ export default function MonitorPage() {
         busy={busy}
       />
 
-      {/* Start Run Modal */}
       <StartRunModal
         open={startModalOpen}
         onClose={() => setStartModalOpen(false)}
@@ -616,23 +318,14 @@ export default function MonitorPage() {
         branches={branches}
       />
 
-      {/* Onboarding Modal */}
       {settingsStatus && (
         <OnboardingModal
           open={onboardingOpen}
-          onComplete={() => {
-            setOnboardingOpen(false);
-            fetchSettingsStatus().then(setSettingsStatus);
-            fetchRepos().then((r) => {
-              setRepos(r);
-              if (r.length > 0) setActiveRepoFilter(r[0].repo);
-            });
-          }}
+          onComplete={handleOnboardingComplete}
           initialStatus={settingsStatus}
         />
       )}
 
-      {/* Rate Limit Banner */}
       {selectedRun?.status === "rate_limited" &&
         selectedRun.rate_limit_resets_at && (
           <RateLimitBanner
@@ -642,9 +335,7 @@ export default function MonitorPage() {
           />
         )}
 
-      {/* Main Content */}
       <div className="flex flex-1 min-h-0">
-        {/* ── Desktop Layout ── */}
         <div className="desktop-sidebar">
           <RunList
             runs={runs}
@@ -655,149 +346,38 @@ export default function MonitorPage() {
         </div>
 
         {!isMobile && (
-          <>
-            <main className="flex-1 flex flex-col min-h-0 min-w-0">
-              <EventFeed events={allEvents} />
-              <StatsBar
-                run={selectedRun}
-                connected={connected}
-                events={allEvents}
-              />
-            </main>
-            <div className="desktop-worktree">
-              <WorkTree events={allEvents} runId={selectedRunId} />
-            </div>
-          </>
+          <DesktopContent
+            selectedRun={selectedRun}
+            selectedRunId={selectedRunId}
+            allEvents={allEvents}
+            connected={connected}
+          />
         )}
 
-        {/* ── Mobile Layout ── */}
         {isMobile && (
-          <div
-            className="flex-1 flex flex-col min-h-0 min-w-0"
-            style={{
-              paddingBottom: "calc(56px + env(safe-area-inset-bottom, 0px))",
-            }}
-          >
-            {mobilePanel === "runs" && (
-              <RunList
-                runs={runs}
-                activeId={selectedRunId}
-                onSelect={(id: string) => {
-                  handleSelectRun(id);
-                  setMobilePanel("feed");
-                }}
-                loading={runsLoading}
-                mobile
-              />
-            )}
-
-            {mobilePanel === "feed" && (
-              <main className="flex-1 flex flex-col min-h-0 min-w-0">
-                <EventFeed events={allEvents} />
-                <StatsBar
-                  run={selectedRun}
-                  connected={connected}
-                  events={allEvents}
-                />
-              </main>
-            )}
-
-            {mobilePanel === "changes" && (
-              <WorkTree events={allEvents} runId={selectedRunId} mobile />
-            )}
-          </div>
+          <MobileContent
+            mobilePanel={mobilePanel}
+            runs={runs}
+            selectedRunId={selectedRunId}
+            selectedRun={selectedRun}
+            runsLoading={runsLoading}
+            allEvents={allEvents}
+            connected={connected}
+            onSelectRun={handleMobileSelectRun}
+          />
         )}
       </div>
 
-      {/* ── Mobile Bottom Tab Bar ── */}
-      <nav className="mobile-bottom-bar">
-        <MobileTab
-          icon={
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <rect x="2" y="2" width="14" height="14" rx="2" />
-              <line x1="2" y1="6" x2="16" y2="6" />
-              <line x1="2" y1="10" x2="16" y2="10" />
-            </svg>
-          }
-          label={t.nav.runs}
-          active={mobilePanel === "runs"}
-          onClick={() => setMobilePanel("runs")}
-          badge={runs.length || null}
-        />
-        <MobileTab
-          icon={
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <path d="M3 9h12" />
-              <path d="M3 5h8" />
-              <path d="M3 13h10" />
-            </svg>
-          }
-          label={t.nav.feed}
-          active={mobilePanel === "feed"}
-          onClick={() => setMobilePanel("feed")}
-          badge={allEvents.length || null}
-        />
-        <MobileTab
-          icon={
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <path d="M9 2v14M9 2L5 6M9 2l4 4" />
-              <circle cx="5" cy="10" r="1.5" />
-              <circle cx="13" cy="12" r="1.5" />
-              <line x1="5" y1="10" x2="9" y2="10" />
-              <line x1="13" y1="12" x2="9" y2="12" />
-            </svg>
-          }
-          label={t.nav.changes}
-          active={mobilePanel === "changes"}
-          onClick={() => setMobilePanel("changes")}
-        />
-        <MobileTab
-          icon={
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            >
-              <circle cx="9" cy="6" r="2" />
-              <path d="M5 14h8" />
-              <path d="M4 10h10" />
-            </svg>
-          }
-          label={t.nav.controls}
-          active={controlsOpen}
-          onClick={() => setControlsOpen(!controlsOpen)}
-        />
-      </nav>
+      <MobileTabBar
+        mobilePanel={mobilePanel}
+        controlsOpen={controlsOpen}
+        runsCount={runs.length}
+        eventsCount={allEvents.length}
+        onPanelChange={setMobilePanel}
+        onControlsToggle={handleControlsToggle}
+        t={t}
+      />
 
-      {/* ── Mobile Control Sheet ── */}
       <MobileControlSheet
         open={controlsOpen}
         onClose={() => setControlsOpen(false)}
@@ -807,17 +387,12 @@ export default function MonitorPage() {
         onStop={stop}
         onKill={kill}
         onUnlock={unlock}
-        onToggleInject={() => {
-          setInjectOpen(!injectOpen);
-        }}
+        onToggleInject={handleToggleInject}
         busy={busy}
         repos={repos}
         activeRepo={activeRepoFilter}
         onRepoSelect={handleRepoSwitch}
-        onNewRun={() => {
-          fetchBranches().then(setBranches);
-          setStartModalOpen(true);
-        }}
+        onNewRun={handleNewRun}
         isConfigured={isConfigured}
       />
     </div>
