@@ -487,6 +487,28 @@ class AgentServer:
             cleaned = _run_manager.cleanup_all_finished(remove_volumes=True)
             return {"ok": True, "cleaned": cleaned}
 
+        # ── Tunnel Endpoints ──
+        # Tunnel management runs on the agent (which has Docker socket access),
+        # not on the dashboard, to avoid exposing Docker to the internet-facing service.
+
+        @app.get("/tunnel/status")
+        async def tunnel_status():
+            return _run_manager.get_tunnel_status()
+
+        @app.post("/tunnel/start")
+        async def tunnel_start():
+            try:
+                return _run_manager.start_tunnel()
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
+        @app.post("/tunnel/stop")
+        async def tunnel_stop():
+            try:
+                return _run_manager.stop_tunnel()
+            except ValueError as e:
+                raise HTTPException(status_code=404, detail=str(e))
+
 
 def _is_worker() -> bool:
     """Check if this container is a worker (not orchestrator)."""

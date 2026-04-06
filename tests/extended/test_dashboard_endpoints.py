@@ -8,22 +8,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import ASGITransport
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "dashboard"))
 
 VALID_RUN_ID = "12345678-1234-1234-1234-123456789012"
-
-
-# ---------------------------------------------------------------------------
-# Fake NotFound exception whose __name__ contains "NotFound"
-# ---------------------------------------------------------------------------
-
-class _NotFoundError(Exception):
-    pass
-
-
-_NotFoundError.__name__ = "NotFound"
 
 
 # ---------------------------------------------------------------------------
@@ -77,132 +67,90 @@ def _make_mock_session(tool_call_rows=None, audit_event_rows=None):
 # ---------------------------------------------------------------------------
 
 class TestTunnelEndpoints:
-    """Tests for GET/POST /api/tunnel/* endpoints."""
+    """Tests for GET/POST /api/tunnel/* endpoints (proxied to agent)."""
 
     @pytest.mark.asyncio
     async def test_tunnel_status_running(self, client):
-        """Running container with a cloudflare URL returns status=running and a URL."""
-        mock_container = MagicMock()
-        mock_container.status = "running"
-        mock_container.short_id = "abc123"
-        mock_container.logs.return_value = b"Connected to https://my-tunnel.trycloudflare.com ok"
+        """Agent returns running status with URL — dashboard proxies it."""
+        agent_resp = {"status": "running", "url": "https://my-tunnel.trycloudflare.com"}
 
-        mock_docker = MagicMock()
-        mock_docker.containers.get.return_value = mock_container
-
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value=agent_resp):
             resp = await client.get("/api/tunnel/status")
 
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "running"
-        assert data["url"] is not None
         assert data["url"].startswith("https://")
 
     @pytest.mark.asyncio
-    async def test_tunnel_status_not_running(self, client):
-        """Stopped container returns status=stopped and url=None."""
-        mock_container = MagicMock()
-        mock_container.status = "stopped"
-        mock_container.short_id = "abc123"
-
-        mock_docker = MagicMock()
-        mock_docker.containers.get.return_value = mock_container
-
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
-            resp = await client.get("/api/tunnel/status")
-
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["url"] is None
-
-    @pytest.mark.asyncio
     async def test_tunnel_status_not_found(self, client):
-        """Container not found returns status=not_found."""
-        mock_docker = MagicMock()
-        mock_docker.containers.get.side_effect = _NotFoundError("Not found")
+        """Agent returns not_found — dashboard proxies fallback."""
+        agent_resp = {"status": "not_found", "url": None}
 
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value=agent_resp):
             resp = await client.get("/api/tunnel/status")
 
         assert resp.status_code == 200
         assert resp.json()["status"] == "not_found"
 
     @pytest.mark.asyncio
-    async def test_tunnel_status_docker_error(self, client):
-        """Docker API error returns 502."""
-        with patch("backend.endpoints._get_docker", side_effect=RuntimeError("socket not found")):
+    async def test_tunnel_status_agent_unavailable(self, client):
+        """Agent unavailable returns fallback (not_found)."""
+        fallback = {"status": "not_found", "url": None}
+
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value=fallback):
             resp = await client.get("/api/tunnel/status")
 
-        assert resp.status_code == 502
-
-    @pytest.mark.asyncio
-    async def test_tunnel_start_already_running(self, client):
-        """Already running container returns ok=True with 'already running' message."""
-        mock_container = MagicMock()
-        mock_container.status = "running"
-
-        mock_docker = MagicMock()
-        mock_docker.containers.get.return_value = mock_container
-
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
-            resp = await client.post("/api/tunnel/start")
-
         assert resp.status_code == 200
-        data = resp.json()
-        assert data["ok"] is True
-        assert "already running" in data["message"]
-        mock_container.start.assert_not_called()
+        assert resp.json()["status"] == "not_found"
 
     @pytest.mark.asyncio
-    async def test_tunnel_start_stopped_container(self, client):
-        """Stopped container is started and returns ok=True."""
-        mock_container = MagicMock()
-        mock_container.status = "stopped"
-
-        mock_docker = MagicMock()
-        mock_docker.containers.get.return_value = mock_container
-
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+    async def test_tunnel_start_success(self, client):
+        """Agent starts tunnel — dashboard returns ok=True."""
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value={"ok": True}):
             resp = await client.post("/api/tunnel/start")
 
         assert resp.status_code == 200
         assert resp.json()["ok"] is True
-        mock_container.start.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_tunnel_start_already_running(self, client):
+        """Agent says already running — dashboard proxies message."""
+        agent_resp = {"ok": True, "message": "already running"}
+
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value=agent_resp):
+            resp = await client.post("/api/tunnel/start")
+
+        assert resp.status_code == 200
+        assert "already running" in resp.json()["message"]
 
     @pytest.mark.asyncio
     async def test_tunnel_start_not_found(self, client):
-        """Container not found on start returns 404."""
-        mock_docker = MagicMock()
-        mock_docker.containers.get.side_effect = _NotFoundError("Not found")
+        """Agent returns 404 — dashboard forwards 404."""
+        async def raise_404(*args, **kwargs):
+            raise HTTPException(status_code=404, detail="Tunnel container not found")
 
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+        with patch("backend.endpoints.tunnel.agent_request", side_effect=raise_404):
             resp = await client.post("/api/tunnel/start")
 
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
     async def test_tunnel_stop_success(self, client):
-        """Running container is stopped with timeout=5 and returns ok=True."""
-        mock_container = MagicMock()
-
-        mock_docker = MagicMock()
-        mock_docker.containers.get.return_value = mock_container
-
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+        """Agent stops tunnel — dashboard returns ok=True."""
+        with patch("backend.endpoints.tunnel.agent_request", new_callable=AsyncMock, return_value={"ok": True}):
             resp = await client.post("/api/tunnel/stop")
 
         assert resp.status_code == 200
         assert resp.json()["ok"] is True
-        mock_container.stop.assert_called_once_with(timeout=5)
 
     @pytest.mark.asyncio
     async def test_tunnel_stop_not_found(self, client):
-        """Container not found on stop returns 404."""
-        mock_docker = MagicMock()
-        mock_docker.containers.get.side_effect = _NotFoundError("Not found")
+        """Agent returns 404 — dashboard forwards 404."""
+        async def raise_404(*args, **kwargs):
+            raise HTTPException(status_code=404, detail="Tunnel container not found")
 
-        with patch("backend.endpoints._get_docker", return_value=mock_docker):
+        with patch("backend.endpoints.tunnel.agent_request", side_effect=raise_404):
             resp = await client.post("/api/tunnel/stop")
 
         assert resp.status_code == 404
@@ -299,7 +247,7 @@ class TestParallelProxyEndpoints:
     @pytest.mark.asyncio
     async def test_parallel_list_runs_empty(self, client):
         """agent_request returns [] — GET /api/parallel/runs returns 200 with []."""
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=[]):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=[]):
             resp = await client.get("/api/parallel/runs")
 
         assert resp.status_code == 200
@@ -313,7 +261,7 @@ class TestParallelProxyEndpoints:
             {"run_id": "run-2", "status": "paused"},
         ]
 
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=slots):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=slots):
             resp = await client.get("/api/parallel/runs")
 
         assert resp.status_code == 200
@@ -327,7 +275,7 @@ class TestParallelProxyEndpoints:
         """agent_request returns a status summary — response contains that dict."""
         status_data = {"total_slots": 2, "active": 1, "max_concurrent": 10, "slots": []}
 
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=status_data):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=status_data):
             resp = await client.get("/api/parallel/status")
 
         assert resp.status_code == 200
@@ -339,8 +287,8 @@ class TestParallelProxyEndpoints:
         mock_creds = {"claude_token": "tok", "git_token": "gt"}
         mock_agent_request = AsyncMock(return_value={"run_id": "new-run"})
 
-        with patch("backend.endpoints.agent_request", mock_agent_request), \
-             patch("backend.endpoints.read_credentials", new_callable=AsyncMock, return_value=mock_creds):
+        with patch("backend.endpoints.parallel.agent_request", mock_agent_request), \
+             patch("backend.endpoints.parallel.read_credentials", new_callable=AsyncMock, return_value=mock_creds):
             resp = await client.post("/api/parallel/start", json={
                 "prompt": "x",
                 "max_budget_usd": 5.0,
@@ -360,7 +308,7 @@ class TestParallelProxyEndpoints:
         """agent_request returns run data — GET /api/parallel/runs/{id} returns 200."""
         run_data = {"run_id": "ab1234cd", "status": "running"}
 
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=run_data):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=run_data):
             resp = await client.get("/api/parallel/runs/ab1234cd")
 
         assert resp.status_code == 200
@@ -371,7 +319,7 @@ class TestParallelProxyEndpoints:
         """POST /api/parallel/runs/{id}/stop is forwarded to agent with correct path."""
         mock_agent_request = AsyncMock(return_value={"ok": True})
 
-        with patch("backend.endpoints.agent_request", mock_agent_request):
+        with patch("backend.endpoints.parallel.agent_request", mock_agent_request):
             resp = await client.post("/api/parallel/runs/ab1234cd/stop")
 
         assert resp.status_code == 200
@@ -383,7 +331,7 @@ class TestParallelProxyEndpoints:
         """POST /api/parallel/runs/{id}/kill is forwarded to agent with correct path."""
         mock_agent_request = AsyncMock(return_value={"ok": True})
 
-        with patch("backend.endpoints.agent_request", mock_agent_request):
+        with patch("backend.endpoints.parallel.agent_request", mock_agent_request):
             resp = await client.post("/api/parallel/runs/ab1234cd/kill")
 
         assert resp.status_code == 200
@@ -395,7 +343,7 @@ class TestParallelProxyEndpoints:
         """POST /api/parallel/cleanup returns the agent's response dict."""
         cleanup_data = {"ok": True, "cleaned": 3}
 
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=cleanup_data):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=cleanup_data):
             resp = await client.post("/api/parallel/cleanup")
 
         assert resp.status_code == 200
@@ -404,7 +352,7 @@ class TestParallelProxyEndpoints:
     @pytest.mark.asyncio
     async def test_parallel_fallback_on_agent_error(self, client):
         """list_runs returns [] fallback when agent is unavailable (connection error)."""
-        with patch("backend.endpoints.agent_request", new_callable=AsyncMock, return_value=[]):
+        with patch("backend.endpoints.parallel.agent_request", new_callable=AsyncMock, return_value=[]):
             resp = await client.get("/api/parallel/runs")
 
         assert resp.status_code == 200

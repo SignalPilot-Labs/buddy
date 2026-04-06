@@ -9,6 +9,7 @@ import pytest
 
 from run_manager import (
     ALLOWED_CREDENTIAL_KEYS,
+    BLOCKED_MOUNT_DESTINATIONS,
     MAX_CONCURRENT,
     SIGNAL_ENDPOINTS,
     RunManager,
@@ -76,14 +77,14 @@ class TestRunSlot:
         slot = RunSlot(
             run_id="abc123",
             container_id="cid",
-            container_name="buddy-worker-x",
+            container_name="buddy-worker-a1b2c3d4",
             status="running",
             prompt="do the thing",
             max_budget_usd=5.0,
             duration_minutes=30.0,
             base_branch="dev",
             error_message=None,
-            volume_name="buddy-worker-repo-x",
+            volume_name="buddy-worker-repo-a1b2c3d4",
         )
         assert slot.run_id == "abc123"
         assert slot.status == "running"
@@ -91,7 +92,7 @@ class TestRunSlot:
         assert slot.max_budget_usd == 5.0
         assert slot.duration_minutes == 30.0
         assert slot.base_branch == "dev"
-        assert slot.volume_name == "buddy-worker-repo-x"
+        assert slot.volume_name == "buddy-worker-repo-a1b2c3d4"
 
     def test_run_slot_volume_name(self):
         """RunSlot must have a volume_name field (used for cleanup)."""
@@ -173,14 +174,19 @@ class TestBuildWorkerMounts:
         assert "/var/lib/docker/volumes/repo/_data" not in joined
 
     def test_build_worker_mounts_preserves_other_mounts(self):
-        """Non-repo mounts are passed through with their original source and mode."""
+        """Non-repo, non-blocked mounts are passed through with their original source and mode."""
         mgr = _manager_with_env()
         flags = mgr._build_worker_mounts("abc123")
         joined = " ".join(flags)
         assert "/data" in joined
-        assert "/var/run/docker.sock" in joined
         assert "/var/lib/docker/volumes/db/_data" in joined
-        assert "/var/run/docker.sock:/var/run/docker.sock" in joined
+
+    def test_build_worker_mounts_blocks_docker_socket(self):
+        """Docker socket must never be propagated to workers (root-equivalent access)."""
+        mgr = _manager_with_env()
+        flags = mgr._build_worker_mounts("abc123")
+        joined = " ".join(flags)
+        assert "/var/run/docker.sock" not in joined
 
 
 # ===========================================================================
@@ -202,19 +208,40 @@ class TestSendSignal:
         mock_client.post = AsyncMock(return_value=mock_resp)
 
         with patch("httpx.AsyncClient", return_value=mock_client):
-            result = await mgr.send_signal("buddy-worker-x", "stop", {"reason": "done"})
+            result = await mgr.send_signal("buddy-worker-a1b2c3d4", "stop", {"reason": "done"})
 
         mock_client.post.assert_called_once_with(
-            "http://buddy-worker-x:8500/stop", json={"reason": "done"}
+            "http://buddy-worker-a1b2c3d4:8500/stop", json={"reason": "done"},
+            headers={},
         )
         assert result == {"ok": True}
+
+    @pytest.mark.asyncio
+    async def test_send_signal_includes_auth_header(self):
+        """send_signal includes X-Internal-Secret header when configured."""
+        mgr = RunManager()
+        mgr._internal_secret = "test-secret-123"
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"ok": True}
+        mock_resp.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            await mgr.send_signal("buddy-worker-a1b2c3d4", "stop")
+
+        call_kwargs = mock_client.post.call_args[1]
+        assert call_kwargs["headers"] == {"X-Internal-Secret": "test-secret-123"}
 
     @pytest.mark.asyncio
     async def test_send_signal_invalid_raises(self):
         """send_signal raises ValueError for an unrecognised signal name."""
         mgr = RunManager()
         with pytest.raises(ValueError, match="Unknown signal"):
-            await mgr.send_signal("buddy-worker-x", "explode")
+            await mgr.send_signal("buddy-worker-a1b2c3d4", "explode")
 
     @pytest.mark.asyncio
     async def test_signal_endpoint_mapping(self):
@@ -232,9 +259,9 @@ class TestSendSignal:
         with patch("httpx.AsyncClient", return_value=mock_client):
             for signal, endpoint in SIGNAL_ENDPOINTS.items():
                 mock_client.post.reset_mock()
-                await mgr.send_signal("worker", signal)
+                await mgr.send_signal("buddy-worker-a1b2c3d4", signal)
                 called_url = mock_client.post.call_args[0][0]
-                assert called_url == f"http://worker:8500/{endpoint}", \
+                assert called_url == f"http://buddy-worker-a1b2c3d4:8500/{endpoint}", \
                     f"signal={signal!r} should map to endpoint={endpoint!r}"
 
 
@@ -335,7 +362,7 @@ class TestToDict:
         slot = RunSlot(
             run_id="r1",
             container_id="cid123",
-            container_name="buddy-worker-x",
+            container_name="buddy-worker-a1b2c3d4",
             status="running",
             prompt="hello",
             max_budget_usd=3.5,
@@ -347,7 +374,7 @@ class TestToDict:
         d = RunManager.to_dict(slot)
         assert d["run_id"] == "r1"
         assert d["container_id"] == "cid123"
-        assert d["container_name"] == "buddy-worker-x"
+        assert d["container_name"] == "buddy-worker-a1b2c3d4"
         assert d["status"] == "running"
         assert d["prompt"] == "hello"
         assert isinstance(d["max_budget_usd"], float)
@@ -379,19 +406,19 @@ class TestCleanup:
             return ""
 
         with patch.object(mgr, "_run_docker", side_effect=fake_docker):
-            mgr.cleanup_container("buddy-worker-x")
+            mgr.cleanup_container("buddy-worker-a1b2c3d4")
 
         assert calls_made[0][:2] == ["stop", "-t"]
-        assert "buddy-worker-x" in calls_made[0]
+        assert "buddy-worker-a1b2c3d4" in calls_made[0]
         assert calls_made[1][0] == "rm"
-        assert "buddy-worker-x" in calls_made[1]
+        assert "buddy-worker-a1b2c3d4" in calls_made[1]
 
     def test_cleanup_container_with_volume(self):
         """cleanup_container(remove_volume=True) also runs docker volume rm."""
         mgr = RunManager()
-        mgr.slots["buddy-worker-x"] = RunSlot(
-            container_name="buddy-worker-x",
-            volume_name="buddy-worker-repo-x",
+        mgr.slots["buddy-worker-a1b2c3d4"] = RunSlot(
+            container_name="buddy-worker-a1b2c3d4",
+            volume_name="buddy-worker-repo-a1b2c3d4",
             status="completed",
         )
         calls_made: list[list[str]] = []
@@ -401,12 +428,12 @@ class TestCleanup:
             return ""
 
         with patch.object(mgr, "_run_docker", side_effect=fake_docker):
-            mgr.cleanup_container("buddy-worker-x", remove_volume=True)
+            mgr.cleanup_container("buddy-worker-a1b2c3d4", remove_volume=True)
 
         commands = [c[0] for c in calls_made]
         assert "volume" in commands
         vol_call = next(c for c in calls_made if c[0] == "volume")
-        assert vol_call == ["volume", "rm", "buddy-worker-repo-x"]
+        assert vol_call == ["volume", "rm", "buddy-worker-repo-a1b2c3d4"]
 
     def test_cleanup_all_finished(self):
         """cleanup_all_finished only touches slots that are not starting/running."""
@@ -455,9 +482,9 @@ class TestSlotLookup:
     def test_get_slot(self):
         """get_slot returns the slot keyed by container_name."""
         mgr = RunManager()
-        slot = RunSlot(container_name="buddy-worker-x")
-        mgr.slots["buddy-worker-x"] = slot
-        assert mgr.get_slot("buddy-worker-x") is slot
+        slot = RunSlot(container_name="buddy-worker-a1b2c3d4")
+        mgr.slots["buddy-worker-a1b2c3d4"] = slot
+        assert mgr.get_slot("buddy-worker-a1b2c3d4") is slot
         assert mgr.get_slot("missing") is None
 
     def test_get_all_slots(self):
@@ -481,8 +508,8 @@ class TestKillRun:
     async def test_kill_run_sends_signal_and_cleans_up(self):
         """kill_run sends the kill signal, marks status=killed, then cleans up."""
         mgr = RunManager()
-        mgr.slots["buddy-worker-x"] = RunSlot(
-            container_name="buddy-worker-x", status="running"
+        mgr.slots["buddy-worker-a1b2c3d4"] = RunSlot(
+            container_name="buddy-worker-a1b2c3d4", status="running"
         )
 
         mock_resp = MagicMock()
@@ -497,11 +524,11 @@ class TestKillRun:
              patch.object(mgr, "cleanup_container") as mock_cleanup, \
              patch("run_manager.db") as mock_db:
             mock_db.update_worker_status = AsyncMock()
-            result = await mgr.kill_run("buddy-worker-x")
+            result = await mgr.kill_run("buddy-worker-a1b2c3d4")
 
         assert result == {"ok": True}
-        assert mgr.slots["buddy-worker-x"].status == "killed"
-        mock_cleanup.assert_called_once_with("buddy-worker-x")
+        assert mgr.slots["buddy-worker-a1b2c3d4"].status == "killed"
+        mock_cleanup.assert_called_once_with("buddy-worker-a1b2c3d4")
 
 
 # ===========================================================================

@@ -40,6 +40,13 @@ ALLOWED_CREDENTIAL_KEYS = {"claude_token", "git_token", "github_repo"}
 WORKER_LOG_DIR = "/app/worker-logs"
 CONTAINER_NAME_RE = re.compile(r"^buddy-worker-[a-f0-9]{8}$")
 
+# Mounts that must never be propagated to worker containers.
+# Docker socket access is root-equivalent on the host.
+BLOCKED_MOUNT_DESTINATIONS = {"/var/run/docker.sock"}
+
+TUNNEL_CONTAINER_NAME = "buddy-tunnel"
+TUNNEL_URL_RE = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
+
 
 @dataclass
 class RunSlot:
@@ -61,6 +68,13 @@ class RunManager:
         self.slots: dict[str, RunSlot] = {}
         self._env_cache: dict[str, Any] | None = None
         self._start_lock = asyncio.Lock()
+        self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
+
+    def _auth_headers(self) -> dict[str, str]:
+        """Build auth headers for requests to worker containers."""
+        if self._internal_secret:
+            return {"X-Internal-Secret": self._internal_secret}
+        return {}
 
     async def cleanup_orphans(self) -> int:
         """Kill any buddy-worker-* containers left from a previous process."""
@@ -144,7 +158,11 @@ class RunManager:
         return self._env_cache
 
     def _build_worker_mounts(self, worker_id: str) -> list[str]:
-        """Build -v flags for a worker. /home/agentuser/repo gets a per-worker volume."""
+        """Build -v flags for a worker. /home/agentuser/repo gets a per-worker volume.
+
+        Security: dangerous mounts (e.g. Docker socket) are never propagated.
+        Workers must not have Docker access — only the orchestrator manages containers.
+        """
         env = self._detect_environment()
         flags: list[str] = []
 
@@ -154,6 +172,9 @@ class RunManager:
         repo_handled = False
         for mount in env["mounts"]:
             dst = mount["destination"]
+            if dst in BLOCKED_MOUNT_DESTINATIONS:
+                log.debug("Blocked mount %s from worker", dst)
+                continue
             if dst == repo_dst:
                 flags += ["-v", f"{repo_volume}:{dst}"]
                 repo_handled = True
@@ -314,7 +335,8 @@ class RunManager:
         }
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
-                f"http://{container_name}:8500/start", json=run_config
+                f"http://{container_name}:8500/start", json=run_config,
+                headers=self._auth_headers(),
             )
             resp.raise_for_status()
             data = resp.json()
@@ -488,7 +510,7 @@ class RunManager:
             raise ValueError(f"Unknown signal: {signal!r}. Valid: {list(SIGNAL_ENDPOINTS)}")
         url = f"http://{container_name}:8500/{endpoint}"
         async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(url, json=payload or {})
+            resp = await client.post(url, json=payload or {}, headers=self._auth_headers())
             resp.raise_for_status()
             return resp.json()
 
@@ -571,3 +593,55 @@ class RunManager:
                 del self.slots[name]
                 cleaned += 1
         return cleaned
+
+    # ── Tunnel Management ──
+    # Only the orchestrator (which has the Docker socket) manages the tunnel.
+
+    def get_tunnel_status(self) -> dict[str, Any]:
+        """Get tunnel container status and URL."""
+        try:
+            state = self._run_docker(
+                ["inspect", "--format", "{{.State.Status}}", TUNNEL_CONTAINER_NAME],
+                timeout=10,
+            )
+            url = self._parse_tunnel_url() if state == "running" else None
+            return {"status": state, "url": url}
+        except RuntimeError:
+            return {"status": "not_found", "url": None}
+
+    def start_tunnel(self) -> dict[str, Any]:
+        """Start the tunnel container if it exists and is stopped."""
+        try:
+            state = self._run_docker(
+                ["inspect", "--format", "{{.State.Status}}", TUNNEL_CONTAINER_NAME],
+                timeout=10,
+            )
+            if state == "running":
+                return {"ok": True, "message": "already running"}
+            self._run_docker(["start", TUNNEL_CONTAINER_NAME], timeout=15)
+            return {"ok": True}
+        except RuntimeError as e:
+            if "No such" in str(e) or "not found" in str(e).lower():
+                raise ValueError("Tunnel container not found") from e
+            raise
+
+    def stop_tunnel(self) -> dict[str, Any]:
+        """Stop the tunnel container."""
+        try:
+            self._run_docker(["stop", "-t", "5", TUNNEL_CONTAINER_NAME], timeout=15)
+            return {"ok": True}
+        except RuntimeError as e:
+            if "No such" in str(e) or "not found" in str(e).lower():
+                raise ValueError("Tunnel container not found") from e
+            raise
+
+    def _parse_tunnel_url(self) -> str | None:
+        """Extract the most recent Cloudflare tunnel URL from container logs."""
+        try:
+            output = self._run_docker(
+                ["logs", "--tail", "50", TUNNEL_CONTAINER_NAME], timeout=10,
+            )
+            matches = TUNNEL_URL_RE.findall(output)
+            return matches[-1] if matches else None
+        except Exception:
+            return None
