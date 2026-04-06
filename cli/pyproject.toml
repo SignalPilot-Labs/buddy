@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "buddy-cli"
+name = "autofyn-cli"
 version = "0.1.0"
-description = "Buddy CLI — manage Buddy services, runs, and resources from the terminal"
+description = "AutoFyn CLI — manage AutoFyn services, runs, and resources from the terminal"
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.15.0",
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-buddy = "cli.main:app"
+autofyn = "cli.main:app"
 
 [project.optional-dependencies]
 dev = [

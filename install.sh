@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BUDDY_HOME="$HOME/.buddy"
+AUTOFYN_HOME="$HOME/.autofyn"
 
-echo "[install] Installing Buddy to ${BUDDY_HOME}/"
+echo "[install] Installing AutoFyn to ${AUTOFYN_HOME}/"
 
-# Copy repo to ~/.buddy/
-if [ -d "$BUDDY_HOME" ]; then
+# Copy repo to ~/.autofyn/
+if [ -d "$AUTOFYN_HOME" ]; then
     echo "[install] Updating existing installation"
     # Preserve config.json if it exists
     CONFIG_BAK=""
-    if [ -f "$BUDDY_HOME/config.json" ]; then
+    if [ -f "$AUTOFYN_HOME/config.json" ]; then
         CONFIG_BAK="$(mktemp)"
-        cp "$BUDDY_HOME/config.json" "$CONFIG_BAK"
+        cp "$AUTOFYN_HOME/config.json" "$CONFIG_BAK"
     fi
-    rm -rf "$BUDDY_HOME"
-    mkdir -p "$BUDDY_HOME"
-    cp -R . "$BUDDY_HOME/"
+    rm -rf "$AUTOFYN_HOME"
+    mkdir -p "$AUTOFYN_HOME"
+    cp -R . "$AUTOFYN_HOME/"
     # Restore config
     if [ -n "$CONFIG_BAK" ]; then
-        mv "$CONFIG_BAK" "$BUDDY_HOME/config.json"
+        mv "$CONFIG_BAK" "$AUTOFYN_HOME/config.json"
     fi
 else
-    mkdir -p "$BUDDY_HOME"
-    cp -R . "$BUDDY_HOME/"
+    mkdir -p "$AUTOFYN_HOME"
+    cp -R . "$AUTOFYN_HOME/"
 fi
 
 # Install CLI
-pip install -e "$BUDDY_HOME/cli/" --quiet
+pip install -e "$AUTOFYN_HOME/cli/" --quiet
 
 # Build Docker images
 echo "[install] Building Docker images..."
-bash "$BUDDY_HOME/cli/scripts/build.sh"
+bash "$AUTOFYN_HOME/cli/scripts/build.sh"
 
 echo ""
-echo "[install] Done. Run 'buddy start' to launch services."
+echo "[install] Done. Run 'autofyn start' to launch services."

@@ -1,4 +1,4 @@
-"""Buddy Sandbox Manager — unified HTTP API for code execution.
+"""AutoFyn Sandbox Manager — unified HTTP API for code execution.
 
 Auto-detects the best available backend:
   - /dev/kvm present → Firecracker microVMs (snapshot-accelerated, ~200ms)

@@ -1,5 +1,5 @@
 ---
-description: "Use when reviewing code quality, fixing error handling, adding input validation, or improving code structure. Covers patterns for the Buddy Python and TypeScript codebases."
+description: "Use when reviewing code quality, fixing error handling, adding input validation, or improving code structure. Covers patterns for the AutoFyn Python and TypeScript codebases."
 ---
 
 # Code Quality Standards

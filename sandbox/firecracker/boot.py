@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Buddy Sandbox Init — runs as PID 1 inside Firecracker microVM.
+AutoFyn Sandbox Init — runs as PID 1 inside Firecracker microVM.
 
 1. Mounts filesystems
 2. Pre-imports common Python modules (the expensive part)

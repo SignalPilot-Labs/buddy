@@ -1,4 +1,4 @@
-"""Buddy agent HTTP server.
+"""AutoFyn agent HTTP server.
 
 AgentServer wraps FastAPI and orchestrates bootstrap → loop → teardown.
 Control events are pushed to the active EventBus.
@@ -48,7 +48,7 @@ class AgentServer:
         self._session: SessionGate | None = None
         self._bootstrapping = False
         self.current_run_id: str | None = None
-        self.app = FastAPI(title="Buddy Agent", lifespan=self._lifespan)
+        self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
         self._setup_internal_auth()
         self._register_routes()

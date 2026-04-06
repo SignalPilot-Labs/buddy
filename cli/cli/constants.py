@@ -1,11 +1,11 @@
-"""Shared constants for the Buddy CLI."""
+"""Shared constants for the AutoFyn CLI."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-# Buddy home — everything lives here after install
-BUDDY_HOME: str = str(Path.home() / ".buddy")
+# AutoFyn home — everything lives here after install
+AUTOFYN_HOME: str = str(Path.home() / ".autofyn")
 
 # HTTP client
 HTTP_TIMEOUT_SECONDS: int = 15
@@ -33,12 +33,12 @@ FUZZY_MAX_HEIGHT: str = "70%"
 DEFAULT_API_URL: str = "http://localhost:3401"
 
 # Docker container name for reading secrets from the volume
-DASHBOARD_CONTAINER: str = "buddy-dashboard"
+DASHBOARD_CONTAINER: str = "autofyn-dashboard"
 API_KEY_CONTAINER_PATH: str = "/data/api.key"
 
 # Scripts
-UP_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "up.sh")
-BUILD_SCRIPT: str = str(Path(BUDDY_HOME) / "cli" / "scripts" / "build.sh")
+UP_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "up.sh")
+BUILD_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "build.sh")
 
 # Git
 GIT_REMOTE_ORIGIN: str = "origin"

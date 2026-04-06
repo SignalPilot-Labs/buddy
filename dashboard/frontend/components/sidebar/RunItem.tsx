@@ -34,7 +34,7 @@ export function RunItem({
   active: boolean;
   onClick: () => void;
 }) {
-  const branchShort = run.branch_name.replace("buddy/", "").slice(0, 20);
+  const branchShort = run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   return (
     <motion.button

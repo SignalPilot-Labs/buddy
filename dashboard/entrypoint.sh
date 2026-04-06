@@ -5,7 +5,7 @@ API_PORT="${API_PORT:-3401}"
 UI_PORT="${UI_PORT:-3400}"
 API_KEY_FILE="/data/api.key"
 
-# ── Generate API key if missing (persists in buddy-keys volume) ───────────
+# ── Generate API key if missing (persists in autofyn-keys volume) ───────────
 if [ ! -f "$API_KEY_FILE" ]; then
     head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24 > "$API_KEY_FILE"
     chmod 600 "$API_KEY_FILE"
@@ -15,7 +15,7 @@ fi
 API_KEY="$(cat "$API_KEY_FILE")"
 
 # Inject into frontend runtime config (NEXT_PUBLIC_ only works at build time)
-echo "window.__BUDDY_API_KEY__=\"${API_KEY}\";" > /app/frontend/public/config.js
+echo "window.__AUTOFYN_API_KEY__=\"${API_KEY}\";" > /app/frontend/public/config.js
 
 echo "[dashboard] API key: ${API_KEY}"
 echo "[dashboard] Host IP: ${HOST_IP:-not set}"

@@ -1,4 +1,4 @@
-"""buddy config — manage CLI configuration (~/.buddy/config.json)."""
+"""autofyn config — manage CLI configuration (~/.autofyn/config.json)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from cli.constants import DEFAULT_API_URL
 from cli.output import console, print_detail, print_json, print_success
 
 app = typer.Typer(
-    help="Manage CLI configuration. Settings are saved to ~/.buddy/config.json.",
+    help="Manage CLI configuration. Settings are saved to ~/.autofyn/config.json.",
     rich_markup_mode=None,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -23,12 +23,12 @@ def get_config() -> None:
 
     \b
     Example:
-      buddy config get
+      autofyn config get
     """
     cfg = _load_config()
     if not cfg:
         console.print(f"[dim]No config file found at {CONFIG_PATH}[/dim]")
-        console.print("[dim]Using defaults. Run 'buddy config set' to configure.[/dim]")
+        console.print("[dim]Using defaults. Run 'autofyn config set' to configure.[/dim]")
         cfg = {"api_url": DEFAULT_API_URL, "api_key": "(auto from container)"}
     if state.json_mode:
         print_json(cfg)
@@ -40,11 +40,11 @@ def get_config() -> None:
 def set_config(
     api_key: Optional[str] = typer.Option(None, "--api-key", metavar="<key>", help="Dashboard API key"),
 ) -> None:
-    """Set CLI configuration values. Saved to ~/.buddy/config.json.
+    """Set CLI configuration values. Saved to ~/.autofyn/config.json.
 
     \b
     Examples:
-      buddy config set --api-key my-secret-key
+      autofyn config set --api-key my-secret-key
     """
     cfg = _load_config()
     updated: list[str] = []
@@ -67,6 +67,6 @@ def show_path() -> None:
 
     \b
     Example:
-      buddy config path
+      autofyn config path
     """
     console.print(str(CONFIG_PATH))

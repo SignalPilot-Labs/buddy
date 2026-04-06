@@ -1,4 +1,4 @@
-# Buddy Sandbox — gVisor backend (no KVM required)
+# AutoFyn Sandbox — gVisor backend (no KVM required)
 # Works on macOS (Apple Silicon), Linux, and CI environments.
 #
 # Versions pinned in build.sh (source of truth).
@@ -24,18 +24,18 @@ RUN ARCH=$(uname -m) && \
     -o /usr/local/bin/runsc && \
     chmod +x /usr/local/bin/runsc
 
-RUN mkdir -p /opt/buddy
+RUN mkdir -p /opt/autofyn
 
-COPY sandbox/pyproject.toml /opt/buddy/
-RUN pip install --no-cache-dir /opt/buddy/
+COPY sandbox/pyproject.toml /opt/autofyn/
+RUN pip install --no-cache-dir /opt/autofyn/
 
-COPY sandbox/base.py /opt/buddy/
-COPY sandbox/gvisor.py /opt/buddy/
-COPY sandbox/firecracker/ /opt/buddy/firecracker/
-COPY sandbox/manager.py /opt/buddy/
-COPY config/ /opt/buddy/config/
+COPY sandbox/base.py /opt/autofyn/
+COPY sandbox/gvisor.py /opt/autofyn/
+COPY sandbox/firecracker/ /opt/autofyn/firecracker/
+COPY sandbox/manager.py /opt/autofyn/
+COPY config/ /opt/autofyn/config/
 
-WORKDIR /opt/buddy
+WORKDIR /opt/autofyn
 
 EXPOSE 8080
 

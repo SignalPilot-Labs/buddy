@@ -1,4 +1,4 @@
-"""Buddy CLI — manage Buddy services, runs, and resources from the terminal."""
+"""AutoFyn CLI — manage AutoFyn services, runs, and resources from the terminal."""
 
 from __future__ import annotations
 
@@ -11,18 +11,18 @@ from cli.config import state
 from cli.constants import DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
-Buddy CLI — manage services, runs, settings, and repos.
+AutoFyn CLI — manage services, runs, settings, and repos.
 
 \b
 Getting started:
-  buddy start                                  Start all services
-  buddy settings set --claude-token <token>   Configure credentials
-  buddy run new -p "Fix auth bugs" -d 30      Start a 30-minute run
-  buddy run                                   Select and manage a run
-  buddy repos list                             See configured repos (auto-detects local repo)"""
+  autofyn start                                  Start all services
+  autofyn settings set --claude-token <token>   Configure credentials
+  autofyn run new -p "Fix auth bugs" -d 30      Start a 30-minute run
+  autofyn run                                   Select and manage a run
+  autofyn repos list                             See configured repos (auto-detects local repo)"""
 
 app = typer.Typer(
-    name="buddy",
+    name="autofyn",
     help=_HELP,
     no_args_is_help=True,
     rich_markup_mode=None,
@@ -52,22 +52,22 @@ def main(
 
 @app.command("start")
 def start() -> None:
-    """Start all Buddy services (docker compose up -d). Use 'buddy install' for first-time setup.
+    """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
 
     \b
     Example:
-      buddy start
+      autofyn start
     """
     services.start_services()
 
 
 @app.command("stop")
 def stop() -> None:
-    """Stop all running Buddy containers.
+    """Stop all running AutoFyn containers.
 
     \b
     Example:
-      buddy stop
+      autofyn stop
     """
     services.stop_services()
 
@@ -79,7 +79,7 @@ def update() -> None:
 
     \b
     Example:
-      buddy update
+      autofyn update
     """
     services.update_services()
 
@@ -92,19 +92,19 @@ def logs(
 
     \b
     Examples:
-      buddy logs            # tail last 100 lines + follow
-      buddy logs 50         # tail last 50 lines + follow
+      autofyn logs            # tail last 100 lines + follow
+      autofyn logs 50         # tail last 50 lines + follow
     """
     services.show_logs(lines)
 
 
 @app.command("kill")
 def kill() -> None:
-    """Remove all Buddy containers (docker compose down). Asks for confirmation.
+    """Remove all AutoFyn containers (docker compose down). Asks for confirmation.
 
     \b
     Example:
-      buddy kill
+      autofyn kill
     """
     services.kill_services()
 

@@ -1,4 +1,4 @@
-"""HTTP client for the Buddy dashboard API."""
+"""HTTP client for the AutoFyn dashboard API."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ from cli.constants import HTTP_TIMEOUT_SECONDS
 
 err = Console(stderr=True)
 
-_client: BuddyClient | None = None
+_client: AutoFynClient | None = None
 
 
-class BuddyClient:
+class AutoFynClient:
     """Thin wrapper around httpx that handles auth and error formatting."""
 
     def __init__(self, base_url: str, api_key: str | None = None) -> None:
@@ -66,15 +66,15 @@ class BuddyClient:
             resp = self._http.request(method, path, **kwargs)
         except httpx.ConnectError:
             err.print(
-                f"[red]Cannot connect to Buddy at {self.base_url}[/red]\n"
-                "Is Buddy running? Try: buddy start"
+                f"[red]Cannot connect to AutoFyn at {self.base_url}[/red]\n"
+                "Is AutoFyn running? Try: autofyn start"
             )
             sys.exit(1)
 
         if resp.status_code == 401:
             err.print(
                 "[red]Authentication failed[/red] — check your API key.\n"
-                "Set it with: buddy settings set --api-key YOUR_KEY"
+                "Set it with: autofyn settings set --api-key YOUR_KEY"
             )
             sys.exit(1)
 
@@ -96,9 +96,9 @@ def _extract_error_detail(resp: httpx.Response) -> str:
     return resp.text
 
 
-def get_client() -> BuddyClient:
+def get_client() -> AutoFynClient:
     """Return (or create) the module-level client singleton."""
     global _client
     if _client is None:
-        _client = BuddyClient(resolve_api_url(), resolve_api_key())
+        _client = AutoFynClient(resolve_api_url(), resolve_api_key())
     return _client

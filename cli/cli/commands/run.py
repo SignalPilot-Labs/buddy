@@ -1,4 +1,4 @@
-"""buddy run — interactive run management with scrollable selection."""
+"""autofyn run — interactive run management with scrollable selection."""
 
 from __future__ import annotations
 
@@ -216,9 +216,9 @@ def start_run(
 
     \b
     Examples:
-      buddy run new -p "Fix login bugs"
-      buddy run new -p "Add dark mode" -d 60 -b 5.00
-      buddy run new -p "Refactor API" --base-branch develop
+      autofyn run new -p "Fix login bugs"
+      autofyn run new -p "Add dark mode" -d 60 -b 5.00
+      autofyn run new -p "Refactor API" --base-branch develop
     """
     _resolve_repo_for_run()
     body = {
@@ -243,8 +243,8 @@ def list_runs(
 
     \b
     Examples:
-      buddy run list
-      buddy run list -r owner/repo
+      autofyn run list
+      autofyn run list -r owner/repo
     """
     params = {}
     if repo:
@@ -274,13 +274,13 @@ def list_runs(
 
 @app.command("get")
 def get_run(
-    run_id: str = typer.Argument(metavar="<run_id>", help="Run ID (UUID from 'buddy run list')"),
+    run_id: str = typer.Argument(metavar="<run_id>", help="Run ID (UUID from 'autofyn run list')"),
 ) -> None:
     """Show run details and open an interactive action menu (pause, stop, inject, stream, etc).
 
     \b
     Examples:
-      buddy run get a1b2c3d4-5678-90ab-cdef-1234567890ab
+      autofyn run get a1b2c3d4-5678-90ab-cdef-1234567890ab
     """
     run = get_client().get(f"/api/runs/{run_id}")
     if state.json_mode:
@@ -297,13 +297,13 @@ def run_callback(ctx: typer.Context) -> None:
 
     \b
     Run without a subcommand to open an interactive run selector:
-      buddy run
+      autofyn run
 
     \b
     Or use a subcommand:
-      buddy run new -p "Fix bugs" -d 30    Start a new run
-      buddy run list                        List recent runs
-      buddy run get <run_id>                Inspect a specific run
+      autofyn run new -p "Fix bugs" -d 30    Start a new run
+      autofyn run list                        List recent runs
+      autofyn run get <run_id>                Inspect a specific run
     """
     if ctx.invoked_subcommand is not None:
         return

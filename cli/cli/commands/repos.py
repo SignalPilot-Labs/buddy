@@ -1,4 +1,4 @@
-"""buddy repos — repository management."""
+"""autofyn repos — repository management."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def list_repos() -> None:
 
     \b
     Example:
-      buddy repos list
+      autofyn repos list
     """
     data = get_client().get("/api/repos")
     if state.json_mode:
@@ -57,7 +57,7 @@ def detect() -> None:
 
     \b
     Example:
-      buddy repos detect
+      autofyn repos detect
     """
     slug = detect_local_repo(Path.cwd())
     if slug is None:
@@ -74,7 +74,7 @@ def set_active(
 
     \b
     Example:
-      buddy repos set-active myorg/my-app
+      autofyn repos set-active myorg/my-app
     """
     get_client().put("/api/repos/active", json={"repo": repo})
     print_success(f"Active repo set to {repo}")
@@ -88,7 +88,7 @@ def remove(
 
     \b
     Example:
-      buddy repos remove myorg/old-repo
+      autofyn repos remove myorg/old-repo
     """
     typer.confirm(f"Remove {repo} from the repo list?", abort=True)
     get_client().delete(f"/api/repos/{repo}")

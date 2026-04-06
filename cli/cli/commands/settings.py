@@ -1,4 +1,4 @@
-"""buddy settings — credential and config management."""
+"""autofyn settings — credential and config management."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from cli.output import console, print_detail, print_json, print_success
 from cli.config import state
 
 app = typer.Typer(
-    help="Manage Buddy server settings and credentials (API tokens, repo, budget).",
+    help="Manage AutoFyn server settings and credentials (API tokens, repo, budget).",
     rich_markup_mode=None,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
@@ -23,7 +23,7 @@ def status() -> None:
 
     \b
     Example:
-      buddy settings status
+      autofyn settings status
     """
     data = get_client().get("/api/settings/status")
     if state.json_mode:
@@ -51,7 +51,7 @@ def get_settings() -> None:
 
     \b
     Example:
-      buddy settings get
+      autofyn settings get
     """
     data = get_client().get("/api/settings")
     if state.json_mode:
@@ -72,10 +72,10 @@ def set_settings(
 
     \b
     Examples:
-      buddy settings set --claude-token sk-ant-... --git-token ghp_...
-      buddy settings set --github-repo owner/repo
-      buddy settings set --budget 10.00
-      buddy settings set --api-key my-secret-key
+      autofyn settings set --claude-token sk-ant-... --git-token ghp_...
+      autofyn settings set --github-repo owner/repo
+      autofyn settings set --budget 10.00
+      autofyn settings set --api-key my-secret-key
     """
     body: dict = {}
     if claude_token is not None:

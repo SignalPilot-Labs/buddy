@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "buddy-dashboard"
+name = "autofyn-dashboard"
 version = "0.1.0"
-description = "Buddy dashboard — FastAPI backend for agent run tracking and control"
+description = "AutoFyn dashboard — FastAPI backend for agent run tracking and control"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115.0",
