@@ -4,6 +4,8 @@
 #   docker compose up --build -d              # macOS / no KVM (gVisor sandbox)
 #   docker compose --profile firecracker up --build -d  # Linux with /dev/kvm
 
+name: autofyn
+
 services:
   db:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
