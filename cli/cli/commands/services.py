@@ -46,7 +46,8 @@ def build_services() -> None:
 
 
 def start_services() -> None:
-    """Run up.sh — docker compose up -d only. No build."""
+    """Tear down stale containers, then docker compose up -d."""
+    _compose(["down"])
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
 
