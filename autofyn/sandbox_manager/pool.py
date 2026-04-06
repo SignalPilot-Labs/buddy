@@ -8,6 +8,8 @@ import asyncio
 import logging
 
 import docker
+import httpx
+import docker.errors
 from docker.models.containers import Container
 
 from utils.constants import (
@@ -26,7 +28,7 @@ class SandboxPool:
 
     def __init__(self) -> None:
         self._docker = docker.from_env()
-        self._containers: dict[str, str] = {}  # run_key -> container_id
+        self._containers: dict[str, str] = {}
 
     async def create(self, run_key: str, health_timeout: int) -> SandboxClient:
         """Spin up a sandbox container for a run. Returns a connected SandboxClient."""
@@ -42,11 +44,12 @@ class SandboxPool:
             remove=False,
             network=SANDBOX_POOL_NETWORK,
             volumes={volume_name: {"bind": "/home/agentuser/repo", "mode": "rw"}},
+            # gVisor requires these capabilities
             cap_add=["SYS_PTRACE", "SYS_ADMIN"],
             security_opt=["apparmor:unconfined"],
             environment={"GIT_TERMINAL_PROMPT": "0"},
         )
-        self._containers[run_key] = container.id or "Unknown"
+        self._containers[run_key] = container.id or ""
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
 
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
@@ -61,18 +64,9 @@ class SandboxPool:
             return
         container_name = f"autofyn-sandbox-{run_key}"
         volume_name = f"autofyn-repo-{run_key}"
-        try:
-            container = self._docker.containers.get(container_id)
-            await asyncio.to_thread(container.remove, force=True)
-            log.info("Removed sandbox %s", container_name)
-        except Exception as e:
-            log.warning("Failed to remove sandbox %s: %s", container_name, e)
-        try:
-            vol = self._docker.volumes.get(volume_name)
-            await asyncio.to_thread(vol.remove, force=True)
-            log.info("Removed volume %s", volume_name)
-        except Exception as e:
-            log.debug("Volume cleanup %s: %s", volume_name, e)
+
+        await self._remove_container(container_id, container_name)
+        await self._remove_volume(volume_name)
 
     async def destroy_all(self) -> None:
         """Tear down all managed sandbox containers."""
@@ -86,12 +80,30 @@ class SandboxPool:
         name: str,
         timeout: int,
     ) -> None:
-        """Poll sandbox health until ready."""
+        """Poll sandbox health until ready or timeout."""
         for _ in range(timeout // SANDBOX_POOL_HEALTH_POLL_SEC + 1):
             try:
                 await client.health()
                 log.info("Sandbox %s healthy", name)
                 return
-            except Exception:
+            except (httpx.ConnectError, httpx.TimeoutException, ConnectionRefusedError):
                 await asyncio.sleep(SANDBOX_POOL_HEALTH_POLL_SEC)
         raise TimeoutError(f"Sandbox {name} not healthy after {timeout}s")
+
+    async def _remove_container(self, container_id: str, name: str) -> None:
+        """Remove a container by id. No-op if already gone."""
+        try:
+            container = self._docker.containers.get(container_id)
+            await asyncio.to_thread(container.remove, force=True)
+            log.info("Removed sandbox %s", name)
+        except docker.errors.NotFound:
+            log.debug("Sandbox %s already removed", name)
+
+    async def _remove_volume(self, volume_name: str) -> None:
+        """Remove a volume. No-op if already gone."""
+        try:
+            vol = self._docker.volumes.get(volume_name)
+            await asyncio.to_thread(vol.remove, force=True)
+            log.info("Removed volume %s", volume_name)
+        except docker.errors.NotFound:
+            log.debug("Volume %s already removed", volume_name)

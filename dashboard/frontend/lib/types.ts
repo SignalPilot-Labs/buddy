@@ -23,6 +23,7 @@ export interface RepoInfo {
 }
 
 export type RunStatus =
+  | "starting"
   | "running"
   | "paused"
   | "stopped"
@@ -79,6 +80,13 @@ export const STATUS_META: Record<
   RunStatus,
   { label: string; color: string; bg: string; dot: string; pulse: boolean }
 > = {
+  starting: {
+    label: "Starting",
+    color: "text-[#ffaa00]",
+    bg: "bg-[#ffaa00]/10",
+    dot: "bg-[#ffaa00]",
+    pulse: true,
+  },
   running: {
     label: "Running",
     color: "text-[#00ff88]",
@@ -329,22 +337,6 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
-}
-
-// ---------------------------------------------------------------------------
-// Active Runs (from /status endpoint)
-// ---------------------------------------------------------------------------
-
-export interface ActiveRunInfo {
-  run_id: string | null;
-  status: string;
-  started_at: number;
-}
-
-export interface AgentStatus {
-  active: number;
-  max_concurrent: number;
-  runs: ActiveRunInfo[];
 }
 
 export interface PoolToken {

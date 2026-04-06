@@ -24,21 +24,19 @@ from utils.constants import (
     SANDBOX_HEALTH_TIMEOUT_DEFAULT,
     SERVER_HOST,
     SERVER_PORT,
+    START_RATE_LIMIT_MAX,
+    START_RATE_LIMIT_WINDOW_SEC,
 )
 from utils.prompts import PromptLoader
 from utils.models import ActiveRun, StartRequest
 from sandbox_manager.pool import SandboxPool
-from endpoints import register_routes
 from sandbox_manager.repo_ops import RepoOps
 from core.bootstrap import Bootstrap
 from core.agent_loop import AgentLoop
 from core.teardown import RunTeardown
+from endpoints import register_routes
 
 log = logging.getLogger("server")
-
-MAX_CONCURRENT = 10
-RATE_LIMIT_MAX = 5
-RATE_LIMIT_WINDOW_SEC = 60.0
 
 
 class AgentServer:
@@ -90,8 +88,8 @@ class AgentServer:
     def _check_rate_limit(self) -> None:
         """Sliding-window rate limiter. Raises 429 on limit."""
         now = time.monotonic()
-        self._start_timestamps[:] = [t for t in self._start_timestamps if now - t < RATE_LIMIT_WINDOW_SEC]
-        if len(self._start_timestamps) >= RATE_LIMIT_MAX:
+        self._start_timestamps[:] = [t for t in self._start_timestamps if now - t < START_RATE_LIMIT_WINDOW_SEC]
+        if len(self._start_timestamps) >= START_RATE_LIMIT_MAX:
             raise HTTPException(status_code=429, detail="Too many start requests.")
         self._start_timestamps.append(now)
 
@@ -156,7 +154,7 @@ class AgentServer:
             await self._pool.destroy(run_id)
 
     def _on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
-        """Handle task completion or crash."""
+        """Handle task completion or crash. Persists final status to DB."""
         try:
             exc = task.exception()
             if exc:
@@ -164,9 +162,17 @@ class AgentServer:
                 log.error("Run %s crashed:\n%s", active.run_id, tb)
                 active.status = "crashed"
                 active.error_message = str(exc)
+                if active.run_id:
+                    asyncio.create_task(db.finish_run(
+                        active.run_id, "crashed", None, None, None, None, str(exc), None, None,
+                    ))
         except asyncio.CancelledError:
             active.status = "killed"
             active.error_message = "Cancelled"
+            if active.run_id:
+                asyncio.create_task(db.finish_run(
+                    active.run_id, "killed", None, None, None, None, "Cancelled", None, None,
+                ))
         finally:
             active.task = None
 
@@ -175,7 +181,7 @@ _server = AgentServer()
 app = _server.app
 
 
-def main():
+def main() -> None:
     """Run the agent HTTP server."""
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
     uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT, log_level="info")

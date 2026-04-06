@@ -3,19 +3,24 @@
 All FastAPI routes are registered here via register_routes().
 """
 
+from __future__ import annotations
+
 import asyncio
 import os
 import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
 from utils import db
+from utils.constants import MAX_CONCURRENT_RUNS
 from utils.models import ActiveRun, StartRequest, InjectRequest
 
-MAX_CONCURRENT = 10
+if TYPE_CHECKING:
+    from server import AgentServer
 
 
-def register_routes(app: FastAPI, server) -> None:
+def register_routes(app: FastAPI, server: AgentServer) -> None:
     """Register all HTTP route handlers on the FastAPI app."""
 
     @app.get("/health")
@@ -23,7 +28,7 @@ def register_routes(app: FastAPI, server) -> None:
         return {
             "status": "running" if server._active_count() > 0 else "idle",
             "active_runs": server._active_count(),
-            "max_concurrent": MAX_CONCURRENT,
+            "max_concurrent": MAX_CONCURRENT_RUNS,
         }
 
     @app.get("/status")
@@ -39,7 +44,7 @@ def register_routes(app: FastAPI, server) -> None:
             return result
         return {
             "active": server._active_count(),
-            "max_concurrent": MAX_CONCURRENT,
+            "max_concurrent": MAX_CONCURRENT_RUNS,
             "runs": [
                 {"run_id": r.run_id, "status": r.status, "started_at": r.started_at}
                 for r in server._runs.values()
@@ -49,13 +54,16 @@ def register_routes(app: FastAPI, server) -> None:
     @app.post("/start")
     async def start_run(body: StartRequest):
         server._check_rate_limit()
+
+        if server._active_count() >= MAX_CONCURRENT_RUNS:
+            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
+
+        # Set credentials in env for this process. Tokens are per-account,
+        # not per-run — each sandbox gets them via RepoOps._auth_env().
         if body.claude_token:
             os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = body.claude_token
         if body.git_token:
             os.environ["GIT_TOKEN"] = body.git_token
-
-        if server._active_count() >= MAX_CONCURRENT:
-            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT}) reached")
 
         run_id = str(uuid.uuid4())
         github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")

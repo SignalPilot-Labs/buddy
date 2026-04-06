@@ -198,6 +198,12 @@ async def list_branches() -> list:
     return await agent_request("GET", "/branches", AGENT_TIMEOUT_LONG, None, None, ["main"])
 
 
+@router.get("/agent/logs")
+async def agent_logs(tail: int = Query(default=500, le=5000)) -> dict:
+    """Fetch container logs from the agent."""
+    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, {"tail": tail}, {"lines": [], "total": 0})
+
+
 @router.post("/agent/stop")
 async def stop_agent_instant(run_id: str | None = None) -> dict:
     """Stop a run. If run_id given, stop that specific run."""

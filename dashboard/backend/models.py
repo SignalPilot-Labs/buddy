@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
-ParallelRunId = Path(min_length=8, max_length=36, pattern=r"^[a-f0-9\-]+$")
 
 
 class ControlSignalRequest(BaseModel):

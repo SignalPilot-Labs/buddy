@@ -1,12 +1,19 @@
 """All data models for the agent package — runtime context, results, and HTTP request schemas."""
 
+from __future__ import annotations
+
+import asyncio
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
+
+if TYPE_CHECKING:
+    from core.event_bus import EventBus
+    from tools.session import SessionGate
 
 
 # ── Sandbox Communication ──
@@ -70,10 +77,9 @@ class ActiveRun:
     status: str = "starting"
     started_at: float = field(default_factory=time.time)
     error_message: str | None = None
-    # Set after bootstrap — not serialized
-    task: Any = field(default=None, repr=False)
-    events: Any = field(default=None, repr=False)
-    session: Any = field(default=None, repr=False)
+    task: asyncio.Task | None = field(default=None, repr=False)
+    events: EventBus | None = field(default=None, repr=False)
+    session: SessionGate | None = field(default=None, repr=False)
 
 
 # ── HTTP Request Schemas ──

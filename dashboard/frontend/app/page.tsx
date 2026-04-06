@@ -13,7 +13,7 @@ import { fetchSettingsStatus } from "@/lib/settings-api";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
-import { startRun as apiStartRun, stopAgentInstant, killAgent, pauseAgent, unlockAgent, injectPrompt as apiInjectPrompt } from "@/lib/api";
+import { startRun as apiStartRun, stopAgentInstant, killAgent, pauseAgent, resumeAgent, unlockAgent, injectPrompt as apiInjectPrompt } from "@/lib/api";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { ControlBar } from "@/components/controls/ControlBar";
@@ -466,7 +466,7 @@ export default function MonitorPage() {
         <ControlBar
           status={runStatus}
           onPause={() => selectedRunId && pauseAgent(selectedRunId)}
-          onResume={() => {}}
+          onResume={() => selectedRunId && resumeAgent(selectedRunId)}
           onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
           onKill={() => selectedRunId && killAgent(selectedRunId)}
           onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}
@@ -689,7 +689,7 @@ export default function MonitorPage() {
         onClose={() => setControlsOpen(false)}
         status={runStatus}
         onPause={() => selectedRunId && pauseAgent(selectedRunId)}
-        onResume={() => {}}
+        onResume={() => selectedRunId && resumeAgent(selectedRunId)}
         onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
         onKill={() => selectedRunId && killAgent(selectedRunId)}
         onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}

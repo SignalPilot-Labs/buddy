@@ -37,6 +37,9 @@ MAX_OPERATOR_MESSAGES = 25
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
+MAX_CONCURRENT_RUNS = 10
+START_RATE_LIMIT_MAX = 5
+START_RATE_LIMIT_WINDOW_SEC = 60.0
 
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.
