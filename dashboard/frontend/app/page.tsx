@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, startRun, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, AGENT_UNREACHABLE_MSG, API_FETCH_ERROR_MSG } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
@@ -21,6 +21,7 @@ import { InjectPanel } from "@/components/controls/InjectPanel";
 import { StartRunModal } from "@/components/controls/StartRunModal";
 import { StatsBar } from "@/components/stats/StatsBar";
 import { RateLimitBanner } from "@/components/controls/RateLimitBanner";
+import { ErrorBanner } from "@/components/controls/ErrorBanner";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +34,7 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(null);
   const [repos, setRepos] = useState<RepoInfo[]>([]);
-  const { runs, loading: runsLoading, refresh: refreshRuns } = useRuns(activeRepoFilter);
+  const { runs, loading: runsLoading, refresh: refreshRuns, fetchError } = useRuns(activeRepoFilter);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [historyEvents, setHistoryEvents] = useState<FeedEvent[]>([]);
@@ -402,6 +403,11 @@ export default function MonitorPage() {
                     ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
                     : "Active"}
           </span>
+          {agentHealth?.status === "unreachable" && (
+            <span className="text-[9px] text-[#ffaa00] bg-[#ffaa00]/10 rounded px-1.5 py-0.5">
+              {AGENT_UNREACHABLE_MSG}
+            </span>
+          )}
         </div>
 
         {/* Settings link */}
@@ -497,10 +503,20 @@ export default function MonitorPage() {
         />
       )}
 
+      {/* Error Banner */}
+      {(selectedRun?.status === "error" || selectedRun?.status === "crashed" || selectedRun?.status === "killed") && (
+        <ErrorBanner status={selectedRun.status} errorMessage={selectedRun.error_message} />
+      )}
+
       {/* Main Content */}
       <div className="flex flex-1 min-h-0">
         {/* ── Desktop Layout ── */}
         <div className="desktop-sidebar">
+          {fetchError && runs.length === 0 && !runsLoading && (
+            <div className="bg-[#ff4444]/[0.04] border-b border-[#ff4444]/15 px-4 py-2 text-[9px] text-[#ff4444]">
+              {API_FETCH_ERROR_MSG}
+            </div>
+          )}
           <RunList
             runs={runs}
             activeId={selectedRunId}

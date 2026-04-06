@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
+import { FATAL_AUDIT_EVENT_TYPES } from "@/lib/constants";
 
 /* ── Helpers ── */
 
@@ -406,6 +407,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 function AuditCard({ event }: { event: AuditEvent }) {
   const [expanded, setExpanded] = useState(false);
   const meta = AUDIT_EVENT_META[event.event_type] || { label: event.event_type, color: "text-[#777]", bg: "bg-[#777]/[0.03]", iconColor: "#777" };
+  const isFatal = FATAL_AUDIT_EVENT_TYPES.includes(event.event_type);
 
   // Extract key details for inline preview
   const preview = useMemo(() => {
@@ -448,7 +450,8 @@ function AuditCard({ event }: { event: AuditEvent }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.15 }}
       className={clsx(
-        "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
+        "group rounded-r px-3 py-1.5 cursor-pointer transition-colors",
+        isFatal ? "border-l-[5px]" : "border-l-[3px]",
         `border-l-[${meta.iconColor}]`,
         meta.bg,
         "hover:bg-white/[0.025]"
@@ -461,6 +464,23 @@ function AuditCard({ event }: { event: AuditEvent }) {
           {formatTs(event.ts)}
         </span>
 
+        {isFatal && (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="#ff4444"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            className="shrink-0"
+          >
+            <path d="M6 1.5L10.5 9.5H1.5L6 1.5z" />
+            <line x1="6" y1="4.5" x2="6" y2="6.5" />
+            <circle cx="6" cy="8" r="0.4" fill="#ff4444" stroke="none" />
+          </svg>
+        )}
+
         <span className="shrink-0 opacity-70">
           {getAuditIcon(event.event_type, meta.iconColor)}
         </span>
@@ -469,9 +489,17 @@ function AuditCard({ event }: { event: AuditEvent }) {
           {meta.label}
         </span>
 
-        <span className="text-[10px] text-[#999] truncate min-w-0 flex-1">
-          {preview}
-        </span>
+        {isFatal ? (
+          <div className="bg-[#ff4444]/[0.03] rounded-r px-2 py-0.5 mt-1 flex-1 min-w-0">
+            <span className="text-[10px] text-[#999] truncate block">
+              {preview}
+            </span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-[#999] truncate min-w-0 flex-1">
+            {preview}
+          </span>
+        )}
 
         <svg
           width="10"

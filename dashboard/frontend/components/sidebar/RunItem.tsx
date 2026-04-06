@@ -4,6 +4,7 @@ import { clsx } from "clsx";
 import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
+import { ERROR_STATUS_FALLBACK_MESSAGES } from "@/lib/constants";
 
 function timeAgo(date: string): string {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
@@ -88,9 +89,16 @@ export function RunItem({
       </div>
 
       {/* Error message preview */}
-      {run.error_message && (
+      {(run.error_message !== null ||
+        run.status === "error" ||
+        run.status === "crashed" ||
+        run.status === "killed") && (
         <div className="mt-1 text-[9px] text-[#ff4444]/80 truncate">
-          {run.error_message.slice(0, 80)}
+          {run.error_message !== null
+            ? run.error_message.slice(0, 80)
+            : (run.status === "error" || run.status === "crashed" || run.status === "killed")
+              ? ERROR_STATUS_FALLBACK_MESSAGES[run.status]
+              : null}
         </div>
       )}
     </motion.button>
