@@ -353,3 +353,9 @@ export interface ParallelStatus {
   max_concurrent: number;
   slots: ParallelRunSlot[];
 }
+
+export interface PoolToken {
+  index: number;
+  masked: string;
+  active: boolean;
+}

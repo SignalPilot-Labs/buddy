@@ -10,7 +10,6 @@ import asyncio
 import logging
 import os
 from datetime import datetime, timezone
-
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
 from utils import db
@@ -35,8 +34,6 @@ class AgentLoop:
     def __init__(self, git: GitWorkspace, prompts: PromptLoader):
         self._git = git
         self._prompts = prompts
-        self._last_plan: str = ""
-        self._last_review: str = ""
         self._operator_messages: list[tuple[str, str]] = []  # (timestamp, message)
 
     async def execute(
@@ -61,14 +58,6 @@ class AgentLoop:
                              session.elapsed_minutes(), session.time_remaining_str())
 
                     result = await stream.process(round_num, False)
-
-                    # Capture subagent outputs for planner context
-                    round_text = "\n".join(result.round_text_chunks)
-                    if round_text:
-                        if "reviewer" in result.round_tools:
-                            self._last_review = round_text[-ROUND_SUMMARY_LIMIT:]
-                        if "planner" in result.round_tools:
-                            self._last_plan = round_text[-ROUND_SUMMARY_LIMIT:]
 
                     if result.should_stop:
                         status = result.final_status or "stopped"
@@ -99,33 +88,40 @@ class AgentLoop:
                         if action and action.startswith("inject:"):
                             pending_inject = action[7:]
 
-                    # Push commits between rounds
+                    # Auto-commit uncommitted changes and push between rounds
+                    if self._git.has_changes():
+                        try:
+                            self._git.run_git(["add", "."])
+                            self._git.run_git(["commit", "-m", f"Round {round_num + 1}"])
+                            log.info("Auto-committed round %d changes", round_num + 1)
+                        except RuntimeError as e:
+                            log.warning("Auto-commit failed: %s", e)
                     try:
                         self._git.push_branch(ctx.branch_name)
                         log.info("Pushed branch %s", ctx.branch_name)
-                    except Exception as e:
+                    except RuntimeError as e:
                         log.warning("Push failed between rounds: %s", e)
                         await db.log_audit(ctx.run_id, "push_failed", {"error": str(e)})
 
+                    # Deliver pending inject to orchestrator
+                    if pending_inject:
+                        ts = datetime.now(timezone.utc).strftime("%H:%M")
+                        self._operator_messages.append((ts, pending_inject))
+                        self._operator_messages = self._operator_messages[-MAX_OPERATOR_MESSAGES:]
+                        await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
+                        await client.query(f"Operator message: {pending_inject}")
+                        pending_inject = None
+                        # Let orchestrator act on the inject next round
+                        continue
+
                     # Decide whether to continue
                     if session.is_unlocked():
-                        if pending_inject:
-                            await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
-                            await client.query(f"Operator message: {pending_inject}")
-                            pending_inject = None
-                            continue
                         break
-                    else:
-                        # Time-locked: call planner subagent for next step
-                        if pending_inject:
-                            ts = datetime.now(timezone.utc).strftime("%H:%M")
-                            self._operator_messages.append((ts, pending_inject))
-                            self._operator_messages = self._operator_messages[-MAX_OPERATOR_MESSAGES:]
-                            await db.log_audit(ctx.run_id, "prompt_injected", {"prompt": pending_inject})
-                            pending_inject = None
-                        planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
-                        await db.log_audit(ctx.run_id, "planner_invoked", planner_meta)
-                        await client.query(f"Call the planner subagent with this context:\n\n{planner_msg}")
+
+                    # Time-locked: call planner for next step
+                    planner_msg, planner_meta = self._build_planner_message(ctx, session, result, round_num, custom_prompt)
+                    await db.log_audit(ctx.run_id, "planner_invoked", planner_meta)
+                    await client.query(f"Call the planner subagent with this context:\n\n{planner_msg}")
 
         except asyncio.CancelledError:
             status = "killed"
@@ -191,11 +187,11 @@ class AgentLoop:
 
         try:
             files_changed = self._git.run_git(["diff", "--name-only", "HEAD~5..HEAD"], cwd=work_dir)
-        except Exception:
+        except RuntimeError:
             files_changed = "(unable to determine)"
         try:
             commits = self._git.run_git(["log", "--oneline", "-5"], cwd=work_dir)
-        except Exception:
+        except RuntimeError:
             commits = "(none yet)"
 
         round_summary = "\n".join(result.round_text_chunks)[-ROUND_SUMMARY_LIMIT:] or "Agent worked silently."
@@ -210,8 +206,6 @@ class AgentLoop:
             cost_so_far=ctx.total_cost,
             round_summary=round_summary,
             original_prompt=custom_prompt or "General improvement pass.",
-            last_plan=self._last_plan,
-            last_review=self._last_review,
             operator_messages=self._operator_messages,
         )
 

@@ -1,8 +1,30 @@
 "use client";
 
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-import type { Run } from "@/lib/types";
+import type { Run, FeedEvent } from "@/lib/types";
 import { formatTokens } from "@/lib/format";
+
+const EMPTY_EVENTS: FeedEvent[] = [];
+
+const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
+
+function computeLiveStats(events: FeedEvent[]) {
+  let toolCount = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  for (const e of events) {
+    if (e._kind === "tool" && e.data.phase === "pre") {
+      toolCount++;
+    } else if (e._kind === "usage") {
+      inputTokens = e.data.total_input_tokens || 0;
+      outputTokens = e.data.total_output_tokens || 0;
+    }
+  }
+
+  return { toolCount, inputTokens, outputTokens };
+}
 
 function Stat({
   icon,
@@ -29,10 +51,15 @@ function Stat({
 export function StatsBar({
   run,
   connected,
+  events = EMPTY_EVENTS,
 }: {
   run: Run | null;
   connected: boolean;
+  events?: FeedEvent[];
 }) {
+  const isActive = run != null && ACTIVE_STATUSES.has(run.status);
+  const live = useMemo(() => computeLiveStats(events), [events]);
+
   if (!run) {
     return (
       <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
@@ -45,7 +72,7 @@ export function StatsBar({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="h-8 flex items-center gap-5 px-4 border-t border-[#1a1a1a] bg-[#050505]"
+      className="min-h-[36px] sm:h-8 flex items-center gap-3 sm:gap-5 px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505] overflow-x-auto"
     >
       <Stat
         icon={
@@ -54,7 +81,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(run.total_tool_calls || 0)}
+        value={String(isActive ? live.toolCount : run.total_tool_calls || 0)}
       />
       <Stat
         icon={
@@ -64,7 +91,11 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={`$${(run.total_cost_usd || 0).toFixed(2)}`}
+        value={
+          isActive && !run.total_cost_usd
+            ? "—"
+            : `$${(run.total_cost_usd || 0).toFixed(2)}`
+        }
         accent="text-[#00ff88]"
       />
       <Stat
@@ -74,7 +105,11 @@ export function StatsBar({
           </svg>
         }
         label="In/Out"
-        value={`${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`}
+        value={
+          isActive
+            ? `${formatTokens(live.inputTokens)} / ${formatTokens(live.outputTokens)}`
+            : `${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`
+        }
       />
       {run.pr_url && (
         <a

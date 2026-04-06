@@ -19,6 +19,7 @@ class RunContext:
     branch_name: str
     base_branch: str
     duration_minutes: float
+    github_repo: str
     total_cost: float = 0.0
     total_input_tokens: int = 0
     total_output_tokens: int = 0

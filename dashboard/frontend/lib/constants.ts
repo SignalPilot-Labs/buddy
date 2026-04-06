@@ -5,8 +5,33 @@
 
 export const API_PORT = 3401;
 export const UI_PORT = 3400;
+/** API key injected by entrypoint.sh into /public/config.js at runtime. */
+declare global {
+  interface Window { __BUDDY_API_KEY__?: string; }
+}
+
+export function getApiKey(): string {
+  if (typeof window !== "undefined" && window.__BUDDY_API_KEY__) {
+    return window.__BUDDY_API_KEY__;
+  }
+  return process.env.DASHBOARD_API_KEY || "";
+}
+
+export const API_KEY = getApiKey();
+
+// Polling intervals (ms)
+export const AGENT_HEALTH_POLL_MS = 10_000;
+export const NETWORK_INFO_POLL_MS = 30_000;
+export const SSE_POLL_INTERVAL_MS = 1_000;
+export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
+
+// Fetch limits
+export const HISTORY_FETCH_LIMIT = 500;
 
 export function getApiBase(): string {
+  // Server-side: call FastAPI directly.
+  // Client-side: use empty string so all /api/* requests go to the same origin
+  // (Next.js rewrites proxy them to the backend).
   if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
   return "";
 }

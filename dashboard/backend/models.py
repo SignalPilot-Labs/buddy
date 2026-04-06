@@ -37,3 +37,9 @@ class SetActiveRepoRequest(BaseModel):
     """Request body for setting active repo."""
 
     repo: str = Field(min_length=1, max_length=256, pattern=r"^[\w\-\.]+/[\w\-\.]+$")
+
+
+class AddTokenRequest(BaseModel):
+    """Request body for adding a Claude token to the pool."""
+
+    token: str = Field(min_length=1, max_length=4096)

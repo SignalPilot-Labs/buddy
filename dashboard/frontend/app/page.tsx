@@ -6,11 +6,14 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo, fetchRuns } from "@/lib/api";
+import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
+import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useParallelRuns } from "@/hooks/useParallelRuns";
+import { useMobile } from "@/hooks/useMobile";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { ControlBar } from "@/components/controls/ControlBar";
@@ -24,7 +27,6 @@ import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { ParallelRunsView } from "@/components/parallel/ParallelRunsView";
-import { useMobile } from "@/hooks/useMobile";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { TunnelPopover } from "@/components/ui/TunnelPopover";
@@ -54,50 +56,10 @@ export default function MonitorPage() {
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
   // Merge live events into history — SSE post events need to find their pre in history
-  const allEvents = useMemo(() => {
-    if (liveEvents.length === 0) return historyEvents;
-    // Build a map of tool_use_id → index for unmatched pre events
-    const preIndex = new Map<string, number>();
-    const merged = [...historyEvents];
-    for (let i = 0; i < merged.length; i++) {
-      const ev = merged[i];
-      if (
-        ev._kind === "tool" &&
-        ev.data.phase === "pre" &&
-        !ev.data.output_data &&
-        ev.data.tool_use_id
-      ) {
-        preIndex.set(ev.data.tool_use_id, i);
-      }
-    }
-    for (const ev of liveEvents) {
-      if (
-        ev._kind === "tool" &&
-        ev.data.phase === "post" &&
-        ev.data.tool_use_id &&
-        preIndex.has(ev.data.tool_use_id)
-      ) {
-        // Merge post into the matching pre slot in history
-        const idx = preIndex.get(ev.data.tool_use_id)!;
-        const pre = merged[idx];
-        if (pre._kind === "tool") {
-          merged[idx] = {
-            _kind: "tool",
-            data: {
-              ...pre.data,
-              output_data: ev.data.output_data,
-              duration_ms: ev.data.duration_ms,
-              phase: "post",
-            },
-          };
-        }
-        preIndex.delete(ev.data.tool_use_id);
-      } else {
-        merged.push(ev);
-      }
-    }
-    return merged;
-  }, [historyEvents, liveEvents]);
+  const allEvents = useMemo(
+    () => mergeHistoryWithLive(historyEvents, liveEvents),
+    [historyEvents, liveEvents],
+  );
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -117,16 +79,22 @@ export default function MonitorPage() {
 
   const parallelActive = parallelStatus?.active ?? 0;
 
-  // Poll agent health
+  // Poll agent health — auto-select new runs when they appear
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
-      setAgentHealth(h);
+      setAgentHealth((prev) => {
+        if (h.current_run_id && h.current_run_id !== prev?.current_run_id) {
+          refreshRuns();
+          setSelectedRunId(h.current_run_id);
+        }
+        return h;
+      });
     };
     check();
-    const id = setInterval(check, 10000);
+    const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [refreshRuns]);
 
   // Check settings status on mount and load repos
   useEffect(() => {
@@ -167,7 +135,6 @@ export default function MonitorPage() {
     if (repo) {
       await setActiveRepo(repo);
     }
-    // Refresh repos list to get updated counts
     fetchRepos().then(setRepos);
   }, [clearEvents]);
 
@@ -198,31 +165,23 @@ export default function MonitorPage() {
 
       try {
         const [tools, audits] = await Promise.all([
-          fetchToolCalls(id, 500),
-          fetchAuditLog(id, 500),
+          fetchToolCalls(id),
+          fetchAuditLog(id),
         ]);
 
-        // Guard against stale results if user switched runs during fetch
         if (gen !== selectGenRef.current) return;
 
-        // API returns DESC order — sort ASC so pre comes before post
         tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
         audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
 
-        // Merge pre/post tool call pairs.
-        // Pre has input_data (no output), post has output_data (no input).
-        // Use tool_use_id when available (new runs), fall back to name-based
-        // matching for historical data without tool_use_id.
         const mergedTools: ToolCall[] = [];
 
         for (const t of tools) {
           if (t.phase === "pre") {
             mergedTools.push({ ...t });
           } else {
-            // phase === "post": find matching pre and merge
             let matched = false;
 
-            // Strategy 1: Match by tool_use_id (exact, handles parallel calls)
             if (t.tool_use_id) {
               for (let j = mergedTools.length - 1; j >= 0; j--) {
                 const pre = mergedTools[j];
@@ -236,7 +195,6 @@ export default function MonitorPage() {
               }
             }
 
-            // Strategy 2: Fall back to name-based matching (old data)
             if (!matched) {
               for (let j = mergedTools.length - 1; j >= 0; j--) {
                 const pre = mergedTools[j];
@@ -343,6 +301,7 @@ export default function MonitorPage() {
     (selectedRun?.status as RunStatus) || null;
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
+  const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const isConfigured = settingsStatus?.configured ?? false;
 
   return (
@@ -352,7 +311,6 @@ export default function MonitorPage() {
         {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="relative flex items-center justify-center h-7 w-7">
-            {/* Animated status ring */}
             <svg width="28" height="28" viewBox="0 0 28 28" className="absolute">
               <circle
                 cx="14" cy="14" r="12"
@@ -363,7 +321,6 @@ export default function MonitorPage() {
                 style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
               />
             </svg>
-            {/* Logo */}
             <Image src="/logo.svg" alt="Buddy" width={18} height={18} className="relative z-[1]" />
           </div>
           <div>
@@ -403,26 +360,32 @@ export default function MonitorPage() {
 
         <div className="flex-1" />
 
+        <div className="w-px h-4 bg-[#1a1a1a]" />
+
         {/* Agent health indicator */}
         <div className="flex items-center gap-1.5 mr-2">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
               agentReachable
-                ? agentIdle
-                  ? "bg-[#00ff88]/60"
-                  : "bg-[#00ff88]"
+                ? agentBootstrapping
+                  ? "bg-[#ffaa00] animate-pulse"
+                  : agentIdle
+                    ? "bg-[#00ff88]/60"
+                    : "bg-[#00ff88]"
                 : "bg-[#ff4444]/60"
             }`}
-            style={!agentIdle && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
+            style={!agentIdle && !agentBootstrapping && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
           />
           <span className="text-[10px] text-[#888]">
             {!agentReachable
               ? "Offline"
-              : agentIdle
-                ? "Idle"
-                : agentHealth?.elapsed_minutes != null
-                  ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
-                  : "Active"}
+              : agentBootstrapping
+                ? "Starting..."
+                : agentIdle
+                  ? "Idle"
+                  : agentHealth?.elapsed_minutes != null
+                    ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
+                    : "Active"}
           </span>
         </div>
 

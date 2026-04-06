@@ -37,8 +37,8 @@ class RunBootstrap:
         setup_resume(run_id, budget) -> tuple of all run objects
     """
 
-    def __init__(self):
-        self._git = GitWorkspace()
+    def __init__(self, git: GitWorkspace):
+        self._git = git
         self._prompts = PromptLoader()
 
     async def setup_new(
@@ -47,12 +47,13 @@ class RunBootstrap:
         max_budget: float,
         duration_minutes: float,
         base_branch: str,
+        github_repo: str,
     ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
         """Bootstrap a new run. Returns (ctx, options, session, events, logger, initial_prompt)."""
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        branch_name = self._setup_git(base_branch)
+        branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
             branch_name, custom_prompt, duration_minutes, base_branch, None
         )
@@ -64,6 +65,7 @@ class RunBootstrap:
             branch_name=branch_name,
             base_branch=base_branch,
             duration_minutes=duration_minutes,
+            github_repo=github_repo,
         )
         logger, gate, session, events = self._create_services(ctx)
         events.start_pulse_checker(run_id, logger)
@@ -115,7 +117,7 @@ class RunBootstrap:
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        self._git.setup_auth()
+        self._git.setup_auth(run_info.get("github_repo", ""))
         self._checkout_branch(
             run_info["branch_name"], run_info.get("base_branch", "main")
         )
@@ -126,6 +128,7 @@ class RunBootstrap:
             branch_name=run_info["branch_name"],
             base_branch=run_info.get("base_branch", "main"),
             duration_minutes=run_info.get("duration_minutes", 0),
+            github_repo=run_info.get("github_repo", ""),
             total_cost=run_info.get("total_cost_usd", 0) or 0,
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
@@ -156,9 +159,9 @@ class RunBootstrap:
 
     # ── Git ──
 
-    def _setup_git(self, base_branch: str) -> str:
+    def _setup_git(self, base_branch: str, github_repo: str) -> str:
         """Clone repo, create branch. Returns branch name."""
-        self._git.setup_auth()
+        self._git.setup_auth(github_repo)
         self._git.ensure_base_branch(base_branch)
         branch_name = self._git.get_branch_name()
         self._git.create_branch(branch_name, base_branch)

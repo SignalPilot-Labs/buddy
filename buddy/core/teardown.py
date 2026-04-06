@@ -39,12 +39,13 @@ class RunTeardown:
     async def _push_and_pr(self, ctx: RunContext) -> str | None:
         """Push branch and create PR. Returns PR URL or None."""
         try:
-            if self._git.get_current_branch() != ctx.branch_name:
-                log.warning("Not on expected branch %s, skipping push/PR", ctx.branch_name)
+            current = self._git.run_git(["branch", "--show-current"])
+            if current != ctx.branch_name:
+                log.warning("Not on expected branch %s (on %s), skipping push/PR", ctx.branch_name, current)
                 return None
 
             # Save any uncommitted work before pushing
-            if self._git.has_changes():
+            if self._git.run_git(["status", "--porcelain"]).strip():
                 log.info("Committing uncommitted changes before push")
                 try:
                     self._git.run_git(["add", "-u"])

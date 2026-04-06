@@ -22,10 +22,80 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 
 ```bash
 git clone https://github.com/SignalPilot-Labs/buddy.git
-cd buddy
-docker compose up --build -d
-# open http://localhost:3400
+cd buddy && ./install.sh             # installs CLI + builds Docker images
+buddy start                          # start services
 ```
+
+To update an existing install: `buddy update`
+
+### Configure
+
+Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+
+```bash
+buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
+```
+
+### Run
+
+```bash
+buddy run new -p "Fix authentication bugs" -d 30
+```
+
+If you're inside a git repo, buddy auto-detects it — no need to specify `--github-repo`:
+
+```bash
+cd your-project/
+buddy run new -p "Fix authentication bugs" -d 30
+```
+
+### Monitor
+
+Use the CLI or open [http://localhost:3400](http://localhost:3400).
+
+```bash
+buddy run                            # interactive run selector
+buddy run get <run_id>               # run details + action menu
+```
+
+## CLI reference
+
+```
+# Services
+buddy start                          # start services (fast, no rebuild)
+buddy stop                           # stop all services
+buddy update                         # pull latest code + rebuild images
+buddy logs                           # stream all container logs (Ctrl+C to stop)
+buddy logs 50                        # tail last 50 lines + follow
+buddy kill                           # remove all containers
+
+# Runs
+buddy run                            # interactive run selector
+buddy run new -p "Fix auth bugs"     # start a new run
+buddy run list                       # list recent runs
+buddy run get <run_id>               # show run details + action menu
+
+# Settings & config
+buddy settings status                # check credential config
+buddy settings get                   # show all settings (masked)
+buddy settings set --claude-token TOKEN --git-token TOKEN --github-repo owner/repo
+
+# Repos (auto-detects local git repo)
+buddy repos list                     # list repos with run counts
+buddy repos detect                   # detect git repo in current directory
+buddy repos set-active owner/repo    # set active repo
+buddy repos remove owner/repo        # remove a repo
+
+# Agent
+buddy agent health                   # check agent status
+buddy agent branches                 # list git branches
+
+# CLI config
+buddy config get                     # show CLI config
+buddy config set --api-key KEY       # update CLI config
+```
+
+Use `--json` on any command for machine-readable output.
 
 ---
 

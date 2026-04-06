@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from core.event_bus import EventBus
 from core.bootstrap import RunBootstrap
 from tools.db_logger import DBLogger
+from utils.git import GitWorkspace
 from tools.session import SessionGate
 from utils.helpers import validate_branch_name
 from utils.models import InjectRequest, ResumeRequest, RunContext, StartRequest
@@ -244,7 +245,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-123"
@@ -261,7 +262,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-456"
@@ -276,7 +277,7 @@ class TestStuckSubagentDetection:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=30,
+            duration_minutes=30, github_repo="owner/repo",
         )
         logger = DBLogger(ctx)
         agent_id = "test-agent-789"
@@ -316,7 +317,7 @@ class TestResumePromptBuilder:
     """Tests for RunBootstrap._build_resume_prompt."""
 
     def test_includes_branch_and_status(self):
-        bootstrap = RunBootstrap()
+        bootstrap = RunBootstrap(GitWorkspace())
         run_info = {"branch_name": "buddy/test-branch", "status": "paused"}
         prompt = bootstrap._build_resume_prompt(run_info, None)
         assert "buddy/test-branch" in prompt
@@ -324,7 +325,7 @@ class TestResumePromptBuilder:
         assert "Continue where you left off" in prompt
 
     def test_includes_operator_message(self):
-        bootstrap = RunBootstrap()
+        bootstrap = RunBootstrap(GitWorkspace())
         run_info = {"branch_name": "test", "status": "running"}
         prompt = bootstrap._build_resume_prompt(run_info, "fix the auth bug")
         assert "fix the auth bug" in prompt
@@ -332,7 +333,7 @@ class TestResumePromptBuilder:
         assert "Continue where you left off" not in prompt
 
     def test_includes_original_task(self):
-        bootstrap = RunBootstrap()
+        bootstrap = RunBootstrap(GitWorkspace())
         run_info = {
             "branch_name": "test", "status": "running",
             "custom_prompt": "Improve error handling across the codebase",
@@ -342,7 +343,7 @@ class TestResumePromptBuilder:
         assert "Original task" in prompt
 
     def test_includes_cost(self):
-        bootstrap = RunBootstrap()
+        bootstrap = RunBootstrap(GitWorkspace())
         run_info = {"branch_name": "test", "status": "running", "total_cost_usd": 2.50}
         prompt = bootstrap._build_resume_prompt(run_info, None)
         assert "$2.50" in prompt
@@ -355,7 +356,7 @@ class TestSessionGate:
         ctx = RunContext(
             run_id="test-run", agent_role="worker",
             branch_name="test-branch", base_branch="main",
-            duration_minutes=duration_minutes,
+            duration_minutes=duration_minutes, github_repo="owner/repo",
         )
         return SessionGate(ctx)
 

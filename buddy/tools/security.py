@@ -21,7 +21,6 @@ from utils.constants import (
     CREDENTIAL_PATTERNS,
     DANGEROUS_PATTERNS,
     INPUT_SUMMARY_LIMIT,
-    PROTECTED_BRANCHES,
     SECRET_ENV_VARS,
 )
 from utils.models import RunContext
@@ -92,7 +91,8 @@ class SecurityGate:
         return (
             self._check_token_exposure(cmd)
             or self._check_dangerous(cmd)
-            or self._check_git_push(cmd)
+            or self._check_git_branch_creation(cmd)
+            or self._check_git_remote(cmd)
             or self._check_repo_exploration(cmd)
         )
 
@@ -115,32 +115,44 @@ class SecurityGate:
             return "Blocked dangerous system command"
         return None
 
-    def _check_git_push(self, cmd: str) -> str | None:
-        """Check git push/remote commands for repo and branch violations."""
-        if "git remote" in cmd:
-            repo = os.environ.get("GITHUB_REPO", "")
-            if repo and repo not in cmd:
-                return f"Cannot modify git remotes — only {repo} is allowed"
+    def _check_git_branch_creation(self, cmd: str) -> str | None:
+        """Block git branch creation/switching and git clean."""
+        # Branch creation
+        if re.search(r"git\s+checkout\s+-b\b", cmd):
+            return "Cannot create branches — the system manages branching"
+        if re.search(r"git\s+switch\s+-c\b", cmd):
+            return "Cannot create branches — the system manages branching"
+        # git branch <name> (but allow flags: -d, -D, -v, -a, --list, etc.)
+        if re.search(r"git\s+branch\s+(?!-)\S", cmd):
+            return "Cannot create branches — the system manages branching"
+        # Branch switching
+        if re.search(r"git\s+switch\s+(?!-)\S", cmd):
+            return "Cannot switch branches — stay on the current branch"
+        # git checkout <branch> — block unless it's a file revert (has -- or starts with .)
+        if re.search(r"git\s+checkout\s+(?!-)\S", cmd) and "--" not in cmd and not re.search(r"git\s+checkout\s+\.", cmd):
+            return "Cannot switch branches — use 'git checkout -- <file>' to revert files"
+        # Destructive cleanup
+        if re.search(r"git\s+clean\s+-[a-zA-Z]*f", cmd):
+            return "git clean -f is blocked — it deletes untracked files permanently"
+        return None
 
-        if "git push" not in cmd:
+    def _check_git_remote(self, cmd: str) -> str | None:
+        """Block git remote modifications to non-configured repos."""
+        if "git remote" not in cmd:
             return None
-
-        for branch in PROTECTED_BRANCHES:
-            if re.search(rf"git\s+push\s+.*\b{branch}\b", cmd):
-                return f"Cannot push directly to protected branch '{branch}' — create a PR instead"
-
-        if re.search(r"git\s+push\s+.*(-f|--force)", cmd):
-            return "Force push is not allowed"
+        repo = self._ctx.github_repo or ""
+        if repo and repo not in cmd:
+            return f"Cannot modify git remotes — only {repo} is allowed"
         return None
 
     def _check_repo_exploration(self, cmd: str) -> str | None:
         """Block commands that try to clone or explore other repos."""
         if "git clone" in cmd:
-            repo = os.environ.get("GITHUB_REPO", "")
+            repo = self._ctx.github_repo or ""
             if repo and repo not in cmd:
                 return f"Cannot clone other repositories — stay within {repo}"
             if not repo:
-                return "Cannot clone repositories — GITHUB_REPO not configured"
+                return "Cannot clone repositories — repo not configured"
 
         cd_match = re.search(r"cd\s+([^\s;&|]+)", cmd)
         if cd_match:

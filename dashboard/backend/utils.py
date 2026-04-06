@@ -85,10 +85,10 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
 
 
 async def read_credentials() -> dict:
-    """Read and decrypt stored credentials."""
-    creds = {}
+    """Read and decrypt stored credentials. Picks next Claude token round-robin."""
+    creds: dict[str, str] = {}
     async with session() as s:
-        for key in ("claude_token", "git_token", "github_repo"):
+        for key in ("git_token", "github_repo"):
             setting = await s.get(Setting, key)
             if not setting:
                 continue
@@ -99,7 +99,117 @@ async def read_credentials() -> dict:
                     log.error("Failed to decrypt %s: %s", key, e)
             else:
                 creds[key] = setting.value
+
+        token = await _pick_next_claude_token(s)
+        if token:
+            creds["claude_token"] = token
+
     return creds
+
+
+async def _pick_next_claude_token(s: AsyncSession) -> str | None:
+    """Pick the next Claude token round-robin from the token pool.
+
+    Tokens are stored as an encrypted JSON array in settings key 'claude_tokens'.
+    The current index is tracked in 'claude_token_index'.
+    Falls back to the single 'claude_token' setting for backward compatibility.
+    """
+    pool = await s.get(Setting, "claude_tokens")
+    if pool:
+        try:
+            tokens = json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
+            if tokens:
+                idx_row = await s.get(Setting, "claude_token_index")
+                idx = int(idx_row.value) if idx_row else 0
+                idx = idx % len(tokens)
+                picked = tokens[idx]
+                await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
+                # Commit here because read_credentials() owns the session —
+                # index must persist even if the caller doesn't write anything.
+                await s.commit()
+                return picked
+        except (json.JSONDecodeError, TypeError, IndexError, ValueError) as e:
+            log.warning("Failed to read claude_tokens pool: %s", e)
+
+    # Fallback: single token
+    single = await s.get(Setting, "claude_token")
+    if not single:
+        return None
+    try:
+        return crypto.decrypt(single.value, MASTER_KEY_PATH) if single.encrypted else single.value
+    except Exception as e:
+        log.error("Failed to decrypt claude_token: %s", e)
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Token pool CRUD
+# ---------------------------------------------------------------------------
+
+async def _read_token_pool(s: AsyncSession) -> list[str]:
+    """Read the decrypted token pool. Returns empty list if not set."""
+    pool = await s.get(Setting, "claude_tokens")
+    if not pool:
+        return []
+    try:
+        return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
+    except (json.JSONDecodeError, TypeError, Exception):
+        return []
+
+
+async def _write_token_pool(s: AsyncSession, tokens: list[str]) -> None:
+    """Encrypt and write the token pool."""
+    encrypted = crypto.encrypt(json.dumps(tokens), MASTER_KEY_PATH)
+    await upsert_setting(s, "claude_tokens", encrypted, True)
+
+
+async def add_token_to_pool(raw_token: str) -> dict:
+    """Add a Claude token to the pool. Rejects duplicates."""
+    async with session() as s:
+        tokens = await _read_token_pool(s)
+        if raw_token in tokens:
+            raise ValueError("This token is already in the pool")
+        tokens.append(raw_token)
+        await _write_token_pool(s, tokens)
+        await s.commit()
+    return {"ok": True, "count": len(tokens)}
+
+
+async def list_pool_tokens() -> list[dict]:
+    """List all tokens in the pool (masked)."""
+    async with session() as s:
+        tokens = await _read_token_pool(s)
+        idx_row = await s.get(Setting, "claude_token_index")
+        current_idx = int(idx_row.value) if idx_row else 0
+    if not tokens:
+        return []
+    active_idx = current_idx % len(tokens)
+    return [
+        {"index": i, "masked": crypto.mask(t, prefix_len=8), "active": i == active_idx}
+        for i, t in enumerate(tokens)
+    ]
+
+
+async def remove_token_from_pool(index: int) -> dict:
+    """Remove a token by index. Adjusts round-robin index to avoid skipping."""
+    async with session() as s:
+        tokens = await _read_token_pool(s)
+        if index < 0 or index >= len(tokens):
+            raise ValueError(f"Index {index} out of range (pool has {len(tokens)} tokens)")
+        tokens.pop(index)
+        await _write_token_pool(s, tokens)
+        # Adjust round-robin index
+        idx_row = await s.get(Setting, "claude_token_index")
+        if idx_row and tokens:
+            current = int(idx_row.value)
+            if index < current:
+                await upsert_setting(s, "claude_token_index", str(current - 1), False)
+            elif current >= len(tokens):
+                await upsert_setting(s, "claude_token_index", str(0), False)
+        elif idx_row and not tokens:
+            await upsert_setting(s, "claude_token_index", str(0), False)
+        await s.commit()
+    return {"ok": True, "count": len(tokens)}
 
 
 # ---------------------------------------------------------------------------
@@ -175,3 +285,5 @@ async def autofill_settings(master_key_path: str) -> None:
             await upsert_setting(s, key, stored_val, is_secret)
 
         await s.commit()
+
+

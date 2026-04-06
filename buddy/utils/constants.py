@@ -45,7 +45,7 @@ ALLOWED_SYSTEM_PATHS = ("/tmp", "/usr", "/var", "/etc/apt")
 CLONE_DEPTH = 50
 CLONE_TIMEOUT = 300
 CMD_TIMEOUT = 120
-PROTECTED_BRANCHES = frozenset({"main", "master", "staging", "prod", "production"})
+NPM_INSTALL_TIMEOUT = 300
 BRANCH_NAME_PATTERN = r'^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$'
 BRANCH_NAME_MAX_LEN = 256
 GIT_RETRY_ATTEMPTS = 3
@@ -86,5 +86,4 @@ MAX_OPERATOR_MESSAGES = 25
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
-STARTUP_WAIT_SEC = 2
 KILL_WAIT_SEC = 0.5
