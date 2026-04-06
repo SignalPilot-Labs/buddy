@@ -492,7 +492,7 @@ export default function MonitorPage() {
             ? "Setup Required"
             : !agentReachable
               ? "Offline"
-              : "+ New Bot"}
+              : "New Bot"}
         </Button>
 
         <div className="w-px h-4 bg-[#1a1a1a]" />
