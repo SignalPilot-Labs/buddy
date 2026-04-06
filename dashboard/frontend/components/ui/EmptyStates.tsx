@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslation } from "@/hooks/useTranslation";
+
 export function EmptyTerminal() {
   return (
     <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: "float 6s ease-in-out infinite" }}>
@@ -26,18 +28,20 @@ export function EmptyTerminal() {
 }
 
 export function EmptyEvents() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-4 py-12">
       <EmptyTerminal />
       <div className="text-center space-y-1.5">
-        <p className="text-[12px] text-[#aaa] font-medium">Waiting for events</p>
-        <p className="text-[11px] text-[#777]">Select a run or start a new one to see live activity</p>
+        <p className="text-[12px] text-[#aaa] font-medium">{t.emptyState.waitingForEvents}</p>
+        <p className="text-[11px] text-[#777]">{t.emptyState.waitingSubtitle}</p>
       </div>
     </div>
   );
 }
 
 export function EmptyRuns() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-3 py-8 px-4">
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style={{ animation: "float 6s ease-in-out infinite" }}>
@@ -50,8 +54,8 @@ export function EmptyRuns() {
         <line x1="33" y1="36" x2="39" y2="36" stroke="rgba(0,255,136,0.3)" strokeWidth="1" />
       </svg>
       <div className="text-center space-y-1">
-        <p className="text-[11px] text-[#aaa]">No runs yet</p>
-        <p className="text-[10px] text-[#777]">Start an improvement run to begin</p>
+        <p className="text-[11px] text-[#aaa]">{t.emptyState.noRunsYet}</p>
+        <p className="text-[10px] text-[#777]">{t.emptyState.noRunsSubtitle}</p>
       </div>
     </div>
   );

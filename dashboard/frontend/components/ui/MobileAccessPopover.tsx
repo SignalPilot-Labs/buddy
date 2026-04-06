@@ -4,12 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { useNetworkInfo } from "@/hooks/useNetworkInfo";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function MobileAccessPopover() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { url } = useNetworkInfo();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -33,7 +35,7 @@ export function MobileAccessPopover() {
       <button
         onClick={() => setOpen(!open)}
         className="relative p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-        title="Mobile Access"
+        title={t.mobileAccess.title}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
@@ -55,7 +57,7 @@ export function MobileAccessPopover() {
           >
             <div className="px-3 py-2 border-b border-[#1a1a1a]">
               <span className="text-[9px] uppercase tracking-[0.1em] text-[#666] font-semibold">
-                Mobile Access
+                {t.mobileAccess.title}
               </span>
             </div>
 
@@ -73,7 +75,7 @@ export function MobileAccessPopover() {
                     <button
                       onClick={copyUrl}
                       className="shrink-0 p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-                      title="Copy URL"
+                      title={t.mobileAccess.copyUrl}
                     >
                       {copied ? (
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -89,14 +91,14 @@ export function MobileAccessPopover() {
                   </div>
 
                   <p className="text-[10px] text-[#666] leading-relaxed">
-                    Scan from your phone on the same WiFi network.
+                    {t.mobileAccess.scanFromPhone}
                   </p>
                 </>
               ) : (
                 <p className="text-[10px] text-[#666] leading-relaxed">
-                  Could not detect local network IP. Start with{" "}
-                  <span className="font-mono text-[#888]">./start.sh</span> or set{" "}
-                  <span className="font-mono text-[#888]">HOST_IP</span> env var.
+                  {t.mobileAccess.couldNotDetect}{" "}
+                  <span className="font-mono text-[#888]">./start.sh</span> {t.mobileAccess.orSet}{" "}
+                  <span className="font-mono text-[#888]">HOST_IP</span> {t.mobileAccess.envVar}
                 </p>
               )}
             </div>

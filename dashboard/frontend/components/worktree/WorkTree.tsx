@@ -7,6 +7,7 @@ import type { FeedEvent, FileChange } from "@/lib/types";
 import type { DiffFile, DiffStats } from "@/lib/api";
 import { fetchRunDiff } from "@/lib/api";
 import { getToolCategory } from "@/lib/types";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /* ── Extract file changes from tool call events (live) ── */
 function extractFileChanges(events: FeedEvent[]): FileChange[] {
@@ -265,6 +266,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   const [sessionOpen, setSessionOpen] = useState(true);
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const { t } = useTranslation();
 
   // Fetch git diff when run changes
   useEffect(() => {
@@ -313,7 +315,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
               <circle cx="6" cy="11" r="0" /><circle cx="3" cy="6" r="1" /><circle cx="9" cy="8" r="1" />
               <line x1="3" y1="6" x2="6" y2="6" /><line x1="9" y1="8" x2="6" y2="8" />
             </svg>
-            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#999]">Changes</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#999]">{t.workTree.changes}</span>
             {diffData?.source && (
               <span className={clsx(
                 "text-[7px] rounded px-1 py-0.5 uppercase tracking-wider",
@@ -324,7 +326,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                 {diffData.source === "live" ? "live" : diffData.source === "stored" ? "git" : diffData.source}
               </span>
             )}
-            <span className="text-[10px] text-[#777] tabular-nums ml-auto">{totalFiles} files</span>
+            <span className="text-[10px] text-[#777] tabular-nums ml-auto">{totalFiles} {t.workTree.files}</span>
           </>
         )}
         {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-[#777] hover:text-[#ccc] transition-colors p-0.5">
@@ -339,7 +341,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
           {/* Stats */}
           {(totalAdded > 0 || totalRemoved > 0) && (
             <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[#1a1a1a]/60 text-[10px] text-[#888]">
-              <span>{totalFiles} files changed</span>
+              <span>{totalFiles} {t.workTree.filesChanged}</span>
               {totalAdded > 0 && <span className="text-[#00ff88]/70">+{totalAdded}</span>}
               {totalRemoved > 0 && <span className="text-[#ff4444]/70">-{totalRemoved}</span>}
             </div>
@@ -355,9 +357,9 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                   className={clsx("shrink-0 transition-transform duration-150", sessionOpen && "rotate-90")}>
                   <polyline points="2 1 6 4 2 7" />
                 </svg>
-                <span className="text-[10px] font-medium text-[#888]">Session</span>
+                <span className="text-[10px] font-medium text-[#888]">{t.workTree.session}</span>
                 <span className="text-[9px] text-[#555] ml-auto tabular-nums">
-                  {liveChanges.filter(c => c.action !== "read").length} files
+                  {liveChanges.filter(c => c.action !== "read").length} {t.workTree.files}
                 </span>
               </button>
               {sessionOpen && liveTree.children.size > 0 && (
@@ -376,12 +378,12 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
               <button onClick={() => setActiveTab("tree")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "tree" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
-                Tree
+                {t.workTree.tree}
               </button>
               <button onClick={() => setActiveTab("files")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "files" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
-                Files
+                {t.workTree.fileList}
               </button>
             </div>
           )}
@@ -406,7 +408,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
 
             {!diffLoading && !hasGitDiff && !hasLive && (
               <div className="text-[10px] text-[#777] px-3 py-6 text-center">
-                No file changes detected yet
+                {t.workTree.noChangesDetected}
               </div>
             )}
           </div>

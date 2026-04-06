@@ -10,32 +10,27 @@ import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types"
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
 import { getApiBase } from "@/lib/constants";
+import { useTranslation } from "@/hooks/useTranslation";
+import { LocaleToggle } from "@/components/ui/LocaleToggle";
 
 interface FieldConfig {
   key: keyof Settings;
-  label: string;
+  labelKey: "gitToken" | "maxBudgetUsd";
   statusKey?: keyof SettingsStatus;
-  placeholder: string;
   secret: boolean;
-  helpText: string;
 }
 
 const FIELDS: FieldConfig[] = [
   {
     key: "git_token",
-    label: "GitHub Personal Access Token",
+    labelKey: "gitToken",
     statusKey: "has_git_token",
-    placeholder: "ghp_...",
     secret: true,
-    helpText:
-      "GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens. Grant Contents + Pull requests read/write on your repo.",
   },
   {
     key: "max_budget_usd",
-    label: "Default Max Budget (USD)",
-    placeholder: "50",
+    labelKey: "maxBudgetUsd",
     secret: false,
-    helpText: "Optional. Default max spend per run. Can be overridden when starting a run.",
   },
 ];
 
@@ -47,6 +42,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
+  const { t } = useTranslation();
 
   // Repos
   const [repos, setRepos] = useState<RepoInfo[]>([]);
@@ -91,7 +87,7 @@ export default function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : t.settings.failedToSave);
     } finally {
       setSaving(false);
     }
@@ -101,11 +97,11 @@ export default function SettingsPage() {
     const slug = newRepo.trim();
     if (!slug) return;
     if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(slug)) {
-      setRepoError("Use owner/repo format (e.g. my-org/my-project)");
+      setRepoError(t.settings.repoInvalidFormat);
       return;
     }
     if (repos.some((r) => r.repo === slug)) {
-      setRepoError("Repository already added");
+      setRepoError(t.settings.repoAlreadyAdded);
       return;
     }
 
@@ -122,7 +118,7 @@ export default function SettingsPage() {
       setStatus(s);
       setSettings(cfg);
     } catch (e) {
-      setRepoError(e instanceof Error ? e.message : "Failed to add");
+      setRepoError(e instanceof Error ? e.message : t.settings.failedToSave);
     } finally {
       setAddingRepo(false);
     }
@@ -167,7 +163,7 @@ export default function SettingsPage() {
       setTokens(await fetchPoolTokens());
       setNewToken("");
     } catch (e) {
-      setTokenError(e instanceof Error ? e.message : "Failed to add token");
+      setTokenError(e instanceof Error ? e.message : t.settings.failedToSave);
     } finally {
       setAddingToken(false);
     }
@@ -178,7 +174,7 @@ export default function SettingsPage() {
       await removePoolToken(index);
       setTokens(await fetchPoolTokens());
     } catch (e) {
-      setTokenError(e instanceof Error ? e.message : "Failed to remove token");
+      setTokenError(e instanceof Error ? e.message : t.settings.failedToSave);
     }
   };
 
@@ -198,34 +194,37 @@ export default function SettingsPage() {
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <polyline points="8 2 4 6 8 10" />
               </svg>
-              <span className="text-[10px]">Dashboard</span>
+              <span className="text-[10px]">{t.settings.dashboard}</span>
             </Link>
             <span className="text-[#1a1a1a]">/</span>
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center h-6 w-6 rounded bg-white/[0.04] border border-white/[0.08]">
                 <Image src="/logo.svg" alt="AutoFyn" width={14} height={14} />
               </div>
-              <h1 className="text-[12px] font-semibold">Settings</h1>
+              <h1 className="text-[12px] font-semibold">{t.settings.title}</h1>
             </div>
           </div>
-          {status && (
-            <div
-              className={clsx(
-                "flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-medium",
-                status.configured
-                  ? "bg-[#00ff88]/[0.06] text-[#00ff88]"
-                  : "bg-[#ffaa00]/[0.06] text-[#ffaa00]"
-              )}
-            >
+          <div className="flex items-center gap-3">
+            <LocaleToggle />
+            {status && (
               <div
                 className={clsx(
-                  "w-1.5 h-1.5 rounded-full",
-                  status.configured ? "bg-[#00ff88]" : "bg-[#ffaa00]"
+                  "flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-medium",
+                  status.configured
+                    ? "bg-[#00ff88]/[0.06] text-[#00ff88]"
+                    : "bg-[#ffaa00]/[0.06] text-[#ffaa00]"
                 )}
-              />
-              {status.configured ? "Configured" : "Setup Required"}
-            </div>
-          )}
+              >
+                <div
+                  className={clsx(
+                    "w-1.5 h-1.5 rounded-full",
+                    status.configured ? "bg-[#00ff88]" : "bg-[#ffaa00]"
+                  )}
+                />
+                {status.configured ? t.settings.configured : t.settings.setupRequired}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -244,7 +243,7 @@ export default function SettingsPage() {
                 <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
                 <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
               </div>
-              <span className="text-[9px] text-[#666] font-mono">security</span>
+              <span className="text-[9px] text-[#666] font-mono">{t.settings.security}</span>
             </div>
             <div className="flex items-start gap-3 px-4 py-3">
               <svg width="44" height="44" viewBox="0 0 32 32" fill="none" className="shrink-0">
@@ -267,20 +266,20 @@ export default function SettingsPage() {
               <div className="space-y-1.5 min-w-0">
                 <div className="font-mono text-[10px] leading-relaxed">
                   <span className="text-[#00ff88]/60">$</span>{" "}
-                  <span className="text-[#aaa]">Credentials encrypted with</span>{" "}
-                  <span className="text-[#00ff88]">AES-128 (Fernet)</span>{" "}
-                  <span className="text-[#aaa]">before storage.</span>
+                  <span className="text-[#aaa]">{t.settings.credentialsEncrypted}</span>{" "}
+                  <span className="text-[#00ff88]">{t.settings.encryptionAlgo}</span>{" "}
+                  <span className="text-[#aaa]">{t.settings.beforeStorage}</span>
                 </div>
                 <div className="font-mono text-[10px] leading-relaxed">
                   <span className="text-[#00ff88]/60">$</span>{" "}
-                  <span className="text-[#aaa]">Decrypted</span>{" "}
-                  <span className="text-[#ffcc44]">in-memory only</span>{" "}
-                  <span className="text-[#aaa]">when starting a run.</span>
+                  <span className="text-[#aaa]">{t.settings.decryptedInMemory}</span>{" "}
+                  <span className="text-[#ffcc44]">{t.settings.inMemoryOnly}</span>{" "}
+                  <span className="text-[#aaa]">{t.settings.whenStarting}</span>
                 </div>
                 <div className="font-mono text-[10px] leading-relaxed">
                   <span className="text-[#00ff88]/60">$</span>{" "}
-                  <span className="text-[#aaa]">Master key on Docker volume &mdash;</span>{" "}
-                  <span className="text-[#888]">never leaves host.</span>
+                  <span className="text-[#aaa]">{t.settings.masterKey}</span>{" "}
+                  <span className="text-[#888]">{t.settings.neverLeavesHost}</span>
                 </div>
               </div>
             </div>
@@ -290,18 +289,18 @@ export default function SettingsPage() {
           <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
             <div className="flex items-center justify-between mb-3">
               <label className="text-[10px] font-semibold text-[#ccc]">
-                Claude OAuth Tokens
+                {t.settings.claudeTokens}
               </label>
               <span className="text-[9px] text-[#666]">
-                {tokens.length} key{tokens.length !== 1 ? "s" : ""} — round-robin on resume
+                {tokens.length} key{tokens.length !== 1 ? "s" : ""} — {t.settings.roundRobin}
               </span>
             </div>
 
             <div className="space-y-1.5 mb-3">
               <AnimatePresence>
-                {tokens.map((t) => (
+                {tokens.map((tok) => (
                   <motion.div
-                    key={t.masked}
+                    key={tok.masked}
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
@@ -312,20 +311,20 @@ export default function SettingsPage() {
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                     <span className="text-[10px] font-mono text-[#ccc] flex-1 min-w-0 truncate">
-                      {t.masked}
+                      {tok.masked}
                     </span>
-                    {t.active && (
+                    {tok.active && (
                       <span className="flex items-center gap-1 text-[9px] text-[#00ff88]/60 shrink-0">
                         <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <polyline points="2 5 4 7 8 3" />
                         </svg>
-                        Next
+                        {t.settings.next}
                       </span>
                     )}
                     <button
-                      onClick={() => handleRemoveToken(t.index)}
+                      onClick={() => handleRemoveToken(tok.index)}
                       className="text-[#666] hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                      title="Remove token"
+                      title={t.settings.removeToken}
                     >
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <line x1="2" y1="2" x2="8" y2="8" />
@@ -338,7 +337,7 @@ export default function SettingsPage() {
 
               {tokens.length === 0 && (
                 <div className="px-2.5 py-3 text-[10px] text-[#666] text-center">
-                  No tokens configured. Add one to get started.
+                  {t.settings.noTokens}
                 </div>
               )}
             </div>
@@ -350,7 +349,7 @@ export default function SettingsPage() {
                   value={newToken}
                   onChange={(e) => { setNewToken(e.target.value); setTokenError(null); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddToken(); } }}
-                  placeholder="sk-ant-oat01-..."
+                  placeholder={t.settings.tokenPlaceholder}
                   className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
                   autoComplete="off"
                   spellCheck={false}
@@ -362,7 +361,7 @@ export default function SettingsPage() {
                 onClick={handleAddToken}
                 disabled={addingToken || !newToken.trim()}
               >
-                {addingToken ? "Adding..." : "Add Key"}
+                {addingToken ? t.settings.addingKey : t.settings.addKey}
               </Button>
             </div>
 
@@ -371,8 +370,9 @@ export default function SettingsPage() {
             )}
 
             <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
-              Add multiple Claude OAuth tokens for automatic rotation. When a run hits a rate limit and is resumed, the next token is used automatically.
-              Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> to generate tokens.
+              {t.settings.tokenHelp}{" "}
+              <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code>{" "}
+              {t.settings.tokenHelpSuffix}
             </p>
           </div>
 
@@ -380,10 +380,10 @@ export default function SettingsPage() {
           <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
             <div className="flex items-center justify-between mb-3">
               <label className="text-[10px] font-semibold text-[#ccc]">
-                Repositories
+                {t.settings.repositories}
               </label>
               <span className="text-[9px] text-[#666]">
-                {repos.length} configured
+                {repos.length} {t.settings.configured_count}
               </span>
             </div>
 
@@ -424,14 +424,14 @@ export default function SettingsPage() {
                           <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                             <polyline points="2 5 4 7 8 3" />
                           </svg>
-                          Active
+                          {t.settings.active}
                         </span>
                       ) : (
                         <button
                           onClick={() => handleSetActive(r.repo)}
                           className="text-[9px] text-[#888] hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                         >
-                          Set Active
+                          {t.settings.setActive}
                         </button>
                       )}
 
@@ -439,7 +439,7 @@ export default function SettingsPage() {
                       <button
                         onClick={() => handleRemoveRepo(r.repo)}
                         className="text-[#666] hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
-                        title="Remove repository"
+                        title={t.settings.removeRepo}
                       >
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <line x1="2" y1="2" x2="8" y2="8" />
@@ -453,7 +453,7 @@ export default function SettingsPage() {
 
               {repos.length === 0 && (
                 <div className="px-2.5 py-3 text-[10px] text-[#666] text-center">
-                  No repositories configured yet
+                  {t.settings.noReposConfigured}
                 </div>
               )}
             </div>
@@ -474,7 +474,7 @@ export default function SettingsPage() {
                       handleAddRepo();
                     }
                   }}
-                  placeholder="owner/repo"
+                  placeholder={t.settings.repoPlaceholder}
                   className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
                   autoComplete="off"
                   spellCheck={false}
@@ -486,7 +486,7 @@ export default function SettingsPage() {
                 onClick={handleAddRepo}
                 disabled={addingRepo || !newRepo.trim()}
               >
-                {addingRepo ? "Adding..." : "Add Repo"}
+                {addingRepo ? t.settings.adding : t.settings.addRepo}
               </Button>
             </div>
 
@@ -495,8 +495,9 @@ export default function SettingsPage() {
             )}
 
             <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
-              Add repositories in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">owner/repo</code> format.
-              The active repo is used when starting new runs. Switch between repos using the selector in the dashboard header.
+              {t.settings.repoHelp}{" "}
+              <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">owner/repo</code>{" "}
+              {t.settings.repoHelpSuffix}
             </p>
           </div>
 
@@ -515,14 +516,14 @@ export default function SettingsPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-[10px] font-semibold text-[#ccc]">
-                    {field.label}
+                    {t.settings.fieldLabels[field.labelKey]}
                   </label>
                   {isSet && (
                     <span className="flex items-center gap-1 text-[9px] text-[#00ff88]/60">
                       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <polyline points="2 5 4 7 8 3" />
                       </svg>
-                      Set
+                      {t.settings.set}
                     </span>
                   )}
                 </div>
@@ -534,7 +535,7 @@ export default function SettingsPage() {
                       onClick={() => setEdits({ ...edits, [field.key]: "" })}
                       className="text-[9px] text-[#999] hover:text-[#888] transition-colors ml-2"
                     >
-                      Change
+                      {t.settings.change}
                     </button>
                   </div>
                 )}
@@ -547,7 +548,7 @@ export default function SettingsPage() {
                       onChange={(e) =>
                         setEdits({ ...edits, [field.key]: e.target.value })
                       }
-                      placeholder={field.placeholder}
+                      placeholder={t.settings.fieldPlaceholders[field.labelKey]}
                       className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all pr-10"
                       autoComplete="off"
                       spellCheck={false}
@@ -585,14 +586,14 @@ export default function SettingsPage() {
                         }}
                         className="absolute right-8 top-1/2 -translate-y-1/2 text-[9px] text-[#999] hover:text-[#888]"
                       >
-                        Cancel
+                        {t.settings.cancel}
                       </button>
                     )}
                   </div>
                 )}
 
                 <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
-                  {field.helpText}
+                  {t.settings.fieldHelp[field.labelKey]}
                 </p>
               </div>
             );
@@ -610,7 +611,7 @@ export default function SettingsPage() {
                   animate={{ opacity: 1 }}
                   className="text-[10px] text-[#00ff88]"
                 >
-                  Settings saved and encrypted
+                  {t.settings.settingsSaved}
                 </motion.p>
               )}
             </div>
@@ -620,7 +621,7 @@ export default function SettingsPage() {
               onClick={handleSave}
               disabled={saving || !hasEdits}
             >
-              {saving ? "Saving..." : "Save Changes"}
+              {saving ? t.settings.saving : t.settings.saveChanges}
             </Button>
           </div>
         </motion.div>

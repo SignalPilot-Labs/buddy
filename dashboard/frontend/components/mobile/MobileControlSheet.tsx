@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface MobileControlSheetProps {
   open: boolean;
@@ -48,6 +49,7 @@ export function MobileControlSheet({
   const canPause = status === "running";
   const canResume = status === "paused";
   const canInject = ["running", "paused"].includes(status || "");
+  const { t } = useTranslation();
 
   // Lock body scroll when open
   useEffect(() => {
@@ -88,7 +90,7 @@ export function MobileControlSheet({
               {/* Repo selector */}
               <div>
                 <label className="text-[10px] uppercase tracking-[0.15em] text-[#666] font-semibold mb-2 block">
-                  Repository
+                  {t.mobileSheet.repository}
                 </label>
                 <RepoSelector
                   repos={repos}
@@ -110,14 +112,14 @@ export function MobileControlSheet({
                   </svg>
                 }
               >
-                {isConfigured ? "New Run" : "Setup Required"}
+                {isConfigured ? t.mobileSheet.newRun : t.mobileSheet.setupRequired}
               </Button>
 
               {/* Run controls grid */}
               {status && (
                 <>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#666] font-semibold block">
-                    Run Controls
+                    {t.mobileSheet.runControls}
                   </label>
                   <div className="grid grid-cols-3 gap-2">
                     <Button
@@ -133,7 +135,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Pause
+                      {t.mobileSheet.pause}
                     </Button>
                     <Button
                       variant="success"
@@ -147,7 +149,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Resume
+                      {t.mobileSheet.resume}
                     </Button>
                     <Button
                       variant="primary"
@@ -162,7 +164,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Inject
+                      {t.mobileSheet.inject}
                     </Button>
                     <Button
                       variant="danger"
@@ -176,7 +178,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Stop
+                      {t.mobileSheet.stop}
                     </Button>
                     <Button
                       variant="danger"
@@ -192,7 +194,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Kill
+                      {t.mobileSheet.kill}
                     </Button>
                     <Button
                       variant="warning"
@@ -207,7 +209,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Unlock
+                      {t.mobileSheet.unlock}
                     </Button>
                   </div>
                 </>

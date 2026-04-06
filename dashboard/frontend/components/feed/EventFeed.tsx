@@ -6,6 +6,7 @@ import type { FeedEvent } from "@/lib/types";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function EventFeed({ events }: { events: FeedEvent[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,6 +37,7 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
     }
   }, []);
 
+  const { t } = useTranslation();
   const toolCount = events.filter(
     (e) => e._kind === "tool" && e.data.phase === "pre"
   ).length;
@@ -45,15 +47,15 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
       {/* Mini toolbar */}
       <div className="flex items-center gap-4 px-4 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]/80 frosted-glass">
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Events</span>
+          <span className="text-[10px] text-[#888]">{t.feed.events}</span>
           <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{events.length}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Tools</span>
+          <span className="text-[10px] text-[#888]">{t.feed.tools}</span>
           <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{toolCount}</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Groups</span>
+          <span className="text-[10px] text-[#888]">{t.feed.groups}</span>
           <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{grouped.length}</span>
         </div>
       </div>
@@ -91,7 +93,7 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
             <line x1="5" y1="2" x2="5" y2="8" />
             <polyline points="3 6 5 8 7 6" />
           </svg>
-          New events
+          {t.feed.newEvents}
         </button>
       )}
     </div>

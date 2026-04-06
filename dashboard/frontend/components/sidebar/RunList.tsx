@@ -4,6 +4,7 @@ import { AnimatePresence } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { RunItem } from "./RunItem";
 import { EmptyRuns } from "@/components/ui/EmptyStates";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function RunList({
   runs,
@@ -18,6 +19,8 @@ export function RunList({
   loading: boolean;
   mobile?: boolean;
 }) {
+  const { t } = useTranslation();
+
   return (
     <aside className={mobile ? "flex-1 flex flex-col bg-[#030303]" : "w-[280px] flex-shrink-0 flex flex-col border-r border-[#1a1a1a] bg-[#030303]"}>
       <div className="px-4 py-3 border-b border-[#1a1a1a]">
@@ -28,7 +31,7 @@ export function RunList({
             <line x1="1" y1="7" x2="11" y2="7" />
           </svg>
           <h2 className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#999]">
-            Runs
+            {t.sidebar.runs}
           </h2>
           <span className="text-[10px] text-[#666] tabular-nums ml-auto">{runs.length}</span>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/hooks/useTranslation";
 
 function formatCountdown(seconds: number): string {
   if (seconds <= 0) return "Ready to resume";
@@ -23,6 +24,7 @@ export function RateLimitBanner({
   onResume: () => void;
   busy: boolean;
 }) {
+  const { t } = useTranslation();
   const [initialRemaining] = useState(() =>
     Math.max(1, resetsAt - Date.now() / 1000)
   );
@@ -60,7 +62,7 @@ export function RateLimitBanner({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={`text-[10px] font-semibold ${isReady ? "text-[#00ff88]" : "text-[#ffaa00]"}`}>
-              {isReady ? "Rate limit cleared" : "Rate limited"}
+              {isReady ? t.rateLimitBanner.rateLimitCleared : t.rateLimitBanner.rateLimited}
             </span>
             <span className={`text-[11px] font-bold tabular-nums ${isReady ? "text-[#00ff88]" : "text-[#ffaa00]"}`}>
               {formatCountdown(remaining)}
@@ -91,7 +93,7 @@ export function RateLimitBanner({
             </svg>
           }
         >
-          {isReady ? "Resume Now" : "Force Resume"}
+          {isReady ? t.rateLimitBanner.resumeNow : t.rateLimitBanner.forceResume}
         </Button>
       </div>
     </motion.div>

@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/hooks/useTranslation";
 
-const PRESETS = [
-  { label: "Wrap up", text: "You're done for now \u2014 commit your progress, write a summary of what you did and what remains, then stop." },
-  { label: "Focus security", text: "Focus specifically on security issues next. Check the SECURITY_AUDIT.md and address the CRITICAL and HIGH findings." },
-  { label: "Run tests", text: "Stop making changes and run the full test suite. Report any failures." },
-  { label: "Add tests", text: "Focus on adding test coverage for the gateway module. Don't make any other changes." },
+const PRESET_TEXTS = [
+  "You're done for now \u2014 commit your progress, write a summary of what you did and what remains, then stop.",
+  "Focus specifically on security issues next. Check the SECURITY_AUDIT.md and address the CRITICAL and HIGH findings.",
+  "Stop making changes and run the full test suite. Report any failures.",
+  "Focus on adding test coverage for the gateway module. Don't make any other changes.",
 ];
 
 interface InjectPanelProps {
@@ -20,6 +21,7 @@ interface InjectPanelProps {
 
 export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
   const [text, setText] = useState("");
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -59,13 +61,18 @@ export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
           <div className="p-4 bg-[#0a0a0a]">
             {/* Presets */}
             <div className="flex gap-1.5 mb-3 flex-wrap">
-              {PRESETS.map((p) => (
+              {[
+                t.injectPanel.presets.wrapUp,
+                t.injectPanel.presets.focusSecurity,
+                t.injectPanel.presets.runTests,
+                t.injectPanel.presets.addTests,
+              ].map((label, i) => (
                 <button
-                  key={p.label}
-                  onClick={() => setText(p.text)}
+                  key={label}
+                  onClick={() => setText(PRESET_TEXTS[i])}
                   className="text-[9px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] transition-colors border border-[#1a1a1a]"
                 >
-                  {p.label}
+                  {label}
                 </button>
               ))}
             </div>
@@ -76,7 +83,7 @@ export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a prompt to inject into the running agent..."
+              placeholder={t.injectPanel.placeholder}
               rows={3}
               className="w-full bg-black/40 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] placeholder-[#666] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
             />
@@ -84,7 +91,7 @@ export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
             {/* Actions */}
             <div className="flex items-center justify-between mt-2.5">
               <span className="text-[9px] text-[#888]">
-                {text.length > 0 ? `${text.length} chars` : "Ctrl+Enter to send"}
+                {text.length > 0 ? `${text.length} ${t.injectPanel.chars}` : t.injectPanel.ctrlEnterToSend}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -96,7 +103,7 @@ export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
                     </svg>
                   }
                 >
-                  Cancel
+                  {t.injectPanel.cancel}
                 </Button>
                 <Button
                   variant="primary"
@@ -109,7 +116,7 @@ export function InjectPanel({ open, onClose, onSend, busy }: InjectPanelProps) {
                     </svg>
                   }
                 >
-                  Send to Agent
+                  {t.injectPanel.sendToAgent}
                 </Button>
               </div>
             </div>

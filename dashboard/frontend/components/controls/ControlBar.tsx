@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { RunStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface ControlBarProps {
   status: RunStatus | null;
@@ -32,6 +33,7 @@ export function ControlBar({
   timeRemaining,
 }: ControlBarProps) {
   const [showKillConfirm, setShowKillConfirm] = useState(false);
+  const { t } = useTranslation();
 
   const isActive = ["running", "paused", "rate_limited"].includes(status || "");
   const canPause = status === "running";
@@ -72,7 +74,7 @@ export function ControlBar({
           </svg>
         }
       >
-        Pause
+        {t.controlBar.pause}
       </Button>
 
       <Button
@@ -85,7 +87,7 @@ export function ControlBar({
           </svg>
         }
       >
-        Resume
+        {t.controlBar.resume}
       </Button>
 
       {sessionLocked && (
@@ -100,7 +102,7 @@ export function ControlBar({
             </svg>
           }
         >
-          Unlock
+          {t.controlBar.unlock}
         </Button>
       )}
 
@@ -114,7 +116,7 @@ export function ControlBar({
           </svg>
         }
       >
-        Stop
+        {t.controlBar.stop}
       </Button>
 
       <Button
@@ -130,7 +132,7 @@ export function ControlBar({
           </svg>
         }
       >
-        {showKillConfirm ? "Confirm" : "Kill"}
+        {showKillConfirm ? t.controlBar.confirm : t.controlBar.kill}
       </Button>
 
       <div className="w-px h-4 bg-[#1a1a1a] mx-0.5" />
@@ -146,7 +148,7 @@ export function ControlBar({
           </svg>
         }
       >
-        Inject
+        {t.controlBar.inject}
       </Button>
 
       {canResumeRun && (
@@ -163,7 +165,7 @@ export function ControlBar({
               </svg>
             }
           >
-            Resume Run
+            {t.controlBar.resumeRun}
           </Button>
         </>
       )}

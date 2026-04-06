@@ -6,6 +6,8 @@ import { clsx } from "clsx";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { LocaleDict } from "@/lib/i18n/types";
 
 /* ── Helpers ── */
 
@@ -226,6 +228,7 @@ function TodoDisplay({ todos }: { todos: Array<{ status: string; content: string
 /* ── Tool Call Card ── */
 function ToolCallCard({ tc }: { tc: ToolCall }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   const denied = !tc.permitted;
   const isPlanner = tc.agent_role === "planner";
   const isComplete = tc.phase === "post" || !!tc.output_data;
@@ -285,7 +288,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
               : "text-[#999] bg-white/[0.03]"
           )}
         >
-          {isPlanner ? "PLN" : "WRK"}
+          {isPlanner ? t.eventCard.planner : t.eventCard.worker}
         </span>
 
         {/* Tool name */}
@@ -299,13 +302,13 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
               <circle cx="4" cy="4" r="3" stroke="#ffaa00" strokeWidth="1" strokeDasharray="2 2" style={{ animation: "spin 2s linear infinite" }} />
             </svg>
-            running
+            {t.eventCard.running}
           </span>
         )}
 
         {denied && (
           <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1.5 py-0.5 shrink-0 tracking-wider">
-            DENIED
+            {t.eventCard.denied}
           </span>
         )}
 
@@ -353,14 +356,14 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             {/* Tool-specific rendered content */}
             {hasTodos && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">Tasks</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">{t.eventCard.tasks}</div>
                   <TodoDisplay todos={tc.input_data!.todos as Array<{ status: string; content: string; activeForm?: string }>} />
                 </div>
               )}
 
               {hasDiff && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">Diff</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">{t.eventCard.diff}</div>
                   <div className="bg-black/30 rounded border border-[#1a1a1a] overflow-hidden max-h-[500px] overflow-y-auto">
                     <DiffViewer patch={tc.output_data!.structuredPatch as Array<Record<string, unknown>>} />
                   </div>
@@ -369,7 +372,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 
               {hasBashOutput && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">Output</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">{t.eventCard.output}</div>
                   <div className="bg-black/30 rounded border border-[#1a1a1a] p-2 max-h-[500px] overflow-y-auto">
                     <BashOutput output={tc.output_data!} />
                   </div>
@@ -379,7 +382,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
               {/* Raw Input - always available */}
               {tc.input_data && !hasTodos && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">Input</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">{t.eventCard.input}</div>
                   <pre className="text-[10px] text-[#777] bg-black/30 rounded border border-[#1a1a1a] p-2 overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(tc.input_data, null, 2)}
                   </pre>
@@ -389,7 +392,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
               {/* Raw Output - show when no specialized renderer */}
               {tc.output_data && !hasDiff && !hasBashOutput && (
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1">Result</div>
+                  <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1">{t.eventCard.result}</div>
                   <pre className="text-[10px] text-[#777] bg-black/30 rounded border border-[#1a1a1a] p-2 overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(tc.output_data, null, 2)}
                   </pre>
@@ -534,6 +537,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
 
 /* ── Usage Card ── */
 function UsageCard({ usage }: { usage: UsageEvent }) {
+  const { t } = useTranslation();
   const fmt = (n: number) => {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
@@ -556,7 +560,7 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
           <rect x="5" y="3" width="2" height="8" rx="0.5" />
           <rect x="9" y="1" width="2" height="10" rx="0.5" />
         </svg>
-        <span className="text-[9px] font-medium text-[#44ccdd]/60 tracking-wider">USAGE</span>
+        <span className="text-[9px] font-medium text-[#44ccdd]/60 tracking-wider">{t.eventCard.usage}</span>
         <span className="text-[9px] text-[#666] tabular-nums">
           in:{fmt(usage.input_tokens)} out:{fmt(usage.output_tokens)}
         </span>
@@ -575,6 +579,7 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
 
 /* ── Control Card ── */
 function ControlCard({ text, ts }: { text: string; ts: string }) {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
@@ -590,7 +595,7 @@ function ControlCard({ text, ts }: { text: string; ts: string }) {
           <line x1="7" y1="10" x2="10" y2="10" />
         </svg>
         <span className="text-[9px] font-bold text-[#ffaa00] tracking-wider uppercase">
-          Control
+          {t.eventCard.control}
         </span>
         <span className="text-[10px] text-[#888]">{text}</span>
       </div>

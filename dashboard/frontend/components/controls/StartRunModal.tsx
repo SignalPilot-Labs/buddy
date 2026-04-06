@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 function BranchPicker({
   branches,
@@ -18,6 +19,7 @@ function BranchPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +56,7 @@ function BranchPicker({
   return (
     <div ref={containerRef} className="relative">
       <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-        Branch from
+        {t.startRunModal.branchFrom}
       </label>
       <button
         onClick={() => setOpen(!open)}
@@ -74,7 +76,7 @@ function BranchPicker({
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search branches..."
+              placeholder={t.startRunModal.searchBranches}
               className="w-full bg-black/30 border border-[#1a1a1a] rounded px-2.5 py-1.5 text-[10px] text-[#ccc] placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30"
               onKeyDown={(e) => {
                 if (e.key === "Escape") { setOpen(false); setQuery(""); }
@@ -88,7 +90,7 @@ function BranchPicker({
           </div>
           <div className="max-h-48 overflow-y-auto">
             {sorted.length === 0 ? (
-              <div className="px-3 py-2 text-[9px] text-[#888]">No branches match</div>
+              <div className="px-3 py-2 text-[9px] text-[#888]">{t.startRunModal.noBranchesMatch}</div>
             ) : (
               sorted.map((b) => (
                 <button
@@ -127,39 +129,13 @@ interface StartRunModalProps {
   branches: string[];
 }
 
-const DURATION_PRESETS = [
-  { label: "No lock", minutes: 0, desc: "Agent can end anytime" },
-  { label: "30 min", minutes: 30, desc: "Quick pass" },
-  { label: "1 hour", minutes: 60, desc: "Focused session" },
-  { label: "2 hours", minutes: 120, desc: "Deep dive" },
-  { label: "4 hours", minutes: 240, desc: "Extended run" },
-  { label: "8 hours", minutes: 480, desc: "Overnight" },
-];
+const DURATION_MINUTES = [0, 30, 60, 120, 240, 480];
 
-const QUICK_PROMPTS = [
-  {
-    label: "General improvement",
-    prompt: undefined as string | undefined,
-    desc: "Default: security, bugs, tests, quality",
-  },
-  {
-    label: "Security hardening",
-    prompt:
-      "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.",
-    desc: "Fix security issues",
-  },
-  {
-    label: "Test coverage",
-    prompt:
-      "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.",
-    desc: "Add missing tests",
-  },
-  {
-    label: "Bug fixes",
-    prompt:
-      "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.",
-    desc: "Find and fix bugs",
-  },
+const QUICK_PROMPT_TEXTS: Array<string | undefined> = [
+  undefined,
+  "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.",
+  "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.",
+  "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.",
 ];
 
 export function StartRunModal({
@@ -176,6 +152,7 @@ export function StartRunModal({
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
@@ -202,7 +179,7 @@ export function StartRunModal({
   const handleStart = () => {
     const prompt =
       selectedQuick !== null
-        ? QUICK_PROMPTS[selectedQuick].prompt
+        ? QUICK_PROMPT_TEXTS[selectedQuick]
         : customPrompt.trim() || undefined;
     onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch);
   };
@@ -250,10 +227,10 @@ export function StartRunModal({
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
-                      Start Improvement Run
+                      {t.startRunModal.title}
                     </h2>
                     <p className="text-[9px] text-[#999] mt-0.5">
-                      Creates a branch, makes improvements, opens a PR
+                      {t.startRunModal.subtitle}
                     </p>
                   </div>
                 </div>
@@ -277,10 +254,15 @@ export function StartRunModal({
                 {/* Quick prompts */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                    Quick Start
+                    {t.startRunModal.quickStart}
                   </label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    {QUICK_PROMPTS.map((q, i) => (
+                    {([
+                      { labelKey: "generalImprovement" as const, descKey: "generalImprovementDesc" as const },
+                      { labelKey: "securityHardening" as const, descKey: "securityHardeningDesc" as const },
+                      { labelKey: "testCoverage" as const, descKey: "testCoverageDesc" as const },
+                      { labelKey: "bugFixes" as const, descKey: "bugFixesDesc" as const },
+                    ]).map((q, i) => (
                       <button
                         key={i}
                         onClick={() => {
@@ -295,10 +277,10 @@ export function StartRunModal({
                         )}
                       >
                         <div className="text-[10px] font-medium text-[#ccc]">
-                          {q.label}
+                          {t.startRunModal.quickPrompts[q.labelKey]}
                         </div>
                         <div className="text-[9px] text-[#999] mt-0.5">
-                          {q.desc}
+                          {t.startRunModal.quickPrompts[q.descKey]}
                         </div>
                       </button>
                     ))}
@@ -311,7 +293,7 @@ export function StartRunModal({
                 {/* Custom prompt */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                    Custom Prompt
+                    {t.startRunModal.customPrompt}
                   </label>
                   <textarea
                     ref={textareaRef}
@@ -321,7 +303,7 @@ export function StartRunModal({
                       setSelectedQuick(null);
                     }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe what the agent should focus on..."
+                    placeholder={t.startRunModal.customPromptPlaceholder}
                     rows={3}
                     className="mt-2 w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] placeholder-[#666] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
                   />
@@ -330,24 +312,31 @@ export function StartRunModal({
                 {/* Duration lock */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                    Session Duration
+                    {t.startRunModal.sessionDuration}
                   </label>
                   <p className="text-[10px] text-[#888] mt-0.5 mb-2">
-                    Agent cannot call end_session until this time expires
+                    {t.startRunModal.sessionDurationHelp}
                   </p>
                   <div className="flex gap-1.5 flex-wrap">
-                    {DURATION_PRESETS.map((d) => (
+                    {([
+                      "noLock" as const,
+                      "thirtyMin" as const,
+                      "oneHour" as const,
+                      "twoHours" as const,
+                      "fourHours" as const,
+                      "eightHours" as const,
+                    ]).map((key, i) => (
                       <button
-                        key={d.minutes}
-                        onClick={() => setDuration(d.minutes)}
+                        key={DURATION_MINUTES[i]}
+                        onClick={() => setDuration(DURATION_MINUTES[i])}
                         className={clsx(
                           "text-[9px] px-2 py-1.5 rounded border transition-all",
-                          duration === d.minutes
+                          duration === DURATION_MINUTES[i]
                             ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88]"
                             : "border-[#1a1a1a] bg-white/[0.01] text-[#777] hover:bg-white/[0.03]"
                         )}
                       >
-                        {d.label}
+                        {t.startRunModal.durationPresets[key]}
                       </button>
                     ))}
                   </div>
@@ -373,10 +362,10 @@ export function StartRunModal({
                         </svg>
                       )}
                     </span>
-                    Max Budget
+                    {t.startRunModal.maxBudget}
                     {!budgetEnabled && (
                       <span className="text-[10px] text-[#888] font-normal normal-case tracking-normal ml-1">
-                        (unlimited)
+                        {t.startRunModal.unlimited}
                       </span>
                     )}
                   </label>
@@ -402,11 +391,11 @@ export function StartRunModal({
               {/* Footer */}
               <div className="flex items-center justify-between px-5 py-3 border-t border-[#1a1a1a]">
                 <span className="text-[9px] text-[#888]">
-                  Ctrl+Enter to start
+                  {t.startRunModal.ctrlEnterToStart}
                 </span>
                 <div className="flex gap-2">
                   <Button variant="ghost" onClick={onClose}>
-                    Cancel
+                    {t.startRunModal.cancel}
                   </Button>
                   <Button
                     variant="success"
@@ -419,7 +408,7 @@ export function StartRunModal({
                       </svg>
                     }
                   >
-                    {busy ? "Starting..." : "Start Run"}
+                    {busy ? t.startRunModal.starting : t.startRunModal.startRun}
                   </Button>
                 </div>
               </div>

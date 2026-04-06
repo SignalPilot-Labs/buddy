@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RepoInfo } from "@/lib/types";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface RepoSelectorProps {
   repos: RepoInfo[];
@@ -13,6 +14,7 @@ interface RepoSelectorProps {
 export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   // Close on outside click
   useEffect(() => {
@@ -27,7 +29,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
 
   const displayName = activeRepo
     ? activeRepo.split("/").pop() || activeRepo
-    : "Select repo";
+    : t.repoSelector.selectRepo;
 
   const fullName = activeRepo || "";
 
@@ -67,14 +69,14 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
           >
             <div className="px-3 py-2 border-b border-[#1a1a1a]">
               <span className="text-[9px] uppercase tracking-[0.1em] text-[#666] font-semibold">
-                Repositories
+                {t.repoSelector.repositories}
               </span>
             </div>
 
             <div className="max-h-[200px] overflow-y-auto">
               {repos.length === 0 && (
                 <div className="px-3 py-3 text-[10px] text-[#666]">
-                  No repos configured
+                  {t.repoSelector.noReposConfigured}
                 </div>
               )}
               {repos.map((r) => (
@@ -130,7 +132,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
                     !activeRepo ? "bg-[#88ccff]" : "bg-transparent"
                   }`}
                 />
-                <span className="text-[10px] text-[#888]">All repositories</span>
+                <span className="text-[10px] text-[#888]">{t.repoSelector.allRepositories}</span>
               </button>
             </div>
           </motion.div>

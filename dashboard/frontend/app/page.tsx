@@ -44,6 +44,8 @@ import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
+import { LocaleToggle } from "@/components/ui/LocaleToggle";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export default function MonitorPage() {
   const selectGenRef = useRef(0);
   const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
+  const { t } = useTranslation();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes">(
     "feed",
   );
@@ -357,7 +360,7 @@ export default function MonitorPage() {
             AutoFyn
           </h1>
           <p className="text-[8px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-            Monitor
+            {t.monitor}
           </p>
         </div>
 
@@ -386,6 +389,9 @@ export default function MonitorPage() {
         {selectedRun && (
           <StatusBadge status={selectedRun.status as RunStatus} size="md" />
         )}
+
+        {/* Locale Toggle */}
+        <LocaleToggle />
 
         {/* Settings */}
         <Link
@@ -451,7 +457,7 @@ export default function MonitorPage() {
               AutoFyn
             </h1>
             <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-              Monitor
+              {t.monitor}
             </p>
           </div>
         </div>
@@ -505,22 +511,25 @@ export default function MonitorPage() {
           />
           <span className="text-[10px] text-[#888]">
             {!agentReachable
-              ? "Offline"
+              ? t.agentStatus.offline
               : agentBootstrapping
-                ? "Starting..."
+                ? t.agentStatus.starting
                 : agentIdle
-                  ? "Idle"
+                  ? t.agentStatus.idle
                   : agentHealth?.elapsed_minutes != null
-                    ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
-                    : "Active"}
+                    ? `${t.agentStatus.active} · ${Math.round(agentHealth.elapsed_minutes)}m`
+                    : t.agentStatus.active}
           </span>
         </div>
+
+        {/* Locale Toggle */}
+        <LocaleToggle />
 
         {/* Settings link */}
         <Link
           href="/settings"
           className="p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-          title="Settings"
+          title={t.nav.settings}
         >
           <svg
             width="14"
@@ -548,7 +557,7 @@ export default function MonitorPage() {
           disabled={!agentIdle || !agentReachable || !isConfigured}
           title={
             !isConfigured
-              ? "Configure credentials in Settings first"
+              ? t.run.configureFirst
               : undefined
           }
           icon={
@@ -565,12 +574,12 @@ export default function MonitorPage() {
           }
         >
           {!isConfigured
-            ? "Setup Required"
+            ? t.run.setupRequired
             : !agentReachable
-              ? "Offline"
+              ? t.run.offline
               : !agentIdle
-                ? "Running"
-                : "New Run"}
+                ? t.run.running
+                : t.run.newRun}
         </Button>
 
         <div className="w-px h-4 bg-[#1a1a1a]" />
@@ -718,7 +727,7 @@ export default function MonitorPage() {
               <line x1="2" y1="10" x2="16" y2="10" />
             </svg>
           }
-          label="Runs"
+          label={t.nav.runs}
           active={mobilePanel === "runs"}
           onClick={() => setMobilePanel("runs")}
           badge={runs.length || null}
@@ -739,7 +748,7 @@ export default function MonitorPage() {
               <path d="M3 13h10" />
             </svg>
           }
-          label="Feed"
+          label={t.nav.feed}
           active={mobilePanel === "feed"}
           onClick={() => setMobilePanel("feed")}
           badge={allEvents.length || null}
@@ -762,7 +771,7 @@ export default function MonitorPage() {
               <line x1="13" y1="12" x2="9" y2="12" />
             </svg>
           }
-          label="Changes"
+          label={t.nav.changes}
           active={mobilePanel === "changes"}
           onClick={() => setMobilePanel("changes")}
         />
@@ -782,7 +791,7 @@ export default function MonitorPage() {
               <path d="M4 10h10" />
             </svg>
           }
-          label="Controls"
+          label={t.nav.controls}
           active={controlsOpen}
           onClick={() => setControlsOpen(!controlsOpen)}
         />

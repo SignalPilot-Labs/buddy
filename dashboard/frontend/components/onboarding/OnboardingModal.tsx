@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { updateSettings } from "@/lib/settings-api";
 import type { SettingsStatus } from "@/lib/types";
 import { clsx } from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface OnboardingModalProps {
   open: boolean;
@@ -18,66 +19,21 @@ interface OnboardingModalProps {
 const STEPS = [
   {
     key: "claude_token",
-    label: "Claude OAuth Token",
     statusKey: "has_claude_token" as const,
     placeholder: "sk-ant-oat01-...",
     type: "password" as const,
-    help: (
-      <>
-        <p className="text-[10px] text-[#888] leading-relaxed">
-          This authenticates the Claude CLI inside Docker.
-        </p>
-        <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
-          <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
-            <li>
-              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> in your terminal
-            </li>
-            <li>Follow the prompts to authenticate</li>
-            <li>Copy the token that is output</li>
-          </ol>
-        </div>
-      </>
-    ),
   },
   {
     key: "git_token",
-    label: "GitHub Personal Access Token",
     statusKey: "has_git_token" as const,
     placeholder: "ghp_...",
     type: "password" as const,
-    help: (
-      <>
-        <p className="text-[10px] text-[#888] leading-relaxed">
-          Used by the agent to push branches and create PRs. Never exposed to the LLM.
-        </p>
-        <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
-          <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
-            <li>Go to GitHub Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens</li>
-            <li>Click &ldquo;Generate new token&rdquo;</li>
-            <li>
-              Select your repo and grant <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[9px]">Contents: Read and write</code> and{" "}
-              <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[9px]">Pull requests: Read and write</code>
-            </li>
-            <li>Copy the generated token</li>
-          </ol>
-        </div>
-      </>
-    ),
   },
   {
     key: "github_repo",
-    label: "GitHub Repository",
     statusKey: "has_github_repo" as const,
     placeholder: "your-org/your-repo",
     type: "text" as const,
-    help: (
-      <p className="text-[10px] text-[#888] leading-relaxed">
-        The repository slug in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">owner/repo</code> format.
-        The agent is gated to only operate on this repository.
-      </p>
-    ),
   },
 ];
 
@@ -88,6 +44,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
   // Focus input on step change
   useEffect(() => {
@@ -120,7 +77,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
         setShowPassword(false);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save");
+      setError(e instanceof Error ? e.message : t.onboarding.failedToSave);
     } finally {
       setSaving(false);
     }
@@ -173,10 +130,10 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
-                      Welcome to AutoFyn
+                      {t.onboarding.welcome}
                     </h2>
                     <p className="text-[9px] text-[#999] mt-0.5">
-                      Set up your credentials to get started
+                      {t.onboarding.subtitle}
                     </p>
                   </div>
                 </div>
@@ -211,7 +168,11 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     transition={{ duration: 0.2 }}
                   >
                     <label className="text-[9px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                      Step {step + 1} of {STEPS.length} &mdash; {currentStep.label}
+                      {t.onboarding.stepOf} {step + 1} {t.onboarding.of} {STEPS.length} &mdash; {[
+                        t.onboarding.steps.claudeToken.label,
+                        t.onboarding.steps.gitToken.label,
+                        t.onboarding.steps.githubRepo.label,
+                      ][step]}
                     </label>
 
                     <div className="mt-3 relative">
@@ -255,7 +216,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <polyline points="2 5 4 7 8 3" />
                         </svg>
-                        Already configured &mdash; leave blank to keep current value
+                        {t.onboarding.alreadyConfigured}
                       </p>
                     )}
 
@@ -263,7 +224,52 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                       <p className="mt-2 text-[9px] text-[#ff4444]">{error}</p>
                     )}
 
-                    <div className="mt-4">{currentStep.help}</div>
+                    <div className="mt-4">
+                      {step === 0 && (
+                        <>
+                          <p className="text-[10px] text-[#888] leading-relaxed">
+                            {t.onboarding.steps.claudeToken.help1}
+                          </p>
+                          <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
+                            <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">{t.onboarding.steps.claudeToken.howToGet}</p>
+                            <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
+                              <li>
+                                {t.onboarding.steps.claudeToken.step1}{" "}
+                                <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code>
+                              </li>
+                              <li>{t.onboarding.steps.claudeToken.step2}</li>
+                              <li>{t.onboarding.steps.claudeToken.step3}</li>
+                            </ol>
+                          </div>
+                        </>
+                      )}
+                      {step === 1 && (
+                        <>
+                          <p className="text-[10px] text-[#888] leading-relaxed">
+                            {t.onboarding.steps.gitToken.help1}
+                          </p>
+                          <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
+                            <p className="text-[9px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">{t.onboarding.steps.gitToken.howToGet}</p>
+                            <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
+                              <li>{t.onboarding.steps.gitToken.step1}</li>
+                              <li>{t.onboarding.steps.gitToken.step2}</li>
+                              <li>
+                                {t.onboarding.steps.gitToken.step3}{" "}
+                                <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[9px]">Contents: Read and write</code>
+                              </li>
+                              <li>{t.onboarding.steps.gitToken.step4}</li>
+                            </ol>
+                          </div>
+                        </>
+                      )}
+                      {step === 2 && (
+                        <p className="text-[10px] text-[#888] leading-relaxed">
+                          {t.onboarding.steps.githubRepo.help1}{" "}
+                          <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">owner/repo</code>{" "}
+                          {t.onboarding.steps.githubRepo.help2}
+                        </p>
+                      )}
+                    </div>
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -276,14 +282,14 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                       variant="ghost"
                       onClick={() => { setStep(step - 1); setShowPassword(false); }}
                     >
-                      Back
+                      {t.onboarding.back}
                     </Button>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
                   {(initialStatus[currentStep.statusKey] || !currentValue.trim()) && (
                     <Button variant="ghost" onClick={handleSkip}>
-                      {isLastStep ? "Done" : "Skip"}
+                      {isLastStep ? t.onboarding.done : t.onboarding.skip}
                     </Button>
                   )}
                   <Button
@@ -292,7 +298,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     onClick={handleNext}
                     disabled={saving || !currentValue.trim()}
                   >
-                    {saving ? "Saving..." : isLastStep ? "Save & Finish" : "Save & Continue"}
+                    {saving ? t.onboarding.saving : isLastStep ? t.onboarding.saveAndFinish : t.onboarding.saveAndContinue}
                   </Button>
                 </div>
               </div>

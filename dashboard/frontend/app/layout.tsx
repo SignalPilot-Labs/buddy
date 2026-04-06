@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { HtmlLangSetter } from "@/components/ui/HtmlLangSetter";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -49,12 +50,15 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&family=Noto+Sans+Bengali:wght@100..900&display=swap"
           rel="stylesheet"
         />
         <script src="/config.js" />
       </head>
-      <body>{children}</body>
+      <body>
+        <HtmlLangSetter />
+        {children}
+      </body>
     </html>
   );
 }

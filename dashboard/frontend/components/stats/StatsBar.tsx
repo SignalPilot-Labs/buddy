@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
+import { useTranslation } from "@/hooks/useTranslation";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
@@ -65,11 +66,12 @@ export function StatsBar({
 }) {
   const isActive = run != null && ACTIVE_STATUSES.has(run.status);
   const live = useMemo(() => computeLiveStats(events), [events]);
+  const { t } = useTranslation();
 
   if (!run) {
     return (
       <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
-        <span className="text-[10px] text-[#777]">No run selected</span>
+        <span className="text-[10px] text-[#777]">{t.statsBar.noRunSelected}</span>
       </div>
     );
   }
@@ -86,7 +88,7 @@ export function StatsBar({
             <path d="M6.5 1L9 3.5 3.5 9H1V6.5L6.5 1z" />
           </svg>
         }
-        label="Tools"
+        label={t.statsBar.tools}
         value={String(isActive ? live.toolCount : run.total_tool_calls || 0)}
       />
       <Stat
@@ -96,7 +98,7 @@ export function StatsBar({
             <path d="M3.5 5h3M5 3.5v3" />
           </svg>
         }
-        label="Cost"
+        label={t.statsBar.cost}
         value={
           isActive && !run.total_cost_usd
             ? "—"
@@ -110,7 +112,7 @@ export function StatsBar({
             <path d="M1 5h3l1.5-3 2 6L9 5" />
           </svg>
         }
-        label="In/Out"
+        label={t.statsBar.inOut}
         value={
           isActive
             ? `${formatTokens(live.inputTokens)} / ${formatTokens(live.outputTokens)}`
@@ -145,7 +147,7 @@ export function StatsBar({
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
         <span className="text-[10px] text-[#888]">
-          {connected ? "Live" : "Disconnected"}
+          {connected ? t.statsBar.live : t.statsBar.disconnected}
         </span>
       </div>
     </motion.div>

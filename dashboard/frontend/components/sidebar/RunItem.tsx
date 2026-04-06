@@ -4,13 +4,15 @@ import { clsx } from "clsx";
 import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { LocaleDict } from "@/lib/i18n/types";
 
-function timeAgo(date: string): string {
+function timeAgo(date: string, timeDict: LocaleDict["time"]): string {
   const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
+  if (s < 60) return `${s}${timeDict.secondsAgo}`;
+  if (s < 3600) return `${Math.floor(s / 60)}${timeDict.minutesAgo}`;
+  if (s < 86400) return `${Math.floor(s / 3600)}${timeDict.hoursAgo}`;
+  return `${Math.floor(s / 86400)}${timeDict.daysAgo}`;
 }
 
 function formatCost(usd: number | null): string {
@@ -34,6 +36,7 @@ export function RunItem({
   active: boolean;
   onClick: () => void;
 }) {
+  const { t } = useTranslation();
   const branchShort = run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   return (
@@ -66,7 +69,7 @@ export function RunItem({
       </div>
 
       <div className="flex items-center gap-3 text-[10px] text-[#888]">
-        <span className="tabular-nums">{timeAgo(run.started_at)}</span>
+        <span className="tabular-nums">{timeAgo(run.started_at, t.time)}</span>
         {run.total_tool_calls > 0 && (
           <span className="flex items-center gap-0.5">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1">
