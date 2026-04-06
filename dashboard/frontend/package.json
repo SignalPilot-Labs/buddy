@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --port 3400",
     "build": "next build",
-    "start": "next start --port 3400"
+    "start": "next start --port 3400",
+    "check:i18n": "npx tsx lib/i18n/check-sync.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
