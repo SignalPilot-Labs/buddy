@@ -466,8 +466,9 @@ class AgentServer:
         @app.get("/parallel/runs/{run_id}/logs")
         async def parallel_run_logs(run_id: str = Path(min_length=8, max_length=36, pattern=r"^[a-f0-9\-]+$"), tail: int = 200):
             slot = _run_manager.get_slot_by_run_id(run_id)
-            container_name = slot.container_name if slot else f"buddy-worker-{run_id}"
-            return _run_manager.read_logs(container_name, tail)
+            if not slot:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return _run_manager.read_logs(slot.container_name, tail)
 
         @app.delete("/parallel/runs/{run_id}")
         async def parallel_dismiss(run_id: str = Path(min_length=8, max_length=36, pattern=r"^[a-f0-9\-]+$")):

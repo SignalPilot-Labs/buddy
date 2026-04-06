@@ -1,6 +1,7 @@
 """Dashboard API endpoints — Cloudflare tunnel management."""
 
 import re
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -10,6 +11,19 @@ router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
 
 TUNNEL_CONTAINER = "buddy-tunnel"
 TUNNEL_URL_RE = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
+
+TUNNEL_RATE_LIMIT_MAX = 5
+TUNNEL_RATE_LIMIT_WINDOW_SEC = 60.0
+_tunnel_timestamps: list[float] = []
+
+
+def _check_tunnel_rate_limit() -> None:
+    """Sliding-window rate limiter for tunnel start/stop operations."""
+    now = time.monotonic()
+    _tunnel_timestamps[:] = [t for t in _tunnel_timestamps if now - t < TUNNEL_RATE_LIMIT_WINDOW_SEC]
+    if len(_tunnel_timestamps) >= TUNNEL_RATE_LIMIT_MAX:
+        raise HTTPException(status_code=429, detail="Too many tunnel requests. Max 5 per minute.")
+    _tunnel_timestamps.append(now)
 
 
 def _get_docker():
@@ -44,6 +58,7 @@ async def tunnel_status() -> dict:
 @router.post("/tunnel/start")
 async def tunnel_start() -> dict:
     """Start the tunnel container."""
+    _check_tunnel_rate_limit()
     try:
         docker_client = _get_docker()
         container = docker_client.containers.get(TUNNEL_CONTAINER)
@@ -60,6 +75,7 @@ async def tunnel_start() -> dict:
 @router.post("/tunnel/stop")
 async def tunnel_stop() -> dict:
     """Stop the tunnel container."""
+    _check_tunnel_rate_limit()
     try:
         docker_client = _get_docker()
         container = docker_client.containers.get(TUNNEL_CONTAINER)

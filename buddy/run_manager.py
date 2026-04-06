@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import subprocess
 import time
 import uuid
@@ -33,11 +34,11 @@ PASSTHROUGH_ENV_VARS = [
     "SP_SANDBOX_URL",
     "SP_GATEWAY_URL",
     "AGENT_INTERNAL_SECRET",
-    "DATABASE_URL",
 ]
 
 ALLOWED_CREDENTIAL_KEYS = {"claude_token", "git_token", "github_repo"}
 WORKER_LOG_DIR = "/app/worker-logs"
+CONTAINER_NAME_RE = re.compile(r"^buddy-worker-[a-f0-9]{8}$")
 
 
 @dataclass
@@ -469,12 +470,19 @@ class RunManager:
             log.warning("Failed to resolve final status for %s: %s", run_id, e)
         return default
 
+    @staticmethod
+    def _validate_container_name(container_name: str) -> None:
+        """Ensure the container name matches the expected format to prevent SSRF."""
+        if not CONTAINER_NAME_RE.match(container_name):
+            raise ValueError(f"Invalid container name: {container_name!r}")
+
     async def send_signal(
         self,
         container_name: str,
         signal: str,
         payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        self._validate_container_name(container_name)
         endpoint = SIGNAL_ENDPOINTS.get(signal)
         if endpoint is None:
             raise ValueError(f"Unknown signal: {signal!r}. Valid: {list(SIGNAL_ENDPOINTS)}")
@@ -520,6 +528,7 @@ class RunManager:
         return await self.send_signal(container_name, "unlock")
 
     async def get_worker_health(self, container_name: str) -> dict[str, Any]:
+        self._validate_container_name(container_name)
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"http://{container_name}:8500/health")
             resp.raise_for_status()
@@ -545,6 +554,7 @@ class RunManager:
 
     def read_logs(self, container_name: str, tail: int) -> dict:
         """Read the last N lines from a worker's log file."""
+        self._validate_container_name(container_name)
         log_path = os.path.join(WORKER_LOG_DIR, f"{container_name}.log")
         if not os.path.exists(log_path):
             return {"lines": [], "log_path": log_path, "found": False}
