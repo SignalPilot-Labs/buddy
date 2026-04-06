@@ -8,6 +8,7 @@ import { getToolCategory, TOOL_COLORS, type ToolCategory } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import type { GroupedEvent } from "@/lib/groupEvents";
 import { extractReadPaths, extractEditSummary, extractBashCommands } from "@/lib/groupEvents";
+import { useTranslation } from "@/hooks/useTranslation";
 
 /* ── Helpers ── */
 function fmtTime(ts: string): string {
@@ -286,6 +287,7 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
 
 /* ── LLM Message ── */
 function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; text: string; thinking: string; ts: string; isLast: boolean }) {
+  const { t } = useTranslation();
   const [showThinking, setShowThinking] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isPlanner = role === "planner";
@@ -310,7 +312,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
           <button onClick={() => setShowThinking(!showThinking)}
             className="ml-auto text-[9px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5" cy="5" r="3.5" /><circle cx="5" cy="5" r="1" /></svg>
-            {showThinking ? "hide reasoning" : "show reasoning"}
+            {showThinking ? t.llmOutput.hideReasoning : t.llmOutput.showReasoning}
           </button>
         )}
       </div>
@@ -318,7 +320,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       {showThinking && thinking && (
         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden">
-          <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">Reasoning</div>
+          <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">{t.llmOutput.reasoning}</div>
           <div className="text-[10px] text-[#666] italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">{thinking}</div>
         </motion.div>
       )}
@@ -327,7 +329,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
         <div className="relative">
           {isLong && (
             <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#ccc] transition-colors">
-              [{collapsed ? "expand" : "collapse"}]
+              [{collapsed ? t.llmOutput.expand : t.llmOutput.collapse}]
             </button>
           )}
           <div className={clsx("text-[11px] leading-[1.7] whitespace-pre-wrap break-words", isPlanner ? "text-[#cc9966]" : "text-[#bbb]", collapsed && "max-h-[100px] overflow-hidden")}>
@@ -511,6 +513,7 @@ const IDLE_WARN_MS = 60_000; // 1 min — show warning (backend handles kill at 
 function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
   tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string
 }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
@@ -764,14 +767,14 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin shrink-0">
                 <circle cx="6" cy="6" r="5" stroke="#cc88ff" strokeWidth="1" strokeDasharray="16 10" />
               </svg>
-              <span className="text-[10px] text-[#cc88ff]/70">Agent is writing its final response...</span>
+              <span className="text-[10px] text-[#cc88ff]/70">{t.llmOutput.agentFinalizing}</span>
             </div>
           )}
 
           {/* Raw result — hidden when finalText is available since that's the actual output */}
           {tool.output_data && !finalText && (
             <div className="border-t border-white/[0.03] px-4 py-3">
-              <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
+              <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">{t.llmOutput.result}</div>
               <div className="text-[10px] text-[#888] whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto leading-relaxed">
                 {typeof tool.output_data === "object" && "result" in tool.output_data
                   ? String(tool.output_data.result).slice(0, 2000)
@@ -919,11 +922,12 @@ function ControlMessage({ text, ts }: { text: string; ts: string }) {
 
 /* ── User Prompt Chat Bubble ── */
 function UserPromptCard({ prompt, ts }: { prompt: string; ts: string }) {
+  const { t } = useTranslation();
   return (
     <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex justify-end px-4 py-1.5">
       <div className="max-w-[75%] rounded-2xl rounded-tr-sm bg-[#88ccff]/10 border border-[#88ccff]/20 px-4 py-2.5">
         <div className="flex items-center justify-between gap-4 mb-1">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">{t.llmOutput.you}</span>
           <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         </div>
         <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>

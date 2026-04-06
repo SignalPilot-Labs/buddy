@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function LLMTextBlock({
   text,
@@ -11,6 +12,7 @@ export function LLMTextBlock({
   text: string;
   agentRole?: string;
 }) {
+  const { t } = useTranslation();
   const isPlanner = agentRole === "planner";
   const [collapsed, setCollapsed] = useState(false);
   const isLong = text.length > 2000;
@@ -41,7 +43,7 @@ export function LLMTextBlock({
         <div className="min-w-0 flex-1">
           {isPlanner && (
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#ff8844] bg-[#ff8844]/10 rounded px-1 py-0.5 mr-1">
-              Planner
+              {t.llmOutput.planner}
             </span>
           )}
 
@@ -51,7 +53,7 @@ export function LLMTextBlock({
               onClick={() => setCollapsed(!collapsed)}
               className="text-[9px] text-[#999] hover:text-[#888] ml-1 transition-colors"
             >
-              [{collapsed ? "expand" : "collapse"}]
+              [{collapsed ? t.llmOutput.expand : t.llmOutput.collapse}]
             </button>
           )}
 
@@ -103,6 +105,7 @@ export function LLMThinkingBlock({
   text: string;
   agentRole?: string;
 }) {
+  const { t } = useTranslation();
   const isPlanner = agentRole === "planner";
   const [collapsed, setCollapsed] = useState(false);
   const isLong = text.length > 1000;
@@ -126,7 +129,7 @@ export function LLMThinkingBlock({
         <div className="min-w-0 flex-1">
           {isPlanner && (
             <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#774422] mr-1">
-              Planner thinking
+              {t.llmOutput.plannerThinking}
             </span>
           )}
 
@@ -135,7 +138,7 @@ export function LLMThinkingBlock({
               onClick={() => setCollapsed(!collapsed)}
               className="text-[9px] text-[#888] hover:text-[#666] ml-1 transition-colors"
             >
-              [{collapsed ? "expand" : "collapse"}]
+              [{collapsed ? t.llmOutput.expand : t.llmOutput.collapse}]
             </button>
           )}
 

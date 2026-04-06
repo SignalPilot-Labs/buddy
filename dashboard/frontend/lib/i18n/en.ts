@@ -239,6 +239,19 @@ export const en = {
     disconnected: "Disconnected",
   },
 
+  llmOutput: {
+    planner: "Planner",
+    plannerThinking: "Planner thinking",
+    expand: "expand",
+    collapse: "collapse",
+    hideReasoning: "hide reasoning",
+    showReasoning: "show reasoning",
+    reasoning: "Reasoning",
+    agentFinalizing: "Agent is writing its final response...",
+    result: "Result",
+    you: "You",
+  },
+
   settings: {
     title: "Settings",
     dashboard: "Dashboard",

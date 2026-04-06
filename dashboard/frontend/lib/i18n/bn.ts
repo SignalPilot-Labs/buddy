@@ -35,7 +35,7 @@ export const bn: LocaleDict = {
     pause: "বিরতি",
     resume: "পুনরায় শুরু",
     stop: "বন্ধ",
-    kill: "মুছুন",
+    kill: "কিল",
     confirm: "নিশ্চিত করুন",
     inject: "ইনজেক্ট",
     resumeRun: "রান পুনরায় শুরু",
@@ -49,7 +49,7 @@ export const bn: LocaleDict = {
     sendToAgent: "এজেন্টে পাঠান",
     chars: "অক্ষর",
     presets: {
-      wrapUp: "মোড়ানো",
+      wrapUp: "গুটিয়ে নিন",
       focusSecurity: "নিরাপত্তায় মনোযোগ",
       runTests: "পরীক্ষা চালান",
       addTests: "পরীক্ষা যোগ করুন",
@@ -154,13 +154,13 @@ export const bn: LocaleDict = {
     secondsAgo: "সে আগে",
     minutesAgo: "মি আগে",
     hoursAgo: "ঘ আগে",
-    daysAgo: "দি আগে",
+    daysAgo: "দ আগে",
   },
 
   eventCard: {
     running: "চলছে",
     denied: "প্রত্যাখ্যাত",
-    planner: "পরি",
+    planner: "পরিক",
     worker: "কর্ম",
     tasks: "কাজ",
     diff: "পার্থক্য",
@@ -217,7 +217,7 @@ export const bn: LocaleDict = {
     resume: "পুনরায় শুরু",
     inject: "ইনজেক্ট",
     stop: "বন্ধ",
-    kill: "মুছুন",
+    kill: "কিল",
     unlock: "আনলক",
   },
 
@@ -238,6 +238,19 @@ export const bn: LocaleDict = {
     noRunSelected: "কোনো রান নির্বাচিত নেই",
     live: "লাইভ",
     disconnected: "সংযোগ বিচ্ছিন্ন",
+  },
+
+  llmOutput: {
+    planner: "পরিকল্পক",
+    plannerThinking: "পরিকল্পক ভাবছে",
+    expand: "বিস্তার করুন",
+    collapse: "সংকুচিত করুন",
+    hideReasoning: "যুক্তি লুকান",
+    showReasoning: "যুক্তি দেখান",
+    reasoning: "যুক্তি",
+    agentFinalizing: "এজেন্ট চূড়ান্ত উত্তর লিখছে...",
+    result: "ফলাফল",
+    you: "আপনি",
   },
 
   settings: {
