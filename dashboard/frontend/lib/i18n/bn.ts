@@ -306,9 +306,9 @@ export const bn: LocaleDict = {
   },
 
   auditEventLabels: {
-    usage: "Usage",
-    llmText: "LLM Text",
-    llmThinking: "LLM Thinking",
+    usage: "ব্যবহার",
+    llmText: "LLM টেক্সট",
+    llmThinking: "LLM চিন্তাভাবনা",
     roundComplete: "রাউন্ড সম্পন্ন",
     rateLimit: "রেট সীমা",
     runStarted: "রান শুরু",
