@@ -101,7 +101,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
                       {r.repo}
                     </div>
                     <div className="text-[9px] text-[#666]">
-                      {r.run_count} run{r.run_count !== 1 ? "s" : ""}
+                      {r.run_count} {r.run_count !== 1 ? t.repoSelector.runs : t.repoSelector.run}
                     </div>
                   </div>
                   {r.repo === activeRepo && (

@@ -104,6 +104,7 @@ export const bn: LocaleDict = {
     rateLimitCleared: "রেট সীমা পরিষ্কার",
     forceResume: "জোর করে পুনরায় শুরু",
     resumeNow: "এখনই পুনরায় শুরু",
+    readyToResume: "পুনরায় শুরুর জন্য প্রস্তুত",
   },
 
   onboarding: {
@@ -169,6 +170,11 @@ export const bn: LocaleDict = {
     result: "ফলাফল",
     control: "নিয়ন্ত্রণ",
     usage: "ব্যবহার",
+    noOutput: "(কোনো আউটপুট নেই)",
+    nLines: "লাইন",
+    nLinesWritten: "লাইন লেখা হয়েছে",
+    todoSummary: { done: "সম্পন্ন", active: "সক্রিয়", pending: "অপেক্ষমাণ" },
+    playwright: { screenshot: "স্ক্রিনশট", click: "ক্লিক", formInput: "ফর্ম ইনপুট", evaluate: "মূল্যায়ন", domSnapshot: "DOM স্ন্যাপশট" },
   },
 
   localeToggle: {
@@ -197,6 +203,8 @@ export const bn: LocaleDict = {
     repositories: "রিপোজিটরি",
     noReposConfigured: "কোনো রেপো কনফিগার নেই",
     allRepositories: "সব রিপোজিটরি",
+    run: "রান",
+    runs: "রান",
   },
 
   mobileAccess: {
@@ -388,5 +396,16 @@ export const bn: LocaleDict = {
       maxBudgetUsd:
         "ঐচ্ছিক। প্রতি রানের ডিফল্ট সর্বোচ্চ খরচ। রান শুরু করার সময় পরিবর্তন করা যাবে।",
     },
+  },
+  useControl: {
+    failed: "ব্যর্থ",
+    pauseSent: "বিরতি সংকেত পাঠানো হয়েছে",
+    resumeSent: "পুনরায় শুরুর সংকেত পাঠানো হয়েছে",
+    stopSent: "STOP পাঠানো হয়েছে (তাৎক্ষণিক)",
+    killSent: "KILL পাঠানো হয়েছে — কাজ তাৎক্ষণিকভাবে বাতিল",
+    promptInjected: "প্রম্পট ইনজেক্ট করা হয়েছে",
+    chars: "অক্ষর",
+    sessionUnlocked: "সেশন গেট আনলক — এজেন্ট এখন end_session কল করতে পারবে",
+    resumingSession: "আগের সেশন পুনরায় শুরু হচ্ছে...",
   },
 };

@@ -34,7 +34,12 @@ function formatDuration(ms: number): string {
   return `${(ms / 60000).toFixed(1)}m`;
 }
 
-function extractToolSummary(tc: ToolCall): string {
+type ToolSummaryStrings = {
+  todoSummary: { done: string; active: string; pending: string };
+  playwright: { screenshot: string; click: string; formInput: string; evaluate: string; domSnapshot: string };
+};
+
+function extractToolSummary(tc: ToolCall, strings: ToolSummaryStrings): string {
   const input = tc.input_data;
   if (!input) return "";
   const cat = getToolCategory(tc.tool_name);
@@ -71,25 +76,27 @@ function extractToolSummary(tc: ToolCall): string {
     case "web_fetch": return (input.url as string) || "";
     case "todo": {
       const todos = (input.todos as Array<{ status: string; content: string }>) || [];
-      const active = todos.filter(t => t.status === "in_progress");
-      const pending = todos.filter(t => t.status === "pending");
-      const done = todos.filter(t => t.status === "completed");
-      return `${done.length} done, ${active.length} active, ${pending.length} pending`;
+      const active = todos.filter(item => item.status === "in_progress");
+      const pending = todos.filter(item => item.status === "pending");
+      const done = todos.filter(item => item.status === "completed");
+      return `${done.length} ${strings.todoSummary.done}, ${active.length} ${strings.todoSummary.active}, ${pending.length} ${strings.todoSummary.pending}`;
     }
     case "tool_search": return (input.query as string) || "";
     case "skill": return (input.skill as string) || "";
     case "playwright_navigate": return (input.url as string) || "";
-    case "playwright_screenshot": return (input.filename as string) || "screenshot";
-    case "playwright_click": return "click";
-    case "playwright_form": case "playwright_type": return "form input";
-    case "playwright_evaluate": return "evaluate";
-    case "playwright_snapshot": return "DOM snapshot";
+    case "playwright_screenshot": return (input.filename as string) || strings.playwright.screenshot;
+    case "playwright_click": return strings.playwright.click;
+    case "playwright_form": case "playwright_type": return strings.playwright.formInput;
+    case "playwright_evaluate": return strings.playwright.evaluate;
+    case "playwright_snapshot": return strings.playwright.domSnapshot;
     case "session_gate": return "end_session";
     default: return JSON.stringify(input).slice(0, 80);
   }
 }
 
-function extractOutputSummary(tc: ToolCall): string | null {
+type OutputSummaryStrings = { noOutput: string; nLines: string; nLinesWritten: string };
+
+function extractOutputSummary(tc: ToolCall, strings: OutputSummaryStrings): string | null {
   const output = tc.output_data;
   if (!output) return null;
   const cat = getToolCategory(tc.tool_name);
@@ -99,14 +106,14 @@ function extractOutputSummary(tc: ToolCall): string | null {
       const stdout = (output.stdout as string) || "";
       const stderr = (output.stderr as string) || "";
       const text = stdout || stderr;
-      if (!text) return "(no output)";
+      if (!text) return strings.noOutput;
       const lines = text.split("\n").filter(Boolean);
       if (lines.length <= 3) return text.trim();
-      return `${lines.length} lines`;
+      return `${lines.length} ${strings.nLines}`;
     }
     case "read": {
       const file = output.file as Record<string, unknown> | undefined;
-      if (file) return `${file.totalLines || "?"} lines`;
+      if (file) return `${file.totalLines || "?"} ${strings.nLines}`;
       return null;
     }
     case "edit": {
@@ -131,7 +138,7 @@ function extractOutputSummary(tc: ToolCall): string | null {
         for (const hunk of patch) {
           added += (hunk.newLines as number) || 0;
         }
-        return `${added} lines written`;
+        return `${added} ${strings.nLinesWritten}`;
       }
       return (output.type as string) || null;
     }
@@ -177,11 +184,11 @@ function DiffViewer({ patch }: { patch: Array<Record<string, unknown>> }) {
 }
 
 /* ── Bash Output ── */
-function BashOutput({ output }: { output: Record<string, unknown> }) {
+function BashOutput({ output, noOutput }: { output: Record<string, unknown>; noOutput: string }) {
   const stdout = (output.stdout as string) || "";
   const stderr = (output.stderr as string) || "";
   const text = stdout || stderr;
-  if (!text) return <span className="text-[10px] text-[#888] italic">(no output)</span>;
+  if (!text) return <span className="text-[10px] text-[#888] italic">{noOutput}</span>;
 
   return (
     <pre className="text-[10px] text-[#aaa] whitespace-pre-wrap break-all leading-relaxed">
@@ -240,8 +247,8 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 
   const category = getToolCategory(tc.tool_name);
   const colors = TOOL_COLORS[category];
-  const summary = useMemo(() => extractToolSummary(tc), [tc]);
-  const outputSummary = useMemo(() => extractOutputSummary(tc), [tc]);
+  const summary = useMemo(() => extractToolSummary(tc, t.eventCard), [tc, t]);
+  const outputSummary = useMemo(() => extractOutputSummary(tc, t.eventCard), [tc, t]);
 
   const borderColor = denied
     ? "border-l-[#ff4444]"
@@ -378,7 +385,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
                 <div>
                   <div className="text-[9px] uppercase tracking-[0.15em] text-[#999] mb-1">{t.eventCard.output}</div>
                   <div className="bg-black/30 rounded border border-[#1a1a1a] p-2 max-h-[500px] overflow-y-auto">
-                    <BashOutput output={tc.output_data!} />
+                    <BashOutput output={tc.output_data!} noOutput={t.eventCard.noOutput} />
                   </div>
                 </div>
               )}

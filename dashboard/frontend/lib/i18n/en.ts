@@ -102,6 +102,7 @@ export const en = {
     rateLimitCleared: "Rate limit cleared",
     forceResume: "Force Resume",
     resumeNow: "Resume Now",
+    readyToResume: "Ready to resume",
   },
 
   onboarding: {
@@ -167,6 +168,11 @@ export const en = {
     result: "Result",
     control: "Control",
     usage: "USAGE",
+    noOutput: "(no output)",
+    nLines: "lines",
+    nLinesWritten: "lines written",
+    todoSummary: { done: "done", active: "active", pending: "pending" },
+    playwright: { screenshot: "screenshot", click: "click", formInput: "form input", evaluate: "evaluate", domSnapshot: "DOM snapshot" },
   },
 
   localeToggle: {
@@ -195,6 +201,8 @@ export const en = {
     repositories: "Repositories",
     noReposConfigured: "No repos configured",
     allRepositories: "All repositories",
+    run: "run",
+    runs: "runs",
   },
 
   mobileAccess: {
@@ -387,5 +395,16 @@ export const en = {
       maxBudgetUsd:
         "Optional. Default max spend per run. Can be overridden when starting a run.",
     },
+  },
+  useControl: {
+    failed: "Failed",
+    pauseSent: "Pause signal sent",
+    resumeSent: "Resume signal sent",
+    stopSent: "STOP sent (instant)",
+    killSent: "KILL sent — task cancelled immediately",
+    promptInjected: "Prompt injected",
+    chars: "chars",
+    sessionUnlocked: "Session gate unlocked — agent can now call end_session",
+    resumingSession: "Resuming previous session...",
   },
 } as const;

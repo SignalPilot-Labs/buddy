@@ -5,8 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { useTranslation } from "@/hooks/useTranslation";
 
-function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return "Ready to resume";
+function formatCountdown(seconds: number, readyText: string): string {
+  if (seconds <= 0) return readyText;
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -65,7 +65,7 @@ export function RateLimitBanner({
               {isReady ? t.rateLimitBanner.rateLimitCleared : t.rateLimitBanner.rateLimited}
             </span>
             <span className={`text-[11px] font-bold tabular-nums ${isReady ? "text-[#00ff88]" : "text-[#ffaa00]"}`}>
-              {formatCountdown(remaining)}
+              {formatCountdown(remaining, t.rateLimitBanner.readyToResume)}
             </span>
           </div>
 

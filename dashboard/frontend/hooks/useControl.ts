@@ -10,11 +10,13 @@ import {
   resumeRun,
 } from "@/lib/api";
 import type { FeedEvent } from "@/lib/types";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function useControl(
   runId: string | null,
   addEvent: (event: FeedEvent) => void
 ) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
 
@@ -33,7 +35,7 @@ export function useControl(
       } catch (err) {
         addEvent({
           _kind: "control",
-          text: `Failed: ${label} — ${err}`,
+          text: `${t.useControl.failed}: ${label} — ${err}`,
           ts: new Date().toISOString(),
         });
       } finally {
@@ -41,35 +43,35 @@ export function useControl(
         busyRef.current = false;
       }
     },
-    [addEvent]
+    [addEvent, t]
   );
 
   const pause = useCallback(
     () => {
       if (!runId) return;
-      return exec(() => sendSignal(runId, "pause"), "Pause signal sent");
+      return exec(() => sendSignal(runId, "pause"), t.useControl.pauseSent);
     },
-    [exec, runId]
+    [exec, runId, t]
   );
 
   const resume = useCallback(
     () => {
       if (!runId) return;
-      return exec(() => sendSignal(runId, "resume"), "Resume signal sent");
+      return exec(() => sendSignal(runId, "resume"), t.useControl.resumeSent);
     },
-    [exec, runId]
+    [exec, runId, t]
   );
 
   // Instant stop — pushes directly to the agent's in-process queue
   const stop = useCallback(
-    () => exec(() => stopAgentInstant(), "STOP sent (instant)"),
-    [exec]
+    () => exec(() => stopAgentInstant(), t.useControl.stopSent),
+    [exec, t]
   );
 
   // Kill — immediately cancels the asyncio task, no cleanup
   const kill = useCallback(
-    () => exec(() => killAgent(), "KILL sent — task cancelled immediately"),
-    [exec]
+    () => exec(() => killAgent(), t.useControl.killSent),
+    [exec, t]
   );
 
   const inject = useCallback(
@@ -77,10 +79,10 @@ export function useControl(
       if (!runId) return;
       return exec(
         () => injectPrompt(runId, prompt),
-        `Prompt injected (${prompt.length} chars)`
+        `${t.useControl.promptInjected} (${prompt.length} ${t.useControl.chars})`
       );
     },
-    [exec, runId]
+    [exec, runId, t]
   );
 
   const unlock = useCallback(
@@ -88,10 +90,10 @@ export function useControl(
       if (!runId) return;
       return exec(
         () => unlockSession(runId),
-        "Session gate unlocked — agent can now call end_session"
+        t.useControl.sessionUnlocked
       );
     },
-    [exec, runId]
+    [exec, runId, t]
   );
 
   const resumeSession = useCallback(
@@ -99,10 +101,10 @@ export function useControl(
       if (!runId) return;
       return exec(
         () => resumeRun(runId),
-        "Resuming previous session..."
+        t.useControl.resumingSession
       );
     },
-    [exec, runId]
+    [exec, runId, t]
   );
 
   return { pause, resume, stop, kill, inject, unlock, resumeSession, busy };
