@@ -10,8 +10,8 @@ import type { ToolCall, ToolCategory } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
 import { fmtTime, fmtDuration, shortPath } from "@/components/feed/card-helpers";
 import { Chevron } from "@/components/feed/Chevron";
-
 export const IDLE_WARN_MS = 60_000;
+const FINALIZING_THRESHOLD_MS = 3_000;
 
 export function AgentRunCard({
   tool,
@@ -44,7 +44,7 @@ export function AgentRunCard({
   const idleMs = isPending ? now - lastActivityTs : 0;
   const isIdle = idleMs > IDLE_WARN_MS;
   const idleSec = Math.floor(idleMs / 1000);
-  const isFinalizing = isPending && childTools.length > 0 && idleMs > 3000 && !isIdle;
+  const isFinalizing = isPending && childTools.length > 0 && idleMs > FINALIZING_THRESHOLD_MS && !isIdle;
 
   useEffect(() => {
     if (!isPending) return;
