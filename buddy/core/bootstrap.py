@@ -55,7 +55,7 @@ class RunBootstrap:
 
         branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
-            branch_name, custom_prompt, duration_minutes, base_branch, None
+            branch_name, custom_prompt, duration_minutes, base_branch, github_repo or None
         )
         log.info("Run %s on branch %s", run_id, branch_name)
 
