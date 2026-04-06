@@ -95,7 +95,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
@@ -115,7 +115,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, None)

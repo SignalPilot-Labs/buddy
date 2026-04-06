@@ -102,6 +102,7 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "custom_prompt": run.custom_prompt,
             "duration_minutes": run.duration_minutes,
             "base_branch": run.base_branch,
+            "github_repo": run.github_repo,
             "total_cost_usd": run.total_cost_usd,
             "total_input_tokens": run.total_input_tokens,
             "total_output_tokens": run.total_output_tokens,
