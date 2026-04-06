@@ -260,8 +260,9 @@ function FileList({ files }: { files: DiffFile[] }) {
 
 /* ── Main WorkTree Panel ── */
 export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId: string | null; mobile?: boolean }) {
-  const [activeTab, setActiveTab] = useState<"tree" | "files" | "live">("tree");
+  const [activeTab, setActiveTab] = useState<"tree" | "files">("tree");
   const [collapsed, setCollapsed] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(true);
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
 
@@ -277,7 +278,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   useEffect(() => {
     if (!runId || !isLiveDiff) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId).then(setDiffData).catch(() => {});
+      fetchRunDiff(runId).then(d => { if (d.source !== "unavailable") setDiffData(d); }).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
   }, [runId, isLiveDiff]);
@@ -344,35 +345,46 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
             </div>
           )}
 
-          {/* Tabs */}
-          <div className="flex border-b border-[#1a1a1a]/60">
-            {hasGitDiff && (
+          {/* Session — always-visible collapsible, open by default */}
+          {hasLive && (
+            <div className="border-b border-[#1a1a1a]/60">
+              <button
+                onClick={() => setSessionOpen(!sessionOpen)}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/[0.02] transition-colors text-left">
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round"
+                  className={clsx("shrink-0 transition-transform duration-150", sessionOpen && "rotate-90")}>
+                  <polyline points="2 1 6 4 2 7" />
+                </svg>
+                <span className="text-[10px] font-medium text-[#888]">Session</span>
+                <span className="text-[9px] text-[#555] ml-auto tabular-nums">
+                  {liveChanges.filter(c => c.action !== "read").length} files
+                </span>
+              </button>
+              {sessionOpen && liveTree.children.size > 0 && (
+                <div className="pb-1">
+                  {Array.from(liveTree.children.values())
+                    .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
+                    .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Git diff tabs */}
+          {hasGitDiff && (
+            <div className="flex border-b border-[#1a1a1a]/60">
               <button onClick={() => setActiveTab("tree")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "tree" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
                 Tree
               </button>
-            )}
-            {hasGitDiff && (
               <button onClick={() => setActiveTab("files")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "files" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
                 Files
               </button>
-            )}
-            {hasLive && (
-              <button onClick={() => setActiveTab("live")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
-                  activeTab === "live" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
-                Session
-              </button>
-            )}
-            {!hasGitDiff && !hasLive && (
-              <div className="flex-1 py-1.5 text-[10px] text-[#777] text-center">
-                {diffLoading ? "Loading..." : "No changes"}
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto py-1">
@@ -382,20 +394,14 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
               </div>
             )}
 
-            {activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
+            {hasGitDiff && activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
               Array.from(diffTree.children.values())
                 .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
 
-            {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
+            {hasGitDiff && activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
               <FileList files={diffData.files} />
-            )}
-
-            {activeTab === "live" && liveTree.children.size > 0 && (
-              Array.from(liveTree.children.values())
-                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
-                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
 
             {!diffLoading && !hasGitDiff && !hasLive && (
