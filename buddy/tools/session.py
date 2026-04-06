@@ -9,7 +9,6 @@ import time
 from typing import Any
 
 from claude_agent_sdk import tool, create_sdk_mcp_server
-from claude_agent_sdk.types import McpSdkServerConfig
 
 from utils import db
 from utils.models import RunContext
@@ -61,7 +60,7 @@ class SessionGate:
         """Check if the session has been ended via the end_session tool."""
         return self._ended
 
-    def create_mcp_server(self) -> McpSdkServerConfig:
+    def create_mcp_server(self):
         """Create the MCP server with the end_session tool bound to this instance."""
         gate = self  # Capture for closure
 
