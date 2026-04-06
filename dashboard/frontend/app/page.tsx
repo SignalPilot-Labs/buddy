@@ -221,6 +221,11 @@ export default function MonitorPage() {
   // Auto-select: restore last viewed run on initial load, most recent on repo switch
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
+      // Guard against stale runs from the previous repo — if a filter is active but
+      // none of the current runs match it, the new fetch hasn't arrived yet; skip.
+      if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) {
+        return;
+      }
       const skipRestore = skipLastRunRestoreRef.current;
       skipLastRunRestoreRef.current = false;
       if (!skipRestore) {
@@ -233,7 +238,7 @@ export default function MonitorPage() {
       const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
       handleSelectRun(active?.id || runs[0].id);
     }
-  }, [runs, selectedRunId, handleSelectRun]);
+  }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
   // Start a new run
   const handleStartRun = useCallback(
