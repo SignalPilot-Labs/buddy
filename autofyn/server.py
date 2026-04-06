@@ -158,14 +158,14 @@ class AgentServer:
                 active.error_message = str(exc)
                 if active.run_id:
                     asyncio.create_task(db.finish_run(
-                        active.run_id, "crashed", None, None, None, None, str(exc), None, None,
+                        active.run_id, "crashed", None, 0.0, 0, 0, str(exc), None, None,
                     ))
         except asyncio.CancelledError:
             active.status = "killed"
             active.error_message = "Cancelled"
             if active.run_id:
                 asyncio.create_task(db.finish_run(
-                    active.run_id, "killed", None, None, None, None, "Cancelled", None, None,
+                    active.run_id, "killed", None, 0.0, 0, 0, "Cancelled", None, None,
                 ))
         finally:
             active.task = None

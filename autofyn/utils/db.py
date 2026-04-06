@@ -188,7 +188,7 @@ async def mark_crashed_runs() -> int:
     async with get_session_factory()() as s:
         result = await s.execute(
             update(Run)
-            .where(Run.status.in_(["running", "paused", "rate_limited"]))
+            .where(Run.status.in_(["starting", "running", "paused", "rate_limited"]))
             .values(
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),

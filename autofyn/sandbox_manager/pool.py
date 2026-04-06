@@ -6,6 +6,7 @@ Each run gets an isolated sandbox with its own repo volume.
 
 import asyncio
 import logging
+import os
 
 import docker
 import httpx
@@ -30,6 +31,14 @@ class SandboxPool:
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
 
+    def _container_env(self) -> dict[str, str]:
+        """Build env vars for pool-created sandbox containers."""
+        env: dict[str, str] = {"GIT_TERMINAL_PROMPT": "0"}
+        secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
+        if secret:
+            env["AGENT_INTERNAL_SECRET"] = secret
+        return env
+
     async def create(self, run_key: str, health_timeout: int) -> SandboxClient:
         """Spin up a sandbox container for a run. Returns a connected SandboxClient."""
         container_name = f"autofyn-sandbox-{run_key}"
@@ -47,7 +56,7 @@ class SandboxPool:
             # gVisor requires these capabilities
             cap_add=["SYS_PTRACE", "SYS_ADMIN"],
             security_opt=["apparmor:unconfined"],
-            environment={"GIT_TERMINAL_PROMPT": "0"},
+            environment=self._container_env(),
         )
         self._containers[run_key] = container.id or ""
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
@@ -67,6 +76,23 @@ class SandboxPool:
 
         await self._remove_container(container_id, container_name)
         await self._remove_volume(volume_name)
+
+    async def get_logs(self, run_key: str | None, tail: int) -> list[str]:
+        """Fetch logs from a sandbox container. Falls back to static sandbox."""
+        if run_key and run_key in self._containers:
+            container_name = f"autofyn-sandbox-{run_key}"
+        elif self._containers:
+            first_key = next(iter(self._containers))
+            container_name = f"autofyn-sandbox-{first_key}"
+        else:
+            container_name = "autofyn-sandbox"
+
+        try:
+            container = self._docker.containers.get(container_name)
+            raw: bytes = await asyncio.to_thread(container.logs, tail=tail, timestamps=True)
+            return raw.decode("utf-8", errors="replace").splitlines()
+        except docker.errors.NotFound:
+            return []
 
     async def destroy_all(self) -> None:
         """Tear down all managed sandbox containers."""

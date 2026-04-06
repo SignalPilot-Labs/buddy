@@ -133,6 +133,14 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
             del server._runs[rid]
         return {"ok": True, "cleaned": len(to_remove)}
 
+    # ── Logs ──
+
+    @app.get("/logs")
+    async def get_logs(tail: int, run_id: str | None = None):
+        """Return sandbox container logs for a run."""
+        lines = await server._pool.get_logs(run_id, tail)
+        return {"lines": lines, "total": len(lines)}
+
     # ── Branches / Diff ──
 
     @app.get("/branches")

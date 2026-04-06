@@ -48,7 +48,7 @@ SANDBOX_HEALTH_TIMEOUT_DEFAULT = 5
 SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 
 # ── Sandbox Pool (per-run containers) ──
-SANDBOX_POOL_IMAGE = "autofyn-autofyn-sandbox"  # built by docker compose
+SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
 SANDBOX_POOL_NETWORK = "autofyn_default"         # compose default network
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
