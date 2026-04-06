@@ -305,6 +305,9 @@ export const en = {
   },
 
   auditEventLabels: {
+    usage: "Usage",
+    llmText: "LLM Text",
+    llmThinking: "LLM Thinking",
     roundComplete: "Round Complete",
     rateLimit: "Rate Limit",
     runStarted: "Run Started",

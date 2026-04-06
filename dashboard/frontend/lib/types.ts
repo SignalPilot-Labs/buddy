@@ -1,3 +1,5 @@
+import type { LocaleDict } from "@/lib/i18n/types";
+
 export interface Run {
   id: string;
   started_at: string;
@@ -52,7 +54,7 @@ export interface AuditEvent {
   id: number;
   run_id: string;
   ts: string;
-  event_type: string;
+  event_type: AuditEventType;
   details: Record<string, unknown>;
 }
 
@@ -302,6 +304,42 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   subagent_stuck:      { label: "Subagent Stuck",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   run_ended:           { label: "Run Ended",        color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   no_changes:          { label: "No Changes",      color: "text-[#777]",     bg: "bg-[#777]/[0.04]",    iconColor: "#777777" },
+};
+
+export const AUDIT_EVENT_LABEL_KEYS: Record<AuditEventType, keyof LocaleDict["auditEventLabels"]> = {
+  usage:               "usage",
+  llm_text:            "llmText",
+  llm_thinking:        "llmThinking",
+  round_complete:      "roundComplete",
+  rate_limit:          "rateLimit",
+  run_started:         "runStarted",
+  sdk_config:          "sdkConfig",
+  agent_stop:          "agentStop",
+  pr_failed:           "prFailed",
+  session_ended:       "sessionEnded",
+  pr_created:          "prCreated",
+  killed:              "killed",
+  planner_invoked:     "plannerInvoked",
+  end_session_denied:  "endSessionDenied",
+  session_unlocked:    "sessionUnlocked",
+  fatal_error:         "fatalError",
+  rate_limit_paused:   "rateLimitPaused",
+  stop_requested:      "stopRequested",
+  subagent_start:      "subagentStart",
+  subagent_complete:   "subagentComplete",
+  subagent_stuck:      "subagentStuck",
+  subagent_timeout:    "subagentTimeout",
+  stuck_recovery:      "stuckRecovery",
+  prompt_injected:     "promptInjected",
+  session_resumed:     "sessionResumed",
+  push_failed:         "pushFailed",
+  auto_commit:         "autoCommit",
+  rate_limit_fallback: "rateLimitFallback",
+  rate_limit_waiting:  "rateLimitWaiting",
+  permission_allowed:  "permissionAllowed",
+  permission_denied:   "permissionDenied",
+  run_ended:           "runEnded",
+  no_changes:          "noChanges",
 };
 
 /* ── WorkTree Types ── */

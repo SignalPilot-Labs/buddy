@@ -4,16 +4,11 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
-import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
+import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META, AUDIT_EVENT_LABEL_KEYS } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
 import { useTranslation } from "@/hooks/useTranslation";
-import type { LocaleDict } from "@/lib/i18n/types";
 
 /* ── Helpers ── */
-
-function toAuditLabelKey(eventType: string): string {
-  return eventType.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-}
 
 function formatTs(ts: string): string {
   try {
@@ -481,7 +476,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
         </span>
 
         <span className={clsx("text-[10px] font-semibold shrink-0", meta.color)}>
-          {(t.auditEventLabels as Record<string, string>)[toAuditLabelKey(event.event_type)] ?? meta.label}
+          {t.auditEventLabels[AUDIT_EVENT_LABEL_KEYS[event.event_type]] ?? meta.label}
         </span>
 
         <span className="text-[10px] text-[#999] truncate min-w-0 flex-1">
