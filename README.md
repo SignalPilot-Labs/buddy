@@ -1,16 +1,16 @@
 <div align="center">
 
-<h1>buddy</h1>
+<h1>autofyn</h1>
 
 **autonomous coding agent. give it a repo, get back a PR.**
 
 long-running sessions · sandboxed execution · live supervision
 
-<img src="assets/ui.png" width="800" alt="Buddy Monitor" />
+<img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
 <br/>
 
-<img src="assets/buddy-working.png" width="800" alt="Buddy Working" />
+<img src="assets/autofyn-working.png" width="800" alt="AutoFyn Working" />
 
 </div>
 
@@ -21,32 +21,32 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/buddy.git
-cd buddy && ./install.sh             # installs CLI + builds Docker images
-buddy start                          # start services
+git clone https://github.com/SignalPilot-Labs/autofyn.git
+cd autofyn && ./install.sh             # installs CLI + builds Docker images
+autofyn start                          # start services
 ```
 
-To update an existing install: `buddy update`
+To update an existing install: `autofyn update`
 
 ### Configure
 
 Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
 
 ```bash
-buddy settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
+autofyn settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
 ```
 
 ### Run
 
 ```bash
-buddy run new -p "Fix authentication bugs" -d 30
+autofyn run new -p "Fix authentication bugs" -d 30
 ```
 
-If you're inside a git repo, buddy auto-detects it — no need to specify `--github-repo`:
+If you're inside a git repo, autofyn auto-detects it — no need to specify `--github-repo`:
 
 ```bash
 cd your-project/
-buddy run new -p "Fix authentication bugs" -d 30
+autofyn run new -p "Fix authentication bugs" -d 30
 ```
 
 ### Monitor
@@ -54,45 +54,45 @@ buddy run new -p "Fix authentication bugs" -d 30
 Use the CLI or open [http://localhost:3400](http://localhost:3400).
 
 ```bash
-buddy run                            # interactive run selector
-buddy run get <run_id>               # run details + action menu
+autofyn run                            # interactive run selector
+autofyn run get <run_id>               # run details + action menu
 ```
 
 ## CLI reference
 
 ```
 # Services
-buddy start                          # start services (fast, no rebuild)
-buddy stop                           # stop all services
-buddy update                         # pull latest code + rebuild images
-buddy logs                           # stream all container logs (Ctrl+C to stop)
-buddy logs 50                        # tail last 50 lines + follow
-buddy kill                           # remove all containers
+autofyn start                          # start services (fast, no rebuild)
+autofyn stop                           # stop all services
+autofyn update                         # pull latest code + rebuild images
+autofyn logs                           # stream all container logs (Ctrl+C to stop)
+autofyn logs 50                        # tail last 50 lines + follow
+autofyn kill                           # remove all containers
 
 # Runs
-buddy run                            # interactive run selector
-buddy run new -p "Fix auth bugs"     # start a new run
-buddy run list                       # list recent runs
-buddy run get <run_id>               # show run details + action menu
+autofyn run                            # interactive run selector
+autofyn run new -p "Fix auth bugs"     # start a new run
+autofyn run list                       # list recent runs
+autofyn run get <run_id>               # show run details + action menu
 
 # Settings & config
-buddy settings status                # check credential config
-buddy settings get                   # show all settings (masked)
-buddy settings set --claude-token TOKEN --git-token TOKEN --github-repo owner/repo
+autofyn settings status                # check credential config
+autofyn settings get                   # show all settings (masked)
+autofyn settings set --claude-token TOKEN --git-token TOKEN --github-repo owner/repo
 
 # Repos (auto-detects local git repo)
-buddy repos list                     # list repos with run counts
-buddy repos detect                   # detect git repo in current directory
-buddy repos set-active owner/repo    # set active repo
-buddy repos remove owner/repo        # remove a repo
+autofyn repos list                     # list repos with run counts
+autofyn repos detect                   # detect git repo in current directory
+autofyn repos set-active owner/repo    # set active repo
+autofyn repos remove owner/repo        # remove a repo
 
 # Agent
-buddy agent health                   # check agent status
-buddy agent branches                 # list git branches
+autofyn agent health                   # check agent status
+autofyn agent branches                 # list git branches
 
 # CLI config
-buddy config get                     # show CLI config
-buddy config set --api-key KEY       # update CLI config
+autofyn config get                     # show CLI config
+autofyn config set --api-key KEY       # update CLI config
 ```
 
 Use `--json` on any command for machine-readable output.

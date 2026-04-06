@@ -1,4 +1,4 @@
-"""buddy agent — agent health and branch listing."""
+"""autofyn agent — agent health and branch listing."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def health() -> None:
 
     \b
     Example:
-      buddy agent health
+      autofyn agent health
     """
     data = get_client().get("/api/agent/health")
     if state.json_mode:
@@ -42,7 +42,7 @@ def branches() -> None:
 
     \b
     Example:
-      buddy agent branches
+      autofyn agent branches
     """
     data: list[str] = get_client().get("/api/agent/branches")
     if state.json_mode:

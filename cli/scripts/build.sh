@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$HOME/.buddy"
+cd "$HOME/.autofyn"
 PYTHON_VERSION=3.12
 NODE_VERSION=22
 GVISOR_VERSION=20260323.0

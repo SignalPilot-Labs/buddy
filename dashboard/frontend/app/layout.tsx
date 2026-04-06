@@ -11,8 +11,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Buddy",
-  description: "Real-time monitoring dashboard for the Buddy agent",
+  title: "AutoFyn",
+  description: "Real-time monitoring dashboard for the AutoFyn agent",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Buddy",
+    title: "AutoFyn",
   },
   other: {
     "mobile-web-app-capable": "yes",

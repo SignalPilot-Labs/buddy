@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "buddy-sandbox"
+name = "autofyn-sandbox"
 version = "0.1.0"
-description = "Buddy sandbox — Firecracker (Linux) and gVisor (macOS) code execution"
+description = "AutoFyn sandbox — Firecracker (Linux) and gVisor (macOS) code execution"
 requires-python = ">=3.12"
 dependencies = [
     "aiohttp>=3.9.0",

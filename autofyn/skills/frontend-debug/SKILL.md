@@ -7,7 +7,7 @@ description: "Use when debugging the frontend UI, testing visual rendering, chec
 You have access to the **Playwright MCP server** which gives you a headless Chromium browser. Use it to interact with and debug the frontend.
 
 ## Available URLs
-- **Buddy Monitor**: `http://host.docker.internal:3400`
+- **AutoFyn Monitor**: `http://host.docker.internal:3400`
 
 ## Playwright MCP Tools
 

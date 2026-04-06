@@ -246,7 +246,7 @@ export function StartRunModal({
               <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
                 <div className="flex items-center gap-2.5">
                   <div className="flex items-center justify-center h-7 w-7 rounded bg-white/[0.04] border border-white/[0.08]">
-                    <Image src="/logo.svg" alt="Buddy" width={16} height={16} />
+                    <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">

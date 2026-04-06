@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "buddy-db"
+name = "autofyn-db"
 version = "0.1.0"
-description = "Buddy shared database — SQLAlchemy ORM models and async connection pool"
+description = "AutoFyn shared database — SQLAlchemy ORM models and async connection pool"
 requires-python = ">=3.12"
 dependencies = [
     "sqlalchemy>=2.0.0",

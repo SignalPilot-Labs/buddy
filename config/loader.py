@@ -1,12 +1,12 @@
-"""Config loader for Buddy.
+"""Config loader for AutoFyn.
 
 Resolution order (later overrides earlier):
   1. Built-in defaults (config/config.yml in repo)
-  2. ~/.buddy/config.yml (global user config)
-  3. .buddy/config.yml (per-project config)
+  2. ~/.autofyn/config.yml (global user config)
+  3. .autofyn/config.yml (per-project config)
   4. Environment variables (SP_* prefix, highest priority)
 
-On first run, copies the default config to .buddy/config.yml so the
+On first run, copies the default config to .autofyn/config.yml so the
 user has a visible, editable file.
 """
 
@@ -21,8 +21,8 @@ log = logging.getLogger("config")
 
 _REPO_ROOT = Path(__file__).parent.parent
 _DEFAULT_CONFIG = _REPO_ROOT / "config" / "config.yml"
-_GLOBAL_CONFIG = Path.home() / ".buddy" / "config.yml"
-_PROJECT_CONFIG = _REPO_ROOT / ".buddy" / "config.yml"
+_GLOBAL_CONFIG = Path.home() / ".autofyn" / "config.yml"
+_PROJECT_CONFIG = _REPO_ROOT / ".autofyn" / "config.yml"
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -45,9 +45,9 @@ def _load_yaml(path: Path) -> dict:
 
 
 def _ensure_gitignore_entry() -> None:
-    """Append .buddy/ to .gitignore if not already listed."""
+    """Append .autofyn/ to .gitignore if not already listed."""
     gitignore = _REPO_ROOT / ".gitignore"
-    entry = ".buddy/"
+    entry = ".autofyn/"
     if gitignore.exists():
         content = gitignore.read_text()
         if entry in content.splitlines():
@@ -61,7 +61,7 @@ def _ensure_gitignore_entry() -> None:
 
 
 def _ensure_project_config() -> None:
-    """Copy default config to .buddy/config.yml on first run."""
+    """Copy default config to .autofyn/config.yml on first run."""
     if _PROJECT_CONFIG.exists():
         return
     if not _DEFAULT_CONFIG.exists():

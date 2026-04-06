@@ -211,7 +211,7 @@ class RunBootstrap:
         return "\n".join(parts)
 
     def _copy_skills(self) -> None:
-        """Copy buddy/skills/ → .claude/skills/ in the cloned repo. Always."""
+        """Copy autofyn/skills/ → .claude/skills/ in the cloned repo. Always."""
         skills_src = Path(SKILLS_SRC_PATH)
         if not skills_src.exists():
             skills_src = Path(SKILLS_FALLBACK_PATH)

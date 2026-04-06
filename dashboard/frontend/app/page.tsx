@@ -126,7 +126,7 @@ export default function MonitorPage() {
     async (id: string) => {
       const gen = ++selectGenRef.current;
       setSelectedRunId(id);
-      localStorage.setItem("buddy_last_run_id", id);
+      localStorage.setItem("autofyn_last_run_id", id);
       setHistoryEvents([]);
       clearEvents();
 
@@ -229,7 +229,7 @@ export default function MonitorPage() {
       const skipRestore = skipLastRunRestoreRef.current;
       skipLastRunRestoreRef.current = false;
       if (!skipRestore) {
-        const lastRunId = localStorage.getItem("buddy_last_run_id");
+        const lastRunId = localStorage.getItem("autofyn_last_run_id");
         if (lastRunId && runs.some((r) => r.id === lastRunId)) {
           handleSelectRun(lastRunId);
           return;
@@ -285,11 +285,11 @@ export default function MonitorPage() {
               style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
             />
           </svg>
-          <Image src="/logo.svg" alt="Buddy" width={18} height={18} className="relative z-[1]" />
+          <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
         </div>
 
         <div>
-          <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">Buddy</h1>
+          <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">AutoFyn</h1>
           <p className="text-[8px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">Monitor</p>
         </div>
 
@@ -333,11 +333,11 @@ export default function MonitorPage() {
                 style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
               />
             </svg>
-            <Image src="/logo.svg" alt="Buddy" width={18} height={18} className="relative z-[1]" />
+            <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
           </div>
           <div>
             <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-              Buddy
+              AutoFyn
             </h1>
             <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
               Monitor
@@ -365,7 +365,7 @@ export default function MonitorPage() {
               size="md"
             />
             <span className="text-[10px] text-[#888] font-medium">
-              {selectedRun.branch_name.replace("buddy/", "")}
+              {selectedRun.branch_name.replace("autofyn/", "")}
             </span>
           </motion.div>
         )}

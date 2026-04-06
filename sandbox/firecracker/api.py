@@ -15,11 +15,11 @@ log = logging.getLogger("firecracker.api")
 
 # ─── Paths ───────────────────────────────────────────────────────────────────
 
-KERNEL_PATH = "/opt/buddy/kernel/vmlinux.bin"
-BASE_ROOTFS_PATH = "/opt/buddy/rootfs/sandbox-rootfs.ext4"
-OVERLAYS_DIR = "/opt/buddy/overlays"
-SOCKETS_DIR = "/opt/buddy/sockets"
-SNAPSHOT_DIR = "/opt/buddy/snapshot"
+KERNEL_PATH = "/opt/autofyn/kernel/vmlinux.bin"
+BASE_ROOTFS_PATH = "/opt/autofyn/rootfs/sandbox-rootfs.ext4"
+OVERLAYS_DIR = "/opt/autofyn/overlays"
+SOCKETS_DIR = "/opt/autofyn/sockets"
+SNAPSHOT_DIR = "/opt/autofyn/snapshot"
 SNAP_FILE = os.path.join(SNAPSHOT_DIR, "vm.snap")
 MEM_FILE = os.path.join(SNAPSHOT_DIR, "vm.mem")
 
