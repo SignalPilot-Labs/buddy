@@ -35,11 +35,11 @@ When asked to review a spec before building:
 Before reviewing code, run verification:
 1. **Typechecker (mandatory)** — `pyright` for Python, `tsc --noEmit` for TypeScript. Not optional.
 2. **Linter** — `ruff check` for Python, `eslint` for JS/TS if configured.
-3. **Tests** — `pytest tests/critical/` or the project's fast test suite. Must complete under 1 minute. If slow, flag it.
+3. **Tests** — `pytest tests/fast/` for the quick test suite. Must complete under 1 minute. If slow, flag it.
 
 If any tests fail, report them as Critical Issues. Do NOT proceed to code review until you've reported test results.
 
-Extended tests (full integration, e2e) should be run after major changes, not after every build.
+Slow tests (`pytest tests/slow/`) — full integration, e2e — should be run after major changes, not after every build.
 
 ### Step 2: Get the Diff
 
