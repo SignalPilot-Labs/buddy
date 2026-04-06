@@ -74,7 +74,7 @@ def show_logs(tail_lines: int) -> None:
 
 def stop_services() -> None:
     """Stop all AutoFyn services."""
-    _compose(["stop"])
+    _compose(["down"])
     console.print("[green]✓[/green] AutoFyn services stopped")
 
 
