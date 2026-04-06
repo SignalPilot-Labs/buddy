@@ -231,7 +231,7 @@ export default function SettingsPage() {
   const activeRepo = settings.github_repo || "";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8]">
+    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto">
       {/* Header */}
       <div className="border-b border-[#1a1a1a]">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
