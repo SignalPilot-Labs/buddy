@@ -52,3 +52,8 @@ SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
 SANDBOX_POOL_NETWORK = "autofyn_default"         # compose default network
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
+SANDBOX_POOL_ENV_PASSTHROUGH = [
+    "AGENT_INTERNAL_SECRET",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "GIT_TOKEN",
+]

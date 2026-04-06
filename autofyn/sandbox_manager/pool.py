@@ -14,6 +14,7 @@ import docker.errors
 from docker.models.containers import Container
 
 from utils.constants import (
+    SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE,
     SANDBOX_POOL_NETWORK,
@@ -22,6 +23,8 @@ from utils.constants import (
 from sandbox_manager.client import SandboxClient
 
 log = logging.getLogger("sandbox_manager.pool")
+
+_PASSTHROUGH_ENV_VARS = SANDBOX_POOL_ENV_PASSTHROUGH
 
 
 class SandboxPool:
@@ -32,11 +35,16 @@ class SandboxPool:
         self._containers: dict[str, str] = {}
 
     def _container_env(self) -> dict[str, str]:
-        """Build env vars for pool-created sandbox containers."""
+        """Build env vars for pool-created sandbox containers.
+
+        Passes auth tokens so the Claude SDK and git operations work inside
+        the sandbox. These are stripped from subprocess env by _safe_env().
+        """
         env: dict[str, str] = {"GIT_TERMINAL_PROMPT": "0"}
-        secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
-        if secret:
-            env["AGENT_INTERNAL_SECRET"] = secret
+        for key in _PASSTHROUGH_ENV_VARS:
+            val = os.environ.get(key, "")
+            if val:
+                env[key] = val
         return env
 
     async def create(self, run_key: str, health_timeout: int) -> SandboxClient:
