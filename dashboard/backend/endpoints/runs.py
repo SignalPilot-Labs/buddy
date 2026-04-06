@@ -169,6 +169,15 @@ async def agent_health() -> dict:
     return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {"status": "unreachable"})
 
 
+@router.get("/agent/status")
+async def agent_status(run_id: str | None = None) -> dict:
+    """Get run status. If run_id given, get that run's status."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("GET", "/status", AGENT_TIMEOUT_SHORT, None, params, {
+        "active": 0, "max_concurrent": 10, "runs": [],
+    })
+
+
 @router.post("/agent/start")
 async def start_agent_run(body: StartRunRequest) -> dict:
     """Trigger a new improvement run."""
@@ -178,6 +187,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
+        "extended_context": body.extended_context,
         **creds,
     }, None, None)
 
@@ -189,9 +199,10 @@ async def list_branches() -> list:
 
 
 @router.post("/agent/stop")
-async def stop_agent_instant() -> dict:
-    """Immediately stop the agent via HTTP."""
-    return await agent_request("POST", "/stop", AGENT_TIMEOUT_SHORT, None, None, None)
+async def stop_agent_instant(run_id: str | None = None) -> dict:
+    """Stop a run. If run_id given, stop that specific run."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/stop", AGENT_TIMEOUT_SHORT, None, params, None)
 
 
 @router.post("/agent/resume")
@@ -204,9 +215,38 @@ async def resume_agent_run(body: ResumeRunRequest) -> dict:
 
 
 @router.post("/agent/kill")
-async def kill_agent() -> dict:
-    """Force-kill the agent process."""
-    return await agent_request("POST", "/kill", AGENT_TIMEOUT_SHORT, None, None, None)
+async def kill_agent(run_id: str | None = None) -> dict:
+    """Kill a run. If run_id given, kill that specific run."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/kill", AGENT_TIMEOUT_SHORT, None, params, None)
+
+
+@router.post("/agent/pause")
+async def pause_agent(run_id: str | None = None) -> dict:
+    """Pause a run."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/pause", AGENT_TIMEOUT_SHORT, None, params, None)
+
+
+@router.post("/agent/resume_signal")
+async def resume_signal_agent(run_id: str | None = None) -> dict:
+    """Resume a paused run."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/resume_signal", AGENT_TIMEOUT_SHORT, None, params, None)
+
+
+@router.post("/agent/unlock")
+async def unlock_agent(run_id: str | None = None) -> dict:
+    """Unlock a run's session."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/unlock", AGENT_TIMEOUT_SHORT, None, params, None)
+
+
+@router.post("/agent/inject")
+async def inject_agent(body: ControlSignalRequest, run_id: str | None = None) -> dict:
+    """Inject a prompt into a run."""
+    params = {"run_id": run_id} if run_id else None
+    return await agent_request("POST", "/inject", AGENT_TIMEOUT_SHORT, {"payload": body.payload}, params, None)
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,8 @@ export interface Run {
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;
+  custom_prompt: string | null;
+  duration_minutes: number;
 }
 
 export interface RepoInfo {
@@ -25,7 +27,6 @@ export type RunStatus =
   | "paused"
   | "stopped"
   | "completed"
-  | "completed_no_changes"
   | "error"
   | "crashed"
   | "killed"
@@ -104,13 +105,6 @@ export const STATUS_META: Record<
     color: "text-[#88ccff]",
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
-    pulse: false,
-  },
-  completed_no_changes: {
-    label: "No Changes",
-    color: "text-[#777]",
-    bg: "bg-[#777]/10",
-    dot: "bg-[#777]",
     pulse: false,
   },
   error: {
@@ -261,8 +255,7 @@ export type AuditEventType =
   | "rate_limit_waiting"
   | "permission_allowed"
   | "permission_denied"
-  | "run_ended"
-  | "no_changes";
+  | "run_ended";
 
 export interface AuditEventMeta {
   label: string;
@@ -301,7 +294,6 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   permission_allowed:  { label: "Permission Allowed", color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_stuck:      { label: "Subagent Stuck",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   run_ended:           { label: "Run Ended",        color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
-  no_changes:          { label: "No Changes",      color: "text-[#777]",     bg: "bg-[#777]/[0.04]",    iconColor: "#777777" },
 };
 
 /* ── WorkTree Types ── */
@@ -337,6 +329,22 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Active Runs (from /status endpoint)
+// ---------------------------------------------------------------------------
+
+export interface ActiveRunInfo {
+  run_id: string | null;
+  status: string;
+  started_at: number;
+}
+
+export interface AgentStatus {
+  active: number;
+  max_concurrent: number;
+  runs: ActiveRunInfo[];
 }
 
 export interface PoolToken {

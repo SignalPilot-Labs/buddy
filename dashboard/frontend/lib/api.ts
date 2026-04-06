@@ -117,6 +117,8 @@ export async function pollEvents(
 export interface AgentHealth {
   status: "idle" | "running" | "bootstrapping" | "unreachable";
   current_run_id: string | null;
+  active_runs?: number;
+  max_concurrent?: number;
   elapsed_minutes?: number | null;
   time_remaining?: string | null;
   session_unlocked?: boolean | null;
@@ -138,7 +140,8 @@ export async function startRun(
   prompt?: string,
   maxBudgetUsd = 0,
   durationMinutes = 0,
-  baseBranch = "main"
+  baseBranch = "main",
+  extendedContext = false,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
@@ -148,6 +151,7 @@ export async function startRun(
       max_budget_usd: maxBudgetUsd,
       duration_minutes: durationMinutes,
       base_branch: baseBranch,
+      extended_context: extendedContext,
     }),
   });
   if (!res.ok) {
@@ -173,8 +177,9 @@ export async function resumeRun(
   return res.json();
 }
 
-export async function stopAgentInstant(): Promise<{ ok: boolean }> {
-  const res = await apiFetch(`/api/agent/stop`, { method: "POST" });
+export async function stopAgentInstant(runId?: string): Promise<{ ok: boolean }> {
+  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  const res = await apiFetch(`/api/agent/stop${qs}`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -182,8 +187,29 @@ export async function stopAgentInstant(): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function killAgent(): Promise<{ ok: boolean }> {
-  const res = await apiFetch(`/api/agent/kill`, { method: "POST" });
+export async function killAgent(runId?: string): Promise<{ ok: boolean }> {
+  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  const res = await apiFetch(`/api/agent/kill${qs}`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function pauseAgent(runId?: string): Promise<{ ok: boolean }> {
+  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  const res = await apiFetch(`/api/agent/pause${qs}`, { method: "POST" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function unlockAgent(runId?: string): Promise<{ ok: boolean }> {
+  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
+  const res = await apiFetch(`/api/agent/unlock${qs}`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -230,6 +256,36 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
   }
 }
 
+// ── Container Logs ───────────────────────────────────────────────────────────
+
+export interface ContainerLogs {
+  lines: string[];
+  container?: string;
+  total: number;
+}
+
+export async function fetchContainerLogs(tail = 500): Promise<ContainerLogs> {
+  try {
+    const res = await apiFetch(`/api/agent/logs?tail=${tail}`);
+    if (!res.ok) return { lines: [], total: 0 };
+    return res.json();
+  } catch {
+    return { lines: [], total: 0 };
+  }
+}
+
+// ── Agent Status (active runs) ────────────────────────────────────────────────
+
+export async function fetchAgentStatus(): Promise<import("./types").AgentStatus> {
+  try {
+    const res = await apiFetch(`/api/agent/status`);
+    if (!res.ok) return { active: 0, max_concurrent: 10, runs: [] };
+    return res.json();
+  } catch {
+    return { active: 0, max_concurrent: 10, runs: [] };
+  }
+}
+
 // ── Network ──────────────────────────────────────────────────────────────────
 
 export interface NetworkInfo {
@@ -250,9 +306,10 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
-export async function fetchBranches(): Promise<string[]> {
+export async function fetchBranches(repo?: string): Promise<string[]> {
   try {
-    const res = await apiFetch(`/api/agent/branches`);
+    const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
+    const res = await apiFetch(`/api/agent/branches${params}`);
     if (!res.ok) return ["main"];
     return res.json();
   } catch (err) {

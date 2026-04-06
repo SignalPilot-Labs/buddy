@@ -38,6 +38,7 @@ class Bootstrap:
 
     async def setup_new(
         self,
+        run_id: str,
         custom_prompt: str | None,
         max_budget: float,
         duration_minutes: float,
@@ -46,14 +47,12 @@ class Bootstrap:
         exec_timeout: int,
         clone_timeout: int,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
-        """Bootstrap a new run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
+        """Bootstrap a new run. run_id is pre-created by the server."""
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
         branch_name = await self._setup_git(base_branch, github_repo, exec_timeout, clone_timeout)
-        run_id = await db.create_run(
-            branch_name, custom_prompt, duration_minutes, base_branch, github_repo or None
-        )
+        await db.update_run_branch(run_id, branch_name)
         log.info("Run %s on branch %s", run_id, branch_name)
 
         run_context = RunContext(

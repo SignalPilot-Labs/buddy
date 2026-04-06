@@ -29,8 +29,6 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
     ? activeRepo.split("/").pop() || activeRepo
     : "Select repo";
 
-  const fullName = activeRepo || "";
-
   return (
     <div ref={ref} className="relative">
       <button

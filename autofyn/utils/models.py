@@ -1,5 +1,6 @@
 """All data models for the agent package — runtime context, results, and HTTP request schemas."""
 
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -59,6 +60,22 @@ class RoundResult:
     pending_injects: list[str] = field(default_factory=list)
 
 
+# ── Active Run (in-process tracking for concurrent runs) ──
+
+@dataclass
+class ActiveRun:
+    """Tracks one in-progress run in the server's run dict."""
+
+    run_id: str | None = None
+    status: str = "starting"
+    started_at: float = field(default_factory=time.time)
+    error_message: str | None = None
+    # Set after bootstrap — not serialized
+    task: Any = field(default=None, repr=False)
+    events: Any = field(default=None, repr=False)
+    session: Any = field(default=None, repr=False)
+
+
 # ── HTTP Request Schemas ──
 
 class StartRequest(BaseModel):
@@ -68,6 +85,7 @@ class StartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
+    extended_context: bool = False
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
