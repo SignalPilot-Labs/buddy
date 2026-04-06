@@ -14,6 +14,8 @@ long-running sessions · sandboxed execution · live supervision
 
 </div>
 
+🌐 [বাংলা](README.bn.md)
+
 ---
 
 Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
