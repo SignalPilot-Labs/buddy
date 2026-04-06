@@ -30,6 +30,8 @@ import { ParallelRunsView } from "@/components/parallel/ParallelRunsView";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { TunnelPopover } from "@/components/ui/TunnelPopover";
+import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
+import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -50,8 +52,9 @@ export default function MonitorPage() {
   const [activeView, setActiveView] = useState<"feed" | "bots">("bots");
   const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
-  const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "bots">("bots");
+  const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "bots" | "logs">("bots");
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -310,7 +313,7 @@ export default function MonitorPage() {
           const newRun = freshRuns.find((r) => !existingIds.has(r.id));
           if (newRun) {
             refreshRuns();
-            setSuppressAutoSelect(false);
+            skipLastRunRestoreRef.current = false;
             handleSelectRun(newRun.id);
             setActiveView("feed");
             return;
@@ -648,10 +651,40 @@ export default function MonitorPage() {
             )}
           </main>
 
-          {/* Right sidebar - WorkTree (only show in feed view) */}
-          {activeView === "feed" && (
-            <div className="desktop-worktree">
-              <WorkTree events={allEvents} runId={selectedRunId} />
+          {/* Right sidebar - Changes/Logs (only show in feed view with a run selected) */}
+          {activeView === "feed" && selectedRunId && (
+            <div className="flex flex-col border-l border-[#1a1a1a] w-[280px] min-h-0">
+              {/* Panel tabs */}
+              <div className="flex border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
+                <button
+                  onClick={() => setRightPanel("changes")}
+                  className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-center border-b-2 transition-colors ${
+                    rightPanel === "changes"
+                      ? "border-[#00ff88] text-[#00ff88]"
+                      : "border-transparent text-[#666] hover:text-[#999]"
+                  }`}
+                >
+                  Changes
+                </button>
+                <button
+                  onClick={() => setRightPanel("logs")}
+                  className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-center border-b-2 transition-colors ${
+                    rightPanel === "logs"
+                      ? "border-[#00ff88] text-[#00ff88]"
+                      : "border-transparent text-[#666] hover:text-[#999]"
+                  }`}
+                >
+                  Logs
+                </button>
+              </div>
+              {/* Panel content */}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {rightPanel === "changes" ? (
+                  <WorkTree events={allEvents} runId={selectedRunId} mobile />
+                ) : (
+                  <ContainerLogs runId={selectedRunId} />
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -680,7 +713,10 @@ export default function MonitorPage() {
             </>
           )}
           {mobilePanel === "changes" && (
-            <WorkTree events={allEvents} runId={selectedRunId} />
+            <WorkTree events={allEvents} runId={selectedRunId} mobile />
+          )}
+          {mobilePanel === "logs" && (
+            <ContainerLogs runId={selectedRunId} />
           )}
         </div>
       )}
@@ -713,6 +749,12 @@ export default function MonitorPage() {
           label="Changes"
           active={mobilePanel === "changes"}
           onClick={() => setMobilePanel("changes")}
+        />
+        <MobileTab
+          icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 8l3 3-3 3" /><line x1="11" y1="16" x2="17" y2="16" /></svg>}
+          label="Logs"
+          active={mobilePanel === "logs"}
+          onClick={() => setMobilePanel("logs")}
         />
         <MobileTab
           icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>}

@@ -509,6 +509,22 @@ class AgentServer:
             except ValueError as e:
                 raise HTTPException(status_code=404, detail=str(e))
 
+        # ── Container Logs ──
+
+        @app.get("/logs")
+        async def container_logs(tail: int = 500):
+            """Return the agent container's own Docker logs."""
+            hostname = os.uname().nodename
+            try:
+                output = _run_manager._run_docker(
+                    ["logs", "--tail", str(min(tail, 5000)), hostname],
+                    timeout=10,
+                )
+                lines = output.split("\n") if output else []
+                return {"lines": lines, "container": hostname, "total": len(lines)}
+            except Exception as e:
+                raise HTTPException(status_code=502, detail=f"Failed to read logs: {e}")
+
 
 def _is_worker() -> bool:
     """Check if this container is a worker (not orchestrator)."""

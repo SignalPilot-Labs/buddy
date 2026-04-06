@@ -210,6 +210,12 @@ async def kill_agent() -> dict:
     return await agent_request("POST", "/kill", AGENT_TIMEOUT_SHORT, None, None, None)
 
 
+@router.get("/agent/logs")
+async def agent_logs(tail: int = Query(default=500, le=5000)) -> dict:
+    """Fetch container logs from the agent."""
+    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, {"tail": tail}, {"lines": [], "total": 0})
+
+
 # ---------------------------------------------------------------------------
 # Diff
 # ---------------------------------------------------------------------------

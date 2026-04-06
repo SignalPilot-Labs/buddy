@@ -230,6 +230,24 @@ export async function fetchRunDiff(runId: string): Promise<DiffStats> {
   }
 }
 
+// ── Container Logs ───────────────────────────────────────────────────────────
+
+export interface ContainerLogs {
+  lines: string[];
+  container?: string;
+  total: number;
+}
+
+export async function fetchContainerLogs(tail = 500): Promise<ContainerLogs> {
+  try {
+    const res = await apiFetch(`/api/agent/logs?tail=${tail}`);
+    if (!res.ok) return { lines: [], total: 0 };
+    return res.json();
+  } catch {
+    return { lines: [], total: 0 };
+  }
+}
+
 // ── Tunnel ────────────────────────────────────────────────────────────────────
 
 export interface TunnelStatus {
