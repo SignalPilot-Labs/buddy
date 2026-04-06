@@ -49,6 +49,7 @@ export function mergeHistoryWithLive(
   const preIndex = new Map<string, number>();
   const seenAuditIds = new Set<number>();
   const seenToolIds = new Set<number>();
+  const hasHistoryText = history.some((e) => e._kind === "llm_text" || e._kind === "llm_thinking");
   const merged = [...history];
 
   for (let i = 0; i < merged.length; i++) {
@@ -87,6 +88,8 @@ export function mergeHistoryWithLive(
     } else if (ev._kind === "audit" && ev.data.id && seenAuditIds.has(ev.data.id)) {
       continue;
     } else if (ev._kind === "tool" && ev.data.id && seenToolIds.has(ev.data.id)) {
+      continue;
+    } else if (hasHistoryText && (ev._kind === "llm_text" || ev._kind === "llm_thinking")) {
       continue;
     } else {
       merged.push(ev);

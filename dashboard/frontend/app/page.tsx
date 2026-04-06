@@ -75,6 +75,7 @@ export default function MonitorPage() {
     resumeRun: parallelResume,
     unlockRun: parallelUnlock,
     injectPrompt: parallelInject,
+    dismissRun: parallelDismiss,
   } = useParallelRuns();
 
   const parallelActive = parallelStatus?.active ?? 0;
@@ -142,7 +143,7 @@ export default function MonitorPage() {
   useEffect(() => {
     if (suppressAutoSelect) return;
     if (!selectedRunId && runs.length > 0) {
-      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+      const active = runs.find((r) => ["running", "paused"].includes(r.status));
       setSelectedRunId(active?.id || runs[0].id);
     }
   }, [runs, selectedRunId, suppressAutoSelect]);
@@ -223,14 +224,22 @@ export default function MonitorPage() {
           data: t,
         }));
 
-        const auditEvents: FeedEvent[] = audits
-          .filter(
-            (a) => !["llm_text", "llm_thinking"].includes(a.event_type)
-          )
-          .map((a) => ({
-            _kind: "audit" as const,
-            data: a,
-          }));
+        const auditEvents: FeedEvent[] = [];
+        for (const a of audits) {
+          const details = typeof a.details === "string" ? JSON.parse(a.details) : a.details || {};
+          if (a.event_type === "llm_text" || a.event_type === "llm_thinking") {
+            const kind = a.event_type === "llm_text" ? "llm_text" as const : "llm_thinking" as const;
+            const role = details.agent_role || "worker";
+            const last = auditEvents[auditEvents.length - 1];
+            if (last && last._kind === kind && last.agent_role === role) {
+              auditEvents[auditEvents.length - 1] = { ...last, text: last.text + (details.text || "") };
+            } else {
+              auditEvents.push({ _kind: kind, text: details.text || "", ts: a.ts, agent_role: role });
+            }
+          } else {
+            auditEvents.push({ _kind: "audit" as const, data: { ...a, details } });
+          }
+        }
 
         const getTs = (e: FeedEvent): string =>
           e._kind === "tool" ? e.data.ts
@@ -432,7 +441,7 @@ export default function MonitorPage() {
           onPause={() => selectedRunId && parallelPause(selectedRunId)}
           onResume={() => selectedRunId && parallelResume(selectedRunId)}
           onStop={() => selectedRunId && parallelStop(selectedRunId)}
-          onKill={() => selectedRunId && parallelKill(selectedRunId)}
+          onKill={() => selectedRunId && (["running", "paused"].includes(runStatus || "") ? parallelKill(selectedRunId) : parallelDismiss(selectedRunId))}
           onUnlock={() => selectedRunId && parallelUnlock(selectedRunId)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={parallelBusy}
@@ -663,7 +672,7 @@ export default function MonitorPage() {
         onPause={() => selectedRunId && parallelPause(selectedRunId)}
         onResume={() => selectedRunId && parallelResume(selectedRunId)}
         onStop={() => selectedRunId && parallelStop(selectedRunId)}
-        onKill={() => selectedRunId && parallelKill(selectedRunId)}
+        onKill={() => selectedRunId && (["running", "paused"].includes(runStatus || "") ? parallelKill(selectedRunId) : parallelDismiss(selectedRunId))}
         onUnlock={() => selectedRunId && parallelUnlock(selectedRunId)}
         onToggleInject={() => setInjectOpen(!injectOpen)}
         busy={parallelBusy}

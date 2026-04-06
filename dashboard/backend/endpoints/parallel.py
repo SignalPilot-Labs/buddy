@@ -96,6 +96,12 @@ async def parallel_cleanup() -> dict:
     return await agent_request("POST", "/parallel/cleanup", PARALLEL_TIMEOUT, None, None, {"ok": True, "cleaned": 0})
 
 
+@router.delete("/parallel/runs/{run_id}")
+async def parallel_dismiss(run_id: str = ParallelRunId) -> dict:
+    """Dismiss/remove a finished parallel worker slot."""
+    return await agent_request("DELETE", f"/parallel/runs/{run_id}", PARALLEL_TIMEOUT, None, None, None)
+
+
 @router.get("/parallel/runs/{run_id}/logs")
 async def parallel_run_logs(
     run_id: str = ParallelRunId,

@@ -73,8 +73,21 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
-    case "rate_limit_paused":
-      return { type: "milestone", label: "Rate Limited", detail: `wait ${d.wait_seconds || "?"}s`, color: "#ffaa00", ts, event };
+    case "rate_limit_paused": {
+      const resetEpoch = d.resets_at as number | undefined;
+      const resetDetail = resetEpoch
+        ? (() => {
+            const resetDate = new Date(resetEpoch * 1000);
+            const diffMs = resetEpoch * 1000 - Date.now();
+            const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+            if (diffMs <= 0) return `resets ${timeStr} (ready)`;
+            const h = Math.floor(diffMs / 3600000);
+            const m = Math.floor((diffMs % 3600000) / 60000);
+            return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
+          })()
+        : (d.reason as string) || "out of credits";
+      return { type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
+    }
     case "prompt_injected":
       return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
     case "session_resumed":

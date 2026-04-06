@@ -188,9 +188,14 @@ class RunManager:
         return self.slots.get(container_name)
 
     def get_slot_by_run_id(self, run_id: str) -> RunSlot | None:
+        """Find slot by DB run_id (UUID) or worker ID (8-char hex)."""
         for s in self.slots.values():
             if s.run_id == run_id:
                 return s
+        # Fallback: match by worker ID suffix in container name
+        worker_name = f"buddy-worker-{run_id}"
+        if worker_name in self.slots:
+            return self.slots[worker_name]
         return None
 
     @staticmethod

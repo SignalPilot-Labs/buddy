@@ -22,6 +22,19 @@ function formatTs(ts: string): string {
   }
 }
 
+function formatEpoch(epoch: number | null | undefined): string {
+  if (!epoch) return "unknown";
+  const d = new Date(epoch * 1000);
+  const now = Date.now();
+  const diffMs = epoch * 1000 - now;
+  const time = d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  if (diffMs <= 0) return `${time} (ready)`;
+  const h = Math.floor(diffMs / 3600000);
+  const m = Math.floor((diffMs % 3600000) / 60000);
+  if (h > 0) return `${time} (${h}h ${m}m)`;
+  return `${time} (${m}m)`;
+}
+
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
@@ -427,9 +440,9 @@ function AuditCard({ event }: { event: AuditEvent }) {
       case "fatal_error":
         return ((d.error as string) || "").slice(0, 100);
       case "rate_limit":
-        return `${d.status || "?"} · resets at ${d.resets_at || "?"}`;
+        return `${d.status || "?"} · resets ${formatEpoch(d.resets_at as number)}`;
       case "rate_limit_paused":
-        return `wait ${d.wait_seconds || "?"}s`;
+        return d.reason ? `${d.reason} · resets ${formatEpoch(d.resets_at as number)}` : `resets ${formatEpoch(d.resets_at as number)}`;
       case "end_session_denied":
         return `${d.time_remaining || "?"} remaining`;
       case "sdk_config":

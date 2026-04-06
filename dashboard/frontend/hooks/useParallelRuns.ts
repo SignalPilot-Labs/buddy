@@ -119,6 +119,27 @@ export function useParallelRuns(pollInterval = 5000) {
     [sendSignal],
   );
 
+  const dismissRun = useCallback(async (runId: string) => {
+    if (!SAFE_ID.test(runId)) {
+      setError("Invalid run ID");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/parallel/runs/${runId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Failed to dismiss");
+      }
+      await fetchStatus();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchStatus]);
+
   const cleanup = useCallback(async () => {
     try {
       await apiFetch(`/api/parallel/cleanup`, { method: "POST" });
@@ -139,6 +160,7 @@ export function useParallelRuns(pollInterval = 5000) {
     resumeRun,
     unlockRun,
     injectPrompt,
+    dismissRun,
     cleanup,
     refresh: fetchStatus,
   };
