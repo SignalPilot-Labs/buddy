@@ -99,4 +99,4 @@ autofyn config set --api-key KEY       # CLI কনফিগ আপডেট ক
 
 ---
 
-[Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) দিয়ে তৈরি। Apache 2.0 লাইসেন্স।
+[Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk) দিয়ে তৈরি। MIT লাইসেন্স।
