@@ -9,7 +9,9 @@ import functools
 import logging
 import os
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import Any
 
 from sqlalchemy import select, func, update
 
@@ -19,14 +21,14 @@ from db.models import AuditLog, Run, ToolCall
 log = logging.getLogger("agent.db")
 
 
-def swallow_errors(fn):
+def swallow_errors(fn: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator: catch and log exceptions instead of raising them.
 
     Use this on non-critical DB operations (audit logging, tool call logging)
     where a failure should not crash the agent.
     """
     @functools.wraps(fn)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await fn(*args, **kwargs)
         except Exception:
