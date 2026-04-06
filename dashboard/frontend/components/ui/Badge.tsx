@@ -3,6 +3,20 @@
 import { clsx } from "clsx";
 import type { RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
+import { useTranslation } from "@/hooks/useTranslation";
+import type { LocaleDict } from "@/lib/i18n/types";
+
+const STATUS_LABEL_KEYS: Record<RunStatus, keyof LocaleDict["statusLabels"]> = {
+  running: "running",
+  paused: "paused",
+  stopped: "stopped",
+  completed: "completed",
+  completed_no_changes: "completedNoChanges",
+  error: "error",
+  crashed: "crashed",
+  killed: "killed",
+  rate_limited: "rateLimited",
+};
 
 export function StatusBadge({
   status,
@@ -11,6 +25,7 @@ export function StatusBadge({
   status: RunStatus;
   size?: "sm" | "md";
 }) {
+  const { t } = useTranslation();
   const meta = STATUS_META[status] || STATUS_META.error;
   return (
     <span
@@ -40,7 +55,7 @@ export function StatusBadge({
       {!meta.pulse && (
         <span className={clsx("h-1.5 w-1.5 rounded-full", meta.dot)} />
       )}
-      {meta.label}
+      {t.statusLabels[STATUS_LABEL_KEYS[status]]}
     </span>
   );
 }

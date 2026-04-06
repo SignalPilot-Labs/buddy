@@ -11,6 +11,10 @@ import type { LocaleDict } from "@/lib/i18n/types";
 
 /* ── Helpers ── */
 
+function toAuditLabelKey(eventType: string): string {
+  return eventType.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
 function formatTs(ts: string): string {
   try {
     return new Date(ts).toLocaleTimeString("en-US", {
@@ -408,6 +412,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 /* ── Audit Event Card ── */
 function AuditCard({ event }: { event: AuditEvent }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   const meta = AUDIT_EVENT_META[event.event_type] || { label: event.event_type, color: "text-[#777]", bg: "bg-[#777]/[0.03]", iconColor: "#777" };
 
   // Extract key details for inline preview
@@ -469,7 +474,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
         </span>
 
         <span className={clsx("text-[10px] font-semibold shrink-0", meta.color)}>
-          {meta.label}
+          {(t.auditEventLabels as Record<string, string>)[toAuditLabelKey(event.event_type)] ?? meta.label}
         </span>
 
         <span className="text-[10px] text-[#999] truncate min-w-0 flex-1">
