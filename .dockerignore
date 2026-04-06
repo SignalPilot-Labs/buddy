@@ -28,7 +28,7 @@ __pycache__/
 
 # Runtime / logs
 *.log
-.buddy/
+.autofyn/
 
 # Research / benchmarks (not needed in any container)
 /research/

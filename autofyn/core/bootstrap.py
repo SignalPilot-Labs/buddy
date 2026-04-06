@@ -59,7 +59,7 @@ class RunBootstrap:
 
         branch_name = self._setup_git(base_branch, github_repo)
         run_id = await db.create_run(
-            branch_name, custom_prompt, duration_minutes, base_branch, None
+            branch_name, custom_prompt, duration_minutes, base_branch, github_repo or None
         )
         log.info("Run %s on branch %s", run_id, branch_name)
 
@@ -215,7 +215,7 @@ class RunBootstrap:
         return "\n".join(parts)
 
     def _copy_skills(self) -> None:
-        """Copy buddy/skills/ → .claude/skills/ in the cloned repo. Always."""
+        """Copy autofyn/skills/ → .claude/skills/ in the cloned repo. Always."""
         skills_src = Path(SKILLS_SRC_PATH)
         if not skills_src.exists():
             skills_src = Path(SKILLS_FALLBACK_PATH)

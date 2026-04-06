@@ -2,9 +2,9 @@
 
 from config.loader import load as _load_config
 
-APP_TITLE = "Buddy Dashboard API"
+APP_TITLE = "AutoFyn Dashboard API"
 
-# Secret files (inside Docker volume — buddy-keys:/data)
+# Secret files (inside Docker volume — autofyn-keys:/data)
 MASTER_KEY_PATH = "/data/master.key"
 API_KEY_PATH = "/data/api.key"
 

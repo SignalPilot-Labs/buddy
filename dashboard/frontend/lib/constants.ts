@@ -7,12 +7,12 @@ export const API_PORT = 3401;
 export const UI_PORT = 3400;
 /** API key injected by entrypoint.sh into /public/config.js at runtime. */
 declare global {
-  interface Window { __BUDDY_API_KEY__?: string; }
+  interface Window { __AUTOFYN_API_KEY__?: string; }
 }
 
 export function getApiKey(): string {
-  if (typeof window !== "undefined" && window.__BUDDY_API_KEY__) {
-    return window.__BUDDY_API_KEY__;
+  if (typeof window !== "undefined" && window.__AUTOFYN_API_KEY__) {
+    return window.__AUTOFYN_API_KEY__;
   }
   return process.env.DASHBOARD_API_KEY || "";
 }

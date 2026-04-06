@@ -12,19 +12,15 @@ benchmark/results/
 benchmark/skills/improvements_*.json
 
 # Build artifacts
-buddy/monitor-web/.next/
-buddy/monitor-web/node_modules/
-buddy/monitor-web/package-lock.json
+autofyn/monitor-web/.next/
+autofyn/monitor-web/node_modules/
+autofyn/monitor-web/package-lock.json
 dashboard/frontend/.next/
 dashboard/frontend/node_modules/
 dashboard/frontend/package-lock.json
 dashboard/frontend/tsconfig.tsbuildinfo
-buddy/monitor/static/
-dashboard/frontend/.next/
-dashboard/frontend/node_modules/
-dashboard/frontend/package-lock.json
-dashboard/frontend/tsconfig.tsbuildinfo
+autofyn/monitor/static/
 
 # Docker volumes / runtime
 *.log
-.buddy/
+.autofyn/

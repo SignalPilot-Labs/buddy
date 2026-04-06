@@ -53,16 +53,16 @@ COPY db/__init__.py /app/db/__init__.py
 RUN pip install --no-cache-dir /app/db/
 COPY db/ /app/db/
 
-# Buddy packages
-COPY buddy/pyproject.toml /app/pyproject.toml
+# AutoFyn packages
+COPY autofyn/pyproject.toml /app/pyproject.toml
 RUN pip install --no-cache-dir "/app/[dev]"
-COPY buddy/core/ /app/core/
-COPY buddy/tools/ /app/tools/
-COPY buddy/utils/ /app/utils/
-COPY buddy/prompts/ /app/prompts/
-COPY buddy/skills/ /app/skills/
-COPY buddy/run_manager.py /app/run_manager.py
-COPY buddy/server.py /app/server.py
+COPY autofyn/core/ /app/core/
+COPY autofyn/tools/ /app/tools/
+COPY autofyn/utils/ /app/utils/
+COPY autofyn/prompts/ /app/prompts/
+COPY autofyn/skills/ /app/skills/
+COPY autofyn/run_manager.py /app/run_manager.py
+COPY autofyn/server.py /app/server.py
 
 # Run as non-root — Claude CLI refuses --dangerously-skip-permissions as root
 RUN useradd -m agentuser \
@@ -77,15 +77,15 @@ RUN groupadd -g 998 dockerhost || true \
 USER agentuser
 
 # Git config as agentuser
-RUN git config --global user.name "Buddy Bot" \
-    && git config --global user.email "buddy-bot@noreply.github.com" \
+RUN git config --global user.name "AutoFyn Bot" \
+    && git config --global user.email "autofyn-bot@noreply.github.com" \
     && git config --global --add safe.directory /workspace \
     && git config --global --add safe.directory '*'
 
 ENV PYTHONPATH="/app"
 
 # Entrypoint: fix docker socket permissions at runtime, then exec as agentuser
-COPY --chown=root:root buddy/entrypoint.sh /app/entrypoint.sh
+COPY --chown=root:root autofyn/entrypoint.sh /app/entrypoint.sh
 
 USER root
 RUN chmod +x /app/entrypoint.sh

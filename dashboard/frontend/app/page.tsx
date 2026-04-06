@@ -48,10 +48,10 @@ export default function MonitorPage() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
   const [activeView, setActiveView] = useState<"feed" | "bots">("bots");
+  const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "bots">("bots");
   const [controlsOpen, setControlsOpen] = useState(false);
-  const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -123,7 +123,7 @@ export default function MonitorPage() {
 
   // Handle repo switch
   const handleRepoSwitch = useCallback(async (repo: string) => {
-    setSuppressAutoSelect(true);
+    skipLastRunRestoreRef.current = true;
     setActiveRepoFilter(repo || null);
     try {
       if (repo) localStorage.setItem("sp_improve_active_repo", repo);
@@ -139,15 +139,6 @@ export default function MonitorPage() {
     fetchRepos().then(setRepos);
   }, [clearEvents]);
 
-  // Auto-select first active run or latest run
-  useEffect(() => {
-    if (suppressAutoSelect) return;
-    if (!selectedRunId && runs.length > 0) {
-      const active = runs.find((r) => ["running", "paused"].includes(r.status));
-      setSelectedRunId(active?.id || runs[0].id);
-    }
-  }, [runs, selectedRunId, suppressAutoSelect]);
-
   // Keep selectedRun fresh
   useEffect(() => {
     if (selectedRunId) {
@@ -161,6 +152,7 @@ export default function MonitorPage() {
     async (id: string) => {
       const gen = ++selectGenRef.current;
       setSelectedRunId(id);
+      localStorage.setItem("autofyn_last_run_id", id);
       setHistoryEvents([]);
       clearEvents();
 
@@ -260,6 +252,28 @@ export default function MonitorPage() {
     [clearEvents, refreshRuns]
   );
 
+  // Auto-select: restore last viewed run on initial load, most recent on repo switch
+  useEffect(() => {
+    if (!selectedRunId && runs.length > 0) {
+      // Guard against stale runs from the previous repo — if a filter is active but
+      // none of the current runs match it, the new fetch hasn't arrived yet; skip.
+      if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) {
+        return;
+      }
+      const skipRestore = skipLastRunRestoreRef.current;
+      skipLastRunRestoreRef.current = false;
+      if (!skipRestore) {
+        const lastRunId = localStorage.getItem("autofyn_last_run_id");
+        if (lastRunId && runs.some((r) => r.id === lastRunId)) {
+          handleSelectRun(lastRunId);
+          return;
+        }
+      }
+      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+      handleSelectRun(active?.id || runs[0].id);
+    }
+  }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
+
   // Start a new run
   const handleStartRun = useCallback(
     async (
@@ -316,7 +330,51 @@ export default function MonitorPage() {
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">
-      {/* Header */}
+      {/* ── Mobile Top Bar ── */}
+      <header className="mobile-top-bar items-center gap-2 px-3 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow safe-area-top">
+        {/* Logo */}
+        <div className="relative flex items-center justify-center h-7 w-7">
+          <svg width="28" height="28" viewBox="0 0 28 28" className="absolute">
+            <circle cx="14" cy="14" r="12" fill="none"
+              stroke={runStatus === "running" ? "rgba(0,255,136,0.2)" : "rgba(255,255,255,0.06)"}
+              strokeWidth="1" strokeDasharray="4 3"
+              style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
+            />
+          </svg>
+          <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
+        </div>
+
+        <div>
+          <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">AutoFyn</h1>
+          <p className="text-[8px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">Monitor</p>
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Agent health dot */}
+        <span
+          className={`h-2 w-2 rounded-full ${
+            agentReachable ? (agentIdle ? "bg-[#00ff88]/60" : "bg-[#00ff88]") : "bg-[#ff4444]/60"
+          }`}
+          style={!agentIdle && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
+        />
+
+        {/* Mobile access QR */}
+        <MobileAccessPopover />
+
+        {/* Run status */}
+        {selectedRun && <StatusBadge status={selectedRun.status as RunStatus} size="md" />}
+
+        {/* Settings */}
+        <Link href="/settings" className="p-2 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </Link>
+      </header>
+
+      {/* ── Desktop Header ── */}
       <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">
         {/* Logo */}
         <div className="flex items-center gap-2">
@@ -331,11 +389,11 @@ export default function MonitorPage() {
                 style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
               />
             </svg>
-            <Image src="/logo.svg" alt="Buddy" width={18} height={18} className="relative z-[1]" />
+            <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
           </div>
           <div>
             <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-              Buddy
+              AutoFyn
             </h1>
             <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
               Monitor
@@ -363,7 +421,7 @@ export default function MonitorPage() {
               size="md"
             />
             <span className="text-[10px] text-[#888] font-medium">
-              {selectedRun.branch_name.replace("buddy/", "")}
+              {selectedRun.branch_name.replace("autofyn/", "")}
             </span>
           </motion.div>
         )}

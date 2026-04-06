@@ -1,4 +1,4 @@
-# Buddy Sandbox — Firecracker backend (Linux with /dev/kvm)
+# AutoFyn Sandbox — Firecracker backend (Linux with /dev/kvm)
 #
 # Versions pinned in build.sh (source of truth).
 # Defaults here are fallbacks for standalone docker build.
@@ -33,28 +33,28 @@ RUN ARCH=$(uname -m) && \
     rm -rf /tmp/release-*
 
 # Create working directories
-RUN mkdir -p /opt/buddy/{kernel,rootfs,sockets,overlays}
+RUN mkdir -p /opt/autofyn/{kernel,rootfs,sockets,overlays}
 
 # Copy kernel (prebuilt Firecracker-compatible kernel)
-COPY sandbox/kernel/vmlinux.bin /opt/buddy/kernel/
+COPY sandbox/kernel/vmlinux.bin /opt/autofyn/kernel/
 
 # Copy rootfs (Python sandbox environment as ext4 image)
-COPY sandbox/rootfs/sandbox-rootfs.ext4 /opt/buddy/rootfs/
+COPY sandbox/rootfs/sandbox-rootfs.ext4 /opt/autofyn/rootfs/
 
 # Install Python deps
-COPY sandbox/pyproject.toml /opt/buddy/
-RUN pip3 install --no-cache-dir /opt/buddy/
+COPY sandbox/pyproject.toml /opt/autofyn/
+RUN pip3 install --no-cache-dir /opt/autofyn/
 
 # Copy sandbox code + config
-COPY sandbox/base.py /opt/buddy/
-COPY sandbox/gvisor.py /opt/buddy/
-COPY sandbox/firecracker/ /opt/buddy/firecracker/
-COPY sandbox/manager.py /opt/buddy/
-COPY config/ /opt/buddy/config/
+COPY sandbox/base.py /opt/autofyn/
+COPY sandbox/gvisor.py /opt/autofyn/
+COPY sandbox/firecracker/ /opt/autofyn/firecracker/
+COPY sandbox/manager.py /opt/autofyn/
+COPY config/ /opt/autofyn/config/
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=10s --timeout=3s \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["python3", "/opt/buddy/manager.py"]
+ENTRYPOINT ["python3", "/opt/autofyn/manager.py"]

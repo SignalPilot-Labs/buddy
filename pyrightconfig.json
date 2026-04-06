@@ -1,9 +1,9 @@
 {
   "extraPaths": [
-    "buddy"
+    "autofyn"
   ],
   "include": [
-    "buddy",
+    "autofyn",
     "tests"
   ],
   "typeCheckingMode": "standard"

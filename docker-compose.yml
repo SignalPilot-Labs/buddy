@@ -1,4 +1,4 @@
-# Buddy — all containers
+# AutoFyn — all containers
 #
 # Usage:
 #   docker compose up --build -d              # macOS / no KVM (gVisor sandbox)
@@ -7,16 +7,16 @@
 services:
   db:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
-    container_name: buddy-db
+    container_name: autofyn-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: buddy
-      POSTGRES_USER: buddy
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-buddy}
+      POSTGRES_DB: autofyn
+      POSTGRES_USER: autofyn
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-autofyn}
     volumes:
-      - buddy-db:/var/lib/postgresql/data
+      - autofyn-db:/var/lib/postgresql/data
     healthcheck:
-      test: pg_isready -U buddy
+      test: pg_isready -U autofyn
       interval: 5s
       timeout: 3s
       retries: 5
@@ -25,7 +25,7 @@ services:
     build:
       context: .
       dockerfile: db/Dockerfile
-    container_name: buddy-db-init
+    container_name: autofyn-db-init
     depends_on:
       db:
         condition: service_healthy
@@ -34,7 +34,7 @@ services:
     build:
       context: .
       dockerfile: dashboard/Dockerfile.dashboard
-    container_name: buddy-dashboard
+    container_name: autofyn-dashboard
     restart: unless-stopped
     environment:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
@@ -43,7 +43,7 @@ services:
       - "3400:3400"
       - "3401:3401"
     volumes:
-      - buddy-keys:/data
+      - autofyn-keys:/data
     depends_on:
       db-init:
         condition: service_completed_successfully
@@ -51,8 +51,8 @@ services:
   agent:
     build:
       context: .
-      dockerfile: buddy/Dockerfile.agent
-    container_name: buddy-agent
+      dockerfile: autofyn/Dockerfile.agent
+    container_name: autofyn-agent
     restart: unless-stopped
     env_file:
       - path: .env
@@ -84,7 +84,7 @@ services:
     build:
       context: .
       dockerfile: sandbox/Dockerfile.gvisor
-    container_name: buddy-sandbox
+    container_name: autofyn-sandbox
     restart: unless-stopped
     cap_add:
       - SYS_PTRACE
@@ -97,7 +97,7 @@ services:
     build:
       context: .
       dockerfile: sandbox/Dockerfile.firecracker
-    container_name: buddy-sandbox-firecracker
+    container_name: autofyn-sandbox-firecracker
     restart: unless-stopped
     devices:
       - "/dev/kvm:/dev/kvm"
@@ -105,12 +105,12 @@ services:
       - NET_ADMIN
       - SYS_ADMIN
     volumes:
-      - sandbox-overlays:/opt/buddy/overlays
+      - sandbox-overlays:/opt/autofyn/overlays
     profiles: ["firecracker"]
 
 volumes:
-  buddy-db:
-  buddy-keys:
+  autofyn-db:
+  autofyn-keys:
   claude-agent-sessions:
   agent-repo:
   sandbox-overlays:

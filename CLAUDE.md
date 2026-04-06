@@ -1,4 +1,4 @@
-# Buddy
+# AutoFyn
 
 Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude Code SDK), dashboard (FastAPI + Next.js), PostgreSQL, sandbox (gVisor).
 
@@ -8,11 +8,11 @@ The agent orchestrator delegates to subagents (planner, builder, reviewer, explo
 
 ## Package Layout
 
-- `buddy/` — Agent: orchestrator loop, stream processor, subagent prompts, security gate, git workspace
+- `autofyn/` — Agent: orchestrator loop, stream processor, subagent prompts, security gate, git workspace
 - `dashboard/backend/` — FastAPI dashboard API: runs, settings, SSE streaming, agent proxy
 - `dashboard/frontend/` — Next.js UI: run feed, controls, settings, diff viewer
 - `db/` — Shared SQLAlchemy models and connection (PostgreSQL)
-- `cli/` — CLI tool: `buddy start/stop/run/settings` via dashboard API
+- `cli/` — CLI tool: `autofyn start/stop/run/settings` via dashboard API
 - `sandbox/` — gVisor sandbox for isolated code execution
 
 ## Tech Stack
