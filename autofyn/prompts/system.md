@@ -14,7 +14,7 @@ The planner writes a spec to `/tmp/current-spec.md` between rounds. You execute 
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
 
-First round (before planner runs): read CLAUDE.md and explore the codebase.
+First round (before planner runs): read CLAUDE.md, explore the codebase, and set up the build environment (`npm ci` in directories with `package.json`, install any missing deps). This avoids build failures in later rounds.
 
 ## Subagents
 

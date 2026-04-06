@@ -153,43 +153,6 @@ async def finish_run(
 
 
 @swallow_errors
-async def log_tool_call(
-    run_id: str,
-    phase: str,
-    tool_name: str,
-    input_data: dict | None,
-    output_data: dict | None,
-    duration_ms: int | None,
-    permitted: bool,
-    deny_reason: str | None,
-    agent_role: str,
-    tool_use_id: str | None,
-    session_id: str | None,
-    agent_id: str | None,
-) -> int | None:
-    """Log a tool call. Returns the row id."""
-    async with get_session_factory()() as s:
-        tc = ToolCall(
-            run_id=run_id,
-            phase=phase,
-            tool_name=tool_name,
-            input_data=input_data,
-            output_data=output_data,
-            duration_ms=duration_ms,
-            permitted=permitted,
-            deny_reason=deny_reason,
-            agent_role=agent_role,
-            tool_use_id=tool_use_id,
-            session_id=session_id,
-            agent_id=agent_id,
-        )
-        s.add(tc)
-        await s.commit()
-        await s.refresh(tc)
-        return tc.id
-
-
-@swallow_errors
 async def log_audit(run_id: str, event_type: str, details: dict | None) -> None:
     """Log an audit event."""
     async with get_session_factory()() as s:

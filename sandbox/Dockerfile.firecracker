@@ -49,7 +49,7 @@ RUN pip3 install --no-cache-dir /opt/autofyn/
 COPY sandbox/base.py /opt/autofyn/
 COPY sandbox/gvisor.py /opt/autofyn/
 COPY sandbox/firecracker/ /opt/autofyn/firecracker/
-COPY sandbox/manager.py /opt/autofyn/
+COPY sandbox/server.py /opt/autofyn/
 COPY config/ /opt/autofyn/config/
 
 EXPOSE 8080
@@ -57,4 +57,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["python3", "/opt/autofyn/manager.py"]
+ENTRYPOINT ["python3", "/opt/autofyn/server.py"]

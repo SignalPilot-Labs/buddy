@@ -69,15 +69,14 @@ services:
       start_period: 30s
     volumes:
       - .:/workspace:rw
-      - /var/run/docker.sock:/var/run/docker.sock
-      - claude-agent-sessions:/home/agentuser/.claude
-      - agent-repo:/home/agentuser/repo
     working_dir: /workspace
     depends_on:
       db-init:
         condition: service_completed_successfully
       dashboard:
         condition: service_started
+      sandbox:
+        condition: service_healthy
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
@@ -86,11 +85,28 @@ services:
       dockerfile: sandbox/Dockerfile.gvisor
     container_name: autofyn-sandbox
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GIT_TERMINAL_PROMPT: "0"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
     cap_add:
       - SYS_PTRACE
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
+    volumes:
+      - agent-repo:/home/agentuser/repo
+      - claude-agent-sessions:/home/agentuser/.claude
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
   # Firecracker sandbox (Linux with KVM only)
   sandbox-firecracker:
@@ -106,6 +122,8 @@ services:
       - SYS_ADMIN
     volumes:
       - sandbox-overlays:/opt/autofyn/overlays
+      - agent-repo:/home/agentuser/repo
+      - claude-agent-sessions:/home/agentuser/.claude
     profiles: ["firecracker"]
 
 volumes:

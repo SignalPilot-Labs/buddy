@@ -4,16 +4,21 @@ Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude
 
 ## How It Works
 
-The agent orchestrator delegates to subagents (planner, builder, reviewer, explorer, frontend-builder) which read specs from `/tmp/current-spec.md`. The planner writes specs, builders implement, reviewer validates. The dashboard is the control plane — starts/stops runs, manages settings, streams events via SSE.
+Three containers: `autofyn/` is the brain (orchestrator, decisions, DB), `sandbox/` is the hands (executes all code, git, Claude SDK), `dashboard/` is the control plane (starts/stops runs, settings, SSE streaming). Agent never runs untrusted code — everything goes through HTTP to sandbox.
+
+The orchestrator delegates to subagents (planner, builder, reviewer, explorer, frontend-builder). Planner writes specs to `/tmp/current-spec.md`, builders read and implement, reviewer writes findings to `/tmp/current-review.md`. Subagents communicate through these shared files.
 
 ## Package Layout
 
-- `autofyn/` — Agent: orchestrator loop, stream processor, subagent prompts, security gate, git workspace
+- `autofyn/` — Agent (brain): orchestrator loop, stream processor, subagent prompts, sandbox_manager client
+- `autofyn/sandbox_manager/` — HTTP client to sandbox: repo ops, deps installer, session management
+- `sandbox/` — Sandbox (hands): command execution, Claude SDK sessions, SecurityGate, gVisor
+- `sandbox/executor/` — gVisor and Firecracker code execution backends
+- `sandbox/session/` — Claude SDK session lifecycle and security gating
 - `dashboard/backend/` — FastAPI dashboard API: runs, settings, SSE streaming, agent proxy
 - `dashboard/frontend/` — Next.js UI: run feed, controls, settings, diff viewer
 - `db/` — Shared SQLAlchemy models and connection (PostgreSQL)
 - `cli/` — CLI tool: `autofyn start/stop/run/settings` via dashboard API
-- `sandbox/` — gVisor sandbox for isolated code execution
 
 ## Tech Stack
 
@@ -59,6 +64,10 @@ These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must
 
 - No function longer than 50 lines except in critical cases. Extract helpers.
 - No file longer than 400 lines. Split into focused modules.
+
+## Tests
+
+- One test class per file. Test files share fixtures, mocks, and conftest helpers — but each class lives in its own file.
 
 ## Verification
 

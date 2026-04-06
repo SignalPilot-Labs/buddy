@@ -1,44 +1,39 @@
-"""Run bootstrap: git setup, service creation, SDK options.
+"""Run bootstrap: git setup, service creation, sandbox session options.
 
-RunBootstrap prepares everything needed to start or resume an agent run.
-It produces a RunContext and ClaudeAgentOptions, then hands off to AgentLoop.
+Bootstrap prepares everything needed to start or resume an agent run.
+It produces a RunContext and session options dict, then hands off to AgentLoop.
 """
 
 import logging
 import os
-import shutil
-from pathlib import Path
-
-from claude_agent_sdk import ClaudeAgentOptions
-from claude_agent_sdk.types import HookMatcher, AgentDefinition
+import time
 
 from utils import db
-from utils.constants import (
-    PROMPT_SUMMARY_LIMIT,
-    SKILLS_FALLBACK_PATH,
-    SKILLS_SRC_PATH,
-)
-from utils.git import GitWorkspace
+from utils.constants import PROMPT_SUMMARY_LIMIT
 from utils.models import RunContext
 from utils.prompts import PromptLoader
+from sandbox_manager.client import SandboxClient
+from sandbox_manager.repo_ops import RepoOps
 from core.event_bus import EventBus
-from tools.security import SecurityGate
 from tools.session import SessionGate
-from tools.db_logger import DBLogger
+from tools.subagent_tracker import SubagentTracker
 
 log = logging.getLogger("core.bootstrap")
 
 
-class RunBootstrap:
-    """Prepares a new or resumed run: git, services, SDK options.
+class Bootstrap:
+    """Prepares a new or resumed run: git, services, sandbox session options.
 
     Public API:
-        setup_new(prompt, budget, duration, base_branch) -> tuple of all run objects
-        setup_resume(run_id, budget) -> tuple of all run objects
+        setup_new(...) -> tuple of all run objects
+        setup_resume(...) -> tuple of all run objects
     """
 
-    def __init__(self, git: GitWorkspace):
-        self._git = git
+    def __init__(
+        self, repo_ops: RepoOps, sandbox: SandboxClient,
+    ) -> None:
+        self._repo_ops = repo_ops
+        self._sandbox = sandbox
         self._prompts = PromptLoader()
 
     async def setup_new(
@@ -48,18 +43,20 @@ class RunBootstrap:
         duration_minutes: float,
         base_branch: str,
         github_repo: str,
-    ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
-        """Bootstrap a new run. Returns (ctx, options, session, events, logger, initial_prompt)."""
+        exec_timeout: int,
+        clone_timeout: int,
+    ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
+        """Bootstrap a new run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        branch_name = self._setup_git(base_branch, github_repo)
+        branch_name = await self._setup_git(base_branch, github_repo, exec_timeout, clone_timeout)
         run_id = await db.create_run(
             branch_name, custom_prompt, duration_minutes, base_branch, github_repo or None
         )
         log.info("Run %s on branch %s", run_id, branch_name)
 
-        ctx = RunContext(
+        run_context = RunContext(
             run_id=run_id,
             agent_role="worker",
             branch_name=branch_name,
@@ -67,21 +64,12 @@ class RunBootstrap:
             duration_minutes=duration_minutes,
             github_repo=github_repo,
         )
-        logger, gate, session, events = self._create_services(ctx)
-        events.start_pulse_checker(run_id, logger)
+        session, events, tracker = self._create_services(run_context)
 
-        self._copy_skills()
-        options = self._build_sdk_options(
-            ctx,
-            model,
-            fallback_model,
-            session,
-            gate,
-            logger,
+        session_options = self._build_session_options(
+            run_context, model, fallback_model,
             self._build_subagents(),
-            None,
-            max_budget,
-            custom_prompt,
+            None, max_budget, custom_prompt,
         )
 
         await db.log_audit(
@@ -101,15 +89,17 @@ class RunBootstrap:
         initial = (
             custom_prompt if custom_prompt else self._prompts.build_initial_prompt()
         )
-        return ctx, options, session, events, logger, initial
+        return run_context, session_options, session, events, tracker, initial
 
     async def setup_resume(
         self,
         run_id: str,
         max_budget: float,
-        prompt: str | None = None,
-    ) -> tuple[RunContext, ClaudeAgentOptions, SessionGate, EventBus, DBLogger, str]:
-        """Bootstrap a resumed run. Returns (ctx, options, session, events, logger, initial_prompt)."""
+        exec_timeout: int,
+        clone_timeout: int,
+        prompt: str | None,
+    ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
+        """Bootstrap a resumed run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
         run_info = await db.get_run_for_resume(run_id)
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
@@ -117,12 +107,14 @@ class RunBootstrap:
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        self._git.setup_auth(run_info.get("github_repo", ""))
-        self._checkout_branch(
-            run_info["branch_name"], run_info.get("base_branch", "main")
+        await self._repo_ops.setup_auth(
+            run_info.get("github_repo", ""), exec_timeout, clone_timeout,
+        )
+        await self._repo_ops.checkout_branch(
+            run_info["branch_name"], run_info.get("base_branch", "main"), exec_timeout,
         )
 
-        ctx = RunContext(
+        run_context = RunContext(
             run_id=run_id,
             agent_role="worker",
             branch_name=run_info["branch_name"],
@@ -133,54 +125,118 @@ class RunBootstrap:
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
         )
-        logger, gate, session, events = self._create_services(ctx)
-        events.start_pulse_checker(run_id, logger)
+        session, events, tracker = self._create_services(run_context)
 
-        self._copy_skills()
         session_id = run_info.get("sdk_session_id")
-        options = self._build_sdk_options(
-            ctx,
-            model,
-            fallback_model,
-            session,
-            gate,
-            logger,
-            None,
-            session_id,
-            max_budget,
+        session_options = self._build_session_options(
+            run_context, model, fallback_model,
+            None, session_id, max_budget,
             run_info.get("custom_prompt"),
         )
 
         await db.update_run_status(run_id, "running")
-        await db.log_audit(run_id, "session_resumed", {"branch": ctx.branch_name})
+        await db.log_audit(run_id, "session_resumed", {"branch": run_context.branch_name})
 
         initial = self._build_resume_prompt(run_info, prompt)
-        return ctx, options, session, events, logger, initial
+        return run_context, session_options, session, events, tracker, initial
 
-    # ── Git ──
+    # -- Git --
 
-    def _setup_git(self, base_branch: str, github_repo: str) -> str:
-        """Clone repo, create branch. Returns branch name."""
-        self._git.setup_auth(github_repo)
-        self._git.ensure_base_branch(base_branch)
-        branch_name = self._git.get_branch_name()
-        self._git.create_branch(branch_name, base_branch)
+    async def _setup_git(
+        self, base_branch: str, github_repo: str,
+        exec_timeout: int, clone_timeout: int,
+    ) -> str:
+        """Clone repo in sandbox, create branch. Returns branch name."""
+        await self._repo_ops.setup_auth(github_repo, exec_timeout, clone_timeout)
+        await self._repo_ops.ensure_base_branch(base_branch, exec_timeout)
+        branch_name = self._repo_ops.get_branch_name()
+        await self._repo_ops.create_branch(branch_name, base_branch, exec_timeout)
         return branch_name
 
-    def _checkout_branch(self, branch_name: str, base_branch: str) -> None:
-        """Checkout an existing branch for resume."""
-        work_dir = self._git.get_work_dir()
-        try:
-            self._git.run_git(["fetch", "origin", branch_name], cwd=work_dir)
-            self._git.run_git(["checkout", branch_name], cwd=work_dir)
-            self._git.run_git(["pull", "origin", branch_name], cwd=work_dir)
-        except (RuntimeError, OSError) as e:
-            log.warning("Could not fetch/checkout %s: %s — trying local checkout", branch_name, e)
-            try:
-                self._git.run_git(["checkout", branch_name], cwd=work_dir)
-            except (RuntimeError, OSError) as e2:
-                log.warning("Local checkout failed too: %s — creating fresh branch", e2)
-                self._git.create_branch(branch_name, base_branch)
+    # -- Services --
+
+    def _create_services(self, run_context: RunContext) -> tuple[SessionGate, EventBus, SubagentTracker]:
+        """Create per-run services and start the pulse checker."""
+        tracker = SubagentTracker()
+        events = EventBus()
+        events.start_pulse_checker(run_context.run_id, tracker)
+        return SessionGate(run_context), events, tracker
+
+    def _build_subagents(self) -> dict[str, dict]:
+        """Build subagent definitions as plain dicts for sandbox."""
+        return {
+            "builder": {
+                "description": "Write code, implement features, create files. Use for all code generation tasks.",
+                "prompt": self._prompts.load_subagent_prompt("builder"),
+                "model": "sonnet",
+                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            },
+            "frontend-builder": {
+                "description": "Build React/Next.js components, pages, and styling. Use for all frontend work.",
+                "prompt": self._prompts.load_subagent_prompt("frontend-builder"),
+                "model": "sonnet",
+                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            },
+            "reviewer": {
+                "description": "Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
+                "prompt": self._prompts.load_subagent_prompt("reviewer"),
+                "model": "opus",
+                "tools": ["Read", "Glob", "Grep", "Bash"],
+            },
+            "explorer": {
+                "description": "Explore codebase, find patterns, read docs. Read-only research.",
+                "prompt": self._prompts.load_subagent_prompt("explorer"),
+                "model": "sonnet",
+                "tools": ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+            },
+            "planner": {
+                "description": "Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
+                "prompt": self._prompts.load_subagent_prompt("planner"),
+                "model": "sonnet",
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
+            },
+        }
+
+    def _build_session_options(
+        self,
+        run_context: RunContext,
+        model: str,
+        fallback_model: str | None,
+        subagents: dict | None,
+        resume_id: str | None,
+        budget: float,
+        custom_prompt: str | None,
+    ) -> dict:
+        """Build session options dict to send to sandbox."""
+        system_prompt = self._prompts.build_system_prompt(
+            custom_prompt, run_context.duration_minutes,
+        )
+        return {
+            "model": model,
+            "fallback_model": (
+                fallback_model if fallback_model and fallback_model != model else None
+            ),
+            "effort": "medium",
+            "include_partial_messages": True,
+            "permission_mode": "bypassPermissions",
+            "system_prompt": {
+                "type": system_prompt["type"],
+                "preset": system_prompt["preset"],
+                "append": system_prompt.get("append", ""),
+            },
+            "cwd": self._repo_ops.get_work_dir(),
+            "add_dirs": ["/workspace", "/home/agentuser/research"],
+            "setting_sources": ["project"],
+            "max_budget_usd": budget if budget > 0 else None,
+            "resume": resume_id,
+            "agents": subagents,
+            "run_id": run_context.run_id,
+            "github_repo": run_context.github_repo,
+            "session_gate": {
+                "duration_minutes": run_context.duration_minutes,
+                "start_time": time.time(),
+            },
+        }
 
     def _build_resume_prompt(self, run_info: dict, operator_prompt: str | None) -> str:
         """Build a context-rich resume prompt from run history."""
@@ -209,103 +265,3 @@ class RunBootstrap:
             parts.append("\nContinue where you left off.")
 
         return "\n".join(parts)
-
-    def _copy_skills(self) -> None:
-        """Copy autofyn/skills/ → .claude/skills/ in the cloned repo. Always."""
-        skills_src = Path(SKILLS_SRC_PATH)
-        if not skills_src.exists():
-            skills_src = Path(SKILLS_FALLBACK_PATH)
-        if not skills_src.exists():
-            return
-
-        work_dir = self._git.get_work_dir()
-        skills_dst = Path(work_dir) / ".claude" / "skills"
-        skills_dst.parent.mkdir(exist_ok=True)
-        if skills_dst.exists():
-            shutil.rmtree(skills_dst)
-        shutil.copytree(skills_src, skills_dst)
-
-    # ── Services ──
-
-    def _create_services(
-        self, ctx: RunContext
-    ) -> tuple[DBLogger, SecurityGate, SessionGate, EventBus]:
-        """Create all per-run services."""
-        return DBLogger(ctx), SecurityGate(ctx), SessionGate(ctx), EventBus()
-
-    def _build_subagents(self) -> dict[str, AgentDefinition]:
-        """Build subagent definitions."""
-        return {
-            "builder": AgentDefinition(
-                description="Write code, implement features, create files. Use for all code generation tasks.",
-                prompt=self._prompts.load_subagent_prompt("builder"),
-                model="sonnet",
-                tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-            ),
-            "frontend-builder": AgentDefinition(
-                description="Build React/Next.js components, pages, and styling. Use for all frontend work.",
-                prompt=self._prompts.load_subagent_prompt("frontend-builder"),
-                model="sonnet",
-                tools=["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-            ),
-            "reviewer": AgentDefinition(
-                description="Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
-                prompt=self._prompts.load_subagent_prompt("reviewer"),
-                model="opus",
-                tools=["Read", "Glob", "Grep", "Bash"],
-            ),
-            "explorer": AgentDefinition(
-                description="Explore codebase, find patterns, read docs. Read-only research.",
-                prompt=self._prompts.load_subagent_prompt("explorer"),
-                model="sonnet",
-                tools=["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
-            ),
-            "planner": AgentDefinition(
-                description="Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
-                prompt=self._prompts.load_subagent_prompt("planner"),
-                model="sonnet",
-                tools=["Read", "Write", "Glob", "Grep", "Bash"],
-            ),
-        }
-
-    def _build_sdk_options(
-        self,
-        ctx: RunContext,
-        model: str,
-        fallback_model: str | None,
-        session: SessionGate,
-        gate: SecurityGate,
-        logger: DBLogger,
-        subagents: dict | None,
-        resume_id: str | None,
-        budget: float,
-        custom_prompt: str | None,
-    ) -> ClaudeAgentOptions:
-        """Build SDK client options."""
-        return ClaudeAgentOptions(
-            model=model,
-            fallback_model=(
-                fallback_model if fallback_model and fallback_model != model else None
-            ),
-            effort="medium",
-            system_prompt=self._prompts.build_system_prompt(
-                custom_prompt, ctx.duration_minutes
-            ),
-            permission_mode="bypassPermissions",
-            can_use_tool=gate.check_permission,
-            cwd=self._git.get_work_dir(),
-            add_dirs=["/workspace", "/home/agentuser/research"],
-            setting_sources=["project"],
-            max_budget_usd=budget if budget > 0 else None,
-            include_partial_messages=True,
-            resume=resume_id,
-            mcp_servers={"session_gate": session.create_mcp_server()},
-            agents=subagents,
-            hooks={
-                "PreToolUse": [HookMatcher(hooks=[logger.pre_tool_use])],
-                "PostToolUse": [HookMatcher(hooks=[logger.post_tool_use])],
-                "SubagentStart": [HookMatcher(hooks=[logger.subagent_start])],
-                "SubagentStop": [HookMatcher(hooks=[logger.subagent_stop])],
-                "Stop": [HookMatcher(hooks=[logger.stop])],
-            },
-        )

@@ -77,10 +77,14 @@ def _apply_env_overrides(config: dict) -> dict:
     # Sandbox overrides (SP_* prefix)
     sandbox = config.get("sandbox", {})
     sandbox_env_map = {
+        "SP_SANDBOX_URL": ("url", str),
         "SP_MAX_VMS": ("max_vms", int),
         "SP_VM_MEMORY_MB": ("vm_memory_mb", int),
         "SP_VM_VCPUS": ("vm_vcpus", int),
         "SP_VM_TIMEOUT_SEC": ("vm_timeout_sec", int),
+        "SP_EXEC_TIMEOUT_SEC": ("exec_timeout_sec", int),
+        "SP_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
+        "SP_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
         "SP_LOG_LEVEL": ("log_level", str),
     }
     for env_var, (key, cast) in sandbox_env_map.items():
@@ -126,3 +130,8 @@ def database_config() -> dict:
     if missing:
         raise RuntimeError(f"Missing database config keys: {', '.join(sorted(missing))}")
     return cfg
+
+
+def security_config() -> dict:
+    """Load just the security section."""
+    return load().get("security", {})
