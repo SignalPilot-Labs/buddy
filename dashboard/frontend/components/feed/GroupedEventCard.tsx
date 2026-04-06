@@ -38,8 +38,9 @@ function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
 /* ── Styled output renderers ── */
 
 function TerminalOutput({ stdout, stderr }: { stdout: string; stderr: string }) {
+  const { t } = useTranslation();
   const text = stdout || stderr;
-  if (!text) return <div className="text-[9px] text-[#777] italic py-1">no output</div>;
+  if (!text) return <div className="text-[9px] text-[#777] italic py-1">{t.groupedEventCard.noOutput}</div>;
   const lines = text.split("\n");
   return (
     <div className="font-mono text-[10px] leading-relaxed max-h-[300px] overflow-y-auto">
@@ -58,6 +59,7 @@ function TerminalOutput({ stdout, stderr }: { stdout: string; stderr: string }) 
 }
 
 function FileContentPreview({ content, totalLines, filePath }: { content: string; totalLines: number; filePath: string }) {
+  const { t } = useTranslation();
   const ext = filePath.split(".").pop()?.toLowerCase() || "";
   const lines = content.split("\n").slice(0, 30);
   return (
@@ -69,7 +71,7 @@ function FileContentPreview({ content, totalLines, filePath }: { content: string
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
         <span className="text-[9px] text-[#666] flex-1 truncate">{shortPath(filePath)}</span>
-        <span className="text-[9px] text-[#777] tabular-nums">{totalLines} lines</span>
+        <span className="text-[9px] text-[#777] tabular-nums">{totalLines} {t.groupedEventCard.lines}</span>
         {ext && <span className="text-[9px] text-[#888] bg-white/[0.04] rounded px-1 py-0.5 uppercase">{ext}</span>}
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[250px] overflow-y-auto">
@@ -81,7 +83,7 @@ function FileContentPreview({ content, totalLines, filePath }: { content: string
         ))}
         {totalLines > 30 && (
           <div className="px-2 py-1 text-[9px] text-[#777] text-center">
-            … {totalLines - 30} more lines
+            … {totalLines - 30} {t.groupedEventCard.moreLines}
           </div>
         )}
       </div>
@@ -131,6 +133,7 @@ function DiffBlock({ patch }: { patch: Array<Record<string, unknown>> }) {
 }
 
 function GrepResults({ tool }: { tool: ToolCall }) {
+  const { t } = useTranslation();
   const input = tool.input_data || {};
   const output = tool.output_data || {};
   const pattern = String(input.pattern || "");
@@ -141,7 +144,7 @@ function GrepResults({ tool }: { tool: ToolCall }) {
     <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
         <span className="text-[9px] text-[#88ffcc]">/{pattern}/</span>
-        <span className="text-[9px] text-[#777]">{lines.length} matches</span>
+        <span className="text-[9px] text-[#777]">{lines.length} {t.groupedEventCard.matches}</span>
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[200px] overflow-y-auto px-3 py-1.5">
         {lines.map((line, i) => (
@@ -153,6 +156,7 @@ function GrepResults({ tool }: { tool: ToolCall }) {
 }
 
 function GlobResults({ tool }: { tool: ToolCall }) {
+  const { t } = useTranslation();
   const output = tool.output_data;
   if (!output) return null;
   const raw = JSON.stringify(output);
@@ -169,7 +173,7 @@ function GlobResults({ tool }: { tool: ToolCall }) {
           <span className="text-[#888]">{p}</span>
         </div>
       ))}
-      {paths.length > 20 && <div className="text-[9px] text-[#777]">+{paths.length - 20} more</div>}
+      {paths.length > 20 && <div className="text-[9px] text-[#777]">+{paths.length - 20} {t.groupedEventCard.more}</div>}
     </div>
   );
 }
@@ -305,7 +309,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
           )}
         </div>
         <span className={clsx("text-[11px] font-semibold", isPlanner ? "text-[#ff8844]" : "text-[#ccc]")}>
-          {isPlanner ? "Planner" : "Worker Agent"}
+          {isPlanner ? t.groupedEventCard.planner : t.groupedEventCard.workerAgent}
         </span>
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         {thinking && (
@@ -349,6 +353,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
 
 /* ── Read Group ── */
 function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[]; ts: string; totalDuration: number; label: string }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
   const paths = useMemo(() => extractReadPaths(tools), [tools]);
@@ -362,7 +367,7 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
         <div className="flex-1 min-w-0">
           <div className="text-[11px] font-medium text-[#88ccff]">{label}</div>
           <div className="text-[9px] text-[#888] mt-0.5 truncate">
-            {paths.slice(0, 3).map(p => shortPath(p)).join(", ")}{paths.length > 3 && ` +${paths.length - 3} more`}
+            {paths.slice(0, 3).map(p => shortPath(p)).join(", ")}{paths.length > 3 && ` +${paths.length - 3} ${t.groupedEventCard.more}`}
           </div>
         </div>
         <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
@@ -384,7 +389,7 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
                       <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
                     </svg>
                     <span className="text-[#888] truncate flex-1">{p}</span>
-                    {totalLines > 0 && <span className="text-[9px] text-[#888] shrink-0 tabular-nums">{totalLines} lines</span>}
+                    {totalLines > 0 && <span className="text-[9px] text-[#888] shrink-0 tabular-nums">{totalLines} {t.groupedEventCard.lines}</span>}
                     <Chevron open={previewIdx === i} size={8} />
                   </button>
                   {previewIdx === i && !!(fileObj?.content) && (
@@ -404,6 +409,7 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
 
 /* ── Edit Group ── */
 function EditGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: string; totalDuration: number }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [expandedFile, setExpandedFile] = useState<number | null>(null);
   const edits = useMemo(() => extractEditSummary(tools), [tools]);
@@ -418,7 +424,7 @@ function EditGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#ffcc44]/8 shrink-0">{getToolIcon("edit", "#ffcc44")}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#ffcc44]">Edited {uniqueFiles} file{uniqueFiles !== 1 ? "s" : ""} ({edits.length} changes)</div>
+          <div className="text-[11px] font-medium text-[#ffcc44]">{t.groupedEventCard.edited} {uniqueFiles} {uniqueFiles !== 1 ? t.groupedEventCard.files : t.groupedEventCard.file} ({edits.length} {t.groupedEventCard.changes})</div>
           <div className="flex items-center gap-2 mt-0.5">
             {totalAdded > 0 && <span className="text-[9px] text-[#00ff88]/60 tabular-nums">+{totalAdded}</span>}
             {totalRemoved > 0 && <span className="text-[9px] text-[#ff4444]/60 tabular-nums">-{totalRemoved}</span>}
@@ -457,6 +463,7 @@ function EditGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
 
 /* ── Bash Group ── */
 function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: string; totalDuration: number }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const commands = useMemo(() => extractBashCommands(tools), [tools]);
 
@@ -467,8 +474,8 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#00ff88]/8 shrink-0">{getToolIcon("bash", "#00ff88")}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#00ff88]">Terminal · {commands.length} command{commands.length !== 1 ? "s" : ""}</div>
-          <div className="text-[9px] text-[#888] mt-0.5 truncate">{commands[0]?.cmd}{commands.length > 1 ? ` + ${commands.length - 1} more` : ""}</div>
+          <div className="text-[11px] font-medium text-[#00ff88]">{t.groupedEventCard.terminal} · {commands.length} {commands.length !== 1 ? t.groupedEventCard.commands : t.groupedEventCard.command}</div>
+          <div className="text-[9px] text-[#888] mt-0.5 truncate">{commands[0]?.cmd}{commands.length > 1 ? ` + ${commands.length - 1} ${t.groupedEventCard.more}` : ""}</div>
         </div>
         <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
         {totalDuration > 0 && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(totalDuration)}</span>}
@@ -519,7 +526,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
   const [showFinalText, setShowFinalText] = useState(false);
   const [now, setNow] = useState(Date.now());
   const input = tool.input_data || {};
-  const description = (input.description as string) || "Sub-agent task";
+  const description = (input.description as string) || t.groupedEventCard.subAgentTask;
   const prompt = (input.prompt as string) || "";
   const subType = agentType || (input.subagent_type as string) || "general";
   const isPending = tool.phase === "pre" && !tool.output_data;
@@ -597,7 +604,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
             <span className={clsx("text-[11px] font-medium", isPending ? "text-[#ffaa44]" : "text-[#ff8844]")}>{description}</span>
             <span className="text-[9px] text-[#ff8844]/40 bg-[#ff8844]/8 rounded px-1 py-0.5 uppercase tracking-wider">{subType}</span>
             {childTools.length > 0 && (
-              <span className="text-[9px] text-[#888] tabular-nums">{childTools.length} tools</span>
+              <span className="text-[9px] text-[#888] tabular-nums">{childTools.length} {t.groupedEventCard.tools}</span>
             )}
           </div>
           {/* Live status line */}
@@ -619,7 +626,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="animate-spin">
                     <circle cx="5" cy="5" r="4" stroke="#cc88ff" strokeWidth="1" strokeDasharray="12 8" />
                   </svg>
-                  writing response...
+                  {t.groupedEventCard.writingResponse}
                 </motion.span>
               )}
               {!isPending && (
@@ -647,7 +654,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
                 <span className={clsx("absolute inline-flex h-full w-full rounded-full animate-ping opacity-50", isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]")} />
                 <span className={clsx("relative inline-flex h-1.5 w-1.5 rounded-full", isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]")} style={{ boxShadow: isFinalizing ? "0 0 4px rgba(204, 136, 255, 0.5)" : "0 0 4px rgba(255, 170, 0, 0.5)" }} />
               </span>
-              {isFinalizing ? "finalizing" : "running"}
+              {isFinalizing ? t.groupedEventCard.finalizing : t.groupedEventCard.running}
             </span>
           )}
           {isIdle && (
@@ -656,7 +663,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
                 <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff4444] animate-ping opacity-50" />
                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#ff4444]" style={{ boxShadow: "0 0 4px rgba(255, 68, 68, 0.5)" }} />
               </span>
-              stuck
+              {t.groupedEventCard.stuck}
             </span>
           )}
           <Chevron open={expanded} />
@@ -673,8 +680,8 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
               <circle cx="6" cy="8.5" r="0.5" fill="#ff4444" />
             </svg>
             <span className="text-[10px] text-[#ff4444]">
-              Agent idle for <span className="font-semibold tabular-nums">{idleSec >= 60 ? `${Math.floor(idleSec / 60)}m ${idleSec % 60}s` : `${idleSec}s`}</span>
-              {" "}&mdash; auto-recovery at 10m
+              {t.groupedEventCard.agentIdle} <span className="font-semibold tabular-nums">{idleSec >= 60 ? `${Math.floor(idleSec / 60)}m ${idleSec % 60}s` : `${idleSec}s`}</span>
+              {" "}&mdash; {t.groupedEventCard.autoRecovery}
             </span>
           </div>
         </div>
@@ -686,7 +693,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
           {/* Category summary bar */}
           {childTools.length > 0 && (
             <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] bg-black/10">
-              <span className="text-[9px] text-[#888] uppercase tracking-wider">{childTools.length} tool calls</span>
+              <span className="text-[9px] text-[#888] uppercase tracking-wider">{childTools.length} {t.groupedEventCard.toolCalls}</span>
               {totalChildDuration > 0 && <span className="text-[9px] text-[#666] tabular-nums">{fmtDuration(totalChildDuration)}</span>}
               <div className="flex items-center gap-2 ml-auto">
                 {childSummary.map(({ cat, count }) => (
@@ -733,7 +740,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
               <button onClick={(e) => { e.stopPropagation(); setShowPrompt(!showPrompt); }}
                 className="w-full flex items-center gap-2 px-4 py-2 text-[9px] text-[#888] hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider">
                 <Chevron open={showPrompt} size={8} />
-                Prompt
+                {t.groupedEventCard.prompt}
               </button>
               {showPrompt && (
                 <div className="px-4 pb-3">
@@ -749,7 +756,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
               <button onClick={(e) => { e.stopPropagation(); setShowFinalText(!showFinalText); }}
                 className="w-full flex items-center gap-2 px-4 py-2 text-[9px] text-[#cc88ff]/70 hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider">
                 <Chevron open={showFinalText} size={8} />
-                Agent Summary
+                {t.groupedEventCard.agentSummary}
               </button>
               {showFinalText && (
                 <div className="px-4 pb-3">
@@ -790,6 +797,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
 
 /* ── Playwright Group ── */
 function PlaywrightGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: string; totalDuration: number }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
@@ -798,9 +806,9 @@ function PlaywrightGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; 
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#66bbff]/8 shrink-0">{getToolIcon("playwright_navigate", "#66bbff")}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#66bbff]">Browser · {tools.length} action{tools.length !== 1 ? "s" : ""}</div>
+          <div className="text-[11px] font-medium text-[#66bbff]">{t.groupedEventCard.browser} · {tools.length} {tools.length !== 1 ? t.groupedEventCard.actions : t.groupedEventCard.action}</div>
           <div className="text-[9px] text-[#888] mt-0.5 truncate">
-            {tools.map(t => getToolCategory(t.tool_name).replace("playwright_", "")).join(" → ")}
+            {tools.map(tc => getToolCategory(tc.tool_name).replace("playwright_", "")).join(" → ")}
           </div>
         </div>
         <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
@@ -834,6 +842,7 @@ function PlaywrightGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; 
 
 /* ── Single Tool ── */
 function SingleToolCard({ tool }: { tool: ToolCall }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const cat = getToolCategory(tool.tool_name);
   const colors = TOOL_COLORS[cat];
@@ -863,8 +872,8 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
         <span className="opacity-60 shrink-0">{getToolIcon(cat, denied ? "#ff4444" : colors.iconColor)}</span>
         <span className={clsx("text-[10px] font-semibold shrink-0", denied ? "text-[#ff4444]" : colors.text)}>{tool.tool_name}</span>
-        {denied && <span className="text-[9px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">DENIED</span>}
-        {isPending && <span className="text-[9px] text-[#ffaa00] animate-pulse">running</span>}
+        {denied && <span className="text-[9px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">{t.eventCard.denied}</span>}
+        {isPending && <span className="text-[9px] text-[#ffaa00] animate-pulse">{t.groupedEventCard.running}</span>}
         <span className="text-[9px] text-[#888] truncate flex-1">{denied ? tool.deny_reason : summary}</span>
         <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(tool.ts)}</span>
         {tool.duration_ms != null && <span className="text-[9px] text-[#888] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
@@ -877,7 +886,7 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
             {/* Show raw input if no styled output rendered it */}
             {tool.input_data && cat !== "bash" && cat !== "todo" && (
               <details className="group">
-                <summary className="text-[9px] text-[#777] cursor-pointer hover:text-[#666] transition-colors">raw input</summary>
+                <summary className="text-[9px] text-[#777] cursor-pointer hover:text-[#666] transition-colors">{t.groupedEventCard.rawInput}</summary>
                 <pre className="mt-1 text-[9px] text-[#888] bg-black/20 rounded p-2 border border-[#1a1a1a] whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
                   {JSON.stringify(tool.input_data, null, 2)}
                 </pre>
