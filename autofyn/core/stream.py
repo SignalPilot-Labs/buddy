@@ -1,7 +1,8 @@
-"""Stream processor: dispatches one round of SDK messages.
+"""Stream processor: dispatches one round of SDK events from sandbox SSE.
 
-StreamProcessor handles the raw SDK message loop — StreamEvent, AssistantMessage,
-RateLimitEvent, ResultMessage. It knows nothing about planner/worker or round iteration.
+StreamProcessor reads events from the sandbox's SSE stream instead of
+a local SDK client. It handles assistant messages, tool calls, rate limits,
+and result messages — same logic, different transport.
 """
 
 import asyncio
@@ -9,55 +10,57 @@ import json
 import logging
 import time
 
-from claude_agent_sdk import (
-    AssistantMessage,
-    ResultMessage,
-    TextBlock,
-    ThinkingBlock,
-    ToolUseBlock,
-)
-from claude_agent_sdk.types import RateLimitEvent, StreamEvent
-
 from utils import db
-from utils.constants import AUDIT_TEXT_LIMIT, LOG_PREVIEW_LIMIT, RATE_LIMIT_MAX_WAIT_SEC, RATE_LIMIT_SLEEP_BUFFER_SEC, TEXT_CHUNK_LIMIT
+from utils.constants import (
+    LOG_PREVIEW_LIMIT,
+    RATE_LIMIT_MAX_WAIT_SEC,
+    RATE_LIMIT_SLEEP_BUFFER_SEC,
+    TEXT_CHUNK_LIMIT,
+)
 from utils.models import RoundResult, RunContext
 from utils.prompts import PromptLoader
+from sandbox_manager.client import SandboxClient
 from core.event_bus import EventBus
 from tools.session import SessionGate
+from tools.subagent_tracker import SubagentTracker
 
 log = logging.getLogger("core.stream")
 
 
 class StreamProcessor:
-    """Processes one round of SDK messages. Returns a RoundResult.
+    """Processes one round of SDK events from sandbox SSE. Returns a RoundResult.
 
     Public API:
         process(round_num, is_planning) -> RoundResult
     """
 
     def __init__(
-        self, client, ctx: RunContext, session: SessionGate,
+        self, sandbox: SandboxClient, session_id: str,
+        run_context: RunContext, session: SessionGate,
+        tracker: SubagentTracker,
         events: EventBus, prompts: PromptLoader,
         model: str, fallback_model: str | None,
-    ):
-        self._client = client
-        self._ctx = ctx
+    ) -> None:
+        self._sandbox = sandbox
+        self._session_id = session_id
+        self._run_context = run_context
         self._session = session
+        self._tracker = tracker
         self._events = events
         self._prompts = prompts
         self._model = model
         self._fallback_model = fallback_model
 
     async def process(self, round_num: int, is_planning: bool) -> RoundResult:
-        """Process one round of SDK messages."""
+        """Process one round of sandbox SSE events."""
         tools: list[str] = []
         chunks: list[str] = []
-        result_msg = None
+        result_msg: dict | None = None
         should_stop = False
         final_status: str | None = None
         inject_payloads: list[str] = []
 
-        async for message in self._client.receive_response():
+        async for event in self._sandbox.stream_events(self._session_id):
             action = await self._check_event(is_planning)
             if action == "stop":
                 should_stop = True
@@ -68,24 +71,50 @@ class StreamProcessor:
             if action and action.startswith("inject:"):
                 inject_payloads.append(action[7:])
 
-            if isinstance(message, StreamEvent):
-                await self._log_delta(message)
-                continue
+            event_type = event.get("event", "")
+            data = event.get("data", {})
 
-            if isinstance(message, AssistantMessage):
-                self._collect_content(message, tools, chunks, is_planning)
-                self._accumulate_usage(message)
+            if event_type == "assistant_message":
+                self._collect_content(data, tools, chunks, is_planning)
+                self._accumulate_usage(data)
 
-            elif isinstance(message, RateLimitEvent) and not is_planning:
-                status = await self._handle_rate_limit(message)
+            elif event_type == "rate_limit" and not is_planning:
+                status = await self._handle_rate_limit(data)
                 if status:
                     should_stop = True
                     final_status = status
                     break
 
-            elif isinstance(message, ResultMessage):
-                result_msg = message
-                await self._handle_result(message, round_num)
+            elif event_type == "result":
+                result_msg = data
+                await self._handle_result(data, round_num)
+
+            elif event_type == "subagent_start":
+                agent_id = data.get("agent_id", "")
+                agent_type = data.get("agent_type", "")
+                if agent_id:
+                    self._tracker.track_subagent_start(agent_id, agent_type)
+
+            elif event_type == "subagent_stop":
+                agent_id = data.get("agent_id", "")
+                if agent_id:
+                    self._tracker.track_subagent_stop(agent_id)
+
+            elif event_type == "tool_use":
+                agent_id = data.get("agent_id")
+                if agent_id:
+                    self._tracker.track_tool_use(agent_id)
+
+            elif event_type == "end_session":
+                self._session.mark_ended()
+
+            elif event_type == "end_session_denied":
+                log.info("end_session denied: %s", data.get("reason", "unknown"))
+
+            elif event_type in ("session_end", "session_error"):
+                if event_type == "session_error":
+                    log.error("Session error: %s", data.get("error", "unknown"))
+                break
 
         return RoundResult(
             should_stop=should_stop, final_status=final_status,
@@ -98,31 +127,31 @@ class StreamProcessor:
     # ── Event Handling ──
 
     async def _check_event(self, is_planning: bool) -> str | None:
-        """Check for mid-round events. Returns action or None."""
+        """Check for mid-round control events. Returns action or None."""
         event = await self._events.drain()
         if not event:
             return None
 
         kind = event["event"]
-        run_id = self._ctx.run_id
+        run_id = self._run_context.run_id
 
         if kind == "stop":
             log.info("INSTANT STOP")
-            await self._client.interrupt()
+            await self._sandbox.interrupt_session(self._session_id)
             await db.log_audit(run_id, "stop_requested", {
                 "reason": event.get("payload", "Operator stop"), "instant": True,
             })
             return "stop"
 
         if kind == "pause" and not is_planning:
-            await self._client.interrupt()
-            async for _ in self._client.receive_response():
-                pass
+            await self._sandbox.interrupt_session(self._session_id)
             result = await self._events.handle_pause(run_id)
             if result == "stop":
                 return "stop"
             if result == "resume":
-                await self._client.query(self._prompts.build_continuation_prompt())
+                await self._sandbox.send_message(
+                    self._session_id, self._prompts.build_continuation_prompt(),
+                )
                 return "break"
             if result.startswith("inject:"):
                 return f"inject:{result[7:]}"
@@ -145,11 +174,8 @@ class StreamProcessor:
         elif kind == "stuck_recovery" and not is_planning:
             stuck_info = event.get("payload", "[]")
             log.info("STUCK RECOVERY: interrupting for stuck subagents")
-            await self._client.interrupt()
-            async for _ in self._client.receive_response():
-                pass
+            await self._sandbox.interrupt_session(self._session_id)
 
-            # Parse stuck agent types for a more actionable recovery prompt
             try:
                 stuck_agents = json.loads(stuck_info)
                 agent_types = [a.get("agent_type", "unknown") for a in stuck_agents]
@@ -169,76 +195,66 @@ class StreamProcessor:
             await db.log_audit(run_id, "stuck_recovery", {
                 "stuck_info": stuck_info, "recovery_prompt": recovery,
             })
-            await self._client.query(recovery)
+            await self._sandbox.send_message(self._session_id, recovery)
             return "break"
 
         return None
 
     # ── Message Handlers ──
 
-    async def _log_delta(self, message: StreamEvent) -> None:
-        """Log text/thinking deltas."""
-        event_data = message.event or {}
-        if event_data.get("type") != "content_block_delta":
-            return
-        delta = event_data.get("delta", {})
-        dtype = delta.get("type", "")
-        if dtype == "text_delta" and delta.get("text"):
-            await db.log_audit(self._ctx.run_id, "llm_text", {
-                "text": delta["text"][:AUDIT_TEXT_LIMIT], "agent_role": self._ctx.agent_role,
-            })
-        elif dtype == "thinking_delta" and delta.get("thinking"):
-            await db.log_audit(self._ctx.run_id, "llm_thinking", {
-                "text": delta["thinking"][:AUDIT_TEXT_LIMIT], "agent_role": self._ctx.agent_role,
-            })
-
     def _collect_content(
-        self, message: AssistantMessage, tools: list[str], chunks: list[str], is_planning: bool,
+        self, data: dict, tools: list[str], chunks: list[str], is_planning: bool,
     ) -> None:
-        """Extract text chunks and tool names."""
+        """Extract text chunks and tool names from assistant message data."""
         tag = "[PLANNER] " if is_planning else ""
-        for block in message.content:
-            if isinstance(block, TextBlock):
-                log.info("%s%s", tag, block.text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
-                chunks.append(block.text[:TEXT_CHUNK_LIMIT])
-            elif isinstance(block, ThinkingBlock):
-                log.info("%s[thinking] %s...", tag, block.thinking[:100])
-            elif isinstance(block, ToolUseBlock):
-                log.info("Tool: %s", block.name)
-                tools.append(block.name)
+        for block in data.get("content", []):
+            block_type = block.get("type", "")
+            if block_type == "text":
+                text = block.get("text", "")
+                log.info("%s%s", tag, text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
+                chunks.append(text[:TEXT_CHUNK_LIMIT])
+            elif block_type == "thinking":
+                log.info("%s[thinking] %s...", tag, block.get("thinking", "")[:100])
+            elif block_type == "tool_use":
+                log.info("Tool: %s", block.get("name", ""))
+                tools.append(block.get("name", ""))
 
-    def _accumulate_usage(self, message: AssistantMessage) -> None:
+    def _accumulate_usage(self, data: dict) -> None:
         """Add usage to run context."""
-        if message.usage:
-            self._ctx.total_input_tokens += message.usage.get("input_tokens", 0)
-            self._ctx.total_output_tokens += message.usage.get("output_tokens", 0)
+        usage = data.get("usage")
+        if usage:
+            self._run_context.total_input_tokens += usage.get("input_tokens", 0)
+            self._run_context.total_output_tokens += usage.get("output_tokens", 0)
 
-    async def _handle_result(self, message: ResultMessage, round_num: int) -> None:
+    async def _handle_result(self, data: dict, round_num: int) -> None:
         """Save session ID, update costs, log round."""
-        if message.session_id:
-            await db.save_session_id(self._ctx.run_id, message.session_id)
-        if message.total_cost_usd:
-            self._ctx.total_cost = message.total_cost_usd
-        if message.usage:
-            self._ctx.total_input_tokens = message.usage.get("input_tokens", self._ctx.total_input_tokens)
-            self._ctx.total_output_tokens = message.usage.get("output_tokens", self._ctx.total_output_tokens)
-        await db.log_audit(self._ctx.run_id, "round_complete", {
-            "round": round_num + 1, "turns": message.num_turns,
-            "cost_usd": message.total_cost_usd,
+        session_id = data.get("session_id")
+        if session_id:
+            await db.save_session_id(self._run_context.run_id, session_id)
+        cost = data.get("total_cost_usd")
+        if cost:
+            self._run_context.total_cost = cost
+        usage = data.get("usage")
+        if usage:
+            self._run_context.total_input_tokens = usage.get("input_tokens", self._run_context.total_input_tokens)
+            self._run_context.total_output_tokens = usage.get("output_tokens", self._run_context.total_output_tokens)
+        await db.log_audit(self._run_context.run_id, "round_complete", {
+            "round": round_num + 1, "turns": data.get("num_turns"),
+            "cost_usd": cost,
             "elapsed_minutes": round(self._session.elapsed_minutes(), 1),
         })
 
-    async def _handle_rate_limit(self, message: RateLimitEvent) -> str | None:
+    async def _handle_rate_limit(self, data: dict) -> str | None:
         """Handle rate limit. Returns final_status if should stop."""
-        info = message.rate_limit_info
-        run_id = self._ctx.run_id
+        run_id = self._run_context.run_id
         await db.log_audit(run_id, "rate_limit", {
-            "status": info.status, "resets_at": info.resets_at, "utilization": info.utilization,
+            "status": data.get("status"), "resets_at": data.get("resets_at"),
+            "utilization": data.get("utilization"),
         })
-        if info.status != "rejected":
+        if data.get("status") != "rejected":
             return None
 
-        resets_at = info.resets_at
+        resets_at = data.get("resets_at")
         wait_sec = max(0, resets_at - time.time()) if resets_at else 0
 
         if self._fallback_model and self._fallback_model != self._model:
@@ -257,7 +273,6 @@ class StreamProcessor:
             await db.log_audit(run_id, "rate_limit_waiting", {
                 "resets_at": resets_at, "wait_seconds": int(wait_sec),
             })
-            # Poll in 10s intervals so stop/inject events aren't blocked
             remaining = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
             while remaining > 0:
                 await asyncio.sleep(min(remaining, 10))

@@ -10,7 +10,7 @@ import logging
 
 from utils import db
 from utils.constants import PULSE_CHECK_INTERVAL_SEC
-from tools.db_logger import DBLogger
+from tools.subagent_tracker import SubagentTracker
 
 log = logging.getLogger("core.events")
 
@@ -26,7 +26,7 @@ class EventBus:
         stop_pulse_checker()    — cancel the background task
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._pulse_task: asyncio.Task | None = None
 
@@ -74,10 +74,10 @@ class EventBus:
                 return "unlock"
             log.warning("Unknown event during pause: %s", kind)
 
-    def start_pulse_checker(self, run_id: str, logger: DBLogger) -> None:
+    def start_pulse_checker(self, run_id: str, tracker: SubagentTracker) -> None:
         """Start (or restart) the background stuck-subagent checker."""
         self.stop_pulse_checker()
-        self._pulse_task = asyncio.create_task(self._pulse_loop(run_id, logger))
+        self._pulse_task = asyncio.create_task(self._pulse_loop(run_id, tracker))
 
     def stop_pulse_checker(self) -> None:
         """Cancel the background pulse checker."""
@@ -85,11 +85,11 @@ class EventBus:
             self._pulse_task.cancel()
         self._pulse_task = None
 
-    async def _pulse_loop(self, run_id: str, logger: DBLogger) -> None:
+    async def _pulse_loop(self, run_id: str, tracker: SubagentTracker) -> None:
         """Check for stuck subagents at a fixed interval."""
         while True:
             await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
-            stuck = logger.get_stuck_subagents()
+            stuck = tracker.get_stuck_subagents()
             if stuck:
                 self.push("stuck_recovery", json.dumps(stuck))
                 return

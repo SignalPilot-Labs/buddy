@@ -28,4 +28,4 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["core", "tools", "utils"]
+packages = ["core", "tools", "utils", "sandbox_manager"]

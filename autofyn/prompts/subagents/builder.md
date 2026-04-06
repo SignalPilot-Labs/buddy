@@ -14,6 +14,7 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 - **One responsibility per file.** Don't mix concerns.
 - **No god files.** Split anything over 300 lines.
 - **No god functions.** Under 50 lines. Extract helpers.
+- **One class per test file.** Test files share conftest fixtures and mocks, but each test class gets its own file.
 - **No duplication.** If it exists elsewhere, import it.
 - **No inline imports.** All imports at top of file.
 - **No dead code.** Delete unused imports, unreachable branches, commented-out code.

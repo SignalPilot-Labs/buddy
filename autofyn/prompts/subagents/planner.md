@@ -15,6 +15,7 @@ Before writing any plan, do this:
    - **What could go wrong** — Edge cases, error states, security boundaries, performance implications.
 4. **Check yourself.** Before finalizing, ask:
    - Does this create a god class or god file? Split it.
+   - For tests: one test class per file — shared fixtures and mocks go in conftest.
    - Does this duplicate logic that exists elsewhere? Reuse it.
    - Is there a simpler way to get the same result? Do that instead.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.

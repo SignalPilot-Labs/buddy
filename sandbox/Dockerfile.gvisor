@@ -1,20 +1,26 @@
-# AutoFyn Sandbox — gVisor backend (no KVM required)
-# Works on macOS (Apple Silicon), Linux, and CI environments.
+# AutoFyn Sandbox — execution environment (gVisor backend, no KVM required)
+#
+# All code execution happens here: git, npm, Claude SDK sessions.
+# The agent container sends commands via HTTP; this container executes them.
 #
 # Versions pinned in build.sh (source of truth).
 # Defaults here are fallbacks for standalone docker build.
 
 ARG PYTHON_VERSION=3.12
+ARG NODE_VERSION=22
 ARG GVISOR_VERSION=20260323.0
 
 FROM python:${PYTHON_VERSION}-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG GVISOR_VERSION
+ARG NODE_VERSION
 
-# System deps (curl for healthcheck)
+# System deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     curl \
+    jq \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,16 +30,62 @@ RUN ARCH=$(uname -m) && \
     -o /usr/local/bin/runsc && \
     chmod +x /usr/local/bin/runsc
 
+# Install GitHub CLI
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+    > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js (required for Claude Code CLI)
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI
+RUN npm install -g @anthropic-ai/claude-code
+
+# Frontend dev tools
+RUN npm install -g \
+    typescript \
+    eslint \
+    prettier
+
 RUN mkdir -p /opt/autofyn
 
+# Config (for sandbox config loading)
+COPY config/ /opt/autofyn/config/
+
+# Sandbox packages
 COPY sandbox/pyproject.toml /opt/autofyn/
 RUN pip install --no-cache-dir /opt/autofyn/
 
-COPY sandbox/base.py /opt/autofyn/
-COPY sandbox/gvisor.py /opt/autofyn/
-COPY sandbox/firecracker/ /opt/autofyn/firecracker/
-COPY sandbox/manager.py /opt/autofyn/
-COPY config/ /opt/autofyn/config/
+COPY sandbox/constants.py /opt/autofyn/
+COPY sandbox/server.py /opt/autofyn/
+COPY sandbox/session/ /opt/autofyn/session/
+
+# Shared DB package (for direct audit logging)
+COPY db/pyproject.toml /opt/autofyn/db/pyproject.toml
+COPY db/__init__.py /opt/autofyn/db/__init__.py
+RUN pip install --no-cache-dir /opt/autofyn/db/
+COPY db/ /opt/autofyn/db/
+
+# Skills (copied at build time, not via API)
+COPY autofyn/skills/ /opt/autofyn/skills/
+
+# Create non-root user for Claude SDK
+RUN useradd -m agentuser \
+    && mkdir -p /home/agentuser/.claude /home/agentuser/repo \
+    && echo '{}' > /home/agentuser/.claude.json \
+    && chown -R agentuser:agentuser /opt/autofyn /home/agentuser
+
+USER agentuser
+
+# Git config
+RUN git config --global user.name "AutoFyn Bot" \
+    && git config --global user.email "autofyn-bot@noreply.github.com" \
+    && git config --global --add safe.directory '*'
 
 WORKDIR /opt/autofyn
 
@@ -42,4 +94,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["python3", "manager.py"]
+ENTRYPOINT ["python3", "server.py"]

@@ -1,50 +1,22 @@
+# AutoFyn Agent — decision-making brain (no code execution)
+#
+# All code execution (git, npm, Claude SDK) happens in the sandbox container.
+# This container only runs the orchestrator: FastAPI + httpx → sandbox HTTP.
+#
 # Versions pinned in build.sh (source of truth).
 ARG PYTHON_VERSION=3.12
-ARG NODE_VERSION=22
-ARG DOCKER_CLI_VERSION=27.5.1
 
 FROM python:${PYTHON_VERSION}-slim
 
-# Install system dependencies
+# System dependencies (curl for healthcheck, gosu for non-root)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     curl \
-    jq \
     gosu \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI (official static binary — no daemon, just the client)
-ARG DOCKER_CLI_VERSION
-RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz \
-    | tar xz --strip-components=1 -C /usr/local/bin docker/docker \
-    && chmod +x /usr/local/bin/docker
-
-# Install GitHub CLI
-RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-    | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-    > /etc/apt/sources.list.d/github-cli.list \
-    && apt-get update && apt-get install -y gh \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js (required for Claude Code CLI)
-ARG NODE_VERSION
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Claude Code CLI
-RUN npm install -g @anthropic-ai/claude-code
-
-# Frontend dev tools (no package.json for agent, so global install)
-RUN npm install -g \
-    typescript \
-    eslint \
-    prettier
-
 WORKDIR /app
 
-# Config (required by db/connection.py)
+# Config (required by db/connection.py and config loader)
 COPY config/ /app/config/
 
 # Shared DB package (models + connection pool)
@@ -53,37 +25,27 @@ COPY db/__init__.py /app/db/__init__.py
 RUN pip install --no-cache-dir /app/db/
 COPY db/ /app/db/
 
-# AutoFyn packages
+# AutoFyn agent packages
 COPY autofyn/pyproject.toml /app/pyproject.toml
 RUN pip install --no-cache-dir "/app/[dev]"
 COPY autofyn/core/ /app/core/
 COPY autofyn/tools/ /app/tools/
 COPY autofyn/utils/ /app/utils/
+COPY autofyn/sandbox_manager/ /app/sandbox_manager/
 COPY autofyn/prompts/ /app/prompts/
 COPY autofyn/skills/ /app/skills/
+COPY autofyn/endpoints.py /app/endpoints.py
 COPY autofyn/server.py /app/server.py
 
-# Run as non-root — Claude CLI refuses --dangerously-skip-permissions as root
+# Run as non-root
 RUN useradd -m agentuser \
-    && mkdir -p /home/agentuser/.claude \
-    && echo '{}' > /home/agentuser/.claude.json \
-    && chown -R agentuser:agentuser /app /home/agentuser/.claude /home/agentuser/.claude.json
-
-# Give agentuser access to docker socket (will be mounted)
-RUN groupadd -g 998 dockerhost || true \
-    && usermod -aG dockerhost agentuser 2>/dev/null || true
+    && chown -R agentuser:agentuser /app
 
 USER agentuser
 
-# Git config as agentuser
-RUN git config --global user.name "AutoFyn Bot" \
-    && git config --global user.email "autofyn-bot@noreply.github.com" \
-    && git config --global --add safe.directory /workspace \
-    && git config --global --add safe.directory '*'
-
 ENV PYTHONPATH="/app"
 
-# Entrypoint: fix docker socket permissions at runtime, then exec as agentuser
+# Entrypoint
 COPY --chown=root:root autofyn/entrypoint.sh /app/entrypoint.sh
 
 USER root

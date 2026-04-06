@@ -8,6 +8,27 @@ from pydantic import BaseModel, field_validator
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
+# ── Sandbox Communication ──
+
+@dataclass
+class ExecRequest:
+    """Command execution request sent to the sandbox."""
+
+    args: list[str]
+    cwd: str
+    timeout: int
+    env: dict[str, str]
+
+
+@dataclass
+class ExecResult:
+    """Command execution result returned from the sandbox."""
+
+    stdout: str
+    stderr: str
+    exit_code: int
+
+
 # ── Runtime Context ──
 
 @dataclass

@@ -9,25 +9,39 @@ import hmac
 import logging
 import os
 import traceback
+from collections.abc import Coroutine
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from starlette.responses import JSONResponse
 import uvicorn
 
+from config.loader import sandbox_config
 from utils import db
-from utils.constants import KILL_WAIT_SEC, PROMPT_SUMMARY_LIMIT, SERVER_HOST, SERVER_PORT
-from utils.git import GitWorkspace
-from utils.helpers import validate_branch_name
-from utils.models import InjectRequest, ResumeRequest, StartRequest
+from utils.constants import (
+    SANDBOX_CLONE_TIMEOUT_DEFAULT,
+    SANDBOX_EXEC_TIMEOUT_DEFAULT,
+    SANDBOX_HEALTH_TIMEOUT_DEFAULT,
+    SANDBOX_URL_DEFAULT,
+    SERVER_HOST,
+    SERVER_PORT,
+)
 from utils.prompts import PromptLoader
-from core.bootstrap import RunBootstrap
+from sandbox_manager.client import SandboxClient
+from sandbox_manager.repo_ops import RepoOps
+from core.bootstrap import Bootstrap
 from core.agent_loop import AgentLoop
+from endpoints import register_routes
 from core.teardown import RunTeardown
 from core.event_bus import EventBus
 from tools.session import SessionGate
+from tools.subagent_tracker import SubagentTracker
+from utils.models import RunContext
 
 log = logging.getLogger("server")
+
+BootstrapResult = tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]
 
 
 class AgentServer:
@@ -38,11 +52,18 @@ class AgentServer:
     """
 
     def __init__(self):
-        self._git = GitWorkspace()
+        cfg = sandbox_config()
+        sandbox_url = cfg.get("url", SANDBOX_URL_DEFAULT)
+        health_timeout = cfg.get("health_timeout_sec", SANDBOX_HEALTH_TIMEOUT_DEFAULT)
+        self._exec_timeout: int = cfg.get("exec_timeout_sec", SANDBOX_EXEC_TIMEOUT_DEFAULT)
+        self._clone_timeout: int = cfg.get("clone_timeout_sec", SANDBOX_CLONE_TIMEOUT_DEFAULT)
+
+        self._sandbox = SandboxClient(sandbox_url, health_timeout)
+        self._repo_ops = RepoOps(self._sandbox)
         self._prompts = PromptLoader()
-        self._bootstrap = RunBootstrap(self._git)
-        self._loop = AgentLoop(self._git, self._prompts)
-        self._teardown = RunTeardown(self._git)
+        self._bootstrap = Bootstrap(self._repo_ops, self._sandbox)
+        self._loop = AgentLoop(self._repo_ops, self._sandbox, self._prompts)
+        self._teardown = RunTeardown(self._repo_ops)
         self._task: asyncio.Task | None = None
         self._events: EventBus | None = None
         self._session: SessionGate | None = None
@@ -51,7 +72,7 @@ class AgentServer:
         self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
         self._setup_internal_auth()
-        self._register_routes()
+        register_routes(self.app, self)
 
     def _setup_internal_auth(self) -> None:
         """Add internal secret authentication middleware if configured."""
@@ -61,7 +82,6 @@ class AgentServer:
 
         @self.app.middleware("http")
         async def check_internal_secret(request, call_next):
-            # Health endpoint is unauthenticated (Docker healthcheck)
             if request.url.path == "/health":
                 return await call_next(request)
             provided = request.headers.get("X-Internal-Secret", "")
@@ -71,61 +91,63 @@ class AgentServer:
 
     @asynccontextmanager
     async def _lifespan(self, app: FastAPI):
-        """Startup: connect DB. Shutdown: close DB."""
+        """Startup: connect DB. Shutdown: close DB and sandbox client."""
         await db.init_db()
         crashed = await db.mark_crashed_runs()
         if crashed:
             log.info("Marked %d stale run(s) as crashed", crashed)
         log.info("Ready — waiting for start command on :%d", SERVER_PORT)
         yield
+        await self._sandbox.close()
         await db.close_db()
 
     # ── Run Lifecycle ──
+
+    async def _execute_run(
+        self,
+        bootstrap_coro: Coroutine[Any, Any, BootstrapResult],
+        custom_prompt: str | None,
+    ) -> None:
+        """Shared bootstrap → execute → teardown pipeline."""
+        self._bootstrapping = True
+        run_context, session_options, session, events, tracker, initial = await bootstrap_coro
+        self.current_run_id = run_context.run_id
+        self._events = events
+        self._session = session
+        self._bootstrapping = False
+
+        try:
+            status = await self._loop.execute(
+                session_options, run_context, session, events, tracker, initial,
+                custom_prompt, self._exec_timeout,
+            )
+        finally:
+            events.stop_pulse_checker()
+            self._events = None
+            self._session = None
+
+        await self._teardown.finalize(run_context, status, self._exec_timeout)
+        self.current_run_id = None
 
     async def _run_agent(
         self, custom_prompt: str | None, max_budget: float,
         duration_minutes: float, base_branch: str, github_repo: str,
     ) -> None:
-        """Bootstrap → execute → teardown for a new run."""
-        self._bootstrapping = True
-        ctx, options, session, events, logger, initial = await self._bootstrap.setup_new(
+        """Start a new run via the shared execute pipeline."""
+        coro = self._bootstrap.setup_new(
             custom_prompt, max_budget, duration_minutes, base_branch, github_repo,
+            self._exec_timeout, self._clone_timeout,
         )
-        self.current_run_id = ctx.run_id
-        self._events = events
-        self._session = session
-        self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
+        await self._execute_run(coro, custom_prompt)
 
-        try:
-            status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
-        finally:
-            events.stop_pulse_checker()
-            self._events = None
-            self._session = None
-
-        await self._teardown.finalize(ctx, status)
-        self.current_run_id = None
-
-    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None = None) -> None:
-        """Bootstrap → execute → teardown for a resumed run."""
-        self._bootstrapping = True
-        ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
-        self.current_run_id = ctx.run_id
-        self._events = events
-        self._session = session
-        self._bootstrapping = False
-        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
-
-        try:
-            status = await self._loop.execute(options, ctx, session, events, initial, None)
-        finally:
-            events.stop_pulse_checker()
-            self._events = None
-            self._session = None
-
-        await self._teardown.finalize(ctx, status)
-        self.current_run_id = None
+    async def _resume_agent(
+        self, run_id: str, max_budget: float, prompt: str | None,
+    ) -> None:
+        """Resume a run via the shared execute pipeline."""
+        coro = self._bootstrap.setup_resume(
+            run_id, max_budget, self._exec_timeout, self._clone_timeout, prompt,
+        )
+        await self._execute_run(coro, None)
 
     # ── Helpers ──
 
@@ -161,154 +183,11 @@ class AgentServer:
         except asyncio.CancelledError:
             pass
         finally:
-            # Always clean up so new runs can start after a crash
             self.current_run_id = None
             self._task = None
             self._events = None
             self._session = None
             self._bootstrapping = False
-
-    # ── Routes ──
-
-    def _register_routes(self) -> None:
-        """Register all HTTP routes."""
-        app = self.app
-
-        @app.get("/health")
-        async def health():
-            if self._bootstrapping:
-                return {"status": "bootstrapping", "current_run_id": None}
-            if not self.current_run_id:
-                return {"status": "idle", "current_run_id": None}
-            result: dict = {"status": "running", "current_run_id": self.current_run_id}
-            if self._session:
-                result["elapsed_minutes"] = round(self._session.elapsed_minutes(), 1)
-                result["time_remaining"] = self._session.time_remaining_str()
-                result["session_unlocked"] = self._session.is_unlocked()
-            return result
-
-        @app.post("/start")
-        async def start_run(body: StartRequest = StartRequest()):
-            self._require_idle()
-            self._inject_credentials(body)
-            budget = body.max_budget_usd if body.max_budget_usd else float(os.environ.get("MAX_BUDGET_USD", "0"))
-
-            self._task = asyncio.create_task(self._run_agent(
-                body.prompt, budget, body.duration_minutes, body.base_branch,
-                body.github_repo or "",
-            ))
-            self._task.add_done_callback(self._on_task_done)
-
-            return {
-                "ok": True, "status": "bootstrapping",
-                "prompt": body.prompt[:PROMPT_SUMMARY_LIMIT] if body.prompt else None,
-                "max_budget_usd": budget,
-                "duration_minutes": body.duration_minutes,
-                "base_branch": body.base_branch,
-            }
-
-        @app.post("/resume")
-        async def resume_run(body: ResumeRequest):
-            self._require_idle()
-            self._inject_credentials(body)
-            budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
-
-            self._task = asyncio.create_task(self._resume_agent(body.run_id, budget, body.prompt))
-            self._task.add_done_callback(self._on_task_done)
-            return {"ok": True, "status": "bootstrapping", "run_id": body.run_id, "resumed": True}
-
-        @app.post("/pause")
-        async def pause():
-            self._require_running()
-            self._push_event("pause", None)
-            return {"ok": True, "event": "pause"}
-
-        @app.post("/resume_signal")
-        async def resume_signal():
-            self._require_running()
-            self._push_event("resume", None)
-            return {"ok": True, "event": "resume"}
-
-        @app.post("/inject")
-        async def inject(body: InjectRequest = InjectRequest()):
-            self._require_running()
-            self._push_event("inject", body.payload)
-            return {"ok": True, "event": "inject"}
-
-        @app.post("/unlock")
-        async def unlock():
-            self._require_running()
-            self._push_event("unlock", None)
-            return {"ok": True, "event": "unlock"}
-
-        @app.post("/stop")
-        async def stop():
-            self._require_running()
-            self._push_event("stop", "Operator stop via API")
-            return {"ok": True, "event": "stop"}
-
-        @app.post("/kill")
-        async def kill():
-            if self._task is None or self.current_run_id is None:
-                raise HTTPException(status_code=409, detail="No run in progress")
-            run_id = self.current_run_id
-            self._task.cancel()
-            await asyncio.sleep(KILL_WAIT_SEC)
-            try:
-                await db.finish_run(run_id, "killed", None, None, None, None, None, None, None)
-            except Exception as e:
-                log.error("Failed to mark run %s as killed in DB: %s", run_id, e)
-            self.current_run_id = None
-            return {"ok": True, "event": "kill", "run_id": run_id}
-
-        @app.get("/branches")
-        async def list_branches():
-            if not self._git.is_ready():
-                return []
-            try:
-                output = self._git.run_git(["branch", "-r", "--format", "%(refname:short)"])
-                branches = [b.replace("origin/", "") for b in output.strip().split("\n") if b.strip() and "HEAD" not in b]
-                return sorted(set(branches))
-            except RuntimeError as e:
-                log.warning("Failed to list branches: %s", e)
-                return []
-
-        @app.get("/diff/live")
-        async def get_live_diff():
-            if not self._git.is_ready():
-                return {"files": []}
-            try:
-                base = "main"
-                if self.current_run_id:
-                    run_base = await db.get_run_base_branch(self.current_run_id)
-                    if run_base:
-                        base = run_base
-                stats = self._git.get_branch_diff_live(base)
-                return {
-                    "files": stats, "total_files": len(stats),
-                    "total_added": sum(f["added"] for f in stats),
-                    "total_removed": sum(f["removed"] for f in stats),
-                }
-            except RuntimeError as e:
-                log.warning("Live diff failed: %s", e)
-                return {"files": []}
-
-        @app.get("/diff/{branch}")
-        async def get_branch_diff(branch: str, base: str = "main"):
-            if not self._git.is_ready():
-                return {"files": []}
-            try:
-                validate_branch_name(branch)
-                validate_branch_name(base)
-                stats = self._git.get_branch_diff(branch, base)
-                return {
-                    "files": stats, "total_files": len(stats),
-                    "total_added": sum(f["added"] for f in stats),
-                    "total_removed": sum(f["removed"] for f in stats),
-                }
-            except RuntimeError as e:
-                log.warning("Branch diff failed: %s", e)
-                return {"files": []}
 
 
 _server = AgentServer()
