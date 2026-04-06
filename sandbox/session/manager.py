@@ -17,6 +17,7 @@ import uuid
 from typing import Any, Callable
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+from claude_agent_sdk.types import AgentDefinition
 from claude_agent_sdk import (
     AssistantMessage,
     ResultMessage,
@@ -187,6 +188,9 @@ class _Session:
         if gate_cfg:
             mcp["session_gate"] = self._build_session_gate_mcp(gate_cfg)
 
+        agents_raw = opts.get("agents")
+        agents = _parse_agents(agents_raw) if agents_raw else None
+
         return ClaudeAgentOptions(
             model=opts["model"],
             fallback_model=opts.get("fallback_model"),
@@ -201,7 +205,7 @@ class _Session:
             include_partial_messages=True,
             resume=opts.get("resume"),
             mcp_servers=mcp,
-            agents=opts.get("agents"),
+            agents=agents,
             hooks=self._build_hooks(),
         )
 
@@ -405,6 +409,19 @@ async def _log_audit(run_id: str, event_type: str, details: dict) -> None:
 
 
 # ── Serialization helpers ───────────────────────────────────
+
+
+def _parse_agents(raw: dict[str, dict]) -> dict[str, AgentDefinition]:
+    """Convert plain dicts from the agent into AgentDefinition dataclasses."""
+    return {
+        name: AgentDefinition(
+            description=defn["description"],
+            prompt=defn["prompt"],
+            model=defn.get("model"),
+            tools=defn.get("tools"),
+        )
+        for name, defn in raw.items()
+    }
 
 
 def _summarize(data: Any) -> str:

@@ -66,7 +66,7 @@ class RepoOps:
     async def run_git(self, args: list[str], exec_timeout: int, cwd: str) -> str:
         """Run a git command in the sandbox."""
         result = await self._exec(
-            ["git"] + args, cwd, exec_timeout, self._git_auth_env()
+            ["git"] + args, cwd, exec_timeout, self._auth_env()
         )
         if result.exit_code != 0:
             raise RuntimeError(f"git failed: {result.stderr}")
@@ -74,7 +74,7 @@ class RepoOps:
 
     async def run_gh(self, args: list[str], exec_timeout: int) -> str:
         """Run a gh CLI command in the sandbox."""
-        result = await self._exec(["gh"] + args, WORK_DIR, exec_timeout, {})
+        result = await self._exec(["gh"] + args, WORK_DIR, exec_timeout, self._auth_env())
         if result.exit_code != 0:
             raise RuntimeError(f"gh failed: {result.stderr}")
         return result.stdout.strip()
@@ -85,8 +85,6 @@ class RepoOps:
         """Clone the repo in sandbox and configure auth."""
         self._repo = repo
         token = os.environ.get("GIT_TOKEN", "")
-        if token and not os.environ.get("GH_TOKEN"):
-            os.environ["GH_TOKEN"] = token
         await self._ensure_repo(clone_timeout)
         if token:
             b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
@@ -147,7 +145,7 @@ class RepoOps:
         """Generate a unique branch name."""
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         short_id = uuid.uuid4().hex[:6]
-        return f"buddy/{date_str}-{short_id}"
+        return f"autofyn/{date_str}-{short_id}"
 
     # -- Push / PR --
 
@@ -270,19 +268,18 @@ class RepoOps:
         request = ExecRequest(args=args, cwd=cwd, timeout=timeout, env=env)
         return await self._client.exec(request)
 
-    def _git_auth_env(self) -> dict[str, str]:
-        """Return env vars that inject auth for git commands."""
-        if self._auth_in_config:
-            return {}
+    def _auth_env(self) -> dict[str, str]:
+        """Return env vars for git and gh CLI auth."""
         token = os.environ.get("GIT_TOKEN", "")
         if not token:
-            return {}
-        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-        return {
-            "GIT_CONFIG_COUNT": "1",
-            "GIT_CONFIG_KEY_0": "http.extraHeader",
-            "GIT_CONFIG_VALUE_0": f"Authorization: Basic {b64}",
-        }
+            raise RuntimeError("GIT_TOKEN is not set")
+        env: dict[str, str] = {"GH_TOKEN": token}
+        if not self._auth_in_config:
+            b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+            env["GIT_CONFIG_COUNT"] = "1"
+            env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
+            env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {b64}"
+        return env
 
     async def _ensure_repo(self, timeout: int) -> None:
         """Clone the repo in sandbox if not already initialized or repo changed."""
@@ -300,7 +297,7 @@ class RepoOps:
             await self._exec(["mkdir", "-p", WORK_DIR], "/", timeout, {})
             result = await self._exec(
                 ["git", "clone", "--depth", "50", "--no-single-branch", remote_url, "."],
-                WORK_DIR, timeout, self._git_auth_env(),
+                WORK_DIR, timeout, self._auth_env(),
             )
             if result.exit_code != 0:
                 raise RuntimeError(f"Clone failed: {result.stderr}")

@@ -12,7 +12,7 @@ class TestValidateBranchName:
         validate_branch_name("main")
         validate_branch_name("feature-123")
         validate_branch_name("bugfix/issue_42")
-        validate_branch_name("buddy/2026-04-03-abc123")
+        validate_branch_name("autofyn/2026-04-03-abc123")
 
     def test_valid_with_dots(self):
         validate_branch_name("release/v1.2.3")

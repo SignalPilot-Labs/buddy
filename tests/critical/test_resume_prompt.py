@@ -17,9 +17,9 @@ class TestResumePromptBuilder:
 
     def test_includes_branch_and_status(self):
         bootstrap = _make_bootstrap()
-        run_info = {"branch_name": "buddy/test-branch", "status": "paused"}
+        run_info = {"branch_name": "autofyn/test-branch", "status": "paused"}
         prompt = bootstrap._build_resume_prompt(run_info, None)
-        assert "buddy/test-branch" in prompt
+        assert "autofyn/test-branch" in prompt
         assert "paused" in prompt
         assert "Continue where you left off" in prompt
 

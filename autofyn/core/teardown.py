@@ -64,6 +64,15 @@ class RunTeardown:
                 except RuntimeError as e:
                     log.warning("Auto-commit failed: %s", e)
 
+            # Skip PR if no commits ahead of base
+            commits_ahead = await self._repo_ops.run_git(
+                ["rev-list", "--count", f"origin/{run_context.base_branch}..HEAD"],
+                exec_timeout, WORK_DIR,
+            )
+            if commits_ahead.strip() == "0":
+                log.info("No commits ahead of %s, skipping PR", run_context.base_branch)
+                return None
+
             await self._repo_ops.push_branch(run_context.branch_name, exec_timeout)
             pr_url = await self._repo_ops.create_pr(
                 run_context.branch_name, run_context.run_id, run_context.base_branch, exec_timeout,
