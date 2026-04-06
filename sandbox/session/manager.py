@@ -383,7 +383,7 @@ class _Session:
 
 async def _log_tool_call(
     run_id: str, phase: str, tool_name: str,
-    input_data: str | None, output_data: str | None,
+    input_data: dict | None, output_data: dict | None,
     duration_ms: int | None, permitted: bool, deny_reason: str | None,
     agent_role: str, tool_use_id: str | None,
     session_id: str | None, agent_id: str | None,
@@ -424,12 +424,20 @@ def _parse_agents(raw: dict[str, dict]) -> dict[str, AgentDefinition]:
     }
 
 
-def _summarize(data: Any) -> str:
-    """Truncated JSON summary for audit logging."""
-    raw = json.dumps(data, default=str)
-    if len(raw) <= INPUT_SUMMARY_MAX_LEN:
-        return raw
-    return raw[:INPUT_SUMMARY_MAX_LEN] + "..."
+def _summarize(data: Any) -> dict:
+    """Truncate large values in tool input/output for DB storage as JSONB."""
+    if not isinstance(data, dict):
+        raw = json.dumps(data, default=str)
+        if len(raw) > INPUT_SUMMARY_MAX_LEN:
+            raw = raw[:INPUT_SUMMARY_MAX_LEN] + "..."
+        return {"_raw": raw}
+    result: dict[str, Any] = {}
+    for key, val in data.items():
+        if isinstance(val, str) and len(val) > INPUT_SUMMARY_MAX_LEN:
+            result[key] = val[:INPUT_SUMMARY_MAX_LEN] + "..."
+        else:
+            result[key] = val
+    return result
 
 
 def _serialize_message(message: object) -> dict | None:

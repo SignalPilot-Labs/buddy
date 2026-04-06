@@ -26,6 +26,8 @@ class RunTeardown:
 
         if status != "killed":
             pr_url = await self._push_and_pr(run_context, exec_timeout)
+            if pr_url is None and status == "completed":
+                status = "completed_no_changes"
 
         diff_stats = await self._capture_diff(run_context, exec_timeout)
 
@@ -70,7 +72,10 @@ class RunTeardown:
                 exec_timeout, WORK_DIR,
             )
             if commits_ahead.strip() == "0":
-                log.info("No commits ahead of %s, skipping PR", run_context.base_branch)
+                log.info("No changes made — nothing to push or PR")
+                await db.log_audit(run_context.run_id, "no_changes", {
+                    "base_branch": run_context.base_branch,
+                })
                 return None
 
             await self._repo_ops.push_branch(run_context.branch_name, exec_timeout)

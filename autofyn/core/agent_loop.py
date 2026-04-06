@@ -119,6 +119,8 @@ class AgentLoop:
 
             result = await stream.process(round_num, False)
 
+            await self._auto_commit_and_push(run_context, round_num, exec_timeout)
+
             if result.should_stop:
                 return result.final_status or "stopped"
             if result.session_ended:
@@ -135,8 +137,6 @@ class AgentLoop:
                 continue
             if action and action.startswith("inject:"):
                 pending_inject = action[7:]
-
-            await self._auto_commit_and_push(run_context, round_num, exec_timeout)
 
             if pending_inject:
                 await self._deliver_inject(pending_inject, sandbox_session_id, run_context)

@@ -61,6 +61,15 @@ Before ending, write `/tmp/pr.json`:
 {"title": "Short imperative title", "description": "## Summary\n- what and why\n\n## Tests\n- what was tested"}
 ```
 
+## Before Ending
+
+Before calling `end_session`, run these commands and include the results in your summary:
+
+1. `git diff --stat` — what files changed and how much
+2. `git status` — any untracked or ignored files that won't be committed
+
+If files you created are missing from `git status`, check `.gitignore`. Report anything unexpected (ignored files, failed writes, empty diffs) in the `end_session` summary so the user knows exactly what happened.
+
 ## Session Control
 
 `end_session` is the ONLY way to end. If denied, the time lock is active — keep working. Do NOT call it repeatedly.
