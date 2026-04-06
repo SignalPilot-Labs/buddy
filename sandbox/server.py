@@ -8,11 +8,11 @@ Endpoints:
 """
 
 import asyncio
-import json
 import hmac
+import json
 import logging
 import os
-import subprocess
+import re
 
 from aiohttp import web
 
@@ -23,6 +23,7 @@ from constants import (
     INTERNAL_SECRET_HEADER,
     SANDBOX_HOST,
     SANDBOX_PORT,
+    SECRET_ENV_VARS,
 )
 from db.connection import connect as db_connect, close as db_close
 from session.manager import SessionManager
@@ -31,6 +32,25 @@ cfg = sandbox_config()
 
 logging.basicConfig(level=getattr(logging, cfg.get("log_level", "info").upper()))
 log = logging.getLogger("sandbox.server")
+
+
+# ─── Subprocess env ──────────────────────────────────────────────────────────
+
+_STRIP_PATTERN = re.compile(SECRET_ENV_VARS) if SECRET_ENV_VARS else None
+
+
+def _safe_env() -> dict[str, str]:
+    """Copy os.environ, stripping AutoFyn-internal secrets.
+
+    Project secrets (API keys etc.) are kept — the sandbox needs them
+    to build and run the target project. Only our own credentials
+    (GIT_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, AGENT_INTERNAL_SECRET, etc.)
+    are removed so the LLM cannot read them from the process env.
+    """
+    return {
+        k: v for k, v in os.environ.items()
+        if not (_STRIP_PATTERN and _STRIP_PATTERN.search(k))
+    }
 
 
 # ─── Auth Middleware ─────────────────────────────────────────────────────────
@@ -44,9 +64,10 @@ async def auth_middleware(
     if request.path == "/health":
         return await handler(request)
 
-    secret = os.environ.get(INTERNAL_SECRET_ENV_VAR)
-    if secret is None:
-        return await handler(request)
+    secret = os.environ.get(INTERNAL_SECRET_ENV_VAR, "")
+    if not secret:
+        log.error("AGENT_INTERNAL_SECRET not set — rejecting all requests")
+        return web.json_response({"error": "server misconfigured"}, status=500)
 
     provided = request.headers.get(INTERNAL_SECRET_HEADER, "")
     if not hmac.compare_digest(provided, secret):
@@ -69,20 +90,24 @@ async def handle_exec(request: web.Request) -> web.Response:
     if not args:
         return web.json_response({"error": "args is required"}, status=400)
 
-    env = os.environ.copy()
+    env = _safe_env()
     env.update(extra_env)
 
+    proc: asyncio.subprocess.Process | None = None
     try:
-        result = subprocess.run(
-            args, cwd=cwd, capture_output=True, text=True,
-            timeout=timeout, env=env,
+        proc = await asyncio.create_subprocess_exec(
+            *args, cwd=cwd, stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE, env=env,
         )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return web.json_response({
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "exit_code": result.returncode,
+            "stdout": (stdout or b"").decode().strip(),
+            "stderr": (stderr or b"").decode().strip(),
+            "exit_code": proc.returncode or 0,
         })
-    except subprocess.TimeoutExpired:
+    except asyncio.TimeoutError:
+        if proc:
+            proc.kill()
         return web.json_response({
             "stdout": "", "stderr": "Command timed out", "exit_code": -1,
         }, status=408)

@@ -73,7 +73,8 @@ class SandboxClient:
     async def stream_events(self, session_id: str) -> AsyncIterator[dict]:
         """Stream SSE events from a sandbox session."""
         async with self._http.stream(
-            "GET", f"/session/{session_id}/events"
+            "GET", f"/session/{session_id}/events",
+            timeout=None,
         ) as resp:
             resp.raise_for_status()
             buffer = ""

@@ -38,7 +38,7 @@ def register_routes(app: FastAPI, server) -> None:
         return result
 
     @app.post("/start")
-    async def start_run(body: StartRequest = StartRequest()):
+    async def start_run(body: StartRequest):
         server._require_idle()
         server._inject_credentials(body)
         budget = body.max_budget_usd if body.max_budget_usd else float(os.environ.get("MAX_BUDGET_USD", "0"))
@@ -80,7 +80,7 @@ def register_routes(app: FastAPI, server) -> None:
         return {"ok": True, "event": "resume"}
 
     @app.post("/inject")
-    async def inject(body: InjectRequest = InjectRequest()):
+    async def inject(body: InjectRequest):
         server._require_running()
         server._push_event("inject", body.payload)
         return {"ok": True, "event": "inject"}

@@ -145,13 +145,18 @@ class _Session:
         return self.options_dict.get("run_id", "")
 
     async def run(self) -> None:
-        """Run the SDK session, pushing events to the queue."""
+        """Run the SDK session, pushing events to the queue.
+
+        Uses receive_messages() (persistent iterator) instead of
+        receive_response() (single-turn) so follow-up queries sent via
+        send_message() are streamed back through the same loop.
+        """
         try:
             options = self._build_options()
             async with ClaudeSDKClient(options=options) as client:
                 self.client = client
                 await client.query(self.options_dict["initial_prompt"])
-                async for message in client.receive_response():
+                async for message in client.receive_messages():
                     event = _serialize_message(message)
                     if event:
                         self._emit(event)
@@ -244,7 +249,7 @@ class _Session:
         tool_name = hook_input.get("tool_name", "unknown")
         tool_input = hook_input.get("tool_input", {})
         agent_id = hook_input.get("agent_id")
-        tid = hook_input.get("tool_use_id", "")
+        tid = tool_use_id or ""
         sid = hook_input.get("session_id")
 
         if agent_id:
@@ -278,7 +283,7 @@ class _Session:
         tool_name = hook_input.get("tool_name", "unknown")
         response = hook_input.get("tool_response")
         agent_id = hook_input.get("agent_id")
-        tid = hook_input.get("tool_use_id", "")
+        tid = tool_use_id or ""
         sid = hook_input.get("session_id")
 
         duration_ms = None
@@ -389,23 +394,29 @@ async def _log_tool_call(
     session_id: str | None, agent_id: str | None,
 ) -> None:
     """Insert a tool call row into the database."""
-    async with get_session_factory()() as s:
-        s.add(ToolCall(
-            run_id=run_id, phase=phase, tool_name=tool_name,
-            input_data=input_data, output_data=output_data,
-            duration_ms=duration_ms, permitted=permitted,
-            deny_reason=deny_reason, agent_role=agent_role,
-            tool_use_id=tool_use_id, session_id=session_id,
-            agent_id=agent_id,
-        ))
-        await s.commit()
+    try:
+        async with get_session_factory()() as s:
+            s.add(ToolCall(
+                run_id=run_id, phase=phase, tool_name=tool_name,
+                input_data=input_data, output_data=output_data,
+                duration_ms=duration_ms, permitted=permitted,
+                deny_reason=deny_reason, agent_role=agent_role,
+                tool_use_id=tool_use_id, session_id=session_id,
+                agent_id=agent_id,
+            ))
+            await s.commit()
+    except Exception as e:
+        log.warning("Failed to log tool call: %s", e)
 
 
 async def _log_audit(run_id: str, event_type: str, details: dict) -> None:
     """Insert an audit log row into the database."""
-    async with get_session_factory()() as s:
-        s.add(AuditLog(run_id=run_id, event_type=event_type, details=details))
-        await s.commit()
+    try:
+        async with get_session_factory()() as s:
+            s.add(AuditLog(run_id=run_id, event_type=event_type, details=details))
+            await s.commit()
+    except Exception as e:
+        log.warning("Failed to log audit event: %s", e)
 
 
 # ── Serialization helpers ───────────────────────────────────

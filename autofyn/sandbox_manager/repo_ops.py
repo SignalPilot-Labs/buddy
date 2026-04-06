@@ -50,7 +50,6 @@ class RepoOps:
         self._initialized = False
         self._repo = ""
         self._cloned_repo = ""
-        self._auth_in_config = False
         self._init_lock = asyncio.Lock()
 
     def is_ready(self) -> bool:
@@ -84,16 +83,7 @@ class RepoOps:
     async def setup_auth(self, repo: str, exec_timeout: int, clone_timeout: int) -> None:
         """Clone the repo in sandbox and configure auth."""
         self._repo = repo
-        token = os.environ.get("GIT_TOKEN", "")
         await self._ensure_repo(clone_timeout)
-        if token:
-            b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-            await self.run_git(
-                ["config", "http.extraHeader", f"Authorization: Basic {b64}"],
-                exec_timeout,
-                WORK_DIR,
-            )
-            self._auth_in_config = True
 
     async def ensure_base_branch(self, base_branch: str, exec_timeout: int) -> None:
         """Verify the base branch exists on remote. Bootstrap empty repos."""
@@ -273,13 +263,13 @@ class RepoOps:
         token = os.environ.get("GIT_TOKEN", "")
         if not token:
             raise RuntimeError("GIT_TOKEN is not set")
-        env: dict[str, str] = {"GH_TOKEN": token}
-        if not self._auth_in_config:
-            b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
-            env["GIT_CONFIG_COUNT"] = "1"
-            env["GIT_CONFIG_KEY_0"] = "http.extraHeader"
-            env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {b64}"
-        return env
+        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        return {
+            "GH_TOKEN": token,
+            "GIT_CONFIG_COUNT": "1",
+            "GIT_CONFIG_KEY_0": "http.extraHeader",
+            "GIT_CONFIG_VALUE_0": f"Authorization: Basic {b64}",
+        }
 
     async def _ensure_repo(self, timeout: int) -> None:
         """Clone the repo in sandbox if not already initialized or repo changed."""
@@ -303,7 +293,6 @@ class RepoOps:
                 raise RuntimeError(f"Clone failed: {result.stderr}")
             self._cloned_repo = self._repo
             self._initialized = True
-            self._auth_in_config = False
 
     async def _retry(
         self, fn: Callable[[], Coroutine[Any, Any, str]],
