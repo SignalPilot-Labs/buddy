@@ -5,7 +5,6 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import Any
 
 import httpx
@@ -39,11 +38,11 @@ async def session() -> AsyncGenerator[AsyncSession]:
 # ORM helpers
 # ---------------------------------------------------------------------------
 
-def model_to_dict(obj: Any) -> dict[str, Any]:
+def model_to_dict(obj) -> dict:
     """Convert an ORM model instance to a JSON-safe dict."""
     d = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
     for key, val in d.items():
-        if isinstance(val, datetime):
+        if hasattr(val, "isoformat"):
             d[key] = val.isoformat()
     return d
 

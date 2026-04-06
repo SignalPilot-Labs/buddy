@@ -53,7 +53,7 @@ class ExecutorBase(abc.ABC):
         except RuntimeError as e:
             log.error("Sandbox runtime error: %s", e)
             return self._error_result(vm_id, start_time, "Execution failed")
-        except Exception:
+        except Exception as e:
             log.exception("Unexpected error in execute()")
             return self._error_result(vm_id, start_time, "Internal sandbox error")
         finally:

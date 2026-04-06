@@ -95,7 +95,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, custom_prompt)
@@ -107,7 +107,7 @@ class AgentServer:
         await self._teardown.finalize(ctx, status)
         self.current_run_id = None
 
-    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None) -> None:
+    async def _resume_agent(self, run_id: str, max_budget: float, prompt: str | None = None) -> None:
         """Bootstrap → execute → teardown for a resumed run."""
         self._bootstrapping = True
         ctx, options, session, events, logger, initial = await self._bootstrap.setup_resume(run_id, max_budget, prompt)
@@ -115,7 +115,7 @@ class AgentServer:
         self._events = events
         self._session = session
         self._bootstrapping = False
-        asyncio.get_running_loop().run_in_executor(None, self._git.install_deps)
+        asyncio.get_event_loop().run_in_executor(None, self._git.install_deps)
 
         try:
             status = await self._loop.execute(options, ctx, session, events, initial, None)
