@@ -18,6 +18,12 @@ long-running sessions · sandboxed execution · live supervision
 
 ---
 
+## Prerequisites
+
+- Docker and Docker Compose
+- An Anthropic API key ([console.anthropic.com](https://console.anthropic.com))
+- A GitHub personal access token (repo scope)
+
 Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
 
 ## Quick start
