@@ -163,7 +163,7 @@ class SessionRunner:
                     await db.log_audit(run_context.run_id, "idle_nudge", {
                         "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
                     })
-                    await self._sandbox.send_message(session_id, self._prompts.build_idle_nudge())
+                    await self._sandbox.send_message(session_id, self._prompts.build_idle_nudge(SESSION_IDLE_TIMEOUT_SEC))
                     idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
 
         finally:
