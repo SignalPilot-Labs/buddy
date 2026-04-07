@@ -182,7 +182,9 @@ async def kill_run(run_id: str = RunId) -> dict:
 @router.get("/agent/health")
 async def agent_health() -> dict:
     """Check if agent container is reachable."""
-    return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {"status": "unreachable"})
+    return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {
+        "status": "unreachable", "active_runs": 0, "max_concurrent": 0, "runs": [],
+    })
 
 
 @router.post("/agent/start")

@@ -192,7 +192,11 @@ export async function unlockAgent(runId: string): Promise<{ ok: boolean }> {
 }
 
 export async function resumeAgent(runId: string): Promise<{ ok: boolean }> {
-  const res = await apiFetch(`/api/runs/${runId}/resume`, { method: "POST" });
+  const res = await apiFetch(`/api/runs/${runId}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
