@@ -945,7 +945,11 @@ function MilestoneCard({ label, detail, color, ts }: { label: string; detail: st
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: `${color}20`, background: `${color}06` }}>
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
         <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
-        {detail && <span className="text-[9px] text-[#666] max-w-[300px] truncate">{detail}</span>}
+        {detail && (detail.startsWith("http") ? (
+          <a href={detail} target="_blank" rel="noopener noreferrer" className="text-[9px] text-[#666] max-w-[300px] truncate hover:text-[#aaa] underline underline-offset-2">{detail}</a>
+        ) : (
+          <span className="text-[9px] text-[#666] max-w-[300px] truncate">{detail}</span>
+        ))}
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />

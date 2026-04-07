@@ -5,8 +5,13 @@
 #
 # Versions pinned in build.sh (source of truth).
 ARG PYTHON_VERSION=3.12
+ARG UV_VERSION=0.11
 
+FROM docker.io/astral/uv:${UV_VERSION} AS uv
 FROM python:${PYTHON_VERSION}-slim
+
+# uv for fast Python installs
+COPY --from=uv /uv /usr/local/bin/uv
 
 # System dependencies (curl for healthcheck, gosu for non-root)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,39 +21,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Create non-root user BEFORE copying app files (avoids slow chown -R)
+RUN useradd -m agentuser && chown agentuser:agentuser /app
+
 # Config (required by db/connection.py and config loader)
-COPY config/ /app/config/
+COPY --chown=agentuser:agentuser config/ /app/config/
 
-# Shared DB package (models + connection pool)
-COPY db/pyproject.toml /app/db/pyproject.toml
-COPY db/__init__.py /app/db/__init__.py
-RUN pip install --no-cache-dir /app/db/
-COPY db/ /app/db/
+# Shared DB package (models + connection pool) — deps first for layer caching
+COPY --chown=agentuser:agentuser db/pyproject.toml /app/db/pyproject.toml
+COPY --chown=agentuser:agentuser db/__init__.py /app/db/__init__.py
+RUN uv pip install --system --no-cache /app/db/
+COPY --chown=agentuser:agentuser db/ /app/db/
 
-# AutoFyn agent packages
-COPY autofyn/pyproject.toml /app/pyproject.toml
-RUN pip install --no-cache-dir "/app/[dev]"
-COPY autofyn/core/ /app/core/
-COPY autofyn/tools/ /app/tools/
-COPY autofyn/utils/ /app/utils/
-COPY autofyn/sandbox_manager/ /app/sandbox_manager/
-COPY autofyn/prompts/ /app/prompts/
-COPY autofyn/skills/ /app/skills/
-COPY autofyn/endpoints.py /app/endpoints.py
-COPY autofyn/server.py /app/server.py
+# AutoFyn agent packages — deps first for layer caching
+COPY --chown=agentuser:agentuser autofyn/pyproject.toml /app/pyproject.toml
+RUN uv pip install --system --no-cache "/app/[dev]"
 
-# Run as non-root
-RUN useradd -m agentuser \
-    && chown -R agentuser:agentuser /app
-
-USER agentuser
-
-ENV PYTHONPATH="/app"
+# Source code (changes here don't bust dep install cache)
+COPY --chown=agentuser:agentuser autofyn/core/ /app/core/
+COPY --chown=agentuser:agentuser autofyn/tools/ /app/tools/
+COPY --chown=agentuser:agentuser autofyn/utils/ /app/utils/
+COPY --chown=agentuser:agentuser autofyn/sandbox_manager/ /app/sandbox_manager/
+COPY --chown=agentuser:agentuser autofyn/prompts/ /app/prompts/
+COPY --chown=agentuser:agentuser autofyn/skills/ /app/skills/
+COPY --chown=agentuser:agentuser autofyn/endpoints.py /app/endpoints.py
+COPY --chown=agentuser:agentuser autofyn/server.py /app/server.py
 
 # Entrypoint
 COPY --chown=root:root autofyn/entrypoint.sh /app/entrypoint.sh
-
-USER root
 RUN chmod +x /app/entrypoint.sh
+
+ENV PYTHONPATH="/app"
+
+# Entrypoint runs as root (chmod docker socket, gosu to agentuser)
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "-m", "server"]
