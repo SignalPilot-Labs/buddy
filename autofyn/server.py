@@ -118,7 +118,7 @@ class AgentServer:
         try:
             repo_ops = RepoOps(sandbox)
             bootstrap = Bootstrap(repo_ops, sandbox)
-            loop = AgentLoop(repo_ops, sandbox, self._prompts)
+            loop = AgentLoop(sandbox, self._prompts)
             teardown = RunTeardown(repo_ops)
 
             ctx, options, session, events, tracker, initial = await bootstrap.setup_new(
@@ -135,7 +135,6 @@ class AgentServer:
                 log.info("Run %s: starting agent loop", run_id)
                 status = await loop.execute(
                     options, ctx, session, events, tracker, initial,
-                    body.prompt, self._exec_timeout,
                 )
                 log.info("Run %s: loop returned status=%s", run_id, status)
             finally:

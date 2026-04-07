@@ -55,16 +55,22 @@ class RunContext:
 
 
 @dataclass
-class RoundResult:
-    """Structured return from runner.process_round()."""
+class StreamResult:
+    """Structured return from StreamProcessor.process()."""
 
     should_stop: bool
     final_status: str | None
     session_ended: bool
     result_message: Any | None
-    round_tools: list[str] = field(default_factory=list)
-    round_text_chunks: list[str] = field(default_factory=list)
-    pending_injects: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ControlAction:
+    """Result of checking a control event. Used by ControlHandler."""
+
+    stop: bool
+    break_stream: bool
+    final_status: str | None
 
 
 # ── Active Run (in-process tracking for concurrent runs) ──

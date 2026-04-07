@@ -255,6 +255,7 @@ class Bootstrap:
             "agents": subagents,
             "run_id": run_context.run_id,
             "github_repo": run_context.github_repo,
+            "branch_name": run_context.branch_name,
             "session_gate": {
                 "duration_minutes": run_context.duration_minutes,
                 "start_time": time.time(),

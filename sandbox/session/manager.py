@@ -190,7 +190,7 @@ class _Session:
     def _build_options(self) -> ClaudeAgentOptions:
         """Build ClaudeAgentOptions from the options dict."""
         opts = self.options_dict
-        gate = SecurityGate(opts.get("github_repo", ""))
+        gate = SecurityGate(opts["github_repo"], opts["branch_name"])
         mcp = dict(opts.get("mcp_servers") or {})
         gate_cfg = opts.get("session_gate")
         if gate_cfg:

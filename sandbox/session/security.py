@@ -5,9 +5,10 @@ by gVisor — these rules only protect structural integrity and secrets.
 
 Rules (and why):
 1. Branch integrity — orchestrator owns branching, subagents must not switch/create
-2. Secret protection — don't leak tokens in stdout (gets logged to DB)
-3. Remote/clone protection — stay on configured repo, don't exfiltrate code
-4. git clean — protect in-progress work from other subagents
+2. Push integrity — only push to the run's working branch
+3. Secret protection — don't leak tokens in stdout (gets logged to DB)
+4. Remote/clone protection — stay on configured repo, don't exfiltrate code
+5. git clean — protect in-progress work from other subagents
 """
 
 import logging
@@ -25,8 +26,9 @@ class SecurityGate:
     Everything else is allowed — the sandbox is the sandbox, let it rip.
     """
 
-    def __init__(self, github_repo: str):
+    def __init__(self, github_repo: str, branch_name: str):
         self._github_repo = github_repo
+        self._branch_name = branch_name
         self._cred_re = re.compile("|".join(CREDENTIAL_PATTERNS), re.IGNORECASE)
 
     def check_permission(
@@ -53,10 +55,11 @@ class SecurityGate:
     # ── Bash Checks ──
 
     def _check_bash(self, cmd: str) -> str | None:
-        """Run bash checks. Only blocks secret leaks, branch ops, and remote ops."""
+        """Run bash checks. Only blocks secret leaks, branch ops, push targets, and remote ops."""
         return (
             self._check_token_exposure(cmd)
             or self._check_branch_integrity(cmd)
+            or self._check_push_target(cmd)
             or self._check_remote_and_clone(cmd)
         )
 
@@ -87,6 +90,18 @@ class SecurityGate:
             return "Cannot switch branches — use 'git checkout -- <file>' to revert files"
         if re.search(r"git\s+clean\s+-[a-zA-Z]*f", cmd):
             return "git clean -f is blocked — it deletes untracked files permanently"
+        return None
+
+    def _check_push_target(self, cmd: str) -> str | None:
+        """Block pushes to any branch other than the run's working branch."""
+        if not re.search(r"git\s+push", cmd):
+            return None
+        if not self._branch_name:
+            return "git push blocked — no working branch configured"
+        if "origin HEAD" in cmd or f"origin {self._branch_name}" in cmd:
+            return None
+        if re.search(r"git\s+push\s+origin\s+\S", cmd):
+            return f"Can only push to the working branch '{self._branch_name}'"
         return None
 
     def _check_remote_and_clone(self, cmd: str) -> str | None:

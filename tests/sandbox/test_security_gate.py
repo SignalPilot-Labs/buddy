@@ -4,10 +4,11 @@ from session.security import SecurityGate
 
 
 REPO = "owner/test-repo"
+BRANCH = "autofyn/2026-04-07-abc123"
 
 def _make_gate() -> SecurityGate:
     """Build a SecurityGate with standard test config."""
-    return SecurityGate(REPO)
+    return SecurityGate(REPO, BRANCH)
 
 
 class TestSecurityGate:
@@ -224,7 +225,7 @@ class TestSecurityGate:
         assert result is None
 
     def test_blocks_clone_when_no_repo_configured(self) -> None:
-        gate = SecurityGate("")
+        gate = SecurityGate("", BRANCH)
         result = gate.check_permission("Bash", {"command": "git clone https://github.com/any/repo"})
         assert result is not None
         assert "clone" in result.lower()
@@ -300,3 +301,33 @@ class TestSecurityGate:
         gate = _make_gate()
         result = gate.check_permission("Edit", {"file_path": "/tmp/draft.txt"})
         assert result is None
+
+    # ── Git push branch restriction ──
+
+    def test_allows_push_origin_head(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin HEAD"})
+        assert result is None
+
+    def test_allows_push_to_working_branch(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": f"git push origin {BRANCH}"})
+        assert result is None
+
+    def test_blocks_push_to_main(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin main"})
+        assert result is not None
+        assert "working branch" in result.lower()
+
+    def test_blocks_push_to_other_branch(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin some-other-branch"})
+        assert result is not None
+        assert "working branch" in result.lower()
+
+    def test_blocks_push_when_no_branch_configured(self) -> None:
+        gate = SecurityGate(REPO, "")
+        result = gate.check_permission("Bash", {"command": "git push origin HEAD"})
+        assert result is not None
+        assert "blocked" in result.lower()
