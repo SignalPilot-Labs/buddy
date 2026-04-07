@@ -15,10 +15,8 @@ benchmark/skills/improvements_*.json
 # Build artifacts
 autofyn/monitor-web/.next/
 autofyn/monitor-web/node_modules/
-autofyn/monitor-web/package-lock.json
 dashboard/frontend/.next/
 dashboard/frontend/node_modules/
-dashboard/frontend/package-lock.json
 dashboard/frontend/tsconfig.tsbuildinfo
 autofyn/monitor/static/
 
