@@ -706,7 +706,12 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
                 const fp = (inp.file_path as string) || "";
                 const cmd = (inp.command as string) || "";
                 const desc = (inp.description as string) || "";
-                const detail = fp ? shortPath(fp) : cmd ? cmd.slice(0, 60) : desc ? desc.slice(0, 60) : "";
+                const pattern = (inp.pattern as string) || "";
+                const grepPath = (inp.path as string) || "";
+                const detail = fp ? shortPath(fp)
+                  : pattern ? `/${pattern}/${grepPath ? ` in ${shortPath(grepPath)}` : ""}`
+                  : cmd ? cmd.slice(0, 60)
+                  : desc ? desc.slice(0, 60) : "";
                 return (
                   <div key={idx}
                     className={clsx(

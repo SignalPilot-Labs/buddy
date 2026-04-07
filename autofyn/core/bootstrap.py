@@ -203,7 +203,7 @@ class Bootstrap:
                 "description": "Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
                 "prompt": self._prompts.load_subagent_prompt("reviewer"),
                 "model": "opus",
-                "tools": ["Read", "Glob", "Grep", "Bash"],
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
             "explorer": {
                 "description": "Explore codebase, find patterns, read docs. Read-only research.",
