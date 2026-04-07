@@ -84,6 +84,7 @@ class AgentLoop:
             })
             return "error"
         finally:
+            events.stop_pulse_checker()
             await self._cleanup_session(sandbox_session_id)
 
     async def _start_session(

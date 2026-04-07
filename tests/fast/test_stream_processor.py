@@ -146,17 +146,16 @@ class TestStreamProcessor:
     @pytest.mark.asyncio
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_session_end_breaks_loop(self, mock_db):
-        """session_end event breaks the processing loop."""
+        """session_end lets the SSE stream close naturally, should_stop stays False."""
         sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "session_end", "data": {}},
-            {"event": "assistant_message", "data": {"content": [{"type": "text", "text": "after"}]}},
         ])
         run_context = _make_ctx()
         proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
-        assert result.should_stop is True
+        assert not result.should_stop
 
     @pytest.mark.asyncio
     @patch("core.stream.db", new_callable=MagicMock)

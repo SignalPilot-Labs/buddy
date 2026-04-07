@@ -65,6 +65,20 @@ class StreamResult:
 
 
 @dataclass
+class DispatchResult:
+    """Result of dispatching a single SSE event."""
+
+    should_stop: bool
+    final_status: str | None
+    result_data: dict | None
+
+    @classmethod
+    def ok(cls) -> "DispatchResult":
+        """Event handled, no action needed."""
+        return cls(should_stop=False, final_status=None, result_data=None)
+
+
+@dataclass
 class ControlAction:
     """Result of checking a control event. Used by ControlHandler."""
 

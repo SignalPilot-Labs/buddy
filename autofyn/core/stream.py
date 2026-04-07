@@ -11,7 +11,7 @@ import logging
 
 from utils import db
 from utils.constants import LOG_PREVIEW_LIMIT
-from utils.models import StreamResult, RunContext
+from utils.models import DispatchResult, StreamResult, RunContext
 from sandbox_manager.client import SandboxClient
 from core.control import ControlHandler
 from core.event_bus import EventBus
@@ -83,10 +83,12 @@ class StreamProcessor:
                     if sse_result is None:
                         break
                     sse_task = asyncio.create_task(self._next_sse(stream_iter))
-                    stop, status = await self._dispatch_event(sse_result)
-                    if stop:
+                    dispatched = await self._dispatch_event(sse_result)
+                    if dispatched.result_data is not None:
+                        result_msg = dispatched.result_data
+                    if dispatched.should_stop:
                         should_stop = True
-                        final_status = status
+                        final_status = dispatched.final_status
                         break
 
         finally:
@@ -107,8 +109,8 @@ class StreamProcessor:
         except StopAsyncIteration:
             return None
 
-    async def _dispatch_event(self, event: dict) -> tuple[bool, str | None]:
-        """Route a single SSE event. Returns (should_stop, final_status)."""
+    async def _dispatch_event(self, event: dict) -> DispatchResult:
+        """Route a single SSE event."""
         event_type = event.get("event", "")
         data = event.get("data", {})
 
@@ -118,10 +120,11 @@ class StreamProcessor:
         elif event_type == "rate_limit":
             action = await self._control.handle_rate_limit(data, self._run_context)
             if action.stop:
-                return True, action.final_status
+                return DispatchResult(should_stop=True, final_status=action.final_status, result_data=None)
 
         elif event_type == "result":
             await self._handle_result(data)
+            return DispatchResult(should_stop=False, final_status=None, result_data=data)
 
         elif event_type == "subagent_start":
             self._handle_subagent_start(data)
@@ -144,9 +147,8 @@ class StreamProcessor:
             if event_type == "session_error":
                 log.error("[%s] Session error: %s",
                           self._rid, data.get("error", "unknown"))
-            return True, None
 
-        return False, None
+        return DispatchResult.ok()
 
     # ── Event Handlers ──
 
