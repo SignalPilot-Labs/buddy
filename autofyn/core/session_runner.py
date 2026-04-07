@@ -158,16 +158,12 @@ class SessionRunner:
                         await control.on_subagent_complete(run_context)
 
                 if idle_task in done:
-                    log.warning("[%s] Session idle for %ds — nudging agent to call end_session",
-                                run_context.run_id[:8], SESSION_IDLE_TIMEOUT_SEC)
-                    await self._sandbox.send_message(
-                        session_id,
-                        "You have been idle with no activity. If your work is done, call end_session now. "
-                        "If you are stuck, describe the problem.",
-                    )
+                    log.info("[%s] Session idle for %ds — sending nudge",
+                             run_context.run_id[:8], SESSION_IDLE_TIMEOUT_SEC)
                     await db.log_audit(run_context.run_id, "idle_nudge", {
                         "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
                     })
+                    await self._sandbox.send_message(session_id, self._prompts.build_idle_nudge())
                     idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
 
         finally:

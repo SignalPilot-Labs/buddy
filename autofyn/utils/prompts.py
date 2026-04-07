@@ -56,6 +56,10 @@ class PromptLoader:
             return f"Stop reason: {reason}\n\n{base}"
         return base
 
+    def build_idle_nudge(self) -> str:
+        """Load the idle nudge prompt for stuck/idle sessions."""
+        return self._load("query/idle_nudge")
+
     def load_subagent_prompt(self, name: str) -> str:
         """Load a subagent system prompt from prompts/subagents/{name}.md."""
         return self._load(f"subagents/{name}")
