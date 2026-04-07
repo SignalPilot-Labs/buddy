@@ -1,7 +1,8 @@
 {
   "extraPaths": [
     "autofyn",
-    "sandbox"
+    "sandbox",
+    "scripts"
   ],
   "include": [
     "."
@@ -13,5 +14,11 @@
     ".ruff_cache",
     "cli"
   ],
-  "typeCheckingMode": "standard"
+  "typeCheckingMode": "standard",
+  "executionEnvironments": [
+    {
+      "root": "scripts",
+      "extraPaths": ["scripts"]
+    }
+  ]
 }
