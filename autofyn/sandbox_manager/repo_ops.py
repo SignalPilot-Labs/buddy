@@ -63,24 +63,26 @@ class RepoOps:
     # -- Git Commands --
 
     async def run_git(self, args: list[str], exec_timeout: int, cwd: str) -> str:
-        """Run a git command in the sandbox."""
-        result = await self._exec(
-            ["git"] + args, cwd, exec_timeout, self._auth_env()
-        )
+        """Run a git command in the sandbox. Auth comes from repo git config."""
+        result = await self._exec(["git"] + args, cwd, exec_timeout, {})
         if result.exit_code != 0:
             raise RuntimeError(f"git failed: {result.stderr}")
         return result.stdout.strip()
 
     async def run_gh(self, args: list[str], exec_timeout: int) -> str:
         """Run a gh CLI command in the sandbox."""
-        result = await self._exec(["gh"] + args, WORK_DIR, exec_timeout, self._auth_env())
+        result = await self._exec(
+            ["gh"] + args, WORK_DIR, exec_timeout, self._auth_env()
+        )
         if result.exit_code != 0:
             raise RuntimeError(f"gh failed: {result.stderr}")
         return result.stdout.strip()
 
     # -- Setup --
 
-    async def setup_auth(self, repo: str, exec_timeout: int, clone_timeout: int) -> None:
+    async def setup_auth(
+        self, repo: str, exec_timeout: int, clone_timeout: int
+    ) -> None:
         """Clone the repo in sandbox and configure auth."""
         self._repo = repo
         await self._ensure_repo(clone_timeout)
@@ -91,7 +93,9 @@ class RepoOps:
         await self._ensure_repo(exec_timeout)
         try:
             all_refs = await self.run_git(
-                ["ls-remote", "--heads", "origin"], exec_timeout, WORK_DIR,
+                ["ls-remote", "--heads", "origin"],
+                exec_timeout,
+                WORK_DIR,
             )
         except RuntimeError:
             all_refs = ""
@@ -109,7 +113,10 @@ class RepoOps:
             await self._create_missing_branch(base_branch, exec_timeout)
 
     async def create_branch(
-        self, branch_name: str, base_branch: str, exec_timeout: int,
+        self,
+        branch_name: str,
+        base_branch: str,
+        exec_timeout: int,
     ) -> str:
         """Create and checkout a new branch from the base branch."""
         validate_branch_name(branch_name)
@@ -143,12 +150,18 @@ class RepoOps:
         """Push the current branch to origin with retries."""
         await self._retry(
             lambda: self.run_git(
-                ["push", "-u", "origin", branch_name], exec_timeout, WORK_DIR,
+                ["push", "-u", "origin", branch_name],
+                exec_timeout,
+                WORK_DIR,
             )
         )
 
     async def create_pr(
-        self, branch_name: str, run_id: str, base_branch: str, exec_timeout: int,
+        self,
+        branch_name: str,
+        run_id: str,
+        base_branch: str,
+        exec_timeout: int,
     ) -> str:
         """Create or update a PR. Returns PR URL."""
         title, description = await self._read_agent_pr(exec_timeout)
@@ -166,22 +179,38 @@ class RepoOps:
             return existing_url
 
         return await self._retry(
-            lambda: self.run_gh([
-                "pr", "create", "--base", base_branch,
-                "--head", branch_name, "--title", title, "--body", body,
-            ], exec_timeout)
+            lambda: self.run_gh(
+                [
+                    "pr",
+                    "create",
+                    "--base",
+                    base_branch,
+                    "--head",
+                    branch_name,
+                    "--title",
+                    title,
+                    "--body",
+                    body,
+                ],
+                exec_timeout,
+            )
         )
 
     # -- Diff / Status --
 
     async def get_branch_diff(
-        self, branch_name: str, base_branch: str, exec_timeout: int,
+        self,
+        branch_name: str,
+        base_branch: str,
+        exec_timeout: int,
     ) -> list[dict]:
         """Get file-level diff stats between base and branch."""
         await self._ensure_repo(exec_timeout)
         try:
             await self.run_git(
-                ["fetch", "origin", base_branch, "--depth", "1"], exec_timeout, WORK_DIR,
+                ["fetch", "origin", base_branch, "--depth", "1"],
+                exec_timeout,
+                WORK_DIR,
             )
             raw = await self.run_git(
                 ["diff", "--numstat", f"origin/{base_branch}...{branch_name}"],
@@ -201,13 +230,17 @@ class RepoOps:
             return []
 
     async def get_branch_diff_live(
-        self, base_branch: str, exec_timeout: int,
+        self,
+        base_branch: str,
+        exec_timeout: int,
     ) -> list[dict]:
         """Get diff stats including uncommitted changes."""
         await self._ensure_repo(exec_timeout)
         try:
             await self.run_git(
-                ["fetch", "origin", base_branch, "--depth", "1"], exec_timeout, WORK_DIR,
+                ["fetch", "origin", base_branch, "--depth", "1"],
+                exec_timeout,
+                WORK_DIR,
             )
             raw = await self.run_git(
                 ["diff", "--numstat", f"origin/{base_branch}...HEAD"],
@@ -215,7 +248,9 @@ class RepoOps:
                 WORK_DIR,
             )
             uncommitted = await self.run_git(
-                ["diff", "--numstat", "HEAD"], exec_timeout, WORK_DIR,
+                ["diff", "--numstat", "HEAD"],
+                exec_timeout,
+                WORK_DIR,
             )
             all_lines = (raw.strip() + "\n" + uncommitted.strip()).strip()
             if not all_lines:
@@ -234,7 +269,10 @@ class RepoOps:
     # -- Resume --
 
     async def checkout_branch(
-        self, branch_name: str, base_branch: str, exec_timeout: int,
+        self,
+        branch_name: str,
+        base_branch: str,
+        exec_timeout: int,
     ) -> None:
         """Checkout an existing branch for resume."""
         try:
@@ -242,7 +280,9 @@ class RepoOps:
             await self.run_git(["checkout", branch_name], exec_timeout, WORK_DIR)
             await self.run_git(["pull", "origin", branch_name], exec_timeout, WORK_DIR)
         except RuntimeError as e:
-            log.warning("Could not fetch/checkout %s: %s — trying local", branch_name, e)
+            log.warning(
+                "Could not fetch/checkout %s: %s — trying local", branch_name, e
+            )
             try:
                 await self.run_git(["checkout", branch_name], exec_timeout, WORK_DIR)
             except RuntimeError as e2:
@@ -252,7 +292,11 @@ class RepoOps:
     # -- Private --
 
     async def _exec(
-        self, args: list[str], cwd: str, timeout: int, env: dict[str, str],
+        self,
+        args: list[str],
+        cwd: str,
+        timeout: int,
+        env: dict[str, str],
     ) -> ExecResult:
         """Execute a command via sandbox."""
         request = ExecRequest(args=args, cwd=cwd, timeout=timeout, env=env)
@@ -278,7 +322,9 @@ class RepoOps:
                 return
             token = os.environ.get("GIT_TOKEN", "")
             if not token or not self._repo:
-                raise RuntimeError("GIT_TOKEN and repo must be set (call setup_auth first)")
+                raise RuntimeError(
+                    "GIT_TOKEN and repo must be set (call setup_auth first)"
+                )
 
             remote_url = f"https://github.com/{self._repo}.git"
             log.info("Cloning %s in sandbox...", self._repo)
@@ -286,8 +332,18 @@ class RepoOps:
             await self._exec(["rm", "-rf", WORK_DIR], "/", timeout, {})
             await self._exec(["mkdir", "-p", WORK_DIR], "/", timeout, {})
             result = await self._exec(
-                ["git", "clone", "--depth", "50", "--no-single-branch", remote_url, "."],
-                WORK_DIR, timeout, self._auth_env(),
+                [
+                    "git",
+                    "clone",
+                    "--depth",
+                    "50",
+                    "--no-single-branch",
+                    remote_url,
+                    ".",
+                ],
+                WORK_DIR,
+                timeout,
+                self._auth_env(),
             )
             if result.exit_code != 0:
                 raise RuntimeError(f"Clone failed: {result.stderr}")
@@ -296,15 +352,18 @@ class RepoOps:
             self._initialized = True
 
     async def _persist_auth(self, token: str, timeout: int) -> None:
-        """Embed token in remote URL so orchestrator's git push works without env vars."""
-        authed_url = f"https://x-access-token:{token}@github.com/{self._repo}.git"
+        """Write git auth into repo config so orchestrator's git push works."""
+        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
         await self._exec(
-            ["git", "remote", "set-url", "origin", authed_url],
-            WORK_DIR, timeout, {},
+            ["git", "config", "http.extraHeader", f"Authorization: Basic {b64}"],
+            WORK_DIR,
+            timeout,
+            {},
         )
 
     async def _retry(
-        self, fn: Callable[[], Coroutine[Any, Any, str]],
+        self,
+        fn: Callable[[], Coroutine[Any, Any, str]],
     ) -> str:
         """Retry an async operation with exponential backoff."""
         last_error: RuntimeError = RuntimeError("_retry: no attempts")
@@ -314,8 +373,14 @@ class RepoOps:
             except RuntimeError as e:
                 last_error = e
                 if attempt < GIT_RETRY_ATTEMPTS - 1:
-                    wait = GIT_RETRY_DELAY_SEC * (2 ** attempt)
-                    log.info("Retry %d/%d after %.0fs: %s", attempt + 1, GIT_RETRY_ATTEMPTS - 1, wait, e)
+                    wait = GIT_RETRY_DELAY_SEC * (2**attempt)
+                    log.info(
+                        "Retry %d/%d after %.0fs: %s",
+                        attempt + 1,
+                        GIT_RETRY_ATTEMPTS - 1,
+                        wait,
+                        e,
+                    )
                     await asyncio.sleep(wait)
         raise last_error
 
@@ -324,14 +389,18 @@ class RepoOps:
         try:
             await self.run_git(["checkout", "--orphan", "main"], timeout, WORK_DIR)
             await self.run_git(
-                ["commit", "--allow-empty", "-m", "Initialize repository"], timeout, WORK_DIR,
+                ["commit", "--allow-empty", "-m", "Initialize repository"],
+                timeout,
+                WORK_DIR,
             )
             await self.run_git(["push", "-u", "origin", "main"], timeout, WORK_DIR)
             await self.run_git(["checkout", "-b", "staging"], timeout, WORK_DIR)
             await self.run_git(["push", "-u", "origin", "staging"], timeout, WORK_DIR)
             if base_branch not in ("main", "staging"):
                 await self.run_git(["checkout", "-b", base_branch], timeout, WORK_DIR)
-                await self.run_git(["push", "-u", "origin", base_branch], timeout, WORK_DIR)
+                await self.run_git(
+                    ["push", "-u", "origin", base_branch], timeout, WORK_DIR
+                )
             else:
                 await self.run_git(["checkout", base_branch], timeout, WORK_DIR)
         except RuntimeError as e:
@@ -351,7 +420,9 @@ class RepoOps:
         """Detect the remote's default branch."""
         try:
             ref = await self.run_git(
-                ["symbolic-ref", "refs/remotes/origin/HEAD", "--short"], timeout, WORK_DIR,
+                ["symbolic-ref", "refs/remotes/origin/HEAD", "--short"],
+                timeout,
+                WORK_DIR,
             )
             return ref.replace("origin/", "")
         except RuntimeError:
@@ -371,7 +442,8 @@ class RepoOps:
         """Find an open PR for this branch. Returns URL or None."""
         try:
             url = await self.run_gh(
-                ["pr", "view", branch_name, "--json", "url", "-q", ".url"], timeout,
+                ["pr", "view", branch_name, "--json", "url", "-q", ".url"],
+                timeout,
             )
             return url.strip() if url.strip() else None
         except RuntimeError as e:
@@ -394,6 +466,7 @@ class RepoOps:
 
 # -- Pure Helpers (no state) --
 
+
 def _parse_name_status(raw: str) -> dict[str, str]:
     """Parse git diff --name-status into a path->status map."""
     result: dict[str, str] = {}
@@ -404,7 +477,10 @@ def _parse_name_status(raw: str) -> dict[str, str]:
         if len(parts) >= 2:
             code = parts[0][0]
             result[parts[-1]] = {
-                "A": "added", "M": "modified", "D": "deleted", "R": "renamed",
+                "A": "added",
+                "M": "modified",
+                "D": "deleted",
+                "R": "renamed",
             }.get(code, "modified")
     return result
 
@@ -418,12 +494,14 @@ def _parse_numstat(raw: str, status_map: dict[str, str]) -> list[dict]:
         parts = line.split("\t")
         if len(parts) < 3:
             continue
-        results.append({
-            "path": parts[2],
-            "added": int(parts[0]) if parts[0] != "-" else 0,
-            "removed": int(parts[1]) if parts[1] != "-" else 0,
-            "status": status_map.get(parts[2], "modified"),
-        })
+        results.append(
+            {
+                "path": parts[2],
+                "added": int(parts[0]) if parts[0] != "-" else 0,
+                "removed": int(parts[1]) if parts[1] != "-" else 0,
+                "status": status_map.get(parts[2], "modified"),
+            }
+        )
     return results
 
 
@@ -443,5 +521,10 @@ def _aggregate_live_diff(all_lines: str) -> list[dict]:
             stats[path]["added"] += added
             stats[path]["removed"] += removed
         else:
-            stats[path] = {"path": path, "added": added, "removed": removed, "status": "modified"}
+            stats[path] = {
+                "path": path,
+                "added": added,
+                "removed": removed,
+                "status": "modified",
+            }
     return list(stats.values())
