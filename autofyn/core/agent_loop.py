@@ -51,6 +51,7 @@ class AgentLoop:
         exec_timeout: int,
     ) -> str:
         """Run the agent loop. Returns final status string."""
+        self._rid = run_context.run_id[:8]
         model = session_options.get("model", os.environ.get("AGENT_MODEL", "opus"))
         fallback_model = session_options.get("fallback_model")
         status = "completed"
@@ -79,7 +80,7 @@ class AgentLoop:
                 "elapsed_minutes": round(session.elapsed_minutes(), 1),
             })
         except Exception as e:
-            log.error("Fatal error: %s", e, exc_info=True)
+            log.error("[%s] Fatal error: %s", self._rid, e, exc_info=True)
             status = "error"
             await db.log_audit(run_context.run_id, "fatal_error", {"error": str(e)})
         finally:
@@ -99,7 +100,7 @@ class AgentLoop:
         try:
             await self._sandbox.stop_session(sandbox_session_id)
         except Exception as e:
-            log.warning("Failed to stop sandbox session %s: %s", sandbox_session_id, e)
+            log.warning("[%s] Failed to stop sandbox session %s: %s", self._rid, sandbox_session_id, e)
 
     async def _run_rounds(
         self, stream: StreamProcessor, sandbox_session_id: str,
@@ -112,8 +113,8 @@ class AgentLoop:
 
         for round_num in range(MAX_ROUNDS):
             log.info(
-                "Round %d | Elapsed: %.0fm | Remaining: %s",
-                round_num + 1,
+                "[%s] Round %d | Elapsed: %.0fm | Remaining: %s",
+                self._rid, round_num + 1,
                 session.elapsed_minutes(), session.time_remaining_str(),
             )
 
@@ -242,7 +243,7 @@ class AgentLoop:
             await db.log_audit(run_context.run_id, "session_unlocked", {})
         elif kind == "stuck_recovery":
             payload = event.get("payload", "")
-            log.warning("Stuck subagent recovery between rounds: %s", payload[:LOG_PREVIEW_LIMIT])
+            log.warning("[%s] Stuck subagent recovery between rounds: %s", self._rid, payload[:LOG_PREVIEW_LIMIT])
             await db.log_audit(run_context.run_id, "stuck_recovery", {
                 "agents": payload[:ROUND_SUMMARY_AUDIT_LIMIT],
             })
@@ -262,15 +263,15 @@ class AgentLoop:
                     ["commit", "-m", f"Round {round_num + 1}"], exec_timeout, WORK_DIR,
                 )
                 committed = True
-                log.info("Auto-committed round %d changes", round_num + 1)
+                log.info("[%s] Auto-committed round %d changes", self._rid, round_num + 1)
             except RuntimeError as e:
-                log.warning("Auto-commit failed: %s", e)
+                log.warning("[%s] Auto-commit failed: %s", self._rid, e)
         if committed:
             try:
                 await self._repo_ops.push_branch(run_context.branch_name, exec_timeout)
-                log.info("Pushed branch %s", run_context.branch_name)
+                log.info("[%s] Pushed branch %s", self._rid, run_context.branch_name)
             except RuntimeError as e:
-                log.warning("Push failed between rounds: %s", e)
+                log.warning("[%s] Push failed between rounds: %s", self._rid, e)
                 await db.log_audit(run_context.run_id, "push_failed", {"error": str(e)})
 
     async def _build_planner_message(

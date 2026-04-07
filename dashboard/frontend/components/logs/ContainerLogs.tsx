@@ -17,7 +17,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
 
   const refresh = useCallback(async () => {
     const data = await fetchContainerLogs(DEFAULT_TAIL);
-    setLines(data.lines);
+    setLines(data.lines ?? []);
   }, []);
 
   // Initial load
