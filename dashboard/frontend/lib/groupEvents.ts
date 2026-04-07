@@ -73,6 +73,10 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
+    case "pause_requested":
+      return { type: "milestone", label: "Paused", detail: "", color: "#ffaa00", ts, event };
+    case "resumed":
+      return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
     case "rate_limit_paused": {
       const resetEpoch = d.resets_at as number | undefined;
       const resetDetail = resetEpoch

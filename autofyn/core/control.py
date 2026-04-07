@@ -98,6 +98,7 @@ class ControlHandler:
     async def _handle_pause(self) -> ControlAction:
         """Interrupt session and signal the runner to enter pause mode."""
         await self._sandbox.interrupt_session(self._session_id)
+        await db.log_audit(self._run_id, "pause_requested", {})
         return ControlAction(stop=False, break_stream=True, final_status=None, pause=True)
 
     async def resolve_pause(self) -> ControlAction:
@@ -107,13 +108,16 @@ class ControlHandler:
         if result == "stop":
             return ControlAction(stop=True, break_stream=False, final_status="stopped", pause=False)
         if result == "resume":
+            await db.log_audit(self._run_id, "resumed", {})
             await self._sandbox.send_message(
                 self._session_id, self._prompts.build_continuation_prompt(),
             )
             return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result.startswith("inject:"):
+            prompt = result[7:]
+            await db.log_audit(self._run_id, "resumed", {"via": "inject", "prompt": prompt[:100]})
             await self._sandbox.send_message(
-                self._session_id, f"Operator message: {result[7:]}",
+                self._session_id, f"Operator message: {prompt}",
             )
             return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result == "unlock":
