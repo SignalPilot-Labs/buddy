@@ -9,7 +9,7 @@ import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
-import { getApiBase } from "@/lib/constants";
+import { apiFetch } from "@/lib/fetch";
 
 interface FieldConfig {
   key: keyof Settings;
@@ -113,7 +113,7 @@ export default function SettingsPage() {
         setRepos(r);
         setTokens(t);
       }
-    );
+    ).catch(() => setError("Failed to load settings"));
   }, []);
 
   const handleSave = async () => {
@@ -175,7 +175,7 @@ export default function SettingsPage() {
 
   const handleRemoveRepo = async (slug: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/repos/${encodeURIComponent(slug)}`, {
+      const res = await apiFetch(`/api/repos/${encodeURIComponent(slug)}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -188,7 +188,7 @@ export default function SettingsPage() {
 
   const handleSetActive = async (slug: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/repos/active`, {
+      const res = await apiFetch(`/api/repos/active`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo: slug }),

@@ -121,7 +121,11 @@ export default function MonitorPage() {
     setHistoryEvents([]);
     clearEvents();
     if (repo) {
-      await setActiveRepo(repo);
+      try {
+        await setActiveRepo(repo);
+      } catch (e) {
+        console.error("Failed to set active repo:", e);
+      }
     }
     fetchRepos().then(setRepos);
   }, [clearEvents]);
@@ -465,11 +469,11 @@ export default function MonitorPage() {
 
         <ControlBar
           status={runStatus}
-          onPause={() => selectedRunId && pauseAgent(selectedRunId)}
-          onResume={() => selectedRunId && resumeAgent(selectedRunId)}
-          onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
-          onKill={() => selectedRunId && killAgent(selectedRunId)}
-          onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}
+          onPause={() => { if (selectedRunId) pauseAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Pause failed: ${e}`, ts: new Date().toISOString() })); }}
+          onResume={() => { if (selectedRunId) resumeAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Resume failed: ${e}`, ts: new Date().toISOString() })); }}
+          onStop={() => { if (selectedRunId) stopAgentInstant(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Stop failed: ${e}`, ts: new Date().toISOString() })); }}
+          onKill={() => { if (selectedRunId) killAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Kill failed: ${e}`, ts: new Date().toISOString() })); }}
+          onUnlock={() => { if (selectedRunId) unlockAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Unlock failed: ${e}`, ts: new Date().toISOString() })); }}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
           sessionLocked={agentHealth?.session_unlocked === false}
@@ -506,7 +510,9 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            apiInjectPrompt(selectedRunId, prompt);
+            apiInjectPrompt(selectedRunId, prompt).catch((e) =>
+              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() })
+            );
             addEvent({
               _kind: "control",
               text: `Prompt injected (${prompt.length} chars)`,
