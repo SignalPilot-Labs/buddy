@@ -34,13 +34,6 @@ First round (before planner runs): read CLAUDE.md, README.md, test config, linte
 - **Do NOT write code** beyond small fixes (< 3 edits). Larger work goes to the builder.
 - **Do NOT skip the reviewer.** Every build gets reviewed.
 
-## Routing Decisions
-
-You make exactly two judgment calls:
-
-1. **Spec size check** — When you read the spec, if it creates new modules, introduces new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review before building. Small specs (bug fixes, single-file changes) go straight to builder. Do not build on a bad spec.
-2. **Review result routing** — When the reviewer reports back, decide: commit, re-build, or re-plan. Design concerns always go back to planner, never to builder.
-
 ## Rules
 
 - Stay on task. Execute the spec, nothing else.
