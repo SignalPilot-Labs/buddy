@@ -57,7 +57,12 @@ export default function SettingsPage(): React.ReactElement {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.settings.failedToSave);
+      const msg = e instanceof Error ? e.message : "";
+      const mapped: Record<string, string> = {
+        "Failed to update settings": t.errors.failedToUpdateSettings,
+        "Failed to fetch settings": t.errors.failedToFetchSettings,
+      };
+      setError(mapped[msg] ?? (msg || t.settings.failedToSave));
     } finally {
       setSaving(false);
     }

@@ -77,7 +77,11 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
         setShowPassword(false);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t.onboarding.failedToSave);
+      const msg = e instanceof Error ? e.message : "";
+      const mapped: Record<string, string> = {
+        "Failed to update settings": t.errors.failedToUpdateSettings,
+      };
+      setError(mapped[msg] ?? (msg || t.onboarding.failedToSave));
     } finally {
       setSaving(false);
     }

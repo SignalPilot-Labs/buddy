@@ -43,7 +43,11 @@ export function RepositoriesPanel({
       await onAdd(slug);
       setNewRepo("");
     } catch (e) {
-      setRepoError(e instanceof Error ? e.message : t.settings.failedToSave);
+      const msg = e instanceof Error ? e.message : "";
+      const mapped: Record<string, string> = {
+        "Failed to update settings": t.errors.failedToUpdateSettings,
+      };
+      setRepoError(mapped[msg] ?? (msg || t.settings.failedToSave));
     } finally {
       setAddingRepo(false);
     }

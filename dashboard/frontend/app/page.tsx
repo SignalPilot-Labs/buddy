@@ -206,13 +206,13 @@ export default function MonitorPage(): React.ReactElement {
         await startRun(prompt, budget, durationMinutes, baseBranch);
         addEvent({
           _kind: "control",
-          text: `Starting run${prompt ? ` — ${prompt.slice(0, 80)}` : ""}`,
+          text: `${t.errors.startingRun}${prompt ? ` — ${prompt.slice(0, 80)}` : ""}`,
           ts: new Date().toISOString(),
         });
       } catch (err) {
         addEvent({
           _kind: "control",
-          text: `Failed to start run: ${err}`,
+          text: `${t.errors.failedToStartRun}: ${err}`,
           ts: new Date().toISOString(),
         });
       } finally {

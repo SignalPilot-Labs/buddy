@@ -27,7 +27,12 @@ export function TokenPoolPanel({ tokens, onAdd, onRemove }: TokenPoolPanelProps)
       await onAdd(val);
       setNewToken("");
     } catch (e) {
-      setTokenError(e instanceof Error ? e.message : t.settings.failedToSave);
+      const msg = e instanceof Error ? e.message : "";
+      const mapped: Record<string, string> = {
+        "Failed to add token": t.errors.failedToAddToken,
+        "Failed to remove token": t.errors.failedToRemoveToken,
+      };
+      setTokenError(mapped[msg] ?? (msg || t.settings.failedToSave));
     } finally {
       setAddingToken(false);
     }

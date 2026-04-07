@@ -354,4 +354,13 @@ export const en = {
     sessionUnlocked: "Session gate unlocked — agent can now call end_session",
     resumingSession: "Resuming previous session...",
   },
+
+  errors: {
+    startingRun: "Starting run",
+    failedToStartRun: "Failed to start run",
+    failedToFetchSettings: "Failed to fetch settings",
+    failedToUpdateSettings: "Failed to update settings",
+    failedToAddToken: "Failed to add token",
+    failedToRemoveToken: "Failed to remove token",
+  },
 } as const;

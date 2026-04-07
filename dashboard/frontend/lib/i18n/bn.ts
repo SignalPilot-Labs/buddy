@@ -354,4 +354,13 @@ export const bn: LocaleDict = {
     sessionUnlocked: "সেশন গেট আনলক — এজেন্ট এখন end_session কল করতে পারবে",
     resumingSession: "আগের সেশন পুনরায় শুরু হচ্ছে...",
   },
+
+  errors: {
+    startingRun: "রান শুরু হচ্ছে",
+    failedToStartRun: "রান শুরু করতে ব্যর্থ",
+    failedToFetchSettings: "সেটিংস আনতে ব্যর্থ",
+    failedToUpdateSettings: "সেটিংস আপডেট করতে ব্যর্থ",
+    failedToAddToken: "টোকেন যোগ করতে ব্যর্থ",
+    failedToRemoveToken: "টোকেন সরাতে ব্যর্থ",
+  },
 };
