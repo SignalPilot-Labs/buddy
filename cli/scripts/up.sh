@@ -10,7 +10,6 @@ echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
     AGENT_INTERNAL_SECRET="$(openssl rand -hex 32)"
     export AGENT_INTERNAL_SECRET
-    echo "[autofyn] Generated AGENT_INTERNAL_SECRET"
 fi
 
 docker compose down --remove-orphans 2>/dev/null || true

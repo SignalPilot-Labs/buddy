@@ -133,6 +133,7 @@ class _Session:
         self.events: asyncio.Queue = asyncio.Queue(maxsize=SESSION_EVENT_QUEUE_SIZE)
         self.client: ClaudeSDKClient | None = None
         self.task: asyncio.Task | None = None
+        self._ended = False
         # Hook state
         self._pre_tool_times: dict[str, float] = {}
         self._subagent_start_times: dict[str, float] = {}
@@ -160,6 +161,8 @@ class _Session:
                     event = _serialize_message(message)
                     if event:
                         self._emit(event)
+                    if self._ended:
+                        break
             self._emit({"event": "session_end", "data": {}})
         except asyncio.CancelledError:
             self._emit({"event": "session_end", "data": {"reason": "cancelled"}})
@@ -343,6 +346,7 @@ class _Session:
         duration_min: float = config["duration_minutes"]
         start = time.time()
         emit = self._emit
+        session = self
         run_id = self._run_id
 
         @tool(
@@ -361,6 +365,7 @@ class _Session:
                     "changes_made": args["changes_made"],
                     "elapsed_minutes": round(elapsed_min, 1),
                 })
+                session._ended = True
                 emit({"event": "end_session", "data": {
                     "summary": args["summary"],
                     "changes_made": args["changes_made"],

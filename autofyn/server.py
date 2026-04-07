@@ -132,14 +132,18 @@ class AgentServer:
             active.session = session
 
             try:
+                log.info("Run %s: starting agent loop", run_id)
                 status = await loop.execute(
                     options, ctx, session, events, tracker, initial,
                     body.prompt, self._exec_timeout,
                 )
+                log.info("Run %s: loop returned status=%s", run_id, status)
             finally:
                 events.stop_pulse_checker()
 
+            log.info("Run %s: starting teardown", run_id)
             await teardown.finalize(ctx, status, self._exec_timeout)
+            log.info("Run %s: teardown complete", run_id)
             active.status = status
         finally:
             active.events = None
