@@ -40,3 +40,8 @@ HOST_IP_ENV = "HOST_IP"
 
 # Polling (incremental — frontend HISTORY_FETCH_LIMIT=500 is for initial load)
 POLL_LIMIT_DEFAULT = 100
+
+# Query defaults
+QUERY_DEFAULT_LIMIT: int = 200
+LOG_TAIL_DEFAULT: int = 500
+LOG_TAIL_MAX: int = 5000

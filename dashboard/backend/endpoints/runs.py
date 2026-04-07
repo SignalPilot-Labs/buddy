@@ -12,6 +12,9 @@ from backend.constants import (
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
     DEFAULT_STOP_REASON,
+    LOG_TAIL_DEFAULT,
+    LOG_TAIL_MAX,
+    QUERY_DEFAULT_LIMIT,
     QUERY_MAX_LIMIT,
     RUNS_PAGE_SIZE,
 )
@@ -63,7 +66,7 @@ async def get_run(run_id: str = RunId) -> dict:
 @router.get("/runs/{run_id}/tools")
 async def get_tool_calls(
     run_id: str = RunId,
-    limit: int = Query(default=200, le=QUERY_MAX_LIMIT),
+    limit: int = Query(default=QUERY_DEFAULT_LIMIT, le=QUERY_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
 ) -> list:
     """List tool calls for a run."""
@@ -81,7 +84,7 @@ async def get_tool_calls(
 @router.get("/runs/{run_id}/audit")
 async def get_audit_log(
     run_id: str = RunId,
-    limit: int = Query(default=200, le=QUERY_MAX_LIMIT),
+    limit: int = Query(default=QUERY_DEFAULT_LIMIT, le=QUERY_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
 ) -> list:
     """List audit log entries for a run."""
@@ -199,7 +202,7 @@ async def list_branches() -> list:
 
 
 @router.get("/agent/logs")
-async def agent_logs(tail: int = Query(default=500, le=5000)) -> dict:
+async def agent_logs(tail: int = Query(default=LOG_TAIL_DEFAULT, le=LOG_TAIL_MAX)) -> dict:
     """Fetch container logs from the agent."""
     return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, {"tail": tail}, {"lines": [], "total": 0})
 
