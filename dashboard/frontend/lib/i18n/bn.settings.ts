@@ -1,0 +1,63 @@
+import type { LocaleDict } from "@/lib/i18n/types";
+
+export const bnSettings: LocaleDict["settings"] = {
+  title: "সেটিংস",
+  dashboard: "ড্যাশবোর্ড",
+  configured: "কনফিগার করা হয়েছে",
+  setupRequired: "সেটআপ প্রয়োজন",
+  saveChanges: "পরিবর্তন সংরক্ষণ করুন",
+  saving: "সংরক্ষণ হচ্ছে...",
+  settingsSaved: "সেটিংস সংরক্ষিত এবং এনক্রিপ্ট করা হয়েছে",
+  failedToSave: "সংরক্ষণ ব্যর্থ হয়েছে",
+  change: "পরিবর্তন",
+  cancel: "বাতিল",
+  set: "নির্ধারিত",
+  security: "নিরাপত্তা",
+  repositories: "রিপোজিটরি",
+  configured_count: "কনফিগার করা",
+  addRepo: "রেপো যোগ করুন",
+  adding: "যোগ হচ্ছে...",
+  repoPlaceholder: "owner/repo",
+  noReposConfigured: "এখনো কোনো রিপোজিটরি কনফিগার করা হয়নি",
+  repoHelp: "রিপোজিটরি যোগ করুন",
+  repoHelpSuffix:
+    "ফরম্যাটে। সক্রিয় রেপো নতুন রান শুরু করতে ব্যবহৃত হয়। ড্যাশবোর্ড হেডারের সিলেক্টর দিয়ে রেপো পরিবর্তন করুন।",
+  repoInvalidFormat: "owner/repo ফরম্যাট ব্যবহার করুন (যেমন: my-org/my-project)",
+  repoAlreadyAdded: "রিপোজিটরি ইতিমধ্যে যোগ করা হয়েছে",
+  setActive: "সক্রিয় করুন",
+  active: "সক্রিয়",
+  removeRepo: "রিপোজিটরি মুছুন",
+  claudeTokens: "Claude OAuth টোকেন",
+  roundRobin: "রিজিউমে রাউন্ড-রবিন",
+  noTokens: "কোনো টোকেন কনফিগার নেই। শুরু করতে একটি যোগ করুন।",
+  addKey: "কী যোগ করুন",
+  addingKey: "যোগ হচ্ছে...",
+  removeToken: "টোকেন মুছুন",
+  next: "পরবর্তী",
+  tokenPlaceholder: "sk-ant-oat01-...",
+  tokenHelp:
+    "স্বয়ংক্রিয় আবর্তনের জন্য একাধিক Claude OAuth টোকেন যোগ করুন। কোনো রান রেট সীমায় পৌঁছে রিজিউম হলে, পরবর্তী টোকেন স্বয়ংক্রিয়ভাবে ব্যবহৃত হয়। চালান",
+  tokenHelpSuffix: "টোকেন তৈরি করতে।",
+  credentialsEncrypted: "পরিচয়পত্র এনক্রিপ্ট করা হয়েছে",
+  encryptionAlgo: "AES-128 (Fernet)",
+  beforeStorage: "সংরক্ষণের আগে।",
+  decryptedInMemory: "ডিক্রিপ্ট করা হয়",
+  inMemoryOnly: "শুধুমাত্র মেমরিতে",
+  whenStarting: "রান শুরু করার সময়।",
+  masterKey: "মাস্টার কী Docker ভলিউমে —",
+  neverLeavesHost: "কখনো হোস্ট ছেড়ে যায় না।",
+  fieldLabels: {
+    gitToken: "GitHub ব্যক্তিগত অ্যাক্সেস টোকেন",
+    maxBudgetUsd: "ডিফল্ট সর্বোচ্চ বাজেট (USD)",
+  },
+  fieldPlaceholders: {
+    gitToken: "ghp_...",
+    maxBudgetUsd: "50",
+  },
+  fieldHelp: {
+    gitToken:
+      "GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens. আপনার রেপোতে Contents + Pull requests রিড/রাইট অনুমতি দিন।",
+    maxBudgetUsd:
+      "ঐচ্ছিক। প্রতি রানের ডিফল্ট সর্বোচ্চ খরচ। রান শুরু করার সময় পরিবর্তন করা যাবে।",
+  },
+};
