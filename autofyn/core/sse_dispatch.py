@@ -1,116 +1,40 @@
-"""Stream processor: dispatches SDK events from sandbox SSE.
+"""SSE event dispatcher: routes sandbox events to handlers.
 
-StreamProcessor reads events from the sandbox's SSE stream and dispatches
-them to the appropriate handler. Control events (stop, pause, inject) are
-checked via asyncio.wait racing against the SSE stream — zero-latency
-interruption without polling.
+Pure business logic — no asyncio.wait, no EventBus, no control handler.
+Returns DispatchResult so the session runner can orchestrate side effects.
 """
 
-import asyncio
 import logging
 
 from utils import db
 from utils.constants import LOG_PREVIEW_LIMIT
-from utils.models import DispatchResult, StreamResult, RunContext
-from sandbox_manager.client import SandboxClient
-from core.control import ControlHandler
-from core.event_bus import EventBus
+from utils.models import DispatchResult, RunContext
 from tools.session import SessionGate
 from tools.subagent_tracker import SubagentTracker
 
-log = logging.getLogger("core.stream")
+log = logging.getLogger("core.dispatch")
 
 
-class StreamProcessor:
-    """Iterates sandbox SSE events and dispatches to handlers.
+class SSEDispatcher:
+    """Routes SSE events to handlers. Mutates RunContext with cost/tokens.
 
     Public API:
-        process() -> StreamResult
+        dispatch(event) -> DispatchResult
     """
 
     def __init__(
         self,
-        sandbox: SandboxClient,
-        session_id: str,
         run_context: RunContext,
         session: SessionGate,
         tracker: SubagentTracker,
-        control: ControlHandler,
-        events: EventBus,
     ) -> None:
-        self._sandbox = sandbox
-        self._session_id = session_id
         self._run_context = run_context
         self._session = session
         self._tracker = tracker
-        self._control = control
-        self._events = events
         self._rid = run_context.run_id[:8]
 
-    async def process(self) -> StreamResult:
-        """Process sandbox SSE events until session ends.
-
-        Races the SSE stream against control events via asyncio.wait so
-        stop/pause signals take effect immediately — even when the sandbox
-        is silent between tool calls or during long thinking.
-        """
-        result_msg: dict | None = None
-        should_stop = False
-        final_status: str | None = None
-
-        stream_iter = self._sandbox.stream_events(self._session_id).__aiter__()
-        control_task: asyncio.Task = asyncio.create_task(self._events.wait_for_event())
-        sse_task: asyncio.Task = asyncio.create_task(self._next_sse(stream_iter))
-
-        try:
-            while True:
-                done, _ = await asyncio.wait(
-                    {sse_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
-                )
-
-                if control_task in done:
-                    action = await self._control.handle_event(control_task.result())
-                    control_task = asyncio.create_task(self._events.wait_for_event())
-                    if action.stop:
-                        should_stop = True
-                        final_status = action.final_status
-                        break
-                    if action.break_stream:
-                        break
-
-                if sse_task in done:
-                    sse_result = sse_task.result()
-                    if sse_result is None:
-                        break
-                    sse_task = asyncio.create_task(self._next_sse(stream_iter))
-                    dispatched = await self._dispatch_event(sse_result)
-                    if dispatched.result_data is not None:
-                        result_msg = dispatched.result_data
-                    if dispatched.should_stop:
-                        should_stop = True
-                        final_status = dispatched.final_status
-                        break
-
-        finally:
-            sse_task.cancel()
-            control_task.cancel()
-
-        return StreamResult(
-            should_stop=should_stop,
-            final_status=final_status,
-            session_ended=self._session.has_ended(),
-            result_message=result_msg,
-        )
-
-    async def _next_sse(self, stream_iter: object) -> dict | None:
-        """Get next SSE event or None if stream is exhausted."""
-        try:
-            return await stream_iter.__anext__()  # type: ignore[union-attr]
-        except StopAsyncIteration:
-            return None
-
-    async def _dispatch_event(self, event: dict) -> DispatchResult:
-        """Route a single SSE event."""
+    async def dispatch(self, event: dict) -> DispatchResult:
+        """Route a single SSE event. Returns result for session runner to act on."""
         event_type = event.get("event", "")
         data = event.get("data", {})
 
@@ -118,20 +42,18 @@ class StreamProcessor:
             self._handle_assistant_message(data)
 
         elif event_type == "rate_limit":
-            action = await self._control.handle_rate_limit(data, self._run_context)
-            if action.stop:
-                return DispatchResult(should_stop=True, final_status=action.final_status, result_data=None)
+            return DispatchResult(rate_limit_data=data)
 
         elif event_type == "result":
             await self._handle_result(data)
-            return DispatchResult(should_stop=False, final_status=None, result_data=data)
+            return DispatchResult(result_data=data)
 
         elif event_type == "subagent_start":
             self._handle_subagent_start(data)
 
         elif event_type == "subagent_stop":
             self._handle_subagent_stop(data)
-            await self._control.on_subagent_complete(self._run_context)
+            return DispatchResult(subagent_completed=True)
 
         elif event_type == "tool_use":
             self._handle_tool_use(data)

@@ -66,16 +66,20 @@ class StreamResult:
 
 @dataclass
 class DispatchResult:
-    """Result of dispatching a single SSE event."""
+    """Result of dispatching a single SSE event.
 
-    should_stop: bool
-    final_status: str | None
-    result_data: dict | None
+    The dispatcher returns flags for actions the session runner must take.
+    This keeps the dispatcher free of control/EventBus dependencies.
+    """
+
+    result_data: dict | None = None
+    rate_limit_data: dict | None = None
+    subagent_completed: bool = False
 
     @classmethod
     def ok(cls) -> "DispatchResult":
         """Event handled, no action needed."""
-        return cls(should_stop=False, final_status=None, result_data=None)
+        return cls()
 
 
 @dataclass

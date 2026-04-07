@@ -1,7 +1,7 @@
 """Run bootstrap: git setup, service creation, sandbox session options.
 
 Bootstrap prepares everything needed to start or resume an agent run.
-It produces a RunContext and session options dict, then hands off to AgentLoop.
+It produces a RunContext and session options dict, then hands off to SessionRunner.
 """
 
 import logging
