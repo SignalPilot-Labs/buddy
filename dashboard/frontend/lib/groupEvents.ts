@@ -93,6 +93,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
     }
     case "prompt_injected":
+    case "prompt_submitted":
       return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
     case "session_resumed":
       return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };

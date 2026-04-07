@@ -53,7 +53,7 @@ export default function MonitorPage() {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
   const [pendingPrompt, setPendingPrompt] = useState<{
-    prompt: string; ts: string; clearOn: "prompt_injected" | "run_started"; knownCount: number;
+    prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
   } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
@@ -309,12 +309,6 @@ export default function MonitorPage() {
         refreshRuns();
         if (result.run_id) {
           handleSelectRun(result.run_id);
-        }
-        // Set after handleSelectRun so the selectedRunId cleanup doesn't kill it.
-        // knownCount=0 is safe: handleSelectRun resets liveEvents via clearEvents(),
-        // so the new SSE stream always starts with zero run_started events.
-        if (prompt && result.run_id) {
-          setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "run_started", knownCount: 0 });
         }
       } catch (err) {
         addEvent({

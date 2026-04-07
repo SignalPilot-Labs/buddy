@@ -93,6 +93,13 @@ class Bootstrap:
             },
         )
 
+        if custom_prompt:
+            await db.log_audit(
+                run_id,
+                "prompt_submitted",
+                {"prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT]},
+            )
+
         initial = (
             custom_prompt if custom_prompt else self._prompts.build_initial_prompt()
         )
