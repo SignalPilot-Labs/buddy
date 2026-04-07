@@ -58,40 +58,35 @@ describe("startRun", () => {
   });
 });
 
-describe("control signals with run_id", () => {
-  it("stopAgentInstant appends run_id as query param", async () => {
+describe("control signals use /api/runs/{run_id}/* endpoints", () => {
+  it("stopAgentInstant hits /api/runs/{run_id}/stop", async () => {
     await stopAgentInstant("abc-123");
-    expect(fetchCalls[0].url).toContain("run_id=abc-123");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/stop");
   });
 
-  it("stopAgentInstant works without run_id", async () => {
-    await stopAgentInstant();
-    expect(fetchCalls[0].url).not.toContain("run_id");
-  });
-
-  it("killAgent appends run_id", async () => {
+  it("killAgent hits /api/runs/{run_id}/kill", async () => {
     await killAgent("abc-123");
-    expect(fetchCalls[0].url).toContain("run_id=abc-123");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/kill");
   });
 
-  it("pauseAgent appends run_id", async () => {
+  it("pauseAgent hits /api/runs/{run_id}/pause", async () => {
     await pauseAgent("abc-123");
-    expect(fetchCalls[0].url).toContain("run_id=abc-123");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/pause");
   });
 
-  it("resumeAgent calls resume_signal endpoint", async () => {
+  it("resumeAgent hits /api/runs/{run_id}/resume", async () => {
     await resumeAgent("abc-123");
-    expect(fetchCalls[0].url).toContain("resume_signal");
-    expect(fetchCalls[0].url).toContain("run_id=abc-123");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/resume");
   });
 
-  it("unlockAgent appends run_id", async () => {
+  it("unlockAgent hits /api/runs/{run_id}/unlock", async () => {
     await unlockAgent("abc-123");
-    expect(fetchCalls[0].url).toContain("run_id=abc-123");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/unlock");
   });
 
-  it("injectPrompt sends payload", async () => {
+  it("injectPrompt hits /api/runs/{run_id}/inject with payload", async () => {
     await injectPrompt("abc-123", "focus on tests");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/inject");
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.payload).toBe("focus on tests");
   });
