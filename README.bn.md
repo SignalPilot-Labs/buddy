@@ -59,8 +59,6 @@ cd your-project/
 autofyn run new -p "Fix authentication bugs" -d 30
 ```
 
-*(`-p` ফ্ল্যাগে আপনার কাজের বিবরণ ইংরেজিতে বা বাংলায় লিখুন)*
-
 ### পর্যবেক্ষণ করুন
 
 CLI ব্যবহার করুন বা [http://localhost:3400](http://localhost:3400) খুলুন।
