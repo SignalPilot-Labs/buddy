@@ -55,7 +55,9 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
             os.environ["GIT_TOKEN"] = body.git_token
 
         run_id = str(uuid.uuid4())
-        github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
+        if not body.github_repo:
+            raise HTTPException(status_code=422, detail="github_repo is required")
+        github_repo = body.github_repo
         await db.create_run_starting(
             run_id, body.prompt, body.duration_minutes, body.base_branch, github_repo,
         )

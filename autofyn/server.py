@@ -111,7 +111,9 @@ class AgentServer:
 
     async def _execute_run(self, active: ActiveRun, run_id: str, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → execute → teardown → destroy sandbox."""
-        github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
+        github_repo = body.github_repo
+        if not github_repo:
+            raise RuntimeError("github_repo is required — configure it in dashboard settings")
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
         sandbox = await self._pool.create(run_id, self._health_timeout)

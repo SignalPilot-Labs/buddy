@@ -309,7 +309,6 @@ async def autofill_settings(master_key_path: str) -> None:
         env_mappings = {
             "claude_token": "CLAUDE_CODE_OAUTH_TOKEN",
             "git_token": "GIT_TOKEN",
-            "github_repo": "GITHUB_REPO",
             "max_budget_usd": "MAX_BUDGET_USD",
         }
 
