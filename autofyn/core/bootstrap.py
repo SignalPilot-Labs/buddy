@@ -30,7 +30,9 @@ class Bootstrap:
     """
 
     def __init__(
-        self, repo_ops: RepoOps, sandbox: SandboxClient,
+        self,
+        repo_ops: RepoOps,
+        sandbox: SandboxClient,
     ) -> None:
         self._repo_ops = repo_ops
         self._sandbox = sandbox
@@ -51,7 +53,9 @@ class Bootstrap:
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        branch_name = await self._setup_git(base_branch, github_repo, exec_timeout, clone_timeout)
+        branch_name = await self._setup_git(
+            base_branch, github_repo, exec_timeout, clone_timeout
+        )
         await db.update_run_branch(run_id, branch_name)
         log.info("Run %s on branch %s", run_id, branch_name)
 
@@ -66,9 +70,13 @@ class Bootstrap:
         session, events, tracker = self._create_services(run_context)
 
         session_options = self._build_session_options(
-            run_context, model, fallback_model,
+            run_context,
+            model,
+            fallback_model,
             self._build_subagents(),
-            None, max_budget, custom_prompt,
+            None,
+            max_budget,
+            custom_prompt,
         )
 
         await db.log_audit(
@@ -107,10 +115,14 @@ class Bootstrap:
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
         await self._repo_ops.setup_auth(
-            run_info.get("github_repo", ""), exec_timeout, clone_timeout,
+            run_info.get("github_repo", ""),
+            exec_timeout,
+            clone_timeout,
         )
         await self._repo_ops.checkout_branch(
-            run_info["branch_name"], run_info.get("base_branch", "main"), exec_timeout,
+            run_info["branch_name"],
+            run_info.get("base_branch", "main"),
+            exec_timeout,
         )
 
         run_context = RunContext(
@@ -128,13 +140,19 @@ class Bootstrap:
 
         session_id = run_info.get("sdk_session_id")
         session_options = self._build_session_options(
-            run_context, model, fallback_model,
-            None, session_id, max_budget,
+            run_context,
+            model,
+            fallback_model,
+            None,
+            session_id,
+            max_budget,
             run_info.get("custom_prompt"),
         )
 
         await db.update_run_status(run_id, "running")
-        await db.log_audit(run_id, "session_resumed", {"branch": run_context.branch_name})
+        await db.log_audit(
+            run_id, "session_resumed", {"branch": run_context.branch_name}
+        )
 
         initial = self._build_resume_prompt(run_info, prompt)
         return run_context, session_options, session, events, tracker, initial
@@ -142,8 +160,11 @@ class Bootstrap:
     # -- Git --
 
     async def _setup_git(
-        self, base_branch: str, github_repo: str,
-        exec_timeout: int, clone_timeout: int,
+        self,
+        base_branch: str,
+        github_repo: str,
+        exec_timeout: int,
+        clone_timeout: int,
     ) -> str:
         """Clone repo in sandbox, create branch. Returns branch name."""
         await self._repo_ops.setup_auth(github_repo, exec_timeout, clone_timeout)
@@ -154,7 +175,9 @@ class Bootstrap:
 
     # -- Services --
 
-    def _create_services(self, run_context: RunContext) -> tuple[SessionGate, EventBus, SubagentTracker]:
+    def _create_services(
+        self, run_context: RunContext
+    ) -> tuple[SessionGate, EventBus, SubagentTracker]:
         """Create per-run services and start the pulse checker."""
         tracker = SubagentTracker()
         events = EventBus()
@@ -191,7 +214,7 @@ class Bootstrap:
             "planner": {
                 "description": "Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
                 "prompt": self._prompts.load_subagent_prompt("planner"),
-                "model": "sonnet",
+                "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
         }
@@ -208,7 +231,8 @@ class Bootstrap:
     ) -> dict:
         """Build session options dict to send to sandbox."""
         system_prompt = self._prompts.build_system_prompt(
-            custom_prompt, run_context.duration_minutes,
+            custom_prompt,
+            run_context.duration_minutes,
         )
         return {
             "model": model,
