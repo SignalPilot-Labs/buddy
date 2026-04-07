@@ -14,6 +14,12 @@ export function EventFeed({ events, runActive = false, runPaused = false }: { ev
   const [userScrolled, setUserScrolled] = useState(false);
 
   const grouped = useMemo(() => groupEvents(events), [events]);
+  const lastAgentRunIdx = useMemo(() => {
+    for (let i = grouped.length - 1; i >= 0; i--) {
+      if (grouped[i].type === "agent_run") return i;
+    }
+    return -1;
+  }, [grouped]);
 
   useEffect(() => {
     if (autoScroll && containerRef.current) {
@@ -75,7 +81,7 @@ export function EventFeed({ events, runActive = false, runPaused = false }: { ev
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} runActive={runActive} runPaused={runPaused} />
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} runActive={runActive && i === lastAgentRunIdx} runPaused={runPaused} />
             </ErrorBoundary>
           ))
         )}
