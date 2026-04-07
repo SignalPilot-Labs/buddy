@@ -23,15 +23,6 @@ services:
       timeout: 3s
       retries: 5
 
-  db-init:
-    build:
-      context: .
-      dockerfile: db/Dockerfile
-    container_name: autofyn-db-init
-    depends_on:
-      db:
-        condition: service_healthy
-
   dashboard:
     build:
       context: .
@@ -47,8 +38,8 @@ services:
     volumes:
       - autofyn-keys:/data
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      db:
+        condition: service_healthy
 
   agent:
     build:
@@ -74,8 +65,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:rw
     working_dir: /workspace
     depends_on:
-      db-init:
-        condition: service_completed_successfully
       dashboard:
         condition: service_started
       sandbox:
@@ -95,8 +84,8 @@ services:
       GIT_TERMINAL_PROMPT: "0"
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET}
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      db:
+        condition: service_healthy
     cap_add:
       - SYS_PTRACE
       - SYS_ADMIN
