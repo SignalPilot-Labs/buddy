@@ -497,8 +497,8 @@ export default function MonitorPage() {
       {/* Mobile Top Bar */}
       <header className="mobile-top-bar items-center justify-between px-3 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]">
         <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Buddy" width={16} height={16} />
-          <span className="text-[11px] font-bold text-[#e8e8e8]">Buddy</span>
+          <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
+          <span className="text-[11px] font-bold text-[#e8e8e8]">AutoFyn</span>
         </div>
         <div className="flex items-center gap-2">
           <span
