@@ -12,6 +12,9 @@ ARG GVISOR_VERSION=20260323.0
 
 FROM python:${PYTHON_VERSION}-slim
 
+# uv for fast Python installs
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 ENV DEBIAN_FRONTEND=noninteractive
 ARG GVISOR_VERSION
 ARG NODE_VERSION
@@ -59,7 +62,7 @@ COPY config/ /opt/autofyn/config/
 
 # Sandbox packages
 COPY sandbox/pyproject.toml /opt/autofyn/
-RUN pip install --no-cache-dir /opt/autofyn/
+RUN uv pip install --system --no-cache /opt/autofyn/
 
 COPY sandbox/constants.py /opt/autofyn/
 COPY sandbox/server.py /opt/autofyn/
@@ -68,7 +71,7 @@ COPY sandbox/session/ /opt/autofyn/session/
 # Shared DB package (for direct audit logging)
 COPY db/pyproject.toml /opt/autofyn/db/pyproject.toml
 COPY db/__init__.py /opt/autofyn/db/__init__.py
-RUN pip install --no-cache-dir /opt/autofyn/db/
+RUN uv pip install --system --no-cache /opt/autofyn/db/
 COPY db/ /opt/autofyn/db/
 
 # Skills (copied at build time, not via API)

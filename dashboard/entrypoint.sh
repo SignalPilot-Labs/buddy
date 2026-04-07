@@ -33,9 +33,9 @@ for i in $(seq 1 30); do
     sleep 0.5
 done
 
-# ── Start Next.js frontend ───────────────────────────────────────────────
+# ── Start Next.js frontend (standalone server) ───────────────────────────
 cd /app/frontend
-API_URL="http://localhost:${API_PORT}" npx next start --port "$UI_PORT" &
+API_URL="http://localhost:${API_PORT}" PORT="$UI_PORT" HOSTNAME="0.0.0.0" node server.js &
 NEXT_PID=$!
 
 echo "[dashboard] Next.js frontend ready on :${UI_PORT}"

@@ -8,6 +8,9 @@ ARG UBUNTU_VERSION=22.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS base
 
+# uv for fast Python installs
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 ENV DEBIAN_FRONTEND=noninteractive
 ARG FIRECRACKER_VERSION
 
@@ -43,7 +46,7 @@ COPY sandbox/rootfs/sandbox-rootfs.ext4 /opt/autofyn/rootfs/
 
 # Install Python deps
 COPY sandbox/pyproject.toml /opt/autofyn/
-RUN pip3 install --no-cache-dir /opt/autofyn/
+RUN uv pip install --system --no-cache /opt/autofyn/
 
 # Copy sandbox code + config
 COPY sandbox/base.py /opt/autofyn/

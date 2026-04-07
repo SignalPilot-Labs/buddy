@@ -8,6 +8,9 @@ ARG PYTHON_VERSION=3.12
 
 FROM python:${PYTHON_VERSION}-slim
 
+# uv for fast Python installs
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # System dependencies (curl for healthcheck, gosu for non-root)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -22,12 +25,12 @@ COPY config/ /app/config/
 # Shared DB package (models + connection pool)
 COPY db/pyproject.toml /app/db/pyproject.toml
 COPY db/__init__.py /app/db/__init__.py
-RUN pip install --no-cache-dir /app/db/
+RUN uv pip install --system --no-cache /app/db/
 COPY db/ /app/db/
 
 # AutoFyn agent packages
 COPY autofyn/pyproject.toml /app/pyproject.toml
-RUN pip install --no-cache-dir "/app/[dev]"
+RUN uv pip install --system --no-cache "/app/[dev]"
 COPY autofyn/core/ /app/core/
 COPY autofyn/tools/ /app/tools/
 COPY autofyn/utils/ /app/utils/
