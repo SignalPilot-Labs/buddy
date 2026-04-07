@@ -100,7 +100,7 @@ export function MobileControlSheet({
               {/* New Run */}
               <Button
                 variant="success"
-                size="lg"
+                size="md"
                 onClick={() => { onNewRun(); onClose(); }}
                 disabled={!isConfigured}
                 className="w-full justify-center"
@@ -122,7 +122,7 @@ export function MobileControlSheet({
                   <div className="grid grid-cols-3 gap-2">
                     <Button
                       variant="warning"
-                      size="lg"
+                      size="md"
                       disabled={!canPause || busy}
                       onClick={() => { onPause(); onClose(); }}
                       className="justify-center"
@@ -137,7 +137,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="success"
-                      size="lg"
+                      size="md"
                       disabled={!canResume || busy}
                       onClick={() => { onResume(); onClose(); }}
                       className="justify-center"
@@ -151,7 +151,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="primary"
-                      size="lg"
+                      size="md"
                       disabled={!canInject || busy}
                       onClick={() => { onToggleInject(); onClose(); }}
                       className="justify-center"
@@ -166,7 +166,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="danger"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onStop(); onClose(); }}
                       className="justify-center"
@@ -180,7 +180,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="danger"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onKill(); onClose(); }}
                       className="justify-center"
@@ -196,7 +196,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="warning"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onUnlock(); onClose(); }}
                       className="justify-center"

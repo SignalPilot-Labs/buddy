@@ -54,13 +54,16 @@ class SandboxClient:
     async def exec(self, request: ExecRequest) -> ExecResult:
         """Execute a command in the sandbox. Returns structured result."""
         resp = await self._http.post("/exec", json=asdict(request), timeout=request.timeout + 10)
-        resp.raise_for_status()
         data = resp.json()
-        return ExecResult(
-            stdout=data["stdout"],
-            stderr=data["stderr"],
-            exit_code=data["exit_code"],
-        )
+        if "exit_code" in data:
+            return ExecResult(
+                stdout=data["stdout"],
+                stderr=data["stderr"],
+                exit_code=data["exit_code"],
+            )
+        # Sandbox returned an error without exec result (auth failure, misc 500)
+        resp.raise_for_status()
+        raise RuntimeError(f"Sandbox error: {data}")
 
     # -- Claude SDK Sessions --
 

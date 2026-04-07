@@ -14,7 +14,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import AGENT_API_URL, MASTER_KEY_PATH, SECRET_KEYS
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -45,6 +45,28 @@ def model_to_dict(obj) -> dict:
         if hasattr(val, "isoformat"):
             d[key] = val.isoformat()
     return d
+
+
+# ---------------------------------------------------------------------------
+# Control signals
+# ---------------------------------------------------------------------------
+
+async def send_control_signal(
+    run_id: str, signal: str, valid_statuses: set[str], payload: str | None,
+) -> dict:
+    """Insert a control signal for a run after validating its status."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status not in valid_statuses:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot send '{signal}' to run with status '{run.status}'",
+            )
+        s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
+        await s.commit()
+    return {"ok": True, "signal": signal, "run_id": run_id}
 
 
 # ---------------------------------------------------------------------------
@@ -213,42 +235,8 @@ async def remove_token_from_pool(index: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Control signals
-# ---------------------------------------------------------------------------
-
-async def send_control_signal(
-    run_id: str,
-    signal: str,
-    allowed_statuses: set[str],
-    payload: str | None,
-) -> dict:
-    """Validate run status, persist signal, then forward to agent."""
-    async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
-        if run.status not in allowed_statuses:
-            raise HTTPException(status_code=409, detail=f"Cannot {signal} run with status '{run.status}'")
-        s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
-        await s.commit()
-    await send_agent_signal(signal, payload)
-    result = {"ok": True, "signal": signal}
-    if payload:
-        result["payload_length"] = len(payload)
-    return result
-
-
-# ---------------------------------------------------------------------------
 # Agent HTTP proxy
 # ---------------------------------------------------------------------------
-
-_SIGNAL_ENDPOINT_MAP = {
-    "resume": "resume_signal",
-    "pause": "pause",
-    "inject": "inject",
-    "stop": "stop",
-    "unlock": "unlock",
-}
 
 
 async def agent_request(
@@ -272,14 +260,15 @@ async def agent_request(
             res = await client.request(
                 method, f"{AGENT_API_URL}{path}", json=json_body, params=params, headers=headers,
             )
-            if res.status_code == 409:
-                raise HTTPException(status_code=409, detail=res.json().get("detail", "Conflict"))
             if res.status_code >= 400:
                 log.warning("Agent returned %d for %s %s", res.status_code, method, path)
                 try:
                     detail = res.json().get("detail", f"Agent error {res.status_code}")
                 except Exception:
                     detail = f"Agent error {res.status_code}"
+                # Preserve client-meaningful status codes; wrap others as 502
+                if res.status_code in (404, 409, 422, 429):
+                    raise HTTPException(status_code=res.status_code, detail=detail)
                 raise HTTPException(status_code=502, detail=detail)
             return res.json()
     except HTTPException:
@@ -289,13 +278,6 @@ async def agent_request(
             return fallback
         log.error("Agent request failed: %s %s — %s", method, path, e)
         raise HTTPException(status_code=502, detail="Agent service unavailable")
-
-
-async def send_agent_signal(signal: str, payload: str | None) -> None:
-    """Forward a control signal to the agent container via HTTP."""
-    endpoint = _SIGNAL_ENDPOINT_MAP.get(signal, signal)
-    body = {"payload": payload} if payload else {}
-    await agent_request("POST", f"/{endpoint}", AGENT_TIMEOUT_SHORT, body, None, None)
 
 
 # ---------------------------------------------------------------------------

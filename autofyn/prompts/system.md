@@ -60,6 +60,7 @@ Before ending, write `/tmp/pr.json`:
 ```json
 {"title": "Short imperative title", "description": "## Summary\n- what and why\n\n## Tests\n- what was tested"}
 ```
+If `/tmp/pr.json` does not exist (e.g. no subagent wrote it), generate it yourself from `git log --oneline` and `git diff --stat` before calling `end_session`.
 
 ## Before Ending
 

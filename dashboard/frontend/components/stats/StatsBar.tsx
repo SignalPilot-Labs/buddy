@@ -3,15 +3,9 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
+import { formatTokens } from "@/lib/format";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
-
-function formatTokens(n: number | null): string {
-  if (!n) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.floor(n / 1_000)}k`;
-  return n.toString();
-}
 
 const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
 

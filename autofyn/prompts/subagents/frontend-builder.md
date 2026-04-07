@@ -43,5 +43,5 @@ If `CLAUDE.md` specifies different tools or configs, follow those instead.
 After writing code:
 1. Run `tsc --noEmit` to check types.
 2. Run `eslint` if configured in the project.
-3. If the project has a dev server, verify the page loads without console errors.
+3. If frontend tests exist (look for `vitest.config.*` or `jest.config.*`), run them with `npx vitest run` or `npx jest`.
 4. If you modified props or hooks, grep for all consumers and update them.

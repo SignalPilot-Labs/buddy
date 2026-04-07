@@ -4,26 +4,7 @@ import { clsx } from "clsx";
 import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
-
-function timeAgo(date: string): string {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
-function formatCost(usd: number | null): string {
-  if (!usd) return "";
-  return `$${usd.toFixed(2)}`;
-}
-
-function formatTokens(n: number | null): string {
-  if (!n) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.floor(n / 1_000)}k`;
-  return n.toString();
-}
+import { timeAgo, formatCost, formatTokens } from "@/lib/format";
 
 export function RunItem({
   run,

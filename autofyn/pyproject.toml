@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv",
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
+    "docker>=7.0.0",
 ]
 
 [project.optional-dependencies]

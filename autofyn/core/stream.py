@@ -50,6 +50,7 @@ class StreamProcessor:
         self._prompts = prompts
         self._model = model
         self._fallback_model = fallback_model
+        self._rid = run_context.run_id[:8]
 
     async def process(self, round_num: int, is_planning: bool) -> RoundResult:
         """Process one round of sandbox SSE events."""
@@ -109,11 +110,11 @@ class StreamProcessor:
                 self._session.mark_ended()
 
             elif event_type == "end_session_denied":
-                log.info("end_session denied: %s", data.get("reason", "unknown"))
+                log.info("[%s] end_session denied: %s", self._rid, data.get("reason", "unknown"))
 
             elif event_type in ("session_end", "session_error"):
                 if event_type == "session_error":
-                    log.error("Session error: %s", data.get("error", "unknown"))
+                    log.error("[%s] Session error: %s", self._rid, data.get("error", "unknown"))
                 break
 
         return RoundResult(
@@ -136,7 +137,7 @@ class StreamProcessor:
         run_id = self._run_context.run_id
 
         if kind == "stop":
-            log.info("INSTANT STOP")
+            log.info("[%s] INSTANT STOP", self._rid)
             await self._sandbox.interrupt_session(self._session_id)
             await db.log_audit(run_id, "stop_requested", {
                 "reason": event.get("payload", "Operator stop"), "instant": True,
@@ -173,7 +174,7 @@ class StreamProcessor:
 
         elif kind == "stuck_recovery" and not is_planning:
             stuck_info = event.get("payload", "[]")
-            log.info("STUCK RECOVERY: interrupting for stuck subagents")
+            log.info("[%s] STUCK RECOVERY: interrupting for stuck subagents", self._rid)
             await self._sandbox.interrupt_session(self._session_id)
 
             try:
@@ -211,12 +212,12 @@ class StreamProcessor:
             block_type = block.get("type", "")
             if block_type == "text":
                 text = block.get("text", "")
-                log.info("%s%s", tag, text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
+                log.info("[%s] %s%s", self._rid, tag, text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
                 chunks.append(text[:TEXT_CHUNK_LIMIT])
             elif block_type == "thinking":
-                log.info("%s[thinking] %s...", tag, block.get("thinking", "")[:100])
+                log.info("[%s] %s[thinking] %s...", self._rid, tag, block.get("thinking", "")[:100])
             elif block_type == "tool_use":
-                log.info("Tool: %s", block.get("name", ""))
+                log.info("[%s] Tool: %s", self._rid, block.get("name", ""))
                 tools.append(block.get("name", ""))
 
     def _accumulate_usage(self, data: dict) -> None:
@@ -258,7 +259,7 @@ class StreamProcessor:
         wait_sec = max(0, resets_at - time.time()) if resets_at else 0
 
         if self._fallback_model and self._fallback_model != self._model:
-            log.info("Rate limited on %s, fallback to %s", self._model, self._fallback_model)
+            log.info("[%s] Rate limited on %s, fallback to %s", self._rid, self._model, self._fallback_model)
             await db.log_audit(run_id, "rate_limit_fallback", {
                 "primary_model": self._model, "fallback_model": self._fallback_model,
             })
@@ -267,7 +268,7 @@ class StreamProcessor:
         max_wait = RATE_LIMIT_MAX_WAIT_SEC
         if resets_at and 0 < wait_sec <= max_wait:
             wait_min = int(wait_sec / 60)
-            log.info("Rate limited. Waiting %dm for reset...", wait_min)
+            log.info("[%s] Rate limited. Waiting %dm for reset...", self._rid, wait_min)
             await db.update_run_status(run_id, "rate_limited")
             await db.save_rate_limit_reset(run_id, int(resets_at))
             await db.log_audit(run_id, "rate_limit_waiting", {
@@ -281,10 +282,10 @@ class StreamProcessor:
                 if event and event["event"] == "stop":
                     return "rate_limited"
             await db.update_run_status(run_id, "running")
-            log.info("Rate limit reset, resuming")
+            log.info("[%s] Rate limit reset, resuming", self._rid)
             return None
 
-        log.info("Rate limited. Resets in %dm (too long to wait).", int(wait_sec / 60))
+        log.info("[%s] Rate limited. Resets in %dm (too long to wait).", self._rid, int(wait_sec / 60))
         await db.update_run_status(run_id, "rate_limited")
         if resets_at:
             await db.save_rate_limit_reset(run_id, int(resets_at))

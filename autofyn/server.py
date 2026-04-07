@@ -1,7 +1,7 @@
 """AutoFyn agent HTTP server.
 
-AgentServer wraps FastAPI and orchestrates bootstrap → loop → teardown.
-Control events are pushed to the active EventBus.
+Orchestrates bootstrap → loop → teardown. Each run gets its own sandbox
+container via SandboxPool for full isolation.
 """
 
 import asyncio
@@ -9,9 +9,7 @@ import hmac
 import logging
 import os
 import traceback
-from collections.abc import Coroutine
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from starlette.responses import JSONResponse
@@ -20,55 +18,38 @@ import uvicorn
 from config.loader import sandbox_config
 from utils import db
 from utils.constants import (
+    MAX_CONCURRENT_RUNS,
     SANDBOX_CLONE_TIMEOUT_DEFAULT,
     SANDBOX_EXEC_TIMEOUT_DEFAULT,
     SANDBOX_HEALTH_TIMEOUT_DEFAULT,
-    SANDBOX_URL_DEFAULT,
     SERVER_HOST,
     SERVER_PORT,
 )
 from utils.prompts import PromptLoader
-from sandbox_manager.client import SandboxClient
+from utils.models import ActiveRun, StartRequest
+from sandbox_manager.pool import SandboxPool
 from sandbox_manager.repo_ops import RepoOps
 from core.bootstrap import Bootstrap
 from core.agent_loop import AgentLoop
-from endpoints import register_routes
 from core.teardown import RunTeardown
-from core.event_bus import EventBus
-from tools.session import SessionGate
-from tools.subagent_tracker import SubagentTracker
-from utils.models import RunContext
+from endpoints import register_routes
 
 log = logging.getLogger("server")
 
-BootstrapResult = tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]
-
 
 class AgentServer:
-    """HTTP server that controls the agent lifecycle.
+    """HTTP server managing concurrent agent runs with per-run sandboxes."""
 
-    Orchestrates: bootstrap → agent_loop → teardown.
-    Owns the active run state and event bus reference.
-    """
-
-    def __init__(self):
+    def __init__(self) -> None:
         cfg = sandbox_config()
-        sandbox_url = cfg.get("url", SANDBOX_URL_DEFAULT)
-        health_timeout = cfg.get("health_timeout_sec", SANDBOX_HEALTH_TIMEOUT_DEFAULT)
+        self._health_timeout: int = cfg.get("health_timeout_sec", SANDBOX_HEALTH_TIMEOUT_DEFAULT)
         self._exec_timeout: int = cfg.get("exec_timeout_sec", SANDBOX_EXEC_TIMEOUT_DEFAULT)
         self._clone_timeout: int = cfg.get("clone_timeout_sec", SANDBOX_CLONE_TIMEOUT_DEFAULT)
 
-        self._sandbox = SandboxClient(sandbox_url, health_timeout)
-        self._repo_ops = RepoOps(self._sandbox)
         self._prompts = PromptLoader()
-        self._bootstrap = Bootstrap(self._repo_ops, self._sandbox)
-        self._loop = AgentLoop(self._repo_ops, self._sandbox, self._prompts)
-        self._teardown = RunTeardown(self._repo_ops)
-        self._task: asyncio.Task | None = None
-        self._events: EventBus | None = None
-        self._session: SessionGate | None = None
-        self._bootstrapping = False
-        self.current_run_id: str | None = None
+        self._pool = SandboxPool()
+        self._runs: dict[str, ActiveRun] = {}
+
         self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ.get("AGENT_INTERNAL_SECRET", "")
         self._setup_internal_auth()
@@ -91,110 +72,114 @@ class AgentServer:
 
     @asynccontextmanager
     async def _lifespan(self, app: FastAPI):
-        """Startup: connect DB. Shutdown: close DB and sandbox client."""
+        """Startup: connect DB. Shutdown: tear down sandboxes, close DB."""
         await db.init_db()
         crashed = await db.mark_crashed_runs()
         if crashed:
             log.info("Marked %d stale run(s) as crashed", crashed)
         log.info("Ready — waiting for start command on :%d", SERVER_PORT)
         yield
-        await self._sandbox.close()
+        await self._pool.destroy_all()
         await db.close_db()
+
+    def _check_capacity(self) -> None:
+        """Raise 409 if max concurrent runs reached."""
+        if self._active_count() >= MAX_CONCURRENT_RUNS:
+            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
+
+    def _active_count(self) -> int:
+        """Count non-terminal runs."""
+        return sum(1 for r in self._runs.values() if r.status in ("starting", "running"))
+
+    def _get_run(self, run_id: str) -> ActiveRun:
+        """Look up a run or raise 404."""
+        run = self._runs.get(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        return run
+
+    def _get_run_or_first(self, run_id: str | None) -> ActiveRun:
+        """Get specific run by id, or first running run. Raises 409 if none."""
+        if run_id:
+            return self._get_run(run_id)
+        for r in self._runs.values():
+            if r.status == "running" and r.events:
+                return r
+        raise HTTPException(status_code=409, detail="No run in progress")
 
     # ── Run Lifecycle ──
 
-    async def _execute_run(
-        self,
-        bootstrap_coro: Coroutine[Any, Any, BootstrapResult],
-        custom_prompt: str | None,
-    ) -> None:
-        """Shared bootstrap → execute → teardown pipeline."""
-        self._bootstrapping = True
-        run_context, session_options, session, events, tracker, initial = await bootstrap_coro
-        self.current_run_id = run_context.run_id
-        self._events = events
-        self._session = session
-        self._bootstrapping = False
+    async def _execute_run(self, active: ActiveRun, run_id: str, body: StartRequest) -> None:
+        """Spin up sandbox → bootstrap → execute → teardown → destroy sandbox."""
+        github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
+        budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
+        sandbox = await self._pool.create(run_id, self._health_timeout)
         try:
-            status = await self._loop.execute(
-                session_options, run_context, session, events, tracker, initial,
-                custom_prompt, self._exec_timeout,
+            repo_ops = RepoOps(sandbox)
+            bootstrap = Bootstrap(repo_ops, sandbox)
+            loop = AgentLoop(repo_ops, sandbox, self._prompts)
+            teardown = RunTeardown(repo_ops)
+
+            ctx, options, session, events, tracker, initial = await bootstrap.setup_new(
+                run_id, body.prompt, budget, body.duration_minutes,
+                body.base_branch, github_repo,
+                self._exec_timeout, self._clone_timeout,
             )
+
+            active.status = "running"
+            active.events = events
+            active.session = session
+
+            try:
+                log.info("Run %s: starting agent loop", run_id)
+                status = await loop.execute(
+                    options, ctx, session, events, tracker, initial,
+                    body.prompt, self._exec_timeout,
+                )
+                log.info("Run %s: loop returned status=%s", run_id, status)
+            finally:
+                events.stop_pulse_checker()
+
+            log.info("Run %s: starting teardown", run_id)
+            await teardown.finalize(ctx, status, self._exec_timeout)
+            log.info("Run %s: teardown complete", run_id)
+            active.status = status
         finally:
-            events.stop_pulse_checker()
-            self._events = None
-            self._session = None
+            active.events = None
+            active.session = None
+            await sandbox.close()
+            await self._pool.destroy(run_id)
 
-        await self._teardown.finalize(run_context, status, self._exec_timeout)
-        self.current_run_id = None
-
-    async def _run_agent(
-        self, custom_prompt: str | None, max_budget: float,
-        duration_minutes: float, base_branch: str, github_repo: str,
-    ) -> None:
-        """Start a new run via the shared execute pipeline."""
-        coro = self._bootstrap.setup_new(
-            custom_prompt, max_budget, duration_minutes, base_branch, github_repo,
-            self._exec_timeout, self._clone_timeout,
-        )
-        await self._execute_run(coro, custom_prompt)
-
-    async def _resume_agent(
-        self, run_id: str, max_budget: float, prompt: str | None,
-    ) -> None:
-        """Resume a run via the shared execute pipeline."""
-        coro = self._bootstrap.setup_resume(
-            run_id, max_budget, self._exec_timeout, self._clone_timeout, prompt,
-        )
-        await self._execute_run(coro, None)
-
-    # ── Helpers ──
-
-    def _push_event(self, event: str, payload: str | None) -> None:
-        """Push an event to the active EventBus."""
-        if self._events:
-            self._events.push(event, payload)
-
-    def _require_running(self) -> None:
-        """Raise 409 if no run is in progress."""
-        if self.current_run_id is None:
-            raise HTTPException(status_code=409, detail="No run in progress")
-
-    def _require_idle(self) -> None:
-        """Raise 409 if a run is already in progress."""
-        if self.current_run_id is not None:
-            raise HTTPException(status_code=409, detail=f"Run already in progress: {self.current_run_id}")
-
-    def _inject_credentials(self, body) -> None:
-        """Set environment variables from monitor-provided credentials."""
-        if body.claude_token:
-            os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = body.claude_token
-        if body.git_token:
-            os.environ["GIT_TOKEN"] = body.git_token
-
-    def _on_task_done(self, task: asyncio.Task) -> None:
-        """Callback when the agent task finishes or crashes."""
+    def _on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
+        """Handle task completion or crash. Persists final status to DB."""
         try:
             exc = task.exception()
             if exc:
                 tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-                log.error("Run task crashed:\n%s", tb)
+                log.error("Run %s crashed:\n%s", active.run_id, tb)
+                active.status = "crashed"
+                active.error_message = str(exc)
+                if active.run_id:
+                    asyncio.create_task(db.finish_run(
+                        active.run_id, "crashed", None, 0.0, 0, 0, str(exc), None, None,
+                    ))
         except asyncio.CancelledError:
-            pass
+            active.status = "killed"
+            active.error_message = "Cancelled"
+            if active.run_id:
+                asyncio.create_task(db.finish_run(
+                    active.run_id, "killed", None, 0.0, 0, 0, "Cancelled", None, None,
+                ))
         finally:
-            self.current_run_id = None
-            self._task = None
-            self._events = None
-            self._session = None
-            self._bootstrapping = False
+            active.task = None
 
 
 _server = AgentServer()
 app = _server.app
 
 
-def main():
+def main() -> None:
     """Run the agent HTTP server."""
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
     uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT, log_level="info")

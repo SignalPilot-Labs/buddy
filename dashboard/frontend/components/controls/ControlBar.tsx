@@ -12,7 +12,6 @@ interface ControlBarProps {
   onKill: () => void;
   onUnlock: () => void;
   onToggleInject: () => void;
-  onResumeRun: () => void;
   busy: boolean;
   sessionLocked: boolean;
   timeRemaining: string | null;
@@ -26,7 +25,6 @@ export function ControlBar({
   onKill,
   onUnlock,
   onToggleInject,
-  onResumeRun,
   busy,
   sessionLocked,
   timeRemaining,
@@ -37,7 +35,6 @@ export function ControlBar({
   const canPause = status === "running";
   const canResume = status === "paused";
   const canInject = ["running", "paused", "rate_limited"].includes(status || "");
-  const canResumeRun = ["stopped", "crashed", "error", "rate_limited", "completed", "killed"].includes(status || "");
 
   const handleKill = () => {
     if (!showKillConfirm) {
@@ -149,24 +146,6 @@ export function ControlBar({
         Inject
       </Button>
 
-      {canResumeRun && (
-        <>
-          <div className="w-px h-4 bg-[#1a1a1a] mx-0.5" />
-          <Button
-            variant="success"
-            disabled={busy}
-            onClick={onResumeRun}
-            icon={
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <path d="M1 5a4 4 0 017-2" />
-                <polyline points="6 1 8 3 6 5" />
-              </svg>
-            }
-          >
-            Resume Run
-          </Button>
-        </>
-      )}
     </div>
   );
 }

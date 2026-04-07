@@ -1,163 +1,156 @@
 """HTTP route handlers for the agent server.
 
 All FastAPI routes are registered here via register_routes().
-The server instance is passed in to access shared state.
 """
 
+from __future__ import annotations
+
 import asyncio
-import logging
 import os
+import uuid
+from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
 from utils import db
-from utils.constants import (
-    PROMPT_SUMMARY_LIMIT,
-    WORK_DIR,
-)
-from utils.helpers import validate_branch_name
-from utils.models import InjectRequest, ResumeRequest, StartRequest
+from utils.constants import MAX_CONCURRENT_RUNS
+from utils.models import ActiveRun, StartRequest, InjectRequest
 
-log = logging.getLogger("server")
+if TYPE_CHECKING:
+    from server import AgentServer
 
 
-def register_routes(app: FastAPI, server) -> None:
+def register_routes(app: FastAPI, server: AgentServer) -> None:
     """Register all HTTP route handlers on the FastAPI app."""
 
     @app.get("/health")
     async def health():
-        if server._bootstrapping:
-            return {"status": "bootstrapping", "current_run_id": None}
-        if not server.current_run_id:
-            return {"status": "idle", "current_run_id": None}
-        result: dict = {"status": "running", "current_run_id": server.current_run_id}
-        if server._session:
-            result["elapsed_minutes"] = round(server._session.elapsed_minutes(), 1)
-            result["time_remaining"] = server._session.time_remaining_str()
-            result["session_unlocked"] = server._session.is_unlocked()
-        return result
+        return {
+            "status": "running" if server._active_count() > 0 else "idle",
+            "active_runs": server._active_count(),
+            "max_concurrent": MAX_CONCURRENT_RUNS,
+        }
+
+    @app.get("/status")
+    async def status(run_id: str | None = None):
+        """Per-run status if run_id given, otherwise all runs."""
+        if run_id:
+            r = server._get_run(run_id)
+            result: dict = {"run_id": r.run_id, "status": r.status, "error_message": r.error_message}
+            if r.session:
+                result["elapsed_minutes"] = round(r.session.elapsed_minutes(), 1)
+                result["time_remaining"] = r.session.time_remaining_str()
+                result["session_unlocked"] = r.session.is_unlocked()
+            return result
+        return {
+            "active": server._active_count(),
+            "max_concurrent": MAX_CONCURRENT_RUNS,
+            "runs": [
+                {"run_id": r.run_id, "status": r.status, "started_at": r.started_at}
+                for r in server._runs.values()
+            ],
+        }
 
     @app.post("/start")
     async def start_run(body: StartRequest):
-        server._require_idle()
-        server._inject_credentials(body)
-        budget = body.max_budget_usd if body.max_budget_usd else float(os.environ.get("MAX_BUDGET_USD", "0"))
+        server._check_capacity()
 
-        server._task = asyncio.create_task(server._run_agent(
-            body.prompt, budget, body.duration_minutes, body.base_branch,
-            body.github_repo or "",
-        ))
-        server._task.add_done_callback(server._on_task_done)
+        # Set credentials in env for this process. Tokens are per-account,
+        # not per-run — each sandbox gets them via RepoOps._auth_env().
+        if body.claude_token:
+            os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = body.claude_token
+        if body.git_token:
+            os.environ["GIT_TOKEN"] = body.git_token
 
-        return {
-            "ok": True, "status": "bootstrapping",
-            "prompt": body.prompt[:PROMPT_SUMMARY_LIMIT] if body.prompt else None,
-            "max_budget_usd": budget,
-            "duration_minutes": body.duration_minutes,
-            "base_branch": body.base_branch,
-        }
+        run_id = str(uuid.uuid4())
+        github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
+        await db.create_run_starting(
+            run_id, body.prompt, body.duration_minutes, body.base_branch, github_repo,
+        )
 
-    @app.post("/resume")
-    async def resume_run(body: ResumeRequest):
-        server._require_idle()
-        server._inject_credentials(body)
-        budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
+        active = ActiveRun(run_id=run_id)
+        server._runs[run_id] = active
 
-        server._task = asyncio.create_task(server._resume_agent(body.run_id, budget, body.prompt))
-        server._task.add_done_callback(server._on_task_done)
-        return {"ok": True, "status": "bootstrapping", "run_id": body.run_id, "resumed": True}
+        task = asyncio.create_task(server._execute_run(active, run_id, body))
+        active.task = task
+        task.add_done_callback(lambda t: server._on_task_done(active, t))
+        return {"ok": True, "status": "starting", "run_id": run_id}
 
-    @app.post("/pause")
-    async def pause():
-        server._require_running()
-        server._push_event("pause", None)
-        return {"ok": True, "event": "pause"}
-
-    @app.post("/resume_signal")
-    async def resume_signal():
-        server._require_running()
-        server._push_event("resume", None)
-        return {"ok": True, "event": "resume"}
-
-    @app.post("/inject")
-    async def inject(body: InjectRequest):
-        server._require_running()
-        server._push_event("inject", body.payload)
-        return {"ok": True, "event": "inject"}
-
-    @app.post("/unlock")
-    async def unlock():
-        server._require_running()
-        server._push_event("unlock", None)
-        return {"ok": True, "event": "unlock"}
+    # ── Control Signals ──
 
     @app.post("/stop")
-    async def stop():
-        server._require_running()
-        server._push_event("stop", "Operator stop via API")
-        return {"ok": True, "event": "stop"}
+    async def stop(run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if not r.events:
+            raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.events.push("stop", "Operator stop via API")
+        return {"ok": True, "event": "stop", "run_id": r.run_id}
+
+    @app.post("/pause")
+    async def pause(run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if not r.events:
+            raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.events.push("pause", None)
+        return {"ok": True, "event": "pause", "run_id": r.run_id}
+
+    @app.post("/resume_signal")
+    async def resume_signal(run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if not r.events:
+            raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.events.push("resume", None)
+        return {"ok": True, "event": "resume", "run_id": r.run_id}
+
+    @app.post("/inject")
+    async def inject(body: InjectRequest, run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if not r.events:
+            raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.events.push("inject", body.payload)
+        return {"ok": True, "event": "inject", "run_id": r.run_id}
+
+    @app.post("/unlock")
+    async def unlock(run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if not r.events:
+            raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.events.push("unlock", None)
+        return {"ok": True, "event": "unlock", "run_id": r.run_id}
 
     @app.post("/kill")
-    async def kill():
-        if server._task is None or server.current_run_id is None:
-            raise HTTPException(status_code=409, detail="No run in progress")
-        run_id = server.current_run_id
-        server._task.cancel()
-        # Don't call finish_run here — the CancelledError in agent_loop
-        # triggers teardown which calls finish_run. _on_task_done cleans up state.
-        return {"ok": True, "event": "kill", "run_id": run_id}
+    async def kill(run_id: str | None = None):
+        r = server._get_run_or_first(run_id)
+        if r.task and not r.task.done():
+            r.task.cancel()
+        return {"ok": True, "event": "kill", "run_id": r.run_id}
+
+    @app.post("/cleanup")
+    async def cleanup():
+        terminal = {"completed", "stopped", "error", "crashed", "killed", "rate_limited"}
+        to_remove = [rid for rid, r in server._runs.items() if r.status in terminal]
+        for rid in to_remove:
+            del server._runs[rid]
+        return {"ok": True, "cleaned": len(to_remove)}
+
+    # ── Logs ──
+
+    @app.get("/logs")
+    async def get_logs(tail: int, run_id: str | None = None):
+        """Return sandbox container logs for a run."""
+        lines = await server._pool.get_logs(run_id, tail)
+        return {"lines": lines, "total": len(lines)}
+
+    # ── Branches / Diff ──
 
     @app.get("/branches")
     async def list_branches():
-        if not server._repo_ops.is_ready():
-            return []
-        try:
-            output = await server._repo_ops.run_git(
-                ["branch", "-r", "--format", "%(refname:short)"], server._exec_timeout, WORK_DIR,
-            )
-            branches = [
-                b.replace("origin/", "")
-                for b in output.strip().split("\n")
-                if b.strip() and "HEAD" not in b
-            ]
-            return sorted(set(branches))
-        except RuntimeError as e:
-            log.warning("Failed to list branches: %s", e)
-            return []
+        return []  # TODO: implement via per-run sandbox
 
     @app.get("/diff/live")
     async def get_live_diff():
-        if not server._repo_ops.is_ready():
-            return {"files": []}
-        try:
-            base = "main"
-            if server.current_run_id:
-                run_base = await db.get_run_base_branch(server.current_run_id)
-                if run_base:
-                    base = run_base
-            stats = await server._repo_ops.get_branch_diff_live(base, server._exec_timeout)
-            return {
-                "files": stats, "total_files": len(stats),
-                "total_added": sum(f["added"] for f in stats),
-                "total_removed": sum(f["removed"] for f in stats),
-            }
-        except RuntimeError as e:
-            log.warning("Live diff failed: %s", e)
-            return {"files": []}
+        return {"files": []}  # TODO: implement via per-run sandbox
 
     @app.get("/diff/{branch}")
     async def get_branch_diff(branch: str, base: str = "main"):
-        if not server._repo_ops.is_ready():
-            return {"files": []}
-        try:
-            validate_branch_name(branch)
-            validate_branch_name(base)
-            stats = await server._repo_ops.get_branch_diff(branch, base, server._exec_timeout)
-            return {
-                "files": stats, "total_files": len(stats),
-                "total_added": sum(f["added"] for f in stats),
-                "total_removed": sum(f["removed"] for f in stats),
-            }
-        except RuntimeError as e:
-            log.warning("Branch diff failed: %s", e)
-            return {"files": []}
+        return {"files": []}  # TODO: implement via per-run sandbox

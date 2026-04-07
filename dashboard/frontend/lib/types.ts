@@ -13,6 +13,8 @@ export interface Run {
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;
+  custom_prompt: string | null;
+  duration_minutes: number;
 }
 
 export interface RepoInfo {
@@ -21,11 +23,11 @@ export interface RepoInfo {
 }
 
 export type RunStatus =
+  | "starting"
   | "running"
   | "paused"
   | "stopped"
   | "completed"
-  | "completed_no_changes"
   | "error"
   | "crashed"
   | "killed"
@@ -78,6 +80,13 @@ export const STATUS_META: Record<
   RunStatus,
   { label: string; color: string; bg: string; dot: string; pulse: boolean }
 > = {
+  starting: {
+    label: "Starting",
+    color: "text-[#ffaa00]",
+    bg: "bg-[#ffaa00]/10",
+    dot: "bg-[#ffaa00]",
+    pulse: true,
+  },
   running: {
     label: "Running",
     color: "text-[#00ff88]",
@@ -104,13 +113,6 @@ export const STATUS_META: Record<
     color: "text-[#88ccff]",
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
-    pulse: false,
-  },
-  completed_no_changes: {
-    label: "No Changes",
-    color: "text-[#777]",
-    bg: "bg-[#777]/10",
-    dot: "bg-[#777]",
     pulse: false,
   },
   error: {
@@ -261,8 +263,7 @@ export type AuditEventType =
   | "rate_limit_waiting"
   | "permission_allowed"
   | "permission_denied"
-  | "run_ended"
-  | "no_changes";
+  | "run_ended";
 
 export interface AuditEventMeta {
   label: string;
@@ -301,7 +302,6 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   permission_allowed:  { label: "Permission Allowed", color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_stuck:      { label: "Subagent Stuck",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   run_ended:           { label: "Run Ended",        color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
-  no_changes:          { label: "No Changes",      color: "text-[#777]",     bg: "bg-[#777]/[0.04]",    iconColor: "#777777" },
 };
 
 /* ── WorkTree Types ── */

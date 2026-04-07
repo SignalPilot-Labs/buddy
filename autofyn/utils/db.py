@@ -8,10 +8,9 @@ standard logging module, never silently swallowed.
 import functools
 import logging
 import os
-import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select, update
 
 from db.connection import connect, close, get_session_factory
 from db.models import AuditLog, Run, ToolCall
@@ -45,27 +44,37 @@ async def close_db() -> None:
     await close()
 
 
-async def create_run(
-    branch_name: str,
+async def create_run_starting(
+    run_id: str,
     custom_prompt: str | None,
     duration_minutes: float,
     base_branch: str,
     github_repo: str | None,
-) -> str:
-    """Create a new run record. Returns the run UUID."""
-    run_id = str(uuid.uuid4())
+) -> None:
+    """Create a run record with status 'starting'. Called at /start time."""
     repo = github_repo or os.environ.get("GITHUB_REPO") or None
     async with get_session_factory()() as s:
         s.add(Run(
             id=run_id,
-            branch_name=branch_name,
+            branch_name="pending",
+            status="starting",
             custom_prompt=custom_prompt,
             duration_minutes=duration_minutes,
             base_branch=base_branch,
             github_repo=repo,
         ))
         await s.commit()
-    return run_id
+
+
+async def update_run_branch(run_id: str, branch_name: str) -> None:
+    """Set the branch name once git setup completes."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Run).where(Run.id == run_id).values(
+                branch_name=branch_name, status="running",
+            )
+        )
+        await s.commit()
 
 
 @swallow_errors
@@ -179,7 +188,7 @@ async def mark_crashed_runs() -> int:
     async with get_session_factory()() as s:
         result = await s.execute(
             update(Run)
-            .where(Run.status.in_(["running", "paused", "rate_limited"]))
+            .where(Run.status.in_(["starting", "running", "paused", "rate_limited"]))
             .values(
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),

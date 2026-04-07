@@ -37,6 +37,7 @@ MAX_OPERATOR_MESSAGES = 25
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
+MAX_CONCURRENT_RUNS = 5
 
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.
@@ -45,3 +46,14 @@ SANDBOX_EXEC_TIMEOUT_DEFAULT = 120
 SANDBOX_CLONE_TIMEOUT_DEFAULT = 300
 SANDBOX_HEALTH_TIMEOUT_DEFAULT = 5
 SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
+
+# ── Sandbox Pool (per-run containers) ──
+SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
+SANDBOX_POOL_NETWORK = "autofyn_default"         # compose default network
+SANDBOX_POOL_PORT = 8080
+SANDBOX_POOL_HEALTH_POLL_SEC = 2
+SANDBOX_POOL_ENV_PASSTHROUGH = [
+    "AGENT_INTERNAL_SECRET",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "GIT_TOKEN",
+]
