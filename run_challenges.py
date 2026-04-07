@@ -188,7 +188,7 @@ def install_claude_code(container_id: str) -> subprocess.CompletedProcess:
     return docker_exec(
         container_id,
         ["bash", "-c", NODE_INSTALL_COMMANDS],
-        timeout=300.0,
+        timeout=600.0,
         env={"DEBIAN_FRONTEND": "noninteractive"},
     )
 
