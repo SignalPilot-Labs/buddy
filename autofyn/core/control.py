@@ -56,6 +56,12 @@ class ControlHandler:
         self._fallback_model = fallback_model
         self._rid = run_id[:8]
         self._pending_injects: list[str] = []
+        self._stop_requested = False
+
+    @property
+    def stop_requested(self) -> bool:
+        """Whether the operator has requested a stop."""
+        return self._stop_requested
 
     # ── Urgent Control (per SSE event) ──
 
@@ -90,6 +96,7 @@ class ControlHandler:
         await db.log_audit(self._run_id, "stop_requested", {
             "reason": reason or "Operator stop",
         })
+        self._stop_requested = True
         return ControlAction(stop=False, break_stream=True, final_status=None)
 
     async def _handle_pause(self) -> ControlAction:

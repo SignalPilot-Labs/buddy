@@ -90,7 +90,8 @@ class StreamProcessor:
                 self._session.mark_ended()
 
             elif event_type == "end_session_denied":
-                log.info("[%s] end_session denied", self._rid)
+                log.info("[%s] end_session denied: %sm remaining",
+                         self._rid, data.get("remaining_minutes", "?"))
 
             elif event_type in ("session_end", "session_error"):
                 if event_type == "session_error":

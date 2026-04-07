@@ -69,7 +69,7 @@ class AgentLoop:
                 if result.should_stop:
                     return result.final_status or "stopped"
                 if result.session_ended:
-                    return "completed"
+                    return "stopped" if control.stop_requested else "completed"
                 log.info("[%s] Stream broke, re-entering", rid)
 
         except asyncio.CancelledError:
