@@ -8,7 +8,7 @@ import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
-export function EventFeed({ events }: { events: FeedEvent[] }) {
+export function EventFeed({ events, runActive = false }: { events: FeedEvent[]; runActive?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
@@ -75,7 +75,7 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} />
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} runActive={runActive} />
             </ErrorBoundary>
           ))
         )}

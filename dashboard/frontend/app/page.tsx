@@ -599,7 +599,7 @@ export default function MonitorPage() {
 
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
-            <EventFeed events={allEvents} />
+            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} />
             <StatsBar run={selectedRun} connected={connected} />
           </main>
 
@@ -653,7 +653,7 @@ export default function MonitorPage() {
           )}
           {mobilePanel === "feed" && (
             <>
-              <EventFeed events={allEvents} />
+              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} />
               <StatsBar run={selectedRun} connected={connected} />
             </>
           )}
