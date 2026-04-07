@@ -27,7 +27,13 @@ MASK_PREFIX_CLAUDE_TOKEN = 8
 MASK_PREFIX_DEFAULT = 6
 
 # Settings keys that must be encrypted at rest
-SECRET_KEYS = frozenset({"claude_token", "git_token"})
+SECRET_KEYS = frozenset({"claude_token", "git_token", "repo_env_vars"})
+
+# Setting table key for per-repo environment variables
+REPO_ENV_VARS_KEY = "repo_env_vars"
+
+# Mask value used in GET /settings for encrypted env var values
+ENV_VARS_MASK_CHAR = "****"
 
 # Default values
 DEFAULT_BASE_BRANCH = "main"

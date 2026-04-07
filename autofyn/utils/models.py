@@ -106,6 +106,7 @@ class StartRequest(BaseModel):
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
+    env: dict[str, str] | None = None
 
     @field_validator("max_budget_usd")
     @classmethod
@@ -138,6 +139,7 @@ class ResumeRequest(BaseModel):
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
+    env: dict[str, str] | None = None
 
     @field_validator("max_budget_usd")
     @classmethod

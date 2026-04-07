@@ -124,6 +124,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str, s: AsyncSess
         "claude_token": creds.get("claude_token"),
         "git_token": creds.get("git_token"),
         "github_repo": creds.get("github_repo"),
+        "env": creds.get("env"),
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
     run.status = "running"

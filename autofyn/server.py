@@ -114,7 +114,7 @@ class AgentServer:
         github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
-        sandbox = await self._pool.create(run_id, self._health_timeout)
+        sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
         try:
             repo_ops = RepoOps(sandbox)
             bootstrap = Bootstrap(repo_ops, sandbox)

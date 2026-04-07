@@ -15,7 +15,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, MASK_PREFIX_CLAUDE_TOKEN, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import AGENT_API_URL, MASK_PREFIX_CLAUDE_TOKEN, MASTER_KEY_PATH, REPO_ENV_VARS_KEY, SECRET_KEYS
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -109,7 +109,7 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
 
 async def read_credentials() -> dict:
     """Read and decrypt stored credentials. Picks next Claude token round-robin."""
-    creds: dict[str, str] = {}
+    creds: dict[str, Any] = {}
     async with session() as s:
         for key in ("git_token", "github_repo"):
             setting = await s.get(Setting, key)
@@ -126,6 +126,14 @@ async def read_credentials() -> dict:
         token = await _pick_next_claude_token(s)
         if token:
             creds["claude_token"] = token
+
+        env_setting = await s.get(Setting, REPO_ENV_VARS_KEY)
+        if env_setting:
+            try:
+                plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
+                creds["env"] = json.loads(plain)
+            except Exception as e:
+                log.error("Failed to decrypt %s: %s", REPO_ENV_VARS_KEY, e)
 
     return creds
 
