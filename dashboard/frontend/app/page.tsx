@@ -31,6 +31,8 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
+const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed", "completed_no_changes"]);
+
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
     try { return localStorage.getItem("sp_improve_active_repo") || null; } catch { return null; }
@@ -52,6 +54,10 @@ export default function MonitorPage() {
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
+  const [pendingPrompt, setPendingPrompt] = useState<{
+    prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
+    status: "delivering" | "failed";
+  } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -60,6 +66,21 @@ export default function MonitorPage() {
     () => mergeHistoryWithLive(historyEvents, liveEvents),
     [historyEvents, liveEvents],
   );
+
+  // Count matching audit events in the live SSE stream to detect delivery
+  const pendingClearCount = useMemo(() => {
+    if (!pendingPrompt) return 0;
+    return liveEvents.filter(
+      (e) => e._kind === "audit" && e.data.event_type === pendingPrompt.clearOn,
+    ).length;
+  }, [liveEvents, pendingPrompt]);
+
+  // Clear pending bubble when backend delivers the matching event, or on run switch
+  useEffect(() => {
+    if (!pendingPrompt) return;
+    if (pendingClearCount > pendingPrompt.knownCount) setPendingPrompt(null);
+  }, [pendingClearCount, pendingPrompt]);
+  useEffect(() => { setPendingPrompt(null); }, [selectedRunId]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -307,6 +328,15 @@ export default function MonitorPage() {
 
   const runStatus: RunStatus | null =
     (selectedRun?.status as RunStatus) || null;
+
+  // Mark pending bubble as failed when run reaches a terminal state
+  useEffect(() => {
+    if (!pendingPrompt || pendingPrompt.status === "failed") return;
+    if (runStatus && TERMINAL_STATUSES.has(runStatus)) {
+      setPendingPrompt((prev) => prev ? { ...prev, status: "failed" } : null);
+    }
+  }, [runStatus, pendingPrompt]);
+
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
@@ -523,13 +553,10 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            apiInjectPrompt(selectedRunId, prompt).catch((e) =>
-              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() })
-            );
-            addEvent({
-              _kind: "control",
-              text: `Prompt injected (${prompt.length} chars)`,
-              ts: new Date().toISOString(),
+            setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
+            apiInjectPrompt(selectedRunId, prompt).catch((e) => {
+              setPendingPrompt(null);
+              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
             });
           } else {
             addEvent({
@@ -599,7 +626,7 @@ export default function MonitorPage() {
 
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
-            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
+            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
             <StatsBar run={selectedRun} connected={connected} />
           </main>
 
@@ -653,7 +680,7 @@ export default function MonitorPage() {
           )}
           {mobilePanel === "feed" && (
             <>
-              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
+              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
               <StatsBar run={selectedRun} connected={connected} />
             </>
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent } from "@/lib/types";
 import { groupEvents } from "@/lib/groupEvents";
@@ -8,7 +9,30 @@ import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
-export function EventFeed({ events, runActive = false, runPaused = false }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean }) {
+function PendingInjectBubble({ prompt, ts, status }: { prompt: string; ts: string; status: "delivering" | "failed" }) {
+  const time = new Date(ts).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const failed = status === "failed";
+  const dotColor = failed ? "bg-[#ff4444]" : "bg-[#88ccff]";
+  const borderColor = failed ? "border-[#ff4444]/20" : "border-[#88ccff]/20";
+  const bgColor = failed ? "bg-[#ff4444]/10" : "bg-[#88ccff]/10";
+  return (
+    <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex justify-end px-4 py-1.5">
+      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
+        <div className="flex items-center justify-between gap-4 mb-1">
+          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
+          <span className="text-[9px] text-[#777] tabular-nums flex items-center gap-1.5">
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor} ${failed ? "" : "animate-pulse"}`} />
+            {failed ? "not delivered" : "delivering"}
+            <span>{time}</span>
+          </span>
+        </div>
+        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
+      </div>
+    </motion.div>
+  );
+}
+
+export function EventFeed({ events, runActive = false, runPaused = false, pendingPrompt = null }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean; pendingPrompt?: { prompt: string; ts: string; status: "delivering" | "failed" } | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
@@ -30,7 +54,7 @@ export function EventFeed({ events, runActive = false, runPaused = false }: { ev
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [grouped, autoScroll]);
+  }, [grouped, autoScroll, pendingPrompt]);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
@@ -86,9 +110,12 @@ export function EventFeed({ events, runActive = false, runPaused = false }: { ev
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingPrompt} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
             </ErrorBoundary>
           ))
+        )}
+        {pendingPrompt && (
+          <PendingInjectBubble prompt={pendingPrompt.prompt} ts={pendingPrompt.ts} status={pendingPrompt.status} />
         )}
       </div>
 

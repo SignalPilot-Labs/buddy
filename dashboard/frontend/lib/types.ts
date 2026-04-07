@@ -258,6 +258,7 @@ export type AuditEventType =
   | "subagent_timeout"
   | "stuck_recovery"
   | "prompt_injected"
+  | "prompt_submitted"
   | "session_resumed"
   | "push_failed"
   | "auto_commit"

@@ -117,7 +117,7 @@ class ControlSignal(Base):
     __tablename__ = "control_signals"
     __table_args__ = (
         CheckConstraint(
-            "signal IN ('pause', 'resume', 'inject', 'stop', 'unlock')",
+            "signal IN ('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')",
             name="ck_control_signals_signal",
         ),
         Index("ix_control_signals_run_id", "run_id"),
