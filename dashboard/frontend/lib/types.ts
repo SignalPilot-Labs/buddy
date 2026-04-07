@@ -342,6 +342,22 @@ export const AUDIT_EVENT_LABEL_KEYS: Record<AuditEventType, keyof LocaleDict["au
   no_changes:          "noChanges",
 };
 
+/* ── Grouped Event Types ── */
+
+export type GroupedEvent =
+  | { type: "llm_message"; role: string; text: string; thinking: string; ts: string }
+  | { type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string }
+  | { type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { type: "single_tool"; tool: ToolCall; ts: string }
+  | { type: "usage_tick"; data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }
+  | { type: "control"; text: string; ts: string }
+  | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
+  | { type: "user_prompt"; prompt: string; ts: string }
+  | { type: "divider"; label: string; ts: string };
+
 /* ── WorkTree Types ── */
 export interface FileChange {
   path: string;

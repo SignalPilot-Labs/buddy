@@ -3,150 +3,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import type { FeedEvent, FileChange } from "@/lib/types";
-import type { DiffFile, DiffStats } from "@/lib/api";
+import type { FeedEvent } from "@/lib/types";
+import type { DiffStats } from "@/lib/api";
 import { fetchRunDiff } from "@/lib/api";
-import { getToolCategory } from "@/lib/types";
 import { useTranslation } from "@/hooks/useTranslation";
-
-/* ── Extract file changes from tool call events (live) ── */
-function extractFileChanges(events: FeedEvent[]): FileChange[] {
-  const changes: FileChange[] = [];
-  for (const ev of events) {
-    if (ev._kind !== "tool") continue;
-    const tc = ev.data;
-    const cat = getToolCategory(tc.tool_name);
-    const input = tc.input_data || {};
-    const output = tc.output_data || {};
-
-    switch (cat) {
-      case "read": {
-        const fileObj = (output as Record<string, unknown>)?.file as Record<string, unknown> | undefined;
-        const fp = (input.file_path as string) || (fileObj?.filePath as string) || "";
-        if (fp) changes.push({ path: norm(fp), action: "read", timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        break;
-      }
-      case "write": {
-        const fp = (input.file_path as string) || (output.filePath as string) || "";
-        if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0;
-          if (patch) for (const h of patch) added += (h.newLines as number) || 0;
-          changes.push({ path: norm(fp), action: "write", linesAdded: added || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        }
-        break;
-      }
-      case "edit": {
-        const fp = (input.file_path as string) || (output.filePath as string) || "";
-        if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0, removed = 0;
-          if (patch) for (const h of patch) for (const l of ((h.lines as string[]) || [])) {
-            if (l.startsWith("+") && !l.startsWith("+++")) added++;
-            if (l.startsWith("-") && !l.startsWith("---")) removed++;
-          }
-          changes.push({ path: norm(fp), action: "edit", linesAdded: added || undefined, linesRemoved: removed || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        }
-        break;
-      }
-    }
-  }
-  return changes;
-}
-
-function norm(p: string): string {
-  return p.replace(/^\/home\/agentuser\/repo\//, "").replace(/^\/workspace\//, "").replace(/^\/home\/agentuser\//, "~/");
-}
-
-/* ── Tree node ── */
-interface TreeNode {
-  name: string;
-  fullPath: string;
-  isDir: boolean;
-  children: Map<string, TreeNode>;
-  added: number;
-  removed: number;
-  status?: string;
-}
-
-function buildTreeFromDiff(files: DiffFile[]): TreeNode {
-  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
-  for (const f of files) {
-    const parts = f.path.split("/").filter(Boolean);
-    let cur = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      if (!cur.children.has(part)) {
-        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
-      }
-      cur = cur.children.get(part)!;
-      if (isLast) {
-        cur.added = f.added;
-        cur.removed = f.removed;
-        cur.status = f.status;
-      }
-    }
-  }
-  return root;
-}
-
-function buildTreeFromChanges(changes: FileChange[]): TreeNode {
-  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
-  const seen = new Map<string, { added: number; removed: number }>();
-  for (const c of changes) {
-    if (c.action === "read") continue;
-    const key = c.path;
-    const existing = seen.get(key) || { added: 0, removed: 0 };
-    existing.added += c.linesAdded || 0;
-    existing.removed += c.linesRemoved || 0;
-    seen.set(key, existing);
-  }
-  for (const [path, stats] of seen) {
-    const parts = path.split("/").filter(Boolean);
-    let cur = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      if (!cur.children.has(part)) {
-        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
-      }
-      cur = cur.children.get(part)!;
-      if (isLast) { cur.added = stats.added; cur.removed = stats.removed; cur.status = "modified"; }
-    }
-  }
-  return root;
-}
-
-/* ── Icons ── */
-function FileIcon({ name, status }: { name: string; status?: string }) {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
-  let color = "#555";
-  if (status === "added") color = "#00ff88";
-  else if (status === "deleted") color = "#ff4444";
-  else if (status === "modified") color = "#ffcc44";
-  else if (ext === "tsx" || ext === "ts") color = "#3178c6";
-  else if (ext === "css") color = "#264de4";
-  else if (ext === "py") color = "#3776ab";
-  else if (ext === "sql") color = "#e38c00";
-
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke={color} strokeWidth="1" strokeLinecap="round">
-      <path d="M3 1.5h4.5l2.5 2.5v6.5a1 1 0 01-1 1H3a1 1 0 01-1-1v-8a1 1 0 011-1z" />
-      <polyline points="7.5 1.5 7.5 4 10 4" />
-    </svg>
-  );
-}
-
-function DirIcon({ open }: { open: boolean }) {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1" strokeLinecap="round">
-      {open
-        ? <><path d="M1 3.5h3l1-1h4.5a1 1 0 011 1V4H2.5L1 9V3.5z" /><path d="M2.5 4L1 9h8.5l1.5-5H2.5z" /></>
-        : <path d="M1 3h3l1 1h5a1 1 0 011 1v5a1 1 0 01-1 1H2a1 1 0 01-1-1V3z" />}
-    </svg>
-  );
-}
+import type { TreeNode } from "@/components/worktree/tree-builders";
+import { buildTreeFromDiff, buildTreeFromChanges } from "@/components/worktree/tree-builders";
+import { FileIcon, DirIcon } from "@/components/worktree/TreeIcons";
+import { extractFileChanges } from "@/components/worktree/file-changes";
+import type { DiffFile } from "@/lib/api";
 
 /* ── Tree Node Component ── */
 function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
@@ -162,7 +27,6 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     });
   }, [node.children]);
 
-  // Aggregate child stats for directories
   const totalAdded = useMemo(() => {
     if (!node.isDir) return node.added;
     let sum = node.added;
@@ -170,6 +34,7 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     node.children.forEach(walk);
     return sum;
   }, [node]);
+
   const totalRemoved = useMemo(() => {
     if (!node.isDir) return node.removed;
     let sum = node.removed;
@@ -268,14 +133,12 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   const [diffLoading, setDiffLoading] = useState(false);
   const { t } = useTranslation();
 
-  // Fetch git diff when run changes
   useEffect(() => {
     if (!runId) { setDiffData(null); return; }
     setDiffLoading(true);
     fetchRunDiff(runId).then(d => { setDiffData(d); setDiffLoading(false); }).catch(() => setDiffLoading(false));
   }, [runId]);
 
-  // Also refresh periodically for live runs
   const isLiveDiff = diffData?.source === "live";
   useEffect(() => {
     if (!runId || !isLiveDiff) return;
@@ -285,11 +148,8 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
     return () => clearInterval(id);
   }, [runId, isLiveDiff]);
 
-  // Live changes from event stream
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
   const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
-
-  // Git diff tree
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
   const hasGitDiff = diffData && diffData.files && diffData.files.length > 0;
