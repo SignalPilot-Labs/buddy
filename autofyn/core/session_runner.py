@@ -11,6 +11,7 @@ import os
 from collections.abc import AsyncIterator
 
 from utils import db
+from utils.constants import SESSION_IDLE_TIMEOUT_SEC
 from utils.models import RunContext, StreamResult
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
@@ -110,11 +111,12 @@ class SessionRunner:
         stream_iter: AsyncIterator[dict] = self._sandbox.stream_events(session_id).__aiter__()
         control_task = asyncio.create_task(events.wait_for_event())
         sse_task = asyncio.create_task(_next_sse(stream_iter))
+        idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
 
         try:
             while True:
                 done, _ = await asyncio.wait(
-                    {sse_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
+                    {sse_task, control_task, idle_task}, return_when=asyncio.FIRST_COMPLETED,
                 )
 
                 if control_task in done:
@@ -135,6 +137,8 @@ class SessionRunner:
                     if sse_event is None:
                         break
                     sse_task = asyncio.create_task(_next_sse(stream_iter))
+                    idle_task.cancel()
+                    idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
 
                     dispatched = await dispatcher.dispatch(sse_event)
 
@@ -153,9 +157,23 @@ class SessionRunner:
                     if dispatched.subagent_completed:
                         await control.on_subagent_complete(run_context)
 
+                if idle_task in done:
+                    log.warning("[%s] Session idle for %ds — nudging agent to call end_session",
+                                run_context.run_id[:8], SESSION_IDLE_TIMEOUT_SEC)
+                    await self._sandbox.send_message(
+                        session_id,
+                        "You have been idle with no activity. If your work is done, call end_session now. "
+                        "If you are stuck, describe the problem.",
+                    )
+                    await db.log_audit(run_context.run_id, "idle_nudge", {
+                        "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
+                    })
+                    idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
+
         finally:
             sse_task.cancel()
             control_task.cancel()
+            idle_task.cancel()
 
         return StreamResult(
             should_stop=should_stop,

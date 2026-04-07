@@ -81,10 +81,9 @@ class EventBus:
         self._pulse_task = None
 
     async def _pulse_loop(self, run_id: str, tracker: SubagentTracker) -> None:
-        """Check for stuck subagents at a fixed interval."""
+        """Check for stuck subagents at a fixed interval. Recurring — keeps firing."""
         while True:
             await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
             stuck = tracker.get_stuck_subagents()
             if stuck:
                 self.push("stuck_recovery", json.dumps(stuck))
-                return
