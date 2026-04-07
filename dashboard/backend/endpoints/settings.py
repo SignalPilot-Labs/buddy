@@ -6,7 +6,6 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth, crypto
 from backend.constants import (
@@ -14,7 +13,6 @@ from backend.constants import (
     MASK_PREFIX_CLAUDE_TOKEN,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
-    REPO_ENV_VARS_KEY,
     SECRET_KEYS,
 )
 from backend.models import (
@@ -61,12 +59,9 @@ def _decrypt_setting(setting: Setting) -> str:
     return crypto.mask(plain, prefix_len=prefix)
 
 
-def _mask_env_vars(encrypted_value: str) -> str:
-    """Decrypt env vars JSON and return a masked version with keys visible but values hidden."""
-    plain = crypto.decrypt(encrypted_value, MASTER_KEY_PATH)
-    env_dict: dict[str, str] = json.loads(plain)
-    masked = {k: ENV_VARS_MASK_CHAR for k in env_dict}
-    return json.dumps(masked)
+def _env_vars_key(repo: str) -> str:
+    """Setting table key for per-repo environment variables."""
+    return f"env_vars:{repo}"
 
 
 @router.get("/settings")
@@ -76,12 +71,11 @@ async def get_settings() -> dict:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
         for setting in result.scalars().all():
+            if setting.key.startswith("env_vars:"):
+                continue
             if setting.encrypted:
                 try:
-                    if setting.key == REPO_ENV_VARS_KEY:
-                        settings[setting.key] = _mask_env_vars(setting.value)
-                    else:
-                        settings[setting.key] = _decrypt_setting(setting)
+                    settings[setting.key] = _decrypt_setting(setting)
                 except Exception as e:
                     log.error("Failed to decrypt setting '%s': %s", setting.key, e)
                     settings[setting.key] = ENV_VARS_MASK_CHAR
@@ -90,25 +84,10 @@ async def get_settings() -> dict:
         return settings
 
 
-async def _merge_env_vars(
-    s: AsyncSession, incoming: dict[str, str],
-) -> dict[str, str]:
-    """Merge incoming env vars with existing stored values to preserve omitted keys."""
-    existing = await s.get(Setting, REPO_ENV_VARS_KEY)
-    if existing is not None and existing.encrypted:
-        stored: dict[str, str] = json.loads(
-            crypto.decrypt(existing.value, MASTER_KEY_PATH),
-        )
-        stored.update(incoming)
-        return stored
-    return incoming
-
-
 @router.put("/settings")
 async def update_settings(body: UpdateSettingsRequest) -> dict:
     """Create or update settings. Secrets are encrypted before storage."""
     updates = body.model_dump(exclude_none=True)
-    env_vars: dict[str, str] | None = updates.pop(REPO_ENV_VARS_KEY, None)
     async with session() as s:
         for key, value in updates.items():
             is_secret = key in SECRET_KEYS
@@ -116,15 +95,41 @@ async def update_settings(body: UpdateSettingsRequest) -> dict:
             await upsert_setting(s, key, stored_val, is_secret)
         if "github_repo" in updates and updates["github_repo"]:
             await ensure_repo_in_list(s, updates["github_repo"])
-        if env_vars is not None:
-            merged = await _merge_env_vars(s, env_vars)
-            encrypted_env = crypto.encrypt(json.dumps(merged), MASTER_KEY_PATH)
-            await upsert_setting(s, REPO_ENV_VARS_KEY, encrypted_env, True)
         await s.commit()
-    updated_keys = list(updates.keys())
-    if env_vars is not None:
-        updated_keys.append(REPO_ENV_VARS_KEY)
-    return {"ok": True, "updated": updated_keys}
+    return {"ok": True, "updated": list(updates.keys())}
+
+
+@router.get("/repos/{repo:path}/env")
+async def get_repo_env(repo: str) -> dict:
+    """Get decrypted env vars for a repo. Values are shown in plaintext for the settings UI."""
+    async with session() as s:
+        setting = await s.get(Setting, _env_vars_key(repo))
+        if not setting:
+            return {"repo": repo, "env_vars": {}}
+        try:
+            env_dict: dict[str, str] = json.loads(
+                crypto.decrypt(setting.value, MASTER_KEY_PATH),
+            )
+            return {"repo": repo, "env_vars": env_dict}
+        except Exception as e:
+            log.error("Failed to decrypt env vars for %s: %s", repo, e)
+            return {"repo": repo, "env_vars": {}}
+
+
+@router.put("/repos/{repo:path}/env")
+async def save_repo_env(repo: str, body: dict) -> dict:
+    """Save env vars for a repo. Full replacement — omitted keys are deleted."""
+    env_vars: dict[str, str] = body.get("env_vars", {})
+    async with session() as s:
+        if env_vars:
+            encrypted = crypto.encrypt(json.dumps(env_vars), MASTER_KEY_PATH)
+            await upsert_setting(s, _env_vars_key(repo), encrypted, True)
+        else:
+            existing = await s.get(Setting, _env_vars_key(repo))
+            if existing:
+                await s.delete(existing)
+        await s.commit()
+    return {"ok": True, "repo": repo, "key_count": len(env_vars)}
 
 
 @router.get("/repos")

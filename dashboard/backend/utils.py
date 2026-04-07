@@ -20,7 +20,6 @@ from backend.constants import (
     AGENT_TIMEOUT_SHORT,
     MASK_PREFIX_CLAUDE_TOKEN,
     MASTER_KEY_PATH,
-    REPO_ENV_VARS_KEY,
     SECRET_KEYS,
     SIGNAL_AGENT_PATHS,
 )
@@ -122,7 +121,7 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
         await save_repo_list(s, repos)
 
 
-async def read_credentials() -> dict:
+async def read_credentials(repo: str | None) -> dict:
     """Read and decrypt stored credentials. Picks next Claude token round-robin."""
     creds: dict[str, Any] = {}
     async with session() as s:
@@ -142,13 +141,15 @@ async def read_credentials() -> dict:
         if token:
             creds["claude_token"] = token
 
-        env_setting = await s.get(Setting, REPO_ENV_VARS_KEY)
-        if env_setting:
-            try:
-                plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
-                creds["env"] = json.loads(plain)
-            except Exception as e:
-                log.error("Failed to decrypt %s: %s", REPO_ENV_VARS_KEY, e)
+        if repo:
+            env_key = f"env_vars:{repo}"
+            env_setting = await s.get(Setting, env_key)
+            if env_setting:
+                try:
+                    plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
+                    creds["env"] = json.loads(plain)
+                except Exception as e:
+                    log.error("Failed to decrypt %s: %s", env_key, e)
 
     return creds
 

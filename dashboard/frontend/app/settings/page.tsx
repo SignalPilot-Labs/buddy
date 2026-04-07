@@ -9,7 +9,6 @@ import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
 import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
-import { EnvVarsSection } from "@/components/settings/EnvVarsSection";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
 import { RepoListSection } from "@/components/settings/RepoListSection";
 import { SecurityBanner } from "@/components/settings/SecurityBanner";
@@ -262,8 +261,6 @@ export default function SettingsPage() {
           />
 
           <ExtendedContextSetting />
-
-          <EnvVarsSection settings={settings} onSettingsChange={setSettings} />
 
           <RepoListSection
             repos={repos}

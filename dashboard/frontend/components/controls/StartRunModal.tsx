@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
 import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
 function BranchPicker({
   branches,
@@ -126,7 +127,24 @@ interface StartRunModalProps {
   onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, extendedContext: boolean) => void;
   busy: boolean;
   branches: string[];
+  activeRepo: string | null;
   defaultExtendedContext?: boolean;
+}
+
+function parseEnvText(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (key) result[key] = trimmed.slice(eqIdx + 1);
+  }
+  return result;
+}
+
+function envToText(env: Record<string, string>): string {
+  return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
 
 const DURATION_PRESETS = [
@@ -170,6 +188,7 @@ export function StartRunModal({
   onStart,
   busy,
   branches,
+  activeRepo,
   defaultExtendedContext = false,
 }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
@@ -185,7 +204,17 @@ export function StartRunModal({
     }
     return false;
   });
+  const [envText, setEnvText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch saved env vars when modal opens
+  useEffect(() => {
+    if (open && activeRepo) {
+      fetchRepoEnv(activeRepo).then((env) => {
+        if (Object.keys(env).length > 0) setEnvText(envToText(env));
+      });
+    }
+  }, [open, activeRepo]);
 
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
@@ -209,11 +238,15 @@ export function StartRunModal({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const prompt =
       selectedQuick !== null
         ? QUICK_PROMPTS[selectedQuick].prompt
         : customPrompt.trim() || undefined;
+    const env = parseEnvText(envText);
+    if (activeRepo && Object.keys(env).length > 0) {
+      await saveRepoEnv(activeRepo, env);
+    }
     onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
   };
 
@@ -431,6 +464,25 @@ export function StartRunModal({
                   </label>
                   <p className="text-[9px] text-[#666] mt-1 ml-5">
                     Uses more of your daily quota but allows larger context windows
+                  </p>
+                </div>
+
+                {/* Environment Variables */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    Environment Variables
+                  </label>
+                  <textarea
+                    value={envText}
+                    onChange={(e) => setEnvText(e.target.value)}
+                    placeholder={"API_KEY=your-value\nDATABASE_URL=postgres://..."}
+                    rows={3}
+                    className="mt-2 w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#555] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <p className="mt-1 text-[9px] text-[#666]">
+                    One KEY=value per line. Encrypted at rest, injected into the sandbox container.
                   </p>
                 </div>
               </div>

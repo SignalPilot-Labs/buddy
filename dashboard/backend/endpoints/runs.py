@@ -110,7 +110,7 @@ async def pause_run(run_id: str = RunId) -> dict:
 
 async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: AsyncSession) -> dict:
     """Resume a completed/stopped/error run with the given prompt."""
-    creds = await read_credentials()
+    creds = await read_credentials(run.github_repo)
     resume_body = {
         "run_id": run_id,
         "prompt": prompt,
@@ -191,14 +191,17 @@ async def agent_health() -> dict:
 @router.post("/agent/start")
 async def start_agent_run(body: StartRunRequest) -> dict:
     """Trigger a new improvement run."""
-    creds = await read_credentials()
+    creds = await read_credentials(body.repo)
     return await agent_request("POST", "/start", AGENT_TIMEOUT_LONG, {
         "prompt": body.prompt,
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
         "extended_context": body.extended_context,
-        **creds,
+        "claude_token": creds.get("claude_token"),
+        "git_token": creds.get("git_token"),
+        "github_repo": creds.get("github_repo"),
+        "env": creds.get("env"),
     }, None, None)
 
 

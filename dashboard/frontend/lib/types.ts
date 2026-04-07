@@ -342,7 +342,6 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
-  repo_env_vars?: Record<string, string>;
 }
 
 export interface PoolToken {
