@@ -40,6 +40,7 @@ from claude_agent_sdk.types import (
 )
 
 from constants import (
+    EARLY_EXIT_THRESHOLD_MIN,
     INPUT_SUMMARY_MAX_LEN,
     MAX_CONCURRENT_SESSIONS,
     SESSION_EVENT_QUEUE_SIZE,
@@ -357,7 +358,8 @@ class _Session:
         async def end_session_tool(args: dict[str, Any]) -> dict[str, Any]:
             elapsed_sec = time.time() - start
             elapsed_min = elapsed_sec / SECONDS_PER_MINUTE
-            unlocked = duration_min <= 0 or elapsed_sec >= duration_min * SECONDS_PER_MINUTE
+            remaining_min = duration_min - elapsed_min
+            unlocked = duration_min <= 0 or remaining_min <= EARLY_EXIT_THRESHOLD_MIN
 
             if unlocked:
                 await _log_audit(run_id, "session_ended", {
@@ -373,15 +375,14 @@ class _Session:
                 }})
                 return {"content": [{"type": "text", "text": "Session ended."}]}
 
-            remaining = duration_min - elapsed_min
             await _log_audit(run_id, "end_session_denied", {
-                "remaining_minutes": round(remaining, 1),
+                "remaining_minutes": round(remaining_min, 1),
             })
             emit({"event": "end_session_denied", "data": {
-                "remaining_minutes": round(remaining, 1),
+                "remaining_minutes": round(remaining_min, 1),
             }})
             return {"content": [{"type": "text", "text": (
-                f"SESSION LOCKED — {round(remaining, 1)}m remaining. "
+                f"SESSION LOCKED — {round(remaining_min, 1)}m remaining. "
                 "Continue working. The planner will tell you when to stop."
             )}]}
 
