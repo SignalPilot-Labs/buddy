@@ -22,6 +22,8 @@ from utils.constants import (
 from utils.helpers import validate_branch_name
 from utils.models import ExecRequest, ExecResult
 from sandbox_manager.client import SandboxClient
+from sandbox_manager.repo_diff import aggregate_live_diff, parse_name_status, parse_numstat
+from sandbox_manager.repo_init import bootstrap_empty_repo, create_missing_branch
 
 log = logging.getLogger("sandbox_manager.repo_ops")
 
@@ -97,7 +99,7 @@ class RepoOps:
             all_refs = ""
 
         if not all_refs.strip():
-            await self._bootstrap_empty_repo(base_branch, exec_timeout)
+            await bootstrap_empty_repo(self, base_branch, exec_timeout)
             return
         try:
             await self.run_git(
@@ -106,7 +108,7 @@ class RepoOps:
                 WORK_DIR,
             )
         except RuntimeError:
-            await self._create_missing_branch(base_branch, exec_timeout)
+            await create_missing_branch(self, base_branch, exec_timeout)
 
     async def create_branch(
         self, branch_name: str, base_branch: str, exec_timeout: int,
@@ -195,7 +197,7 @@ class RepoOps:
                 exec_timeout,
                 WORK_DIR,
             )
-            return _parse_numstat(raw, _parse_name_status(status_raw))
+            return parse_numstat(raw, parse_name_status(status_raw))
         except (RuntimeError, ValueError) as e:
             log.warning("Failed to get branch diff: %s", e)
             return []
@@ -220,7 +222,7 @@ class RepoOps:
             all_lines = (raw.strip() + "\n" + uncommitted.strip()).strip()
             if not all_lines:
                 return []
-            return _aggregate_live_diff(all_lines)
+            return aggregate_live_diff(all_lines)
         except (RuntimeError, ValueError) as e:
             log.warning("Failed to get live diff: %s", e)
             return []
@@ -310,54 +312,6 @@ class RepoOps:
                     await asyncio.sleep(wait)
         raise last_error
 
-    async def _bootstrap_empty_repo(self, base_branch: str, timeout: int) -> None:
-        """Initialize an empty remote with main + staging branches."""
-        try:
-            await self.run_git(["checkout", "--orphan", "main"], timeout, WORK_DIR)
-            await self.run_git(
-                ["commit", "--allow-empty", "-m", "Initialize repository"], timeout, WORK_DIR,
-            )
-            await self.run_git(["push", "-u", "origin", "main"], timeout, WORK_DIR)
-            await self.run_git(["checkout", "-b", "staging"], timeout, WORK_DIR)
-            await self.run_git(["push", "-u", "origin", "staging"], timeout, WORK_DIR)
-            if base_branch not in ("main", "staging"):
-                await self.run_git(["checkout", "-b", base_branch], timeout, WORK_DIR)
-                await self.run_git(["push", "-u", "origin", base_branch], timeout, WORK_DIR)
-            else:
-                await self.run_git(["checkout", base_branch], timeout, WORK_DIR)
-        except RuntimeError as e:
-            log.warning("Could not auto-init remote: %s", e)
-
-    async def _create_missing_branch(self, base_branch: str, timeout: int) -> None:
-        """Create a missing base branch from the default branch."""
-        try:
-            default = await self._get_default_branch(timeout)
-            await self.run_git(["checkout", default], timeout, WORK_DIR)
-            await self.run_git(["checkout", "-b", base_branch], timeout, WORK_DIR)
-            await self.run_git(["push", "-u", "origin", base_branch], timeout, WORK_DIR)
-        except RuntimeError as e:
-            log.warning("Could not create branch '%s': %s", base_branch, e)
-
-    async def _get_default_branch(self, timeout: int) -> str:
-        """Detect the remote's default branch."""
-        try:
-            ref = await self.run_git(
-                ["symbolic-ref", "refs/remotes/origin/HEAD", "--short"], timeout, WORK_DIR,
-            )
-            return ref.replace("origin/", "")
-        except RuntimeError:
-            for name in ("main", "master"):
-                try:
-                    await self.run_git(
-                        ["ls-remote", "--exit-code", "--heads", "origin", name],
-                        timeout,
-                        WORK_DIR,
-                    )
-                    return name
-                except RuntimeError:
-                    continue
-            return "main"
-
     async def _find_existing_pr(self, branch_name: str, timeout: int) -> str | None:
         """Find an open PR for this branch. Returns URL or None."""
         try:
@@ -381,58 +335,3 @@ class RepoOps:
         except (json.JSONDecodeError, KeyError) as e:
             log.warning("Failed to parse /tmp/pr.json: %s", e)
             return None, None
-
-
-# -- Pure Helpers (no state) --
-
-def _parse_name_status(raw: str) -> dict[str, str]:
-    """Parse git diff --name-status into a path->status map."""
-    result: dict[str, str] = {}
-    for line in raw.strip().split("\n"):
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) >= 2:
-            code = parts[0][0]
-            result[parts[-1]] = {
-                "A": "added", "M": "modified", "D": "deleted", "R": "renamed",
-            }.get(code, "modified")
-    return result
-
-
-def _parse_numstat(raw: str, status_map: dict[str, str]) -> list[dict]:
-    """Parse git diff --numstat into file change dicts."""
-    results: list[dict] = []
-    for line in raw.strip().split("\n"):
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 3:
-            continue
-        results.append({
-            "path": parts[2],
-            "added": int(parts[0]) if parts[0] != "-" else 0,
-            "removed": int(parts[1]) if parts[1] != "-" else 0,
-            "status": status_map.get(parts[2], "modified"),
-        })
-    return results
-
-
-def _aggregate_live_diff(all_lines: str) -> list[dict]:
-    """Aggregate numstat lines by path."""
-    stats: dict[str, dict] = {}
-    for line in all_lines.split("\n"):
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 3:
-            continue
-        added = int(parts[0]) if parts[0] != "-" else 0
-        removed = int(parts[1]) if parts[1] != "-" else 0
-        path = parts[2]
-        if path in stats:
-            stats[path]["added"] += added
-            stats[path]["removed"] += removed
-        else:
-            stats[path] = {"path": path, "added": added, "removed": removed, "status": "modified"}
-    return list(stats.values())
