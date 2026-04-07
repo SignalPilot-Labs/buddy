@@ -54,7 +54,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "run_started":
       return { type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
     case "round_complete":
-      return { type: "divider", label: `Round ${d.round} complete · ${(d.cost_usd as number)?.toFixed(3) || "?"} USD · ${d.turns} turns`, ts };
+      return null; // Rounds are detected from git commit tool calls, not this audit event
     case "pr_created":
       return { type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":
@@ -384,7 +384,47 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     i++;
   }
 
-  return result;
+  return _insertCommitDividers(result);
+}
+
+const ROUND_PATTERN = /\[Round\s+(\d+)\]/i;
+
+function _insertCommitDividers(groups: GroupedEvent[]): GroupedEvent[] {
+  /** Insert a divider after any bash tool that runs git commit. */
+  const out: GroupedEvent[] = [];
+  for (const gev of groups) {
+    out.push(gev);
+    const commitRound = _detectGitCommit(gev);
+    if (commitRound !== null) {
+      const roundLabel = commitRound > 0 ? `Round ${commitRound}` : "Round";
+      out.push({ type: "divider", label: `${roundLabel} complete`, ts: gev.ts });
+    }
+  }
+  return out;
+}
+
+function _detectGitCommit(gev: GroupedEvent): number | null {
+  /** Check if a grouped event contains a git commit. Returns round number or 0 if unknown. */
+  const commands = _extractCommands(gev);
+  for (const cmd of commands) {
+    if (!cmd.includes("git commit") && !cmd.includes("git -c") ) continue;
+    if (!cmd.includes("commit")) continue;
+    const match = cmd.match(ROUND_PATTERN);
+    if (match) return parseInt(match[1], 10);
+    return 0;
+  }
+  return null;
+}
+
+function _extractCommands(gev: GroupedEvent): string[] {
+  /** Extract command strings from bash tools or groups. */
+  if (gev.type === "single_tool") {
+    return [(gev.tool.input_data?.command as string) || ""];
+  }
+  if (gev.type === "bash_group") {
+    return gev.tools.map((t) => (t.input_data?.command as string) || "");
+  }
+  return [];
 }
 
 /* ── Helpers for rendering ── */
