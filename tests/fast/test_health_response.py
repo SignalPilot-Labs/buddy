@@ -55,3 +55,31 @@ class TestHealthResponse:
         assert data["runs"][0]["elapsed_minutes"] == 5.0
         restored = HealthResponse.model_validate(data)
         assert restored.runs[0].run_id == "abc"
+
+    def test_unreachable_fallback_shape(self):
+        """The dashboard health fallback must match HealthResponse shape."""
+        fallback = {"status": "unreachable", "active_runs": 0, "max_concurrent": 0, "runs": []}
+        resp = HealthResponse.model_validate(fallback)
+        assert resp.status == "unreachable"
+        assert resp.runs == []
+        assert resp.active_runs == 0
+
+    def test_mixed_run_statuses(self):
+        """Health response with runs in different statuses."""
+        runs = [
+            HealthRunEntry(run_id="r1", status="running", started_at=1.0, elapsed_minutes=10.0),
+            HealthRunEntry(run_id="r2", status="paused", started_at=2.0),
+            HealthRunEntry(run_id="r3", status="completed", started_at=3.0),
+        ]
+        resp = HealthResponse(status="running", active_runs=1, max_concurrent=10, runs=runs)
+        assert len(resp.runs) == 3
+        assert resp.runs[1].elapsed_minutes is None
+        assert resp.runs[0].elapsed_minutes == 10.0
+
+    def test_optional_fields_excluded_from_serialization(self):
+        """None optional fields should serialize as None, not be omitted."""
+        entry = HealthRunEntry(run_id="x", status="running", started_at=1.0)
+        data = entry.model_dump()
+        assert "elapsed_minutes" in data
+        assert data["elapsed_minutes"] is None
+        assert data["session_unlocked"] is None
