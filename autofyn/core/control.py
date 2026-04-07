@@ -93,25 +93,29 @@ class ControlHandler:
             "reason": reason or "Operator stop",
         })
         self._stop_requested = True
-        return ControlAction(stop=False, break_stream=True, final_status=None)
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
     async def _handle_pause(self) -> ControlAction:
-        """Interrupt session and wait for resume/stop/inject."""
+        """Interrupt session and signal the runner to enter pause mode."""
         await self._sandbox.interrupt_session(self._session_id)
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=True)
+
+    async def resolve_pause(self) -> ControlAction:
+        """Block until resume/stop/inject arrives. Called by SessionRunner after tasks are cancelled."""
         result = await self._events.handle_pause(self._run_id)
 
         if result == "stop":
-            return ControlAction(stop=True, break_stream=False, final_status="stopped")
+            return ControlAction(stop=True, break_stream=False, final_status="stopped", pause=False)
         if result == "resume":
             await self._sandbox.send_message(
                 self._session_id, self._prompts.build_continuation_prompt(),
             )
-            return ControlAction(stop=False, break_stream=True, final_status=None)
+            return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result.startswith("inject:"):
             await self._sandbox.send_message(
                 self._session_id, f"Operator message: {result[7:]}",
             )
-            return ControlAction(stop=False, break_stream=True, final_status=None)
+            return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result == "unlock":
             return await self._handle_unlock()
         return ControlAction.no_action()
@@ -148,7 +152,7 @@ class ControlHandler:
             "stuck_info": stuck_info, "recovery_prompt": recovery,
         })
         await self._sandbox.send_message(self._session_id, recovery)
-        return ControlAction(stop=False, break_stream=True, final_status=None)
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
     # ── Subagent Boundary ──
 
@@ -216,7 +220,7 @@ class ControlHandler:
             "resets_at": resets_at,
             "wait_seconds": int(wait_sec) if resets_at else None,
         })
-        return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+        return ControlAction(stop=True, break_stream=False, final_status="rate_limited", pause=False)
 
     async def _wait_for_rate_limit(
         self, run_id: str, wait_sec: float, resets_at: float,
@@ -246,7 +250,7 @@ class ControlHandler:
                 if control_task in done:
                     event = control_task.result()
                     if event["event"] == "stop":
-                        return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+                        return ControlAction(stop=True, break_stream=False, final_status="rate_limited", pause=False)
                     self._events.push(event["event"], event.get("payload"))
                     control_task = asyncio.create_task(self._events.wait_for_event())
         finally:

@@ -73,6 +73,10 @@ class SessionRunner:
                     return result.final_status or "stopped"
                 if result.session_ended:
                     return "stopped" if control.stop_requested else "completed"
+                if result.pause:
+                    action = await control.resolve_pause()
+                    if action.stop:
+                        return action.final_status or "stopped"
                 log.info("[%s] Stream broke, re-entering", rid)
 
         except asyncio.CancelledError:
@@ -100,6 +104,7 @@ class SessionRunner:
         """Race SSE stream against control events until one side stops."""
         result_msg: dict | None = None
         should_stop = False
+        pause_requested = False
         final_status: str | None = None
 
         stream_iter: AsyncIterator[dict] = self._sandbox.stream_events(session_id).__aiter__()
@@ -118,6 +123,9 @@ class SessionRunner:
                     if action.stop:
                         should_stop = True
                         final_status = action.final_status
+                        break
+                    if action.pause:
+                        pause_requested = True
                         break
                     if action.break_stream:
                         break
@@ -154,6 +162,7 @@ class SessionRunner:
             final_status=final_status,
             session_ended=session.has_ended(),
             result_message=result_msg,
+            pause=pause_requested,
         )
 
     async def _start_session(self, session_options: dict, initial_prompt: str) -> str:

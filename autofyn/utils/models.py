@@ -56,12 +56,13 @@ class RunContext:
 
 @dataclass
 class StreamResult:
-    """Structured return from StreamProcessor.process()."""
+    """Structured return from SessionRunner._process_stream()."""
 
     should_stop: bool
     final_status: str | None
     session_ended: bool
     result_message: Any | None
+    pause: bool
 
 
 @dataclass
@@ -84,16 +85,17 @@ class DispatchResult:
 
 @dataclass
 class ControlAction:
-    """Result of checking a control event. Used by ControlHandler."""
+    """Result of a control event. Tells SessionRunner what to do next."""
 
     stop: bool
     break_stream: bool
     final_status: str | None
+    pause: bool
 
     @classmethod
     def no_action(cls) -> "ControlAction":
         """No control action needed."""
-        return cls(stop=False, break_stream=False, final_status=None)
+        return cls(stop=False, break_stream=False, final_status=None, pause=False)
 
 
 # ── Active Run (in-process tracking for concurrent runs) ──

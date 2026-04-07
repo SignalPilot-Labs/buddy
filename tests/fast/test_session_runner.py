@@ -39,7 +39,7 @@ class TestSessionRunnerProcessStream:
 
         control = MagicMock(spec=ControlHandler)
         control.handle_event = AsyncMock(
-            return_value=ControlAction(stop=True, break_stream=False, final_status="stopped"),
+            return_value=ControlAction(stop=True, break_stream=False, final_status="stopped", pause=False),
         )
 
         dispatcher = SSEDispatcher(_make_ctx(), session, tracker)
@@ -72,7 +72,7 @@ class TestSessionRunnerProcessStream:
 
         control = MagicMock(spec=ControlHandler)
         control.handle_event = AsyncMock(
-            return_value=ControlAction(stop=False, break_stream=True, final_status=None),
+            return_value=ControlAction(stop=False, break_stream=True, final_status=None, pause=False),
         )
 
         dispatcher = SSEDispatcher(_make_ctx(), session, tracker)
