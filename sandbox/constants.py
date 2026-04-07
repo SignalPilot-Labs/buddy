@@ -21,6 +21,9 @@ SECRET_ENV_VARS: str = _security_cfg.get("secret_env_vars", "")
 MAX_CONCURRENT_SESSIONS: int = _cfg.get("max_concurrent_sessions", 5)
 SESSION_EVENT_QUEUE_SIZE: int = _cfg.get("session_event_queue_size", 1000)
 
+# ── Time Lock ──
+EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
+
 # ── Subagent Limits ──
 SUBAGENT_TIMEOUT_SEC: int = 45 * 60
 INPUT_SUMMARY_MAX_LEN: int = 200

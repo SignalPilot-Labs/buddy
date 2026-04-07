@@ -291,8 +291,21 @@ class RepoOps:
             )
             if result.exit_code != 0:
                 raise RuntimeError(f"Clone failed: {result.stderr}")
+            await self._persist_auth(token, timeout)
             self._cloned_repo = self._repo
             self._initialized = True
+
+    async def _persist_auth(self, token: str, timeout: int) -> None:
+        """Write git auth into repo config so orchestrator's git push works."""
+        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        await self._exec(
+            ["git", "config", "http.extraHeader", f"Authorization: Basic {b64}"],
+            WORK_DIR, timeout, {},
+        )
+        await self._exec(
+            ["git", "config", "credential.helper", ""],
+            WORK_DIR, timeout, {},
+        )
 
     async def _retry(
         self, fn: Callable[[], Coroutine[Any, Any, str]],

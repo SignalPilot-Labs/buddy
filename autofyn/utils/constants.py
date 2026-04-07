@@ -7,16 +7,11 @@ SUBAGENT_IDLE_KILL_SEC = 10 * 60     # 10 min idle — trigger interrupt+recover
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
-MAX_ROUNDS = 500
 RATE_LIMIT_MAX_WAIT_SEC = 600      # Max seconds to wait for rate limit reset before stopping
 
-# ── Truncation Limits (audit/logging) ──
+# ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200         # Custom prompt preview in API responses and audit
-TEXT_CHUNK_LIMIT = 500             # Per-round text chunks collected for planner context
-ROUND_SUMMARY_LIMIT = 1500        # Combined round text sent to planner prompt
 LOG_PREVIEW_LIMIT = 200           # One-line log preview of assistant messages
-FILES_CHANGED_LIMIT = 500         # Git files-changed list in planner audit meta
-ROUND_SUMMARY_AUDIT_LIMIT = 500   # Round summary stored in planner audit meta
 
 # ── Paths ──
 WORK_DIR = "/home/agentuser/repo"
@@ -32,7 +27,6 @@ RATE_LIMIT_SLEEP_BUFFER_SEC = 5
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
-MAX_OPERATOR_MESSAGES = 25
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
