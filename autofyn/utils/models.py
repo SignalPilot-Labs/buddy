@@ -56,26 +56,46 @@ class RunContext:
 
 @dataclass
 class StreamResult:
-    """Structured return from StreamProcessor.process()."""
+    """Structured return from SessionRunner._process_stream()."""
 
     should_stop: bool
     final_status: str | None
     session_ended: bool
     result_message: Any | None
+    pause: bool
+
+
+@dataclass
+class DispatchResult:
+    """Result of dispatching a single SSE event.
+
+    The dispatcher returns flags for actions the session runner must take.
+    This keeps the dispatcher free of control/EventBus dependencies.
+    """
+
+    result_data: dict | None = None
+    rate_limit_data: dict | None = None
+    subagent_completed: bool = False
+
+    @classmethod
+    def ok(cls) -> "DispatchResult":
+        """Event handled, no action needed."""
+        return cls()
 
 
 @dataclass
 class ControlAction:
-    """Result of checking a control event. Used by ControlHandler."""
+    """Result of a control event. Tells SessionRunner what to do next."""
 
     stop: bool
     break_stream: bool
     final_status: str | None
+    pause: bool
 
     @classmethod
     def no_action(cls) -> "ControlAction":
         """No control action needed."""
-        return cls(stop=False, break_stream=False, final_status=None)
+        return cls(stop=False, break_stream=False, final_status=None, pause=False)
 
 
 # ── Active Run (in-process tracking for concurrent runs) ──
@@ -165,3 +185,25 @@ class InjectRequest(BaseModel):
         if v is not None and len(v) > INJECT_PAYLOAD_MAX_LEN:
             raise ValueError(f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters")
         return v
+
+
+# ── Health Response ──
+
+class HealthRunEntry(BaseModel):
+    """Per-run details in the health response."""
+
+    run_id: str
+    status: str
+    started_at: float
+    elapsed_minutes: float | None = None
+    time_remaining: str | None = None
+    session_unlocked: bool | None = None
+
+
+class HealthResponse(BaseModel):
+    """GET /health response."""
+
+    status: str
+    active_runs: int
+    max_concurrent: int
+    runs: list[HealthRunEntry]

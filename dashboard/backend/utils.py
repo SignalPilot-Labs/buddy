@@ -15,7 +15,14 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, MASK_PREFIX_CLAUDE_TOKEN, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import (
+    AGENT_API_URL,
+    AGENT_TIMEOUT_SHORT,
+    MASK_PREFIX_CLAUDE_TOKEN,
+    MASTER_KEY_PATH,
+    SECRET_KEYS,
+    SIGNAL_AGENT_PATHS,
+)
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -55,7 +62,7 @@ def model_to_dict(obj) -> dict:
 async def send_control_signal(
     run_id: str, signal: str, valid_statuses: set[str], payload: str | None,
 ) -> dict:
-    """Insert a control signal for a run after validating its status."""
+    """Validate run status, log to DB, and forward to agent EventBus."""
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
@@ -67,6 +74,13 @@ async def send_control_signal(
             )
         s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
         await s.commit()
+
+    agent_path = SIGNAL_AGENT_PATHS.get(signal)
+    if agent_path:
+        json_body = {"payload": payload} if signal == "inject" else None
+        params = {"run_id": run_id}
+        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None)
+
     return {"ok": True, "signal": signal, "run_id": run_id}
 
 
@@ -295,7 +309,6 @@ async def autofill_settings(master_key_path: str) -> None:
         env_mappings = {
             "claude_token": "CLAUDE_CODE_OAUTH_TOKEN",
             "git_token": "GIT_TOKEN",
-            "github_repo": "GITHUB_REPO",
             "max_budget_usd": "MAX_BUDGET_USD",
         }
 

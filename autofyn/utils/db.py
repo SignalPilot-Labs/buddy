@@ -7,7 +7,7 @@ standard logging module, never silently swallowed.
 
 import functools
 import logging
-import os
+
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select, update
@@ -52,7 +52,7 @@ async def create_run_starting(
     github_repo: str | None,
 ) -> None:
     """Create a run record with status 'starting'. Called at /start time."""
-    repo = github_repo or os.environ.get("GITHUB_REPO") or None
+    repo = github_repo
     async with get_session_factory()() as s:
         s.add(Run(
             id=run_id,

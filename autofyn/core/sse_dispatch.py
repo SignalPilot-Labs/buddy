@@ -1,110 +1,76 @@
-"""Stream processor: dispatches SDK events from sandbox SSE.
+"""SSE event dispatcher: routes sandbox events to handlers.
 
-StreamProcessor reads events from the sandbox's SSE stream and dispatches
-them to the appropriate handler. Control events (stop, pause, inject) are
-delegated to ControlHandler. SSE dispatch is the only responsibility.
+Pure business logic — no asyncio.wait, no EventBus, no control handler.
+Returns DispatchResult so the session runner can orchestrate side effects.
 """
 
 import logging
 
 from utils import db
 from utils.constants import LOG_PREVIEW_LIMIT
-from utils.models import StreamResult, RunContext
-from sandbox_manager.client import SandboxClient
-from core.control import ControlHandler
+from utils.models import DispatchResult, RunContext
 from tools.session import SessionGate
 from tools.subagent_tracker import SubagentTracker
 
-log = logging.getLogger("core.stream")
+log = logging.getLogger("core.dispatch")
 
 
-class StreamProcessor:
-    """Iterates sandbox SSE events and dispatches to handlers.
+class SSEDispatcher:
+    """Routes SSE events to handlers. Mutates RunContext with cost/tokens.
 
     Public API:
-        process() -> StreamResult
+        dispatch(event) -> DispatchResult
     """
 
     def __init__(
         self,
-        sandbox: SandboxClient,
-        session_id: str,
         run_context: RunContext,
         session: SessionGate,
         tracker: SubagentTracker,
-        control: ControlHandler,
     ) -> None:
-        self._sandbox = sandbox
-        self._session_id = session_id
         self._run_context = run_context
         self._session = session
         self._tracker = tracker
-        self._control = control
         self._rid = run_context.run_id[:8]
 
-    async def process(self) -> StreamResult:
-        """Process sandbox SSE events until session ends."""
-        result_msg: dict | None = None
-        should_stop = False
-        final_status: str | None = None
+    async def dispatch(self, event: dict) -> DispatchResult:
+        """Route a single SSE event. Returns result for session runner to act on."""
+        event_type = event.get("event", "")
+        data = event.get("data", {})
 
-        async for event in self._sandbox.stream_events(self._session_id):
-            action = await self._control.check_control_event()
-            if action.stop:
-                should_stop = True
-                final_status = action.final_status
-                break
-            if action.break_stream:
-                break
+        if event_type == "assistant_message":
+            self._handle_assistant_message(data)
 
-            event_type = event.get("event", "")
-            data = event.get("data", {})
+        elif event_type == "rate_limit":
+            return DispatchResult(rate_limit_data=data)
 
-            if event_type == "assistant_message":
-                self._handle_assistant_message(data)
+        elif event_type == "result":
+            await self._handle_result(data)
+            return DispatchResult(result_data=data)
 
-            elif event_type == "rate_limit":
-                action = await self._control.handle_rate_limit(
-                    data, self._run_context,
-                )
-                if action.stop:
-                    should_stop = True
-                    final_status = action.final_status
-                    break
+        elif event_type == "subagent_start":
+            self._handle_subagent_start(data)
 
-            elif event_type == "result":
-                result_msg = data
-                await self._handle_result(data)
+        elif event_type == "subagent_stop":
+            self._handle_subagent_stop(data)
+            return DispatchResult(subagent_completed=True)
 
-            elif event_type == "subagent_start":
-                self._handle_subagent_start(data)
+        elif event_type == "tool_use":
+            self._handle_tool_use(data)
 
-            elif event_type == "subagent_stop":
-                self._handle_subagent_stop(data)
-                await self._control.on_subagent_complete(self._run_context)
+        elif event_type == "end_session":
+            self._session.mark_ended()
 
-            elif event_type == "tool_use":
-                self._handle_tool_use(data)
+        elif event_type == "end_session_denied":
+            log.info("[%s] end_session denied: %sm remaining",
+                     self._rid, data.get("remaining_minutes", "?"))
 
-            elif event_type == "end_session":
-                self._session.mark_ended()
+        elif event_type in ("session_end", "session_error"):
+            if event_type == "session_error":
+                log.error("[%s] Session error: %s",
+                          self._rid, data.get("error", "unknown"))
 
-            elif event_type == "end_session_denied":
-                log.info("[%s] end_session denied: %sm remaining",
-                         self._rid, data.get("remaining_minutes", "?"))
-
-            elif event_type in ("session_end", "session_error"):
-                if event_type == "session_error":
-                    log.error("[%s] Session error: %s",
-                              self._rid, data.get("error", "unknown"))
-                break
-
-        return StreamResult(
-            should_stop=should_stop,
-            final_status=final_status,
-            session_ended=self._session.has_ended(),
-            result_message=result_msg,
-        )
+        return DispatchResult.ok()
 
     # ── Event Handlers ──
 

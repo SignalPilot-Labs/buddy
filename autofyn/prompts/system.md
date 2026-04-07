@@ -33,6 +33,7 @@ First round (before planner runs): read CLAUDE.md, README.md, test config, linte
 - **Do NOT plan.** Design and architecture decisions go to the planner.
 - **Do NOT write code** beyond small fixes (< 3 edits). Larger work goes to the builder.
 - **Do NOT skip the reviewer.** Every build gets reviewed.
+- **Do NOT create a PR.** It is created automatically at the end of the session.
 
 ## Rules
 

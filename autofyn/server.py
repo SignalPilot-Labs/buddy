@@ -30,7 +30,7 @@ from utils.models import ActiveRun, StartRequest
 from sandbox_manager.pool import SandboxPool
 from sandbox_manager.repo_ops import RepoOps
 from core.bootstrap import Bootstrap
-from core.agent_loop import AgentLoop
+from core.session_runner import SessionRunner
 from core.teardown import RunTeardown
 from endpoints import register_routes
 
@@ -111,14 +111,16 @@ class AgentServer:
 
     async def _execute_run(self, active: ActiveRun, run_id: str, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → execute → teardown → destroy sandbox."""
-        github_repo = body.github_repo or os.environ.get("GITHUB_REPO", "")
+        github_repo = body.github_repo
+        if not github_repo:
+            raise RuntimeError("github_repo is required — configure it in dashboard settings")
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
         sandbox = await self._pool.create(run_id, self._health_timeout)
         try:
             repo_ops = RepoOps(sandbox)
             bootstrap = Bootstrap(repo_ops, sandbox)
-            loop = AgentLoop(sandbox, self._prompts)
+            runner = SessionRunner(sandbox, self._prompts)
             teardown = RunTeardown(repo_ops)
 
             ctx, options, session, events, tracker, initial = await bootstrap.setup_new(
@@ -133,7 +135,7 @@ class AgentServer:
 
             try:
                 log.info("Run %s: starting agent loop", run_id)
-                status = await loop.execute(
+                status = await runner.execute(
                     options, ctx, session, events, tracker, initial,
                 )
                 log.info("Run %s: loop returned status=%s", run_id, status)

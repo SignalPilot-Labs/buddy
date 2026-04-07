@@ -8,6 +8,7 @@ PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
 RATE_LIMIT_MAX_WAIT_SEC = 600      # Max seconds to wait for rate limit reset before stopping
+SESSION_IDLE_TIMEOUT_SEC = 120     # 2 min — nudge agent if no SSE events
 
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200         # Custom prompt preview in API responses and audit

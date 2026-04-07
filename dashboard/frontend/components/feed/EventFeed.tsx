@@ -8,12 +8,23 @@ import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
-export function EventFeed({ events }: { events: FeedEvent[] }) {
+export function EventFeed({ events, runActive = false, runPaused = false }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
 
   const grouped = useMemo(() => groupEvents(events), [events]);
+
+  const lastInterruptionTs = useMemo(() => {
+    const interruptLabels = new Set(["Paused", "Stop Requested", "Resumed"]);
+    for (let i = grouped.length - 1; i >= 0; i--) {
+      const gev = grouped[i];
+      if (gev.type === "milestone" && interruptLabels.has(gev.label)) {
+        return gev.ts;
+      }
+    }
+    return null;
+  }, [grouped]);
 
   useEffect(() => {
     if (autoScroll && containerRef.current) {
@@ -75,7 +86,7 @@ export function EventFeed({ events }: { events: FeedEvent[] }) {
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} />
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
             </ErrorBoundary>
           ))
         )}

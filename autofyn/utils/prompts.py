@@ -56,6 +56,12 @@ class PromptLoader:
             return f"Stop reason: {reason}\n\n{base}"
         return base
 
+    def build_idle_nudge(self, idle_seconds: int) -> str:
+        """Load the idle nudge prompt, formatted with the actual timeout."""
+        minutes = idle_seconds // 60
+        idle_timeout = f"{minutes} minute{'s' if minutes != 1 else ''}"
+        return self._load("query/idle_nudge").replace("{idle_timeout}", idle_timeout)
+
     def load_subagent_prompt(self, name: str) -> str:
         """Load a subagent system prompt from prompts/subagents/{name}.md."""
         return self._load(f"subagents/{name}")

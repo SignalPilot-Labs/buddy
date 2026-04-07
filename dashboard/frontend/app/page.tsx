@@ -80,9 +80,11 @@ export default function MonitorPage() {
     const check = async () => {
       const h = await fetchAgentHealth();
       setAgentHealth((prev) => {
-        if (h.current_run_id && h.current_run_id !== prev?.current_run_id) {
+        const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
+        const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
+        if (newRun) {
           refreshRuns();
-          setSelectedRunId(h.current_run_id);
+          setSelectedRunId(newRun.run_id);
         }
         return h;
       });
@@ -309,6 +311,9 @@ export default function MonitorPage() {
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const isConfigured = settingsStatus?.configured ?? false;
+  const activeRunHealth = selectedRunId
+    ? agentHealth?.runs.find((r) => r.run_id === selectedRunId)
+    : undefined;
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">
@@ -435,8 +440,8 @@ export default function MonitorPage() {
                   ? "Idle"
                   : agentHealth?.active_runs && agentHealth.active_runs > 1
                     ? `${agentHealth.active_runs} runs active`
-                    : agentHealth?.elapsed_minutes != null
-                      ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
+                    : activeRunHealth?.elapsed_minutes != null
+                      ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m`
                       : "Active"}
           </span>
         </div>
@@ -484,16 +489,16 @@ export default function MonitorPage() {
           onUnlock={() => controlAction("Unlock", unlockAgent)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
-          sessionLocked={agentHealth?.session_unlocked === false}
-          timeRemaining={agentHealth?.time_remaining || null}
+          sessionLocked={activeRunHealth?.session_unlocked === false}
+          timeRemaining={activeRunHealth?.time_remaining || null}
         />
       </header>
 
       {/* Mobile Top Bar */}
       <header className="mobile-top-bar items-center justify-between px-3 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]">
         <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="Buddy" width={16} height={16} />
-          <span className="text-[11px] font-bold text-[#e8e8e8]">Buddy</span>
+          <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
+          <span className="text-[11px] font-bold text-[#e8e8e8]">AutoFyn</span>
         </div>
         <div className="flex items-center gap-2">
           <span
@@ -594,7 +599,7 @@ export default function MonitorPage() {
 
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
-            <EventFeed events={allEvents} />
+            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
             <StatsBar run={selectedRun} connected={connected} />
           </main>
 
@@ -648,7 +653,7 @@ export default function MonitorPage() {
           )}
           {mobilePanel === "feed" && (
             <>
-              <EventFeed events={allEvents} />
+              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
               <StatsBar run={selectedRun} connected={connected} />
             </>
           )}

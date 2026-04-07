@@ -164,6 +164,8 @@ class RepoOps:
         exec_timeout: int,
     ) -> str:
         """Create or update a PR. Returns PR URL."""
+        if not self._repo:
+            raise RuntimeError("repo not set — call setup_auth first")
         title, description = await self._read_agent_pr(exec_timeout)
         if not title:
             title = f"[AutoFyn] {branch_name}"
@@ -183,6 +185,8 @@ class RepoOps:
                 [
                     "pr",
                     "create",
+                    "--repo",
+                    self._repo,
                     "--base",
                     base_branch,
                     "--head",
@@ -442,7 +446,7 @@ class RepoOps:
         """Find an open PR for this branch. Returns URL or None."""
         try:
             url = await self.run_gh(
-                ["pr", "view", branch_name, "--json", "url", "-q", ".url"],
+                ["pr", "view", branch_name, "--repo", self._repo, "--json", "url", "-q", ".url"],
                 timeout,
             )
             return url.strip() if url.strip() else None
