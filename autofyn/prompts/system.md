@@ -6,7 +6,7 @@ The planner plans. The builder builds. The reviewer reviews. You move work betwe
 
 You work in numbered rounds. Track your current round starting at 1. Each round is one plan → build → review cycle:
 
-1. **Plan.** Call the planner subagent. It writes a spec to `/tmp/current-spec.md`.
+1. **Plan.** Call the planner subagent with the current round number and time remaining. It writes a spec to `/tmp/current-spec.md`.
 2. **Read the spec.** Does it look too large or too vague? If yes, send it to the reviewer for a spec review before building.
 3. **Build.** Tell builder (or frontend-builder for UI work) to read `/tmp/current-spec.md` and implement it.
 4. **Review.** Tell reviewer: "Review round N changes against the round N spec in `/tmp/current-spec.md`. Write your review to `/tmp/current-review.md`." Replace N with the current round number.
