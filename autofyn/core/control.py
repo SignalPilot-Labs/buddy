@@ -80,16 +80,17 @@ class ControlHandler:
         return ControlAction.no_action()
 
     async def _handle_stop(self, event: dict) -> ControlAction:
-        """Send stop prompt so the orchestrator can wrap up gracefully."""
-        log.info("[%s] STOP requested — sending stop prompt", self._rid)
+        """Interrupt current work, send stop prompt, break stream for re-entry."""
+        log.info("[%s] STOP requested — interrupting and sending stop prompt", self._rid)
         reason = event.get("payload", "")
+        await self._sandbox.interrupt_session(self._session_id)
         await self._sandbox.send_message(
             self._session_id, self._prompts.build_stop_prompt(reason),
         )
         await db.log_audit(self._run_id, "stop_requested", {
             "reason": reason or "Operator stop",
         })
-        return ControlAction.no_action()
+        return ControlAction(stop=False, break_stream=True, final_status=None)
 
     async def _handle_pause(self) -> ControlAction:
         """Interrupt session and wait for resume/stop/inject."""

@@ -98,7 +98,9 @@ class SecurityGate:
             return None
         if not self._branch_name:
             return "git push blocked — no working branch configured"
-        if "origin HEAD" in cmd or f"origin {self._branch_name}" in cmd:
+        if ":" in cmd:
+            return "Refspec pushes are blocked — use 'git push origin HEAD'"
+        if re.search(rf"origin\s+(HEAD|{re.escape(self._branch_name)})(\s|$)", cmd):
             return None
         return f"Can only push to the working branch '{self._branch_name}' — use 'git push origin HEAD'"
 

@@ -27,7 +27,7 @@ class AgentLoop:
 
     Public API:
         execute(session_options, run_context, session, events, tracker,
-                initial_prompt, exec_timeout) -> str
+                initial_prompt) -> str
     """
 
     def __init__(
@@ -63,11 +63,14 @@ class AgentLoop:
 
             log.info("[%s] Session started | Duration: %s",
                      rid, session.time_remaining_str())
-            result = await stream.process()
 
-            if result.should_stop:
-                return result.final_status or "stopped"
-            return "completed"
+            while True:
+                result = await stream.process()
+                if result.should_stop:
+                    return result.final_status or "stopped"
+                if result.session_ended:
+                    return "completed"
+                log.info("[%s] Stream broke, re-entering", rid)
 
         except asyncio.CancelledError:
             await db.log_audit(run_context.run_id, "killed", {

@@ -343,6 +343,18 @@ class TestSecurityGate:
         result = gate.check_permission("Bash", {"command": "git push --force origin HEAD"})
         assert result is None
 
+    def test_blocks_refspec_push_to_main(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin HEAD:main"})
+        assert result is not None
+        assert "refspec" in result.lower()
+
+    def test_blocks_refspec_push_to_refs(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin HEAD:refs/heads/main"})
+        assert result is not None
+        assert "refspec" in result.lower()
+
     def test_allows_push_u_origin_head(self) -> None:
         gate = _make_gate()
         result = gate.check_permission("Bash", {"command": f"git push -u origin HEAD"})
