@@ -50,7 +50,7 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [grouped, autoScroll]);
+  }, [grouped, autoScroll, pendingInject]);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
@@ -101,19 +101,17 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
             <EmptyEvents />
           </div>
         ) : (
-          <>
-            {grouped.map((gev, i) => (
-              <ErrorBoundary
-                key={`g-${i}`}
-                fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
-              >
-                <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingInject} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
-              </ErrorBoundary>
-            ))}
-            {pendingInject && (
-              <PendingInjectBubble prompt={pendingInject.prompt} ts={pendingInject.ts} />
-            )}
-          </>
+          grouped.map((gev, i) => (
+            <ErrorBoundary
+              key={`g-${i}`}
+              fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+            >
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingInject} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
+            </ErrorBoundary>
+          ))
+        )}
+        {pendingInject && (
+          <PendingInjectBubble prompt={pendingInject.prompt} ts={pendingInject.ts} />
         )}
       </div>
 

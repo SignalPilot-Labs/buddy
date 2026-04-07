@@ -52,7 +52,7 @@ export default function MonitorPage() {
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
-  const [pendingInject, setPendingInject] = useState<{ prompt: string; ts: string } | null>(null);
+  const [pendingInject, setPendingInject] = useState<{ prompt: string; ts: string; knownCount: number } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -62,14 +62,18 @@ export default function MonitorPage() {
     [historyEvents, liveEvents],
   );
 
-  // Clear pending inject when real prompt_injected audit event arrives
+  // Count prompt_injected events in the live SSE stream (resets on run change)
+  const injectedCount = useMemo(
+    () => liveEvents.filter((e) => e._kind === "audit" && e.data.event_type === "prompt_injected").length,
+    [liveEvents],
+  );
+
+  // Clear pending bubble when backend delivers a new prompt_injected, or on run switch
   useEffect(() => {
     if (!pendingInject) return;
-    const hasReal = allEvents.some(
-      (e) => e._kind === "audit" && e.data.event_type === "prompt_injected" && e.data.ts >= pendingInject.ts,
-    );
-    if (hasReal) setPendingInject(null);
-  }, [allEvents, pendingInject]);
+    if (injectedCount > pendingInject.knownCount) setPendingInject(null);
+  }, [injectedCount, pendingInject]);
+  useEffect(() => { setPendingInject(null); }, [selectedRunId]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -533,7 +537,7 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            setPendingInject({ prompt, ts: new Date().toISOString() });
+            setPendingInject({ prompt, ts: new Date().toISOString(), knownCount: injectedCount });
             apiInjectPrompt(selectedRunId, prompt).catch((e) => {
               setPendingInject(null);
               addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
