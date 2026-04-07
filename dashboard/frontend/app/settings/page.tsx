@@ -7,6 +7,7 @@ import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
+import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
 import { apiFetch } from "@/lib/fetch";
@@ -42,7 +43,7 @@ const FIELDS: FieldConfig[] = [
 function ExtendedContextSetting() {
   const [enabled, setEnabled] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("buddy_extended_context") === "1";
+      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
     }
     return false;
   });
@@ -50,7 +51,7 @@ function ExtendedContextSetting() {
   const toggle = () => {
     const next = !enabled;
     setEnabled(next);
-    localStorage.setItem("buddy_extended_context", next ? "1" : "0");
+    localStorage.setItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY, next ? "1" : "0");
   };
 
   return (

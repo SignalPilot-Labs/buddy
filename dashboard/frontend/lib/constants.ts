@@ -28,6 +28,19 @@ export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
 // Fetch limits
 export const HISTORY_FETCH_LIMIT = 500;
 
+// Container logs
+export const CONTAINER_LOGS_POLL_MS = 3000;
+export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
+
+// localStorage keys
+export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "buddy_extended_context";
+
+// startRun defaults
+export const START_RUN_DEFAULT_BUDGET = 0;
+export const START_RUN_DEFAULT_DURATION = 0;
+export const START_RUN_DEFAULT_BRANCH = "main";
+export const START_RUN_DEFAULT_EXTENDED_CONTEXT = false;
+
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.
   // Client-side: use empty string so all /api/* requests go to the same origin

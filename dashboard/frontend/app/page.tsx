@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
@@ -149,8 +149,8 @@ export default function MonitorPage() {
 
       try {
         const [tools, audits] = await Promise.all([
-          fetchToolCalls(id),
-          fetchAuditLog(id),
+          fetchToolCalls(id, HISTORY_FETCH_LIMIT),
+          fetchAuditLog(id, HISTORY_FETCH_LIMIT),
         ]);
 
         if (gen !== selectGenRef.current) return;

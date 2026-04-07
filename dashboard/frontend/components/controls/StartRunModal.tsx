@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
+import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
 
 function BranchPicker({
   branches,
@@ -180,7 +181,7 @@ export function StartRunModal({
   const [extendedContext, setExtendedContext] = useState(() => {
     if (defaultExtendedContext) return true;
     if (typeof window !== "undefined") {
-      return localStorage.getItem("buddy_extended_context") === "1";
+      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
     }
     return false;
   });
