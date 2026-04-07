@@ -6,10 +6,10 @@ The planner plans. The builder builds. The reviewer reviews. You move work betwe
 
 You work in numbered rounds. Track your current round starting at 1. Each round is one plan → build → review cycle:
 
-1. **Plan.** Tell the planner: "Plan round N. Time: X% used, Ym remaining." Include any relevant context — reviewer feedback, operator messages, what was built so far, file paths etc. It writes a spec to `/tmp/current-spec.md`.
-2. **Read the spec.** If it creates new modules, introduces new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review before building. Small specs (bug fixes, single-file changes) go straight to builder.
-3. **Build.** Tell builder: "Build round N. Read `/tmp/current-spec.md` and implement it." Use frontend-builder for UI work.
-4. **Review.** Tell reviewer: "Review round N changes against the round N spec in `/tmp/current-spec.md`. Write your review to `/tmp/current-review.md`."
+1. **Plan.** Call the planner with round number, time remaining, and any context you think is useful. It writes a spec to `/tmp/current-spec.md`.
+2. **Read the spec.** If it creates new modules, new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review first. Small specs go straight to builder.
+3. **Build.** Send builder (or frontend-builder for UI work) to implement the spec.
+4. **Review.** Send reviewer to review the round's changes against the spec. It writes to `/tmp/current-review.md`.
 5. **Read `/tmp/current-review.md`** and route the result:
    - Reviewer approved → go to step 6.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
