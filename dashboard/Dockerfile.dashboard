@@ -1,6 +1,7 @@
 # Versions pinned in build.sh (source of truth).
 ARG PYTHON_VERSION=3.12
 ARG NODE_VERSION=22
+ARG UV_VERSION=0.11
 
 # Stage 1: Build Next.js app (standalone output — no node_modules in final image)
 FROM node:${NODE_VERSION}-slim AS builder
@@ -10,6 +11,9 @@ COPY dashboard/frontend/package.json dashboard/frontend/package-lock.json* ./
 RUN npm ci || npm install
 COPY dashboard/frontend/ ./
 RUN npm run build
+
+# uv binary stage
+FROM docker.io/astral/uv:${UV_VERSION} AS uv
 
 # Stage 2: FastAPI backend + Next.js standalone server
 ARG PYTHON_VERSION
@@ -26,10 +30,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && \
 WORKDIR /app
 
 # uv for fast Python installs
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 # Create non-root user BEFORE copying app files (avoids slow chown -R)
-RUN useradd -m appuser && mkdir -p /data && chown appuser:appuser /data
+RUN useradd -m appuser && mkdir -p /data && chown appuser:appuser /app /data
 
 # Config (required by db/connection.py)
 COPY --chown=appuser:appuser config/ /app/config/

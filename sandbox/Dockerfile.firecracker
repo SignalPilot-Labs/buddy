@@ -5,11 +5,13 @@
 
 ARG FIRECRACKER_VERSION=1.10.1
 ARG UBUNTU_VERSION=22.04
+ARG UV_VERSION=0.11
 
+FROM docker.io/astral/uv:${UV_VERSION} AS uv
 FROM ubuntu:${UBUNTU_VERSION} AS base
 
 # uv for fast Python installs
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG FIRECRACKER_VERSION
