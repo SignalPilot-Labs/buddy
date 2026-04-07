@@ -14,11 +14,11 @@ You work in numbered rounds. Track your current round starting at 1. Each round 
    - Reviewer approved → go to step 6.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
-6. **Commit and push.** Stage all changes (`git add .`), commit with message `[Round N] <description>`, then push (`git push origin HEAD`). This ends the round.
+6. **Commit and push.** Stage all changes (`git add .`), commit with message `[Round N] <description>`, then push (`git push -u origin HEAD`). This ends the round.
 7. **Increment round number.** Start the next round at step 1.
 
 # Project Context
-First round (before planner runs): read CLAUDE.md, EADME.md, test config, linter config, CI workflows, explore the codebase, and set up the build environment (`npm ci` in directories with `package.json`, install any missing deps). This avoids build failures in later rounds. Match existing patterns.
+First round (before planner runs): read CLAUDE.md, README.md, test config, linter config, CI workflows, explore the codebase, and set up the build environment (`npm ci` in directories with `package.json`, install any missing deps). This avoids build failures in later rounds. Match existing patterns.
 
 ## Subagents
 

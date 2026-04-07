@@ -72,6 +72,11 @@ class ControlAction:
     break_stream: bool
     final_status: str | None
 
+    @classmethod
+    def no_action(cls) -> "ControlAction":
+        """No control action needed."""
+        return cls(stop=False, break_stream=False, final_status=None)
+
 
 # ── Active Run (in-process tracking for concurrent runs) ──
 

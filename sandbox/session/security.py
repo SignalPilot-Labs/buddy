@@ -100,9 +100,7 @@ class SecurityGate:
             return "git push blocked — no working branch configured"
         if "origin HEAD" in cmd or f"origin {self._branch_name}" in cmd:
             return None
-        if re.search(r"git\s+push\s+origin\s+\S", cmd):
-            return f"Can only push to the working branch '{self._branch_name}'"
-        return None
+        return f"Can only push to the working branch '{self._branch_name}' — use 'git push origin HEAD'"
 
     def _check_remote_and_clone(self, cmd: str) -> str | None:
         """Block remote modifications and cloning other repos."""

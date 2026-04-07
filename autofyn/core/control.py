@@ -55,6 +55,7 @@ class ControlHandler:
         self._model = model
         self._fallback_model = fallback_model
         self._rid = run_id[:8]
+        self._pending_injects: list[str] = []
 
     # ── Urgent Control (per SSE event) ──
 
@@ -62,7 +63,7 @@ class ControlHandler:
         """Non-blocking check for urgent control events."""
         event = await self._events.drain()
         if not event:
-            return ControlAction(stop=False, break_stream=False, final_status=None)
+            return ControlAction.no_action()
 
         kind = event["event"]
 
@@ -75,8 +76,8 @@ class ControlHandler:
         if kind == "stuck_recovery":
             return await self._handle_stuck_recovery(event)
         if kind == "inject":
-            self._events.push("inject", event.get("payload"))
-        return ControlAction(stop=False, break_stream=False, final_status=None)
+            self._pending_injects.append(event.get("payload", ""))
+        return ControlAction.no_action()
 
     async def _handle_stop(self, event: dict) -> ControlAction:
         """Interrupt session immediately."""
@@ -106,13 +107,13 @@ class ControlHandler:
             return ControlAction(stop=False, break_stream=True, final_status=None)
         if result == "unlock":
             return await self._handle_unlock()
-        return ControlAction(stop=False, break_stream=False, final_status=None)
+        return ControlAction.no_action()
 
     async def _handle_unlock(self) -> ControlAction:
         """Force-unlock the session time lock."""
         self._session.force_unlock()
         await db.log_audit(self._run_id, "session_unlocked", {})
-        return ControlAction(stop=False, break_stream=False, final_status=None)
+        return ControlAction.no_action()
 
     async def _handle_stuck_recovery(self, event: dict) -> ControlAction:
         """Interrupt session and send recovery instructions."""
@@ -155,18 +156,12 @@ class ControlHandler:
             pct = min(100, int((elapsed / duration) * 100))
             parts.append(f"⏱ {pct}% time used — {remaining} remaining.")
 
-        event = await self._events.drain()
-        while event:
-            if event["event"] == "inject":
-                prompt = event.get("payload", "")
-                await db.log_audit(run_context.run_id, "prompt_injected", {
-                    "prompt": prompt, "delivery": "immediate",
-                })
-                parts.append(f"Operator message: {prompt}")
-            else:
-                self._events.push(event["event"], event.get("payload"))
-                break
-            event = await self._events.drain()
+        for prompt in self._pending_injects:
+            await db.log_audit(run_context.run_id, "prompt_injected", {
+                "prompt": prompt, "delivery": "immediate",
+            })
+            parts.append(f"Operator message: {prompt}")
+        self._pending_injects.clear()
 
         if parts:
             await self._sandbox.send_message(
@@ -186,7 +181,7 @@ class ControlHandler:
             "utilization": data.get("utilization"),
         })
         if data.get("status") != "rejected":
-            return ControlAction(stop=False, break_stream=False, final_status=None)
+            return ControlAction.no_action()
 
         resets_at = data.get("resets_at")
         wait_sec = max(0, resets_at - time.time()) if resets_at else 0
@@ -198,7 +193,7 @@ class ControlHandler:
                 "primary_model": self._model,
                 "fallback_model": self._fallback_model,
             })
-            return ControlAction(stop=False, break_stream=False, final_status=None)
+            return ControlAction.no_action()
 
         if resets_at and 0 < wait_sec <= RATE_LIMIT_MAX_WAIT_SEC:
             return await self._wait_for_rate_limit(
@@ -236,5 +231,5 @@ class ControlHandler:
                 return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
         await db.update_run_status(run_id, "running")
         log.info("[%s] Rate limit reset, resuming", self._rid)
-        return ControlAction(stop=False, break_stream=False, final_status=None)
+        return ControlAction.no_action()
 

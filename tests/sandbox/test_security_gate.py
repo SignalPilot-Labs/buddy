@@ -326,6 +326,28 @@ class TestSecurityGate:
         assert result is not None
         assert "working branch" in result.lower()
 
+    def test_blocks_bare_git_push(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push"})
+        assert result is not None
+        assert "working branch" in result.lower()
+
+    def test_blocks_git_push_origin_no_branch(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push origin"})
+        assert result is not None
+        assert "working branch" in result.lower()
+
+    def test_allows_force_push_to_working_branch(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": "git push --force origin HEAD"})
+        assert result is None
+
+    def test_allows_push_u_origin_head(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission("Bash", {"command": f"git push -u origin HEAD"})
+        assert result is None
+
     def test_blocks_push_when_no_branch_configured(self) -> None:
         gate = SecurityGate(REPO, "")
         result = gate.check_permission("Bash", {"command": "git push origin HEAD"})

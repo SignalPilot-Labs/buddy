@@ -67,8 +67,6 @@ class AgentLoop:
 
             if result.should_stop:
                 return result.final_status or "stopped"
-            if result.session_ended:
-                return "completed"
             return "completed"
 
         except asyncio.CancelledError:
