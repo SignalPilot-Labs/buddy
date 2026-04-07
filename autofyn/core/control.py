@@ -30,7 +30,7 @@ class ControlHandler:
     """Handles operator events, time updates, and rate limits.
 
     Public API:
-        check_control_event() -> ControlAction
+        handle_event(event) -> ControlAction
         on_subagent_complete(run_context) -> None
         handle_rate_limit(data, run_context) -> ControlAction
     """
@@ -63,14 +63,10 @@ class ControlHandler:
         """Whether the operator has requested a stop."""
         return self._stop_requested
 
-    # ── Urgent Control (per SSE event) ──
+    # ── Urgent Control ──
 
-    async def check_control_event(self) -> ControlAction:
-        """Non-blocking check for urgent control events."""
-        event = await self._events.drain()
-        if not event:
-            return ControlAction.no_action()
-
+    async def handle_event(self, event: dict) -> ControlAction:
+        """Handle a control event delivered by the stream processor."""
         kind = event["event"]
 
         if kind == "stop":
@@ -97,25 +93,33 @@ class ControlHandler:
             "reason": reason or "Operator stop",
         })
         self._stop_requested = True
-        return ControlAction(stop=False, break_stream=True, final_status=None)
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
     async def _handle_pause(self) -> ControlAction:
-        """Interrupt session and wait for resume/stop/inject."""
+        """Interrupt session and signal the runner to enter pause mode."""
         await self._sandbox.interrupt_session(self._session_id)
+        await db.log_audit(self._run_id, "pause_requested", {})
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=True)
+
+    async def resolve_pause(self) -> ControlAction:
+        """Block until resume/stop/inject arrives. Called by SessionRunner after tasks are cancelled."""
         result = await self._events.handle_pause(self._run_id)
 
         if result == "stop":
-            return ControlAction(stop=True, break_stream=False, final_status="stopped")
+            return ControlAction(stop=True, break_stream=False, final_status="stopped", pause=False)
         if result == "resume":
+            await db.log_audit(self._run_id, "resumed", {})
             await self._sandbox.send_message(
                 self._session_id, self._prompts.build_continuation_prompt(),
             )
-            return ControlAction(stop=False, break_stream=True, final_status=None)
+            return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result.startswith("inject:"):
+            prompt = result[7:]
+            await db.log_audit(self._run_id, "resumed", {"via": "inject", "prompt": prompt[:100]})
             await self._sandbox.send_message(
-                self._session_id, f"Operator message: {result[7:]}",
+                self._session_id, f"Operator message: {prompt}",
             )
-            return ControlAction(stop=False, break_stream=True, final_status=None)
+            return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result == "unlock":
             return await self._handle_unlock()
         return ControlAction.no_action()
@@ -152,7 +156,7 @@ class ControlHandler:
             "stuck_info": stuck_info, "recovery_prompt": recovery,
         })
         await self._sandbox.send_message(self._session_id, recovery)
-        return ControlAction(stop=False, break_stream=True, final_status=None)
+        return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
     # ── Subagent Boundary ──
 
@@ -220,12 +224,16 @@ class ControlHandler:
             "resets_at": resets_at,
             "wait_seconds": int(wait_sec) if resets_at else None,
         })
-        return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+        return ControlAction(stop=True, break_stream=False, final_status="rate_limited", pause=False)
 
     async def _wait_for_rate_limit(
         self, run_id: str, wait_sec: float, resets_at: float,
     ) -> ControlAction:
-        """Sleep until rate limit resets, checking for stop events."""
+        """Sleep until rate limit resets or a stop event arrives (zero-latency).
+
+        Non-stop events (pause, inject, unlock) are re-queued so they aren't
+        lost while waiting for the rate limit to reset.
+        """
         log.info("[%s] Rate limited. Waiting %dm for reset...",
                  self._rid, int(wait_sec / 60))
         await db.update_run_status(run_id, "rate_limited")
@@ -233,13 +241,25 @@ class ControlHandler:
         await db.log_audit(run_id, "rate_limit_waiting", {
             "resets_at": resets_at, "wait_seconds": int(wait_sec),
         })
-        remaining = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
-        while remaining > 0:
-            await asyncio.sleep(min(remaining, 10))
-            remaining -= 10
-            event = await self._events.drain()
-            if event and event["event"] == "stop":
-                return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+        total_wait = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
+        sleep_task = asyncio.create_task(asyncio.sleep(total_wait))
+        control_task = asyncio.create_task(self._events.wait_for_event())
+        try:
+            while True:
+                done, _ = await asyncio.wait(
+                    {sleep_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
+                )
+                if sleep_task in done:
+                    break
+                if control_task in done:
+                    event = control_task.result()
+                    if event["event"] == "stop":
+                        return ControlAction(stop=True, break_stream=False, final_status="rate_limited", pause=False)
+                    self._events.push(event["event"], event.get("payload"))
+                    control_task = asyncio.create_task(self._events.wait_for_event())
+        finally:
+            sleep_task.cancel()
+            control_task.cancel()
         await db.update_run_status(run_id, "running")
         log.info("[%s] Rate limit reset, resuming", self._rid)
         return ControlAction.no_action()

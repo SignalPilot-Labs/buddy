@@ -51,3 +51,13 @@ POLL_LIMIT_DEFAULT = 100
 QUERY_DEFAULT_LIMIT: int = 200
 LOG_TAIL_DEFAULT: int = 500
 LOG_TAIL_MAX: int = 5000
+
+# Signal → agent endpoint path mapping (used by send_control_signal)
+SIGNAL_AGENT_PATHS: dict[str, str] = {
+    "pause": "/pause",
+    "resume": "/resume_signal",
+    "stop": "/stop",
+    "unlock": "/unlock",
+    "inject": "/inject",
+    "kill": "/kill",
+}

@@ -7,7 +7,9 @@ export const API_PORT = 3401;
 export const UI_PORT = 3400;
 /** API key injected by entrypoint.sh into /public/config.js at runtime. */
 declare global {
-  interface Window { __AUTOFYN_API_KEY__?: string; }
+  interface Window {
+    __AUTOFYN_API_KEY__?: string;
+  }
 }
 
 export function getApiKey(): string {
@@ -33,7 +35,7 @@ export const CONTAINER_LOGS_POLL_MS = 3000;
 export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
 
 // localStorage keys
-export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "buddy_extended_context";
+export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "autofyn_extended_context";
 
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.

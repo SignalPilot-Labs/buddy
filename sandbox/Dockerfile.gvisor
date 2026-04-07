@@ -9,8 +9,13 @@
 ARG PYTHON_VERSION=3.12
 ARG NODE_VERSION=22
 ARG GVISOR_VERSION=20260323.0
+ARG UV_VERSION=0.11
 
+FROM docker.io/astral/uv:${UV_VERSION} AS uv
 FROM python:${PYTHON_VERSION}-slim
+
+# uv for fast Python installs
+COPY --from=uv /uv /usr/local/bin/uv
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG GVISOR_VERSION
@@ -54,31 +59,34 @@ RUN npm install -g \
 
 RUN mkdir -p /opt/autofyn
 
-# Config (for sandbox config loading)
-COPY config/ /opt/autofyn/config/
-
-# Sandbox packages
-COPY sandbox/pyproject.toml /opt/autofyn/
-RUN pip install --no-cache-dir /opt/autofyn/
-
-COPY sandbox/constants.py /opt/autofyn/
-COPY sandbox/server.py /opt/autofyn/
-COPY sandbox/session/ /opt/autofyn/session/
-
-# Shared DB package (for direct audit logging)
-COPY db/pyproject.toml /opt/autofyn/db/pyproject.toml
-COPY db/__init__.py /opt/autofyn/db/__init__.py
-RUN pip install --no-cache-dir /opt/autofyn/db/
-COPY db/ /opt/autofyn/db/
-
-# Skills (copied at build time, not via API)
-COPY autofyn/skills/ /opt/autofyn/skills/
-
-# Create non-root user for Claude SDK
+# Create non-root user BEFORE copying app files (avoids slow chown -R)
 RUN useradd -m agentuser \
     && mkdir -p /home/agentuser/.claude /home/agentuser/repo \
     && echo '{}' > /home/agentuser/.claude.json \
-    && chown -R agentuser:agentuser /opt/autofyn /home/agentuser
+    && chown agentuser:agentuser /home/agentuser/.claude /home/agentuser/repo /home/agentuser/.claude.json
+
+# Config (for sandbox config loading)
+COPY --chown=agentuser:agentuser config/ /opt/autofyn/config/
+
+# Sandbox packages — deps first for layer caching
+COPY --chown=agentuser:agentuser sandbox/pyproject.toml /opt/autofyn/
+RUN uv pip install --system --no-cache /opt/autofyn/
+
+# Source code (changes here don't bust dep install cache)
+COPY --chown=agentuser:agentuser sandbox/constants.py /opt/autofyn/
+COPY --chown=agentuser:agentuser sandbox/server.py /opt/autofyn/
+COPY --chown=agentuser:agentuser sandbox/session/ /opt/autofyn/session/
+
+# Shared DB package — deps first for layer caching
+COPY --chown=agentuser:agentuser db/pyproject.toml /opt/autofyn/db/pyproject.toml
+COPY --chown=agentuser:agentuser db/__init__.py /opt/autofyn/db/__init__.py
+RUN uv pip install --system --no-cache /opt/autofyn/db/
+COPY --chown=agentuser:agentuser db/ /opt/autofyn/db/
+
+# Skills (copied at build time, not via API)
+COPY --chown=agentuser:agentuser autofyn/skills/ /opt/autofyn/skills/
+
+RUN chown agentuser:agentuser /opt/autofyn
 
 USER agentuser
 

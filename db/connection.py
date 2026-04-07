@@ -4,10 +4,15 @@ All connection parameters come from config/loader.py (config.yml + env overrides
 No hardcoded defaults here — config.yml is the single source of truth.
 """
 
+import logging
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from config.loader import database_config
 from db.models import Base
+
+log = logging.getLogger("db.connection")
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -42,6 +47,37 @@ async def create_tables() -> None:
         raise RuntimeError("Not connected. Call connect() first.")
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def run_migrations() -> None:
+    """Reconcile DB schema with ORM models on startup.
+
+    SQLAlchemy's create_all won't alter existing constraints, so we handle
+    known migrations here. Each migration is idempotent and safe to re-run.
+    """
+    if _engine is None:
+        raise RuntimeError("Not connected. Call connect() first.")
+    async with _engine.begin() as conn:
+        await _migrate_control_signals_constraint(conn)
+
+
+async def _migrate_control_signals_constraint(conn) -> None:
+    """Ensure control_signals check constraint includes all valid signals."""
+    expected = "('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')"
+    result = await conn.execute(text(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'ck_control_signals_signal'"
+    ))
+    row = result.first()
+    if row is None:
+        return
+    if "'kill'" not in (row[0] or ""):
+        await conn.execute(text("ALTER TABLE control_signals DROP CONSTRAINT ck_control_signals_signal"))
+        await conn.execute(text(
+            f"ALTER TABLE control_signals ADD CONSTRAINT ck_control_signals_signal "
+            f"CHECK (signal IN {expected})"
+        ))
+        log.info("Migrated ck_control_signals_signal constraint")
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:

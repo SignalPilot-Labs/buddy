@@ -508,8 +508,8 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
 /* ── Agent Run ── */
 const IDLE_WARN_MS = 60_000; // 1 min — show warning (backend handles kill at 10 min)
 
-function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
-  tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string
+function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = false, runPaused = false }: {
+  tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string; runActive?: boolean; runPaused?: boolean
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -519,7 +519,7 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts }: {
   const description = (input.description as string) || "Sub-agent task";
   const prompt = (input.prompt as string) || "";
   const subType = agentType || (input.subagent_type as string) || "general";
-  const isPending = tool.phase === "pre" && !tool.output_data;
+  const isPending = runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
 
   const lastActivityTs = childTools.length > 0
     ? new Date(childTools[childTools.length - 1].ts).getTime()
@@ -945,7 +945,11 @@ function MilestoneCard({ label, detail, color, ts }: { label: string; detail: st
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border" style={{ borderColor: `${color}20`, background: `${color}06` }}>
         <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
         <span className="text-[10px] font-semibold" style={{ color }}>{label}</span>
-        {detail && <span className="text-[9px] text-[#666] max-w-[300px] truncate">{detail}</span>}
+        {detail && (detail.startsWith("http") ? (
+          <a href={detail} target="_blank" rel="noopener noreferrer" className="text-[9px] text-[#666] max-w-[300px] truncate hover:text-[#aaa] underline underline-offset-2">{detail}</a>
+        ) : (
+          <span className="text-[9px] text-[#666] max-w-[300px] truncate">{detail}</span>
+        ))}
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
@@ -968,7 +972,7 @@ function DividerCard({ label }: { label: string }) {
    MAIN DISPATCHER
    ═══════════════════════════════════════ */
 
-export function GroupedEventCard({ event, isLast = false }: { event: GroupedEvent; isLast?: boolean }) {
+export function GroupedEventCard({ event, isLast = false, runActive = false, runPaused = false }: { event: GroupedEvent; isLast?: boolean; runActive?: boolean; runPaused?: boolean }) {
   switch (event.type) {
     case "llm_message":
       return <LLMMessageCard role={event.role} text={event.text} thinking={event.thinking} ts={event.ts} isLast={isLast} />;
@@ -981,7 +985,7 @@ export function GroupedEventCard({ event, isLast = false }: { event: GroupedEven
     case "playwright_group":
       return <PlaywrightGroupCard tools={event.tools} ts={event.ts} totalDuration={event.totalDuration} />;
     case "agent_run":
-      return <AgentRunCard tool={event.tool} childTools={event.childTools} finalText={event.finalText} agentType={event.agentType} ts={event.ts} />;
+      return <AgentRunCard tool={event.tool} childTools={event.childTools} finalText={event.finalText} agentType={event.agentType} ts={event.ts} runActive={runActive} runPaused={runPaused} />;
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
     case "usage_tick":

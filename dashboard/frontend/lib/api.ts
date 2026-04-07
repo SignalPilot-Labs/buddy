@@ -97,25 +97,32 @@ export async function pollEvents(
   return res.json();
 }
 
-export interface AgentHealth {
-  status: "idle" | "running" | "bootstrapping" | "unreachable";
-  current_run_id: string | null;
-  active_runs?: number;
-  max_concurrent?: number;
+export interface HealthRunEntry {
+  run_id: string;
+  status: string;
+  started_at: number;
   elapsed_minutes?: number | null;
   time_remaining?: string | null;
   session_unlocked?: boolean | null;
-  error?: string;
 }
+
+export interface AgentHealth {
+  status: "idle" | "running" | "bootstrapping" | "unreachable";
+  active_runs: number;
+  max_concurrent: number;
+  runs: HealthRunEntry[];
+}
+
+const UNREACHABLE_HEALTH: AgentHealth = { status: "unreachable", active_runs: 0, max_concurrent: 0, runs: [] };
 
 export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
     const res = await apiFetch(`/api/agent/health`);
-    if (!res.ok) return { status: "unreachable", current_run_id: null };
+    if (!res.ok) return UNREACHABLE_HEALTH;
     return res.json();
   } catch (err) {
     console.warn("Agent health check failed:", err);
-    return { status: "unreachable", current_run_id: null };
+    return UNREACHABLE_HEALTH;
   }
 }
 
@@ -144,9 +151,12 @@ export async function startRun(
   return res.json();
 }
 
-export async function stopAgentInstant(runId?: string): Promise<{ ok: boolean }> {
-  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  const res = await apiFetch(`/api/agent/stop${qs}`, { method: "POST" });
+export async function stopAgentInstant(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/stop`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -154,9 +164,8 @@ export async function stopAgentInstant(runId?: string): Promise<{ ok: boolean }>
   return res.json();
 }
 
-export async function killAgent(runId?: string): Promise<{ ok: boolean }> {
-  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  const res = await apiFetch(`/api/agent/kill${qs}`, { method: "POST" });
+export async function killAgent(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/kill`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -164,9 +173,8 @@ export async function killAgent(runId?: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function pauseAgent(runId?: string): Promise<{ ok: boolean }> {
-  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  const res = await apiFetch(`/api/agent/pause${qs}`, { method: "POST" });
+export async function pauseAgent(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/pause`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -174,9 +182,8 @@ export async function pauseAgent(runId?: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function unlockAgent(runId?: string): Promise<{ ok: boolean }> {
-  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  const res = await apiFetch(`/api/agent/unlock${qs}`, { method: "POST" });
+export async function unlockAgent(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/unlock`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);
@@ -184,9 +191,12 @@ export async function unlockAgent(runId?: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function resumeAgent(runId?: string): Promise<{ ok: boolean }> {
-  const qs = runId ? `?run_id=${encodeURIComponent(runId)}` : "";
-  const res = await apiFetch(`/api/agent/resume_signal${qs}`, { method: "POST" });
+export async function resumeAgent(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);

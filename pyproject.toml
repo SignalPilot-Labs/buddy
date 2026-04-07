@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["autofyn", "dashboard", "sandbox", "db", "."]
+asyncio_mode = "auto"

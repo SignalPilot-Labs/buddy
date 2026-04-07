@@ -250,12 +250,15 @@ export type AuditEventType =
   | "fatal_error"
   | "rate_limit_paused"
   | "stop_requested"
+  | "pause_requested"
+  | "resumed"
   | "subagent_start"
   | "subagent_complete"
   | "subagent_stuck"
   | "subagent_timeout"
   | "stuck_recovery"
   | "prompt_injected"
+  | "prompt_submitted"
   | "session_resumed"
   | "push_failed"
   | "auto_commit"
@@ -288,6 +291,8 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  pause_requested:     { label: "Paused",            color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  resumed:             { label: "Resumed",           color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_timeout:    { label: "Subagent Timeout",  color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },

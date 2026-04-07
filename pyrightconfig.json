@@ -1,7 +1,9 @@
 {
   "extraPaths": [
     "autofyn",
-    "sandbox"
+    "sandbox",
+    "dashboard",
+    "db"
   ],
   "include": [
     "."
