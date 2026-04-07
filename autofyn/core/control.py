@@ -30,7 +30,7 @@ class ControlHandler:
     """Handles operator events, time updates, and rate limits.
 
     Public API:
-        check_control_event() -> ControlAction
+        handle_event(event) -> ControlAction
         on_subagent_complete(run_context) -> None
         handle_rate_limit(data, run_context) -> ControlAction
     """
@@ -63,14 +63,10 @@ class ControlHandler:
         """Whether the operator has requested a stop."""
         return self._stop_requested
 
-    # ── Urgent Control (per SSE event) ──
+    # ── Urgent Control ──
 
-    async def check_control_event(self) -> ControlAction:
-        """Non-blocking check for urgent control events."""
-        event = await self._events.drain()
-        if not event:
-            return ControlAction.no_action()
-
+    async def handle_event(self, event: dict) -> ControlAction:
+        """Handle a control event delivered by the stream processor."""
         kind = event["event"]
 
         if kind == "stop":
@@ -225,7 +221,7 @@ class ControlHandler:
     async def _wait_for_rate_limit(
         self, run_id: str, wait_sec: float, resets_at: float,
     ) -> ControlAction:
-        """Sleep until rate limit resets, checking for stop events."""
+        """Sleep until rate limit resets or a stop event arrives (zero-latency)."""
         log.info("[%s] Rate limited. Waiting %dm for reset...",
                  self._rid, int(wait_sec / 60))
         await db.update_run_status(run_id, "rate_limited")
@@ -233,13 +229,18 @@ class ControlHandler:
         await db.log_audit(run_id, "rate_limit_waiting", {
             "resets_at": resets_at, "wait_seconds": int(wait_sec),
         })
-        remaining = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
-        while remaining > 0:
-            await asyncio.sleep(min(remaining, 10))
-            remaining -= 10
-            event = await self._events.drain()
-            if event and event["event"] == "stop":
+        total_wait = wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC
+        sleep_task = asyncio.create_task(asyncio.sleep(total_wait))
+        control_task = asyncio.create_task(self._events.wait_for_event())
+        try:
+            done, _ = await asyncio.wait(
+                {sleep_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
+            )
+            if control_task in done and control_task.result()["event"] == "stop":
                 return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+        finally:
+            sleep_task.cancel()
+            control_task.cancel()
         await db.update_run_status(run_id, "running")
         log.info("[%s] Rate limit reset, resuming", self._rid)
         return ControlAction.no_action()

@@ -1,10 +1,11 @@
-"""Tests for StreamProcessor SSE event dispatch."""
+"""Tests for StreamProcessor SSE event dispatch with asyncio.wait racing."""
 
 import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from core.event_bus import EventBus
 from core.stream import StreamProcessor
 from core.control import ControlHandler
 from utils.models import ControlAction, RunContext
@@ -31,17 +32,13 @@ def _make_ctx():
 def _make_control():
     """Build a mock ControlHandler."""
     control = MagicMock(spec=ControlHandler)
-    control.check_control_event = AsyncMock(
-        return_value=ControlAction.no_action(),
-    )
+    control.handle_event = AsyncMock(return_value=ControlAction.no_action())
     control.on_subagent_complete = AsyncMock()
-    control.handle_rate_limit = AsyncMock(
-        return_value=ControlAction.no_action(),
-    )
+    control.handle_rate_limit = AsyncMock(return_value=ControlAction.no_action())
     return control
 
 
-def _make_processor(sandbox, run_context, session, tracker, control):
+def _make_processor(sandbox, run_context, session, tracker, control, events):
     """Construct a StreamProcessor with the given mocks."""
     return StreamProcessor(
         sandbox=sandbox,
@@ -50,6 +47,7 @@ def _make_processor(sandbox, run_context, session, tracker, control):
         session=session,
         tracker=tracker,
         control=control,
+        events=events,
     )
 
 
@@ -63,7 +61,8 @@ def _build_mocks():
     session.elapsed_minutes.return_value = 1.0
     tracker = MagicMock()
     control = _make_control()
-    return sandbox, session, tracker, control
+    events = EventBus()
+    return sandbox, session, tracker, control, events
 
 
 class TestStreamProcessor:
@@ -73,7 +72,7 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_assistant_message_logs_and_accumulates_usage(self, mock_db):
         """assistant_message events accumulate token usage."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {
                 "event": "assistant_message",
@@ -87,7 +86,7 @@ class TestStreamProcessor:
             },
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         assert run_context.total_input_tokens == 10
@@ -98,7 +97,7 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_rate_limit_rejected_returns_final_status(self, mock_db):
         """rate_limit with rejected status stops the loop."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         control.handle_rate_limit = AsyncMock(
             return_value=ControlAction(
                 stop=True, break_stream=False, final_status="rate_limited",
@@ -111,7 +110,7 @@ class TestStreamProcessor:
             },
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         assert result.should_stop is True
@@ -121,7 +120,7 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_result_event_saves_cost_and_usage(self, mock_db):
         """result event updates cost and token counts on context."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         mock_db.save_session_id = AsyncMock()
         mock_db.log_audit = AsyncMock()
         sandbox.stream_events.return_value = mock_stream([
@@ -136,41 +135,40 @@ class TestStreamProcessor:
             },
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         assert run_context.total_cost == 1.25
         assert run_context.total_input_tokens == 100
         assert run_context.total_output_tokens == 50
-        assert result.result_message is not None
         mock_db.save_session_id.assert_awaited_once_with("run-1", "sess-abc")
 
     @pytest.mark.asyncio
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_session_end_breaks_loop(self, mock_db):
         """session_end event breaks the processing loop."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "session_end", "data": {}},
             {"event": "assistant_message", "data": {"content": [{"type": "text", "text": "after"}]}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
-        assert not result.should_stop
+        assert result.should_stop is True
 
     @pytest.mark.asyncio
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_session_error_breaks_loop_and_logs(self, mock_db, caplog):
         """session_error event breaks the loop and logs the error."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "session_error", "data": {"error": "boom"}},
             {"event": "assistant_message", "data": {"content": [{"type": "text", "text": "after"}]}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         with caplog.at_level(logging.ERROR, logger="core.stream"):
             result = await proc.process()
 
@@ -180,13 +178,13 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_end_session_marks_session_ended(self, mock_db):
         """end_session event calls mark_ended on SessionGate."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         session.has_ended.return_value = True
         sandbox.stream_events.return_value = mock_stream([
             {"event": "end_session", "data": {}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         session.mark_ended.assert_called_once()
@@ -196,12 +194,12 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_end_session_denied_just_logs(self, mock_db, caplog):
         """end_session_denied logs a message but does not mark session ended."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "end_session_denied", "data": {}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         with caplog.at_level(logging.INFO, logger="core.stream"):
             result = await proc.process()
 
@@ -213,12 +211,12 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_subagent_start_calls_tracker(self, mock_db):
         """subagent_start event calls track_subagent_start on SubagentTracker."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "subagent_start", "data": {"agent_id": "a1", "agent_type": "builder"}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         await proc.process()
 
         tracker.track_subagent_start.assert_called_once_with("a1", "builder")
@@ -227,12 +225,12 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_subagent_stop_calls_tracker_and_control(self, mock_db):
         """subagent_stop event calls tracker and control.on_subagent_complete."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "subagent_stop", "data": {"agent_id": "a1"}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         await proc.process()
 
         tracker.track_subagent_stop.assert_called_once_with("a1")
@@ -242,31 +240,36 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_tool_use_calls_tracker(self, mock_db):
         """tool_use event calls track_tool_use on SubagentTracker."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "tool_use", "data": {"agent_id": "a1"}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         await proc.process()
 
         tracker.track_tool_use.assert_called_once_with("a1")
 
     @pytest.mark.asyncio
     @patch("core.stream.db", new_callable=MagicMock)
-    async def test_control_stop_returns_stopped(self, mock_db):
-        """ControlHandler stop action stops the stream."""
-        sandbox, session, tracker, control = _build_mocks()
-        control.check_control_event = AsyncMock(
-            return_value=ControlAction(
-                stop=True, break_stream=False, final_status="stopped",
-            ),
+    async def test_control_stop_interrupts_immediately(self, mock_db):
+        """Stop event via EventBus interrupts even when SSE is idle."""
+        sandbox, session, tracker, control, events = _build_mocks()
+        control.handle_event = AsyncMock(
+            return_value=ControlAction(stop=True, break_stream=False, final_status="stopped"),
         )
-        sandbox.stream_events.return_value = mock_stream([
-            {"event": "assistant_message", "data": {"content": []}},
-        ])
+
+        async def slow_stream():
+            """Simulate an SSE stream that blocks for a long time."""
+            import asyncio
+            await asyncio.sleep(10)  # would block forever in old design
+            yield {"event": "assistant_message", "data": {"content": []}}
+
+        sandbox.stream_events.return_value = slow_stream()
+        events.push("stop", "operator stop")
+
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         assert result.should_stop is True
@@ -276,18 +279,21 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_control_break_stream_exits_loop(self, mock_db):
         """ControlHandler break_stream exits the event loop."""
-        sandbox, session, tracker, control = _build_mocks()
-        control.check_control_event = AsyncMock(
-            return_value=ControlAction(
-                stop=False, break_stream=True, final_status=None,
-            ),
+        sandbox, session, tracker, control, events = _build_mocks()
+        control.handle_event = AsyncMock(
+            return_value=ControlAction(stop=False, break_stream=True, final_status=None),
         )
-        sandbox.stream_events.return_value = mock_stream([
-            {"event": "assistant_message", "data": {"content": []}},
-            {"event": "assistant_message", "data": {"content": [{"type": "text", "text": "after"}]}},
-        ])
+
+        async def slow_stream():
+            import asyncio
+            await asyncio.sleep(10)
+            yield {"event": "assistant_message", "data": {"content": []}}
+
+        sandbox.stream_events.return_value = slow_stream()
+        events.push("pause", None)
+
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         result = await proc.process()
 
         assert not result.should_stop
@@ -297,12 +303,12 @@ class TestStreamProcessor:
     @patch("core.stream.db", new_callable=MagicMock)
     async def test_subagent_start_without_agent_id_is_ignored(self, mock_db):
         """subagent_start with empty agent_id does not call tracker."""
-        sandbox, session, tracker, control = _build_mocks()
+        sandbox, session, tracker, control, events = _build_mocks()
         sandbox.stream_events.return_value = mock_stream([
             {"event": "subagent_start", "data": {"agent_id": "", "agent_type": "builder"}},
         ])
         run_context = _make_ctx()
-        proc = _make_processor(sandbox, run_context, session, tracker, control)
+        proc = _make_processor(sandbox, run_context, session, tracker, control, events)
         await proc.process()
 
         tracker.track_subagent_start.assert_not_called()

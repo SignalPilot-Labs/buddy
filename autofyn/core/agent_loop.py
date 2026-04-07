@@ -58,7 +58,7 @@ class AgentLoop:
             )
             stream = StreamProcessor(
                 self._sandbox, sandbox_session_id,
-                run_context, session, tracker, control,
+                run_context, session, tracker, control, events,
             )
 
             log.info("[%s] Session started | Duration: %s",
