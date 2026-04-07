@@ -114,7 +114,7 @@ export default function SettingsPage() {
         setRepos(r);
         setTokens(t);
       }
-    ).catch(() => setError("Failed to load settings"));
+    ).catch((e) => { console.error("Settings load failed:", e); setError("Failed to load settings"); });
   }, []);
 
   const handleSave = async () => {

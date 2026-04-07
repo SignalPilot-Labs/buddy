@@ -65,6 +65,14 @@ export default function MonitorPage() {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
+  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
+    if (selectedRunId) {
+      fn(selectedRunId).catch((e) =>
+        addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
+      );
+    }
+  }, [selectedRunId, addEvent]);
+
   const [busy, setBusy] = useState(false);
 
   // Poll agent health — auto-select new runs when they appear
@@ -469,11 +477,11 @@ export default function MonitorPage() {
 
         <ControlBar
           status={runStatus}
-          onPause={() => { if (selectedRunId) pauseAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Pause failed: ${e}`, ts: new Date().toISOString() })); }}
-          onResume={() => { if (selectedRunId) resumeAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Resume failed: ${e}`, ts: new Date().toISOString() })); }}
-          onStop={() => { if (selectedRunId) stopAgentInstant(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Stop failed: ${e}`, ts: new Date().toISOString() })); }}
-          onKill={() => { if (selectedRunId) killAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Kill failed: ${e}`, ts: new Date().toISOString() })); }}
-          onUnlock={() => { if (selectedRunId) unlockAgent(selectedRunId).catch((e) => addEvent({ _kind: "control", text: `Unlock failed: ${e}`, ts: new Date().toISOString() })); }}
+          onPause={() => controlAction("Pause", pauseAgent)}
+          onResume={() => controlAction("Resume", resumeAgent)}
+          onStop={() => controlAction("Stop", stopAgentInstant)}
+          onKill={() => controlAction("Kill", killAgent)}
+          onUnlock={() => controlAction("Unlock", unlockAgent)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
           sessionLocked={agentHealth?.session_unlocked === false}
