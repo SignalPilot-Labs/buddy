@@ -296,14 +296,10 @@ class RepoOps:
             self._initialized = True
 
     async def _persist_auth(self, token: str, timeout: int) -> None:
-        """Write git auth into repo config so orchestrator's git push works."""
-        b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        """Embed token in remote URL so orchestrator's git push works without env vars."""
+        authed_url = f"https://x-access-token:{token}@github.com/{self._repo}.git"
         await self._exec(
-            ["git", "config", "http.extraHeader", f"Authorization: Basic {b64}"],
-            WORK_DIR, timeout, {},
-        )
-        await self._exec(
-            ["git", "config", "credential.helper", ""],
+            ["git", "remote", "set-url", "origin", authed_url],
             WORK_DIR, timeout, {},
         )
 
