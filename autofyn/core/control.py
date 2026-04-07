@@ -221,7 +221,11 @@ class ControlHandler:
     async def _wait_for_rate_limit(
         self, run_id: str, wait_sec: float, resets_at: float,
     ) -> ControlAction:
-        """Sleep until rate limit resets or a stop event arrives (zero-latency)."""
+        """Sleep until rate limit resets or a stop event arrives (zero-latency).
+
+        Non-stop events (pause, inject, unlock) are re-queued so they aren't
+        lost while waiting for the rate limit to reset.
+        """
         log.info("[%s] Rate limited. Waiting %dm for reset...",
                  self._rid, int(wait_sec / 60))
         await db.update_run_status(run_id, "rate_limited")
@@ -233,11 +237,18 @@ class ControlHandler:
         sleep_task = asyncio.create_task(asyncio.sleep(total_wait))
         control_task = asyncio.create_task(self._events.wait_for_event())
         try:
-            done, _ = await asyncio.wait(
-                {sleep_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
-            )
-            if control_task in done and control_task.result()["event"] == "stop":
-                return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+            while True:
+                done, _ = await asyncio.wait(
+                    {sleep_task, control_task}, return_when=asyncio.FIRST_COMPLETED,
+                )
+                if sleep_task in done:
+                    break
+                if control_task in done:
+                    event = control_task.result()
+                    if event["event"] == "stop":
+                        return ControlAction(stop=True, break_stream=False, final_status="rate_limited")
+                    self._events.push(event["event"], event.get("payload"))
+                    control_task = asyncio.create_task(self._events.wait_for_event())
         finally:
             sleep_task.cancel()
             control_task.cancel()
