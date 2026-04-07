@@ -52,6 +52,7 @@ export default function MonitorPage() {
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
+  const [pendingInject, setPendingInject] = useState<{ prompt: string; ts: string } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -60,6 +61,15 @@ export default function MonitorPage() {
     () => mergeHistoryWithLive(historyEvents, liveEvents),
     [historyEvents, liveEvents],
   );
+
+  // Clear pending inject when real prompt_injected audit event arrives
+  useEffect(() => {
+    if (!pendingInject) return;
+    const hasReal = allEvents.some(
+      (e) => e._kind === "audit" && e.data.event_type === "prompt_injected" && e.data.ts >= pendingInject.ts,
+    );
+    if (hasReal) setPendingInject(null);
+  }, [allEvents, pendingInject]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -523,13 +533,10 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            apiInjectPrompt(selectedRunId, prompt).catch((e) =>
-              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() })
-            );
-            addEvent({
-              _kind: "control",
-              text: `Prompt injected (${prompt.length} chars)`,
-              ts: new Date().toISOString(),
+            setPendingInject({ prompt, ts: new Date().toISOString() });
+            apiInjectPrompt(selectedRunId, prompt).catch((e) => {
+              setPendingInject(null);
+              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
             });
           } else {
             addEvent({
@@ -599,7 +606,7 @@ export default function MonitorPage() {
 
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
-            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
+            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingInject={pendingInject} />
             <StatsBar run={selectedRun} connected={connected} />
           </main>
 
@@ -653,7 +660,7 @@ export default function MonitorPage() {
           )}
           {mobilePanel === "feed" && (
             <>
-              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} />
+              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingInject={pendingInject} />
               <StatsBar run={selectedRun} connected={connected} />
             </>
           )}
