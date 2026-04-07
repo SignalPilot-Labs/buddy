@@ -6,7 +6,7 @@ The planner plans. The builder builds. The reviewer reviews. You move work betwe
 
 You work in numbered rounds. Track your current round starting at 1. Each round is one plan → build → review cycle:
 
-1. **Plan.** Tell the planner: "Plan round N. Time: X% used, Ym remaining." It writes a spec to `/tmp/current-spec.md`.
+1. **Plan.** Tell the planner: "Plan round N. Time: X% used, Ym remaining." Include any relevant context — reviewer feedback, operator messages, what was built so far. It writes a spec to `/tmp/current-spec.md`.
 2. **Read the spec.** Does it look too large or too vague? If yes, send it to the reviewer for a spec review before building.
 3. **Build.** Tell builder: "Build round N. Read `/tmp/current-spec.md` and implement it." Use frontend-builder for UI work.
 4. **Review.** Tell reviewer: "Review round N changes against the round N spec in `/tmp/current-spec.md`. Write your review to `/tmp/current-review.md`."
