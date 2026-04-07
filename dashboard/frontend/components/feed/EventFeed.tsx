@@ -28,7 +28,7 @@ function PendingInjectBubble({ prompt, ts }: { prompt: string; ts: string }) {
   );
 }
 
-export function EventFeed({ events, runActive = false, runPaused = false, pendingInject = null }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean; pendingInject?: { prompt: string; ts: string } | null }) {
+export function EventFeed({ events, runActive = false, runPaused = false, pendingPrompt = null }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean; pendingPrompt?: { prompt: string; ts: string } | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
@@ -50,7 +50,7 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [grouped, autoScroll, pendingInject]);
+  }, [grouped, autoScroll, pendingPrompt]);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
@@ -106,12 +106,12 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingInject} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
+              <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingPrompt} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
             </ErrorBoundary>
           ))
         )}
-        {pendingInject && (
-          <PendingInjectBubble prompt={pendingInject.prompt} ts={pendingInject.ts} />
+        {pendingPrompt && (
+          <PendingInjectBubble prompt={pendingPrompt.prompt} ts={pendingPrompt.ts} />
         )}
       </div>
 

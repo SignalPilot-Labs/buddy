@@ -52,7 +52,9 @@ export default function MonitorPage() {
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
-  const [pendingInject, setPendingInject] = useState<{ prompt: string; ts: string; knownCount: number } | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useState<{
+    prompt: string; ts: string; clearOn: "prompt_injected" | "run_started"; knownCount: number;
+  } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
 
@@ -62,18 +64,20 @@ export default function MonitorPage() {
     [historyEvents, liveEvents],
   );
 
-  // Count prompt_injected events in the live SSE stream (resets on run change)
-  const injectedCount = useMemo(
-    () => liveEvents.filter((e) => e._kind === "audit" && e.data.event_type === "prompt_injected").length,
-    [liveEvents],
-  );
+  // Count matching audit events in the live SSE stream to detect delivery
+  const pendingClearCount = useMemo(() => {
+    if (!pendingPrompt) return 0;
+    return liveEvents.filter(
+      (e) => e._kind === "audit" && e.data.event_type === pendingPrompt.clearOn,
+    ).length;
+  }, [liveEvents, pendingPrompt]);
 
-  // Clear pending bubble when backend delivers a new prompt_injected, or on run switch
+  // Clear pending bubble when backend delivers the matching event, or on run switch
   useEffect(() => {
-    if (!pendingInject) return;
-    if (injectedCount > pendingInject.knownCount) setPendingInject(null);
-  }, [injectedCount, pendingInject]);
-  useEffect(() => { setPendingInject(null); }, [selectedRunId]);
+    if (!pendingPrompt) return;
+    if (pendingClearCount > pendingPrompt.knownCount) setPendingPrompt(null);
+  }, [pendingClearCount, pendingPrompt]);
+  useEffect(() => { setPendingPrompt(null); }, [selectedRunId]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -306,6 +310,12 @@ export default function MonitorPage() {
         if (result.run_id) {
           handleSelectRun(result.run_id);
         }
+        // Set after handleSelectRun so the selectedRunId cleanup doesn't kill it.
+        // knownCount=0 is safe: handleSelectRun resets liveEvents via clearEvents(),
+        // so the new SSE stream always starts with zero run_started events.
+        if (prompt && result.run_id) {
+          setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "run_started", knownCount: 0 });
+        }
       } catch (err) {
         addEvent({
           _kind: "control",
@@ -537,9 +547,9 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            setPendingInject({ prompt, ts: new Date().toISOString(), knownCount: injectedCount });
+            setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount });
             apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-              setPendingInject(null);
+              setPendingPrompt(null);
               addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
             });
           } else {
@@ -610,7 +620,7 @@ export default function MonitorPage() {
 
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
-            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingInject={pendingInject} />
+            <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
             <StatsBar run={selectedRun} connected={connected} />
           </main>
 
@@ -664,7 +674,7 @@ export default function MonitorPage() {
           )}
           {mobilePanel === "feed" && (
             <>
-              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingInject={pendingInject} />
+              <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
               <StatsBar run={selectedRun} connected={connected} />
             </>
           )}
