@@ -46,10 +46,15 @@ CONTAINER_SOLUTION_DIR = "/solution"
 REWARD_FILE_PATH = "/logs/verifier/reward.txt"
 
 NODE_INSTALL_COMMANDS = (
-    "apt-get update -qq && apt-get install -y -qq curl "
+    "apt-get update -qq && apt-get install -y -qq curl sudo "
     "&& curl -fsSL https://deb.nodesource.com/setup_20.x | bash - "
     "&& apt-get install -y -qq nodejs "
-    "&& npm install -g @anthropic-ai/claude-code"
+    "&& npm install -g @anthropic-ai/claude-code "
+    "&& (id -u agent >/dev/null 2>&1 || useradd -m -s /bin/bash agent) "
+    "&& echo 'agent ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers "
+    "&& cp -r /app /home/agent/app 2>/dev/null || true "
+    "&& chown -R agent:agent /home/agent/app 2>/dev/null || true "
+    "&& chown -R agent:agent /app 2>/dev/null || true"
 )
 
 
@@ -196,20 +201,21 @@ def run_claude_code_solve(
     agent_timeout: float,
     oauth_token: str,
 ) -> subprocess.CompletedProcess:
-    escaped_instruction = instruction.replace('"', '\\"').replace("$", "\\$")
-    return docker_exec(
-        container_id,
-        [
-            "bash",
-            "-c",
-            f'claude --dangerously-skip-permissions -p "{escaped_instruction}"',
-        ],
-        timeout=agent_timeout,
-        env={
-            "CLAUDE_CODE_OAUTH_TOKEN": oauth_token,
-            "DEBIAN_FRONTEND": "noninteractive",
-        },
-    )
+    # Write instruction to file to avoid shell escaping issues
+    write_cmd = ["docker", "exec", container_id, "bash", "-c",
+                 f"cat > /tmp/instruction.txt << 'INSTRUCTION_EOF'\n{instruction}\nINSTRUCTION_EOF"]
+    subprocess.run(write_cmd, capture_output=True, text=True, timeout=30.0)
+
+    # Run claude as non-root 'agent' user from /app
+    cmd = ["docker", "exec"]
+    cmd += ["-e", f"CLAUDE_CODE_OAUTH_TOKEN={oauth_token}"]
+    cmd += ["-e", "DEBIAN_FRONTEND=noninteractive"]
+    cmd += ["-e", "HOME=/home/agent"]
+    cmd += ["-u", "agent"]
+    cmd += ["-w", "/app"]
+    cmd += [container_id, "bash", "-c",
+            'claude --dangerously-skip-permissions -p "$(cat /tmp/instruction.txt)"']
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=agent_timeout)
 
 
 def run_oracle_challenge(
