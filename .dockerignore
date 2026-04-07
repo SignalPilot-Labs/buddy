@@ -4,7 +4,6 @@
 # Frontend build artifacts + deps (rebuilt inside Docker)
 dashboard/frontend/node_modules/
 dashboard/frontend/.next/
-dashboard/frontend/package-lock.json
 
 # Python caches
 __pycache__/
