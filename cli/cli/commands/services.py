@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 
@@ -15,6 +16,7 @@ def _compose(args: list[str]) -> None:
     """Run ``docker compose <args>`` in the AutoFyn home directory."""
     cmd = ["docker", "compose"] + args
     console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default")
     result = subprocess.run(cmd, cwd=AUTOFYN_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
@@ -49,7 +51,6 @@ def start_services() -> None:
     """Run up.sh — tears down stale containers then docker compose up -d."""
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
-
 
 
 def update_services() -> None:
