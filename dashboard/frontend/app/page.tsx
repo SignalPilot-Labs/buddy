@@ -31,6 +31,8 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
+const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed", "completed_no_changes"]);
+
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
     try { return localStorage.getItem("sp_improve_active_repo") || null; } catch { return null; }
@@ -54,6 +56,7 @@ export default function MonitorPage() {
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
   const [pendingPrompt, setPendingPrompt] = useState<{
     prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
+    status: "delivering" | "failed";
   } | null>(null);
 
   const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
@@ -325,6 +328,15 @@ export default function MonitorPage() {
 
   const runStatus: RunStatus | null =
     (selectedRun?.status as RunStatus) || null;
+
+  // Mark pending bubble as failed when run reaches a terminal state
+  useEffect(() => {
+    if (!pendingPrompt || pendingPrompt.status === "failed") return;
+    if (runStatus && TERMINAL_STATUSES.has(runStatus)) {
+      setPendingPrompt((prev) => prev ? { ...prev, status: "failed" } : null);
+    }
+  }, [runStatus, pendingPrompt]);
+
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
@@ -541,7 +553,7 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount });
+            setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
             apiInjectPrompt(selectedRunId, prompt).catch((e) => {
               setPendingPrompt(null);
               addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
