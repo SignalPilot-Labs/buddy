@@ -65,10 +65,13 @@ async def _migrate_control_signals_constraint(conn) -> None:
     """Ensure control_signals check constraint includes all valid signals."""
     expected = "('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')"
     result = await conn.execute(text(
-        "SELECT consrc FROM pg_constraint WHERE conname = 'ck_control_signals_signal'"
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'ck_control_signals_signal'"
     ))
     row = result.first()
-    if row and expected not in (row[0] or ""):
+    if row is None:
+        return
+    if "'kill'" not in (row[0] or ""):
         await conn.execute(text("ALTER TABLE control_signals DROP CONSTRAINT ck_control_signals_signal"))
         await conn.execute(text(
             f"ALTER TABLE control_signals ADD CONSTRAINT ck_control_signals_signal "
