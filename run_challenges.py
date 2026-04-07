@@ -136,14 +136,12 @@ def setup_container_dirs(container_id: str) -> None:
 
 def copy_test_files(container_id: str, challenge_dir: Path) -> None:
     tests_dir = challenge_dir / "tests"
-    test_sh = tests_dir / "test.sh"
-    test_py = tests_dir / "test_outputs.py"
-
-    docker_cp_to_container(test_sh, container_id, CONTAINER_TESTS_DIR + "/test.sh")
-    if test_py.exists():
-        docker_cp_to_container(
-            test_py, container_id, CONTAINER_TESTS_DIR + "/test_outputs.py"
-        )
+    # Copy all files in the tests directory
+    for test_file in tests_dir.iterdir():
+        if test_file.is_file():
+            docker_cp_to_container(
+                test_file, container_id, CONTAINER_TESTS_DIR + "/" + test_file.name
+            )
 
 
 def run_verifier(container_id: str, verifier_timeout: float) -> subprocess.CompletedProcess:
@@ -385,6 +383,12 @@ def parse_args() -> argparse.Namespace:
         default=",".join(DEFAULT_CHALLENGES),
         help="Comma-separated list of challenge names (default: all 9)",
     )
+    parser.add_argument(
+        "--timeout-multiplier",
+        type=float,
+        default=1.0,
+        help="Multiplier for agent and verifier timeouts (default: 1.0)",
+    )
     return parser.parse_args()
 
 
@@ -400,6 +404,8 @@ def main() -> None:
     args = parse_args()
     mode: str = args.mode
     challenges: list[str] = [c.strip() for c in args.challenges.split(",") if c.strip()]
+
+    timeout_multiplier: float = args.timeout_multiplier
 
     oauth_token = ""
     if mode == "claude-code":
@@ -434,6 +440,10 @@ def main() -> None:
             continue
 
         task_config = load_task_config(challenge_dir)
+
+        # Apply timeout multiplier
+        task_config["agent"]["timeout_sec"] *= timeout_multiplier
+        task_config["verifier"]["timeout_sec"] *= timeout_multiplier
 
         if mode == "oracle":
             result = run_oracle_challenge(
