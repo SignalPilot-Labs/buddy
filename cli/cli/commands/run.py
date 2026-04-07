@@ -175,8 +175,7 @@ def _dispatch_action(action: str, run: dict) -> None:
         client.post(f"/api/runs/{run_id}/pause")
         print_success("Run paused")
     elif action == "resume":
-        budget = typer.prompt("Max budget USD (0 = unlimited)", default="0", type=float)
-        client.post("/api/agent/resume", json={"run_id": run_id, "max_budget_usd": budget})
+        client.post(f"/api/runs/{run_id}/resume", json={})
         print_success("Run resumed")
     elif action == "stop":
         reason = typer.prompt("Reason", default="Operator requested stop")

@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException
 
 from utils import db
 from utils.constants import MAX_CONCURRENT_RUNS
-from utils.models import ActiveRun, StartRequest, InjectRequest
+from utils.models import ActiveRun, HealthResponse, HealthRunEntry, StartRequest, InjectRequest
 
 if TYPE_CHECKING:
     from server import AgentServer
@@ -24,32 +24,24 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
     """Register all HTTP route handlers on the FastAPI app."""
 
     @app.get("/health")
-    async def health():
-        return {
-            "status": "running" if server._active_count() > 0 else "idle",
-            "active_runs": server._active_count(),
-            "max_concurrent": MAX_CONCURRENT_RUNS,
-        }
-
-    @app.get("/status")
-    async def status(run_id: str | None = None):
-        """Per-run status if run_id given, otherwise all runs."""
-        if run_id:
-            r = server._get_run(run_id)
-            result: dict = {"run_id": r.run_id, "status": r.status, "error_message": r.error_message}
+    async def health() -> HealthResponse:
+        """Agent health with per-run details."""
+        runs_list: list[HealthRunEntry] = []
+        for r in server._runs.values():
+            if not r.run_id:
+                continue
+            entry = HealthRunEntry(run_id=r.run_id, status=r.status, started_at=r.started_at)
             if r.session:
-                result["elapsed_minutes"] = round(r.session.elapsed_minutes(), 1)
-                result["time_remaining"] = r.session.time_remaining_str()
-                result["session_unlocked"] = r.session.is_unlocked()
-            return result
-        return {
-            "active": server._active_count(),
-            "max_concurrent": MAX_CONCURRENT_RUNS,
-            "runs": [
-                {"run_id": r.run_id, "status": r.status, "started_at": r.started_at}
-                for r in server._runs.values()
-            ],
-        }
+                entry.elapsed_minutes = round(r.session.elapsed_minutes(), 1)
+                entry.time_remaining = r.session.time_remaining_str()
+                entry.session_unlocked = r.session.is_unlocked()
+            runs_list.append(entry)
+        return HealthResponse(
+            status="running" if server._active_count() > 0 else "idle",
+            active_runs=server._active_count(),
+            max_concurrent=MAX_CONCURRENT_RUNS,
+            runs=runs_list,
+        )
 
     @app.post("/start")
     async def start_run(body: StartRequest):

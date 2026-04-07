@@ -97,7 +97,7 @@ describe("fetchAgentHealth", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network"))));
     const health = await fetchAgentHealth();
     expect(health.status).toBe("unreachable");
-    expect(health.current_run_id).toBeNull();
+    expect(health.runs).toEqual([]);
   });
 
   it("returns unreachable on non-ok response", async () => {

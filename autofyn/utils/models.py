@@ -165,3 +165,25 @@ class InjectRequest(BaseModel):
         if v is not None and len(v) > INJECT_PAYLOAD_MAX_LEN:
             raise ValueError(f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters")
         return v
+
+
+# ── Health Response ──
+
+class HealthRunEntry(BaseModel):
+    """Per-run details in the health response."""
+
+    run_id: str
+    status: str
+    started_at: float
+    elapsed_minutes: float | None = None
+    time_remaining: str | None = None
+    session_unlocked: bool | None = None
+
+
+class HealthResponse(BaseModel):
+    """GET /health response."""
+
+    status: str
+    active_runs: int
+    max_concurrent: int
+    runs: list[HealthRunEntry]

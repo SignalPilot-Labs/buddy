@@ -80,9 +80,11 @@ export default function MonitorPage() {
     const check = async () => {
       const h = await fetchAgentHealth();
       setAgentHealth((prev) => {
-        if (h.current_run_id && h.current_run_id !== prev?.current_run_id) {
+        const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
+        const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
+        if (newRun) {
           refreshRuns();
-          setSelectedRunId(h.current_run_id);
+          setSelectedRunId(newRun.run_id);
         }
         return h;
       });
@@ -309,6 +311,9 @@ export default function MonitorPage() {
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const isConfigured = settingsStatus?.configured ?? false;
+  const activeRunHealth = selectedRunId
+    ? agentHealth?.runs.find((r) => r.run_id === selectedRunId)
+    : undefined;
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">
@@ -435,8 +440,8 @@ export default function MonitorPage() {
                   ? "Idle"
                   : agentHealth?.active_runs && agentHealth.active_runs > 1
                     ? `${agentHealth.active_runs} runs active`
-                    : agentHealth?.elapsed_minutes != null
-                      ? `Active · ${Math.round(agentHealth.elapsed_minutes)}m`
+                    : activeRunHealth?.elapsed_minutes != null
+                      ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m`
                       : "Active"}
           </span>
         </div>
@@ -484,8 +489,8 @@ export default function MonitorPage() {
           onUnlock={() => controlAction("Unlock", unlockAgent)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
-          sessionLocked={agentHealth?.session_unlocked === false}
-          timeRemaining={agentHealth?.time_remaining || null}
+          sessionLocked={activeRunHealth?.session_unlocked === false}
+          timeRemaining={activeRunHealth?.time_remaining || null}
         />
       </header>
 

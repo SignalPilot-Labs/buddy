@@ -97,25 +97,32 @@ export async function pollEvents(
   return res.json();
 }
 
-export interface AgentHealth {
-  status: "idle" | "running" | "bootstrapping" | "unreachable";
-  current_run_id: string | null;
-  active_runs?: number;
-  max_concurrent?: number;
+export interface HealthRunEntry {
+  run_id: string;
+  status: string;
+  started_at: number;
   elapsed_minutes?: number | null;
   time_remaining?: string | null;
   session_unlocked?: boolean | null;
-  error?: string;
 }
+
+export interface AgentHealth {
+  status: "idle" | "running" | "bootstrapping" | "unreachable";
+  active_runs: number;
+  max_concurrent: number;
+  runs: HealthRunEntry[];
+}
+
+const UNREACHABLE_HEALTH: AgentHealth = { status: "unreachable", active_runs: 0, max_concurrent: 0, runs: [] };
 
 export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
     const res = await apiFetch(`/api/agent/health`);
-    if (!res.ok) return { status: "unreachable", current_run_id: null };
+    if (!res.ok) return UNREACHABLE_HEALTH;
     return res.json();
   } catch (err) {
     console.warn("Agent health check failed:", err);
-    return { status: "unreachable", current_run_id: null };
+    return UNREACHABLE_HEALTH;
   }
 }
 
