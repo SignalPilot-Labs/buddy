@@ -21,7 +21,7 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/autofyn.git
+git clone https://github.com/SignalPilot-Labs/AutoFyn.git
 cd autofyn && ./install.sh             # installs CLI + builds Docker images
 autofyn start                          # start services
 ```
