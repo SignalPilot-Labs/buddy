@@ -35,8 +35,8 @@ describe("formatCost", () => {
     expect(formatCost(null)).toBe("");
   });
 
-  it("returns empty string for 0", () => {
-    expect(formatCost(0)).toBe("");
+  it("returns $0.00 for 0", () => {
+    expect(formatCost(0)).toBe("$0.00");
   });
 
   it("formats a positive cost with $ prefix and two decimal places", () => {

@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
@@ -65,6 +65,14 @@ export default function MonitorPage() {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
+  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
+    if (selectedRunId) {
+      fn(selectedRunId).catch((e) =>
+        addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
+      );
+    }
+  }, [selectedRunId, addEvent]);
+
   const [busy, setBusy] = useState(false);
 
   // Poll agent health — auto-select new runs when they appear
@@ -121,7 +129,11 @@ export default function MonitorPage() {
     setHistoryEvents([]);
     clearEvents();
     if (repo) {
-      await setActiveRepo(repo);
+      try {
+        await setActiveRepo(repo);
+      } catch (e) {
+        console.error("Failed to set active repo:", e);
+      }
     }
     fetchRepos().then(setRepos);
   }, [clearEvents]);
@@ -145,8 +157,8 @@ export default function MonitorPage() {
 
       try {
         const [tools, audits] = await Promise.all([
-          fetchToolCalls(id),
-          fetchAuditLog(id),
+          fetchToolCalls(id, HISTORY_FETCH_LIMIT),
+          fetchAuditLog(id, HISTORY_FETCH_LIMIT),
         ]);
 
         if (gen !== selectGenRef.current) return;
@@ -465,11 +477,11 @@ export default function MonitorPage() {
 
         <ControlBar
           status={runStatus}
-          onPause={() => selectedRunId && pauseAgent(selectedRunId)}
-          onResume={() => selectedRunId && resumeAgent(selectedRunId)}
-          onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
-          onKill={() => selectedRunId && killAgent(selectedRunId)}
-          onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}
+          onPause={() => controlAction("Pause", pauseAgent)}
+          onResume={() => controlAction("Resume", resumeAgent)}
+          onStop={() => controlAction("Stop", stopAgentInstant)}
+          onKill={() => controlAction("Kill", killAgent)}
+          onUnlock={() => controlAction("Unlock", unlockAgent)}
           onToggleInject={() => setInjectOpen(!injectOpen)}
           busy={busy}
           sessionLocked={agentHealth?.session_unlocked === false}
@@ -506,7 +518,9 @@ export default function MonitorPage() {
         onClose={() => setInjectOpen(false)}
         onSend={(prompt: string) => {
           if (selectedRunId) {
-            apiInjectPrompt(selectedRunId, prompt);
+            apiInjectPrompt(selectedRunId, prompt).catch((e) =>
+              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() })
+            );
             addEvent({
               _kind: "control",
               text: `Prompt injected (${prompt.length} chars)`,

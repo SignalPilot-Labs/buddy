@@ -7,12 +7,12 @@ export function timeAgo(date: string): string {
 }
 
 export function formatCost(usd: number | null): string {
-  if (!usd) return "";
+  if (usd === null) return "";
   return `$${usd.toFixed(2)}`;
 }
 
 export function formatTokens(n: number | null): string {
-  if (!n) return "0";
+  if (n === null) return "0";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
   return n.toString();

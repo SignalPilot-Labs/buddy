@@ -7,9 +7,10 @@ import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
+import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
-import { getApiBase } from "@/lib/constants";
+import { apiFetch } from "@/lib/fetch";
 
 interface FieldConfig {
   key: keyof Settings;
@@ -42,7 +43,7 @@ const FIELDS: FieldConfig[] = [
 function ExtendedContextSetting() {
   const [enabled, setEnabled] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("buddy_extended_context") === "1";
+      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
     }
     return false;
   });
@@ -50,7 +51,7 @@ function ExtendedContextSetting() {
   const toggle = () => {
     const next = !enabled;
     setEnabled(next);
-    localStorage.setItem("buddy_extended_context", next ? "1" : "0");
+    localStorage.setItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY, next ? "1" : "0");
   };
 
   return (
@@ -113,7 +114,7 @@ export default function SettingsPage() {
         setRepos(r);
         setTokens(t);
       }
-    );
+    ).catch((e) => { console.error("Settings load failed:", e); setError("Failed to load settings"); });
   }, []);
 
   const handleSave = async () => {
@@ -175,7 +176,7 @@ export default function SettingsPage() {
 
   const handleRemoveRepo = async (slug: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/repos/${encodeURIComponent(slug)}`, {
+      const res = await apiFetch(`/api/repos/${encodeURIComponent(slug)}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -188,7 +189,7 @@ export default function SettingsPage() {
 
   const handleSetActive = async (slug: string) => {
     try {
-      const res = await fetch(`${getApiBase()}/api/repos/active`, {
+      const res = await apiFetch(`/api/repos/active`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ repo: slug }),

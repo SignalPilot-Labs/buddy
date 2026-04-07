@@ -57,7 +57,7 @@ def decrypt(ciphertext: str, key_path: str) -> str:
     return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
 
 
-def mask(value: str, prefix_len: int = 4) -> str:
+def mask(value: str, prefix_len: int) -> str:
     """Mask a secret value, showing only the first *prefix_len* characters."""
     if len(value) <= prefix_len:
         return "****"

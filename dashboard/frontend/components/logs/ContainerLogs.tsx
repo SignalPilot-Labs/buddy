@@ -3,9 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { clsx } from "clsx";
 import { fetchContainerLogs } from "@/lib/api";
-
-const POLL_INTERVAL_MS = 3000;
-const DEFAULT_TAIL = 500;
+import { CONTAINER_LOGS_POLL_MS, CONTAINER_LOGS_DEFAULT_TAIL } from "@/lib/constants";
 
 export function ContainerLogs({ runId }: { runId: string | null }) {
   const [lines, setLines] = useState<string[]>([]);
@@ -16,7 +14,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    const data = await fetchContainerLogs(DEFAULT_TAIL);
+    const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL);
     setLines(data.lines ?? []);
   }, []);
 
@@ -30,7 +28,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   // Auto-poll while a run is selected
   useEffect(() => {
     if (!runId) return;
-    const id = setInterval(refresh, POLL_INTERVAL_MS);
+    const id = setInterval(refresh, CONTAINER_LOGS_POLL_MS);
     return () => clearInterval(id);
   }, [runId, refresh]);
 

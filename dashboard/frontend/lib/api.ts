@@ -1,5 +1,5 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_KEY, getApiBase, HISTORY_FETCH_LIMIT, UI_PORT } from "./constants";
+import { API_KEY, getApiBase, UI_PORT } from "./constants";
 
 import { apiFetch } from "./fetch";
 
@@ -42,7 +42,7 @@ export async function fetchRun(id: string): Promise<Run> {
 
 export async function fetchToolCalls(
   runId: string,
-  limit = HISTORY_FETCH_LIMIT
+  limit: number
 ): Promise<ToolCall[]> {
   const res = await apiFetch(`/api/runs/${runId}/tools?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch tool calls");
@@ -51,7 +51,7 @@ export async function fetchToolCalls(
 
 export async function fetchAuditLog(
   runId: string,
-  limit = HISTORY_FETCH_LIMIT
+  limit: number
 ): Promise<AuditEvent[]> {
   const res = await apiFetch(`/api/runs/${runId}/audit?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch audit log");
@@ -120,11 +120,11 @@ export async function fetchAgentHealth(): Promise<AgentHealth> {
 }
 
 export async function startRun(
-  prompt?: string,
-  maxBudgetUsd = 0,
-  durationMinutes = 0,
-  baseBranch = "main",
-  extendedContext = false,
+  prompt: string | undefined,
+  maxBudgetUsd: number,
+  durationMinutes: number,
+  baseBranch: string,
+  extendedContext: boolean,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
@@ -228,7 +228,7 @@ export interface ContainerLogs {
   total: number;
 }
 
-export async function fetchContainerLogs(tail = 500): Promise<ContainerLogs> {
+export async function fetchContainerLogs(tail: number): Promise<ContainerLogs> {
   try {
     const res = await apiFetch(`/api/agent/logs?tail=${tail}`);
     if (!res.ok) return { lines: [], total: 0 };

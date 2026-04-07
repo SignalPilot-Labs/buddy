@@ -47,12 +47,12 @@ describe("startRun", () => {
   });
 
   it("returns run_id from response", async () => {
-    const result = await startRun("test");
+    const result = await startRun("test", 0, 0, "main", false);
     expect(result.run_id).toBe("test-run-id");
   });
 
   it("sends null prompt when undefined", async () => {
-    await startRun(undefined, 0, 0, "main");
+    await startRun(undefined, 0, 0, "main", false);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBeNull();
   });

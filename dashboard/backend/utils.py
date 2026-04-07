@@ -5,6 +5,7 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -14,7 +15,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import AGENT_API_URL, MASK_PREFIX_CLAUDE_TOKEN, MASTER_KEY_PATH, SECRET_KEYS
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -42,7 +43,7 @@ def model_to_dict(obj) -> dict:
     """Convert an ORM model instance to a JSON-safe dict."""
     d = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
     for key, val in d.items():
-        if hasattr(val, "isoformat"):
+        if isinstance(val, (datetime, date)):
             d[key] = val.isoformat()
     return d
 
@@ -207,7 +208,7 @@ async def list_pool_tokens() -> list[dict]:
         return []
     active_idx = current_idx % len(tokens)
     return [
-        {"index": i, "masked": crypto.mask(t, prefix_len=8), "active": i == active_idx}
+        {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": i == active_idx}
         for i, t in enumerate(tokens)
     ]
 
