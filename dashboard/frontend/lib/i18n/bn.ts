@@ -162,8 +162,8 @@ export const bn: LocaleDict = {
   eventCard: {
     running: "চলছে",
     denied: "প্রত্যাখ্যাত",
-    planner: "পরিক",
-    worker: "কর্ম",
+    planner: "পরিকল্পক",
+    worker: "কর্মী",
     tasks: "কাজ",
     diff: "পার্থক্য",
     output: "আউটপুট",
