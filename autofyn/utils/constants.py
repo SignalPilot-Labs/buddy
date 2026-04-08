@@ -43,6 +43,7 @@ COST_PER_CACHE_READ = 1.50 / 1_000_000
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
 MAX_CONCURRENT_RUNS = 5
+ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.

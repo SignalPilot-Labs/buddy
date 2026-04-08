@@ -27,6 +27,13 @@ from utils.constants import (
 )
 from utils.prompts import PromptLoader
 from utils.models import ActiveRun, StartRequest
+from utils.run_helpers import (
+    CapacityError,
+    RunLookupError,
+    active_count,
+    check_capacity,
+    get_run_or_first,
+)
 from sandbox_manager.pool import SandboxPool
 from sandbox_manager.repo_ops import RepoOps
 from core.bootstrap import Bootstrap
@@ -82,14 +89,16 @@ class AgentServer:
         await self._pool.destroy_all()
         await db.close_db()
 
-    def _check_capacity(self) -> None:
-        """Raise 409 if max concurrent runs reached."""
-        if self._active_count() >= MAX_CONCURRENT_RUNS:
-            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
-
     def _active_count(self) -> int:
         """Count non-terminal runs (including paused — they still hold sandbox resources)."""
-        return sum(1 for r in self._runs.values() if r.status in ("starting", "running", "paused"))
+        return active_count(self._runs)
+
+    def _check_capacity(self) -> None:
+        """Raise 409 if max concurrent runs reached."""
+        try:
+            check_capacity(self._runs, MAX_CONCURRENT_RUNS)
+        except CapacityError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail) from e
 
     def _get_run(self, run_id: str) -> ActiveRun:
         """Look up a run or raise 404."""
@@ -100,13 +109,10 @@ class AgentServer:
 
     def _get_run_or_first(self, run_id: str | None) -> ActiveRun:
         """Get specific run by id, or first running run. Raises 409 if none."""
-        if run_id:
-            return self._get_run(run_id)
-        for r in self._runs.values():
-            if r.status == "running" and r.events:
-                log.warning("_get_run_or_first called without run_id — falling back to first active run")
-                return r
-        raise HTTPException(status_code=409, detail="No run in progress")
+        try:
+            return get_run_or_first(self._runs, run_id)
+        except RunLookupError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail) from e
 
     # ── Run Lifecycle ──
 
