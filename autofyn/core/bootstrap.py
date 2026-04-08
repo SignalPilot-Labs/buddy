@@ -228,7 +228,7 @@ class Bootstrap:
                 "description": "UI/UX design review. Call alongside reviewer when frontend-builder made changes. Catches visual inconsistencies, spacing, hierarchy, accessibility, and AI slop.",
                 "prompt": self._prompts.load_subagent_prompt("design-reviewer"),
                 "model": "opus",
-                "tools": ["Read", "Glob", "Grep", "Bash"],
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
         }
 
