@@ -45,7 +45,8 @@ class TestSSEDispatcher:
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
     async def test_assistant_message_accumulates_usage(self, mock_db):
-        """assistant_message events accumulate token usage."""
+        """assistant_message events accumulate token usage including cache tokens."""
+        mock_db.log_audit = AsyncMock()
         session, tracker = _build_mocks()
         run_context = _make_ctx()
         dispatcher = _make_dispatcher(run_context, session, tracker)
@@ -56,12 +57,19 @@ class TestSSEDispatcher:
                     {"type": "text", "text": "Hello world"},
                     {"type": "tool_use", "name": "Bash"},
                 ],
-                "usage": {"input_tokens": 10, "output_tokens": 5},
+                "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "cache_creation_input_tokens": 3,
+                    "cache_read_input_tokens": 2,
+                },
             },
         })
 
         assert run_context.total_input_tokens == 10
         assert run_context.total_output_tokens == 5
+        assert run_context.cache_creation_input_tokens == 3
+        assert run_context.cache_read_input_tokens == 2
         assert dispatched.result_data is None
         assert not dispatched.subagent_completed
 
@@ -82,11 +90,13 @@ class TestSSEDispatcher:
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
     async def test_result_event_saves_cost(self, mock_db):
-        """result event updates cost and returns result_data."""
+        """result event adds cost and persists to DB."""
         mock_db.save_session_id = AsyncMock()
         mock_db.log_audit = AsyncMock()
+        mock_db.update_run_cost = AsyncMock()
         session, tracker = _build_mocks()
         run_context = _make_ctx()
+        run_context.total_cost = 0.50
         dispatcher = _make_dispatcher(run_context, session, tracker)
         dispatched = await dispatcher.dispatch({
             "event": "result",
@@ -98,11 +108,11 @@ class TestSSEDispatcher:
             },
         })
 
-        assert run_context.total_cost == 1.25
-        assert run_context.total_input_tokens == 100
+        assert run_context.total_cost == 1.75
         assert dispatched.result_data is not None
         assert dispatched.result_data["total_cost_usd"] == 1.25
         mock_db.save_session_id.assert_awaited_once_with("run-1", "sess-abc")
+        mock_db.update_run_cost.assert_awaited_once()
 
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
