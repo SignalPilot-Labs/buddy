@@ -165,11 +165,11 @@ export default function MonitorPage() {
     fetchRepos().then(setRepos);
   }, [clearEvents]);
 
-  // Keep selectedRun fresh
+  // Keep selectedRun fresh — clear if run disappears from a non-empty list
   useEffect(() => {
-    if (selectedRunId) {
+    if (selectedRunId && runs.length > 0) {
       const found = runs.find((r) => r.id === selectedRunId);
-      if (found) setSelectedRun(found);
+      setSelectedRun(found || null);
     }
   }, [runs, selectedRunId]);
 
