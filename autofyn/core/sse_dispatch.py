@@ -168,3 +168,11 @@ class SSEDispatcher:
                 "cache_read_input_tokens": self._run_context.cache_read_input_tokens,
                 "total_cost_usd": self._run_context.total_cost,
             })
+            await db.update_run_cost(
+                self._run_context.run_id,
+                self._run_context.total_cost,
+                self._run_context.total_input_tokens,
+                self._run_context.total_output_tokens,
+                self._run_context.cache_creation_input_tokens,
+                self._run_context.cache_read_input_tokens,
+            )

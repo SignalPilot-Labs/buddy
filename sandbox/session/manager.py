@@ -157,16 +157,18 @@ class _Session:
             options = self._build_options()
             async with ClaudeSDKClient(options=options) as client:
                 self.client = client
-                result = await client.query(self.options_dict["initial_prompt"])
-                result_event = _serialize_message(result)
-                if result_event:
-                    self._emit(result_event)
+                await client.query(self.options_dict["initial_prompt"])
+                draining = False
                 async for message in client.receive_messages():
                     event = _serialize_message(message)
                     if event:
                         self._emit(event)
-                    if self._ended:
+                    if isinstance(message, ResultMessage):
+                        log.info("ResultMessage received: cost=$%s", getattr(message, "total_cost_usd", None))
                         break
+                    if self._ended and not draining:
+                        log.info("Session ended, draining for ResultMessage...")
+                        draining = True
             self._emit({"event": "session_end", "data": {}})
         except asyncio.CancelledError:
             self._emit({"event": "session_end", "data": {"reason": "cancelled"}})
