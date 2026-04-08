@@ -142,6 +142,8 @@ class Bootstrap:
             total_cost=run_info.get("total_cost_usd", 0) or 0,
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
+            cache_creation_input_tokens=run_info.get("cache_creation_input_tokens", 0) or 0,
+            cache_read_input_tokens=run_info.get("cache_read_input_tokens", 0) or 0,
         )
         session, events, tracker = self._create_services(run_context)
 

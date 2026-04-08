@@ -3,27 +3,30 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
-import { formatTokens } from "@/lib/format";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
-const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
-
 function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
+  let contextTokens = 0;
+  let costUsd = 0;
 
   for (const e of events) {
     if (e._kind === "tool" && e.data.phase === "pre") {
       toolCount++;
     } else if (e._kind === "usage") {
-      inputTokens = e.data.total_input_tokens || 0;
-      outputTokens = e.data.total_output_tokens || 0;
+      contextTokens = e.data.context_tokens || 0;
+      costUsd = e.data.total_cost_usd || 0;
     }
   }
 
-  return { toolCount, inputTokens, outputTokens };
+  return { toolCount, contextTokens, costUsd };
+}
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 function Stat({
@@ -57,7 +60,6 @@ export function StatsBar({
   connected: boolean;
   events?: FeedEvent[];
 }) {
-  const isActive = run != null && ACTIVE_STATUSES.has(run.status);
   const live = useMemo(() => computeLiveStats(events), [events]);
 
   if (!run) {
@@ -81,7 +83,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(isActive ? live.toolCount : run.total_tool_calls || 0)}
+        value={String(run.total_tool_calls || live.toolCount || 0)}
       />
       <Stat
         icon={
@@ -91,25 +93,19 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={
-          isActive && !run.total_cost_usd
-            ? "—"
-            : `$${(run.total_cost_usd || 0).toFixed(2)}`
-        }
+        value={`~$${(run.total_cost_usd || live.costUsd || 0).toFixed(2)}`}
         accent="text-[#00ff88]"
       />
       <Stat
         icon={
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M1 5h3l1.5-3 2 6L9 5" />
+            <rect x="1" y="1" width="8" height="8" rx="1" />
+            <path d="M1 1v8" />
           </svg>
         }
-        label="In/Out"
-        value={
-          isActive
-            ? `${formatTokens(live.inputTokens)} / ${formatTokens(live.outputTokens)}`
-            : `${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`
-        }
+        label="Context"
+        value={live.contextTokens > 0 ? formatTokenCount(live.contextTokens) : "—"}
+        accent="text-[#88ccff]"
       />
       {run.pr_url && (
         <a

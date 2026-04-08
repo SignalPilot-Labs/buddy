@@ -59,7 +59,7 @@ export default function MonitorPage() {
     status: "delivering" | "failed";
   } | null>(null);
 
-  const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
+  const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId, refreshRuns);
 
   // Merge live events into history — SSE post events need to find their pre in history
   const allEvents = useMemo(
@@ -628,7 +628,7 @@ export default function MonitorPage() {
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
             <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-            <StatsBar run={selectedRun} connected={connected} />
+            <StatsBar run={selectedRun} connected={connected} events={allEvents} />
           </main>
 
           {/* Right sidebar - Changes / Logs */}
@@ -682,7 +682,7 @@ export default function MonitorPage() {
           {mobilePanel === "feed" && (
             <>
               <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-              <StatsBar run={selectedRun} connected={connected} />
+              <StatsBar run={selectedRun} connected={connected} events={allEvents} />
             </>
           )}
           {mobilePanel === "changes" && (

@@ -10,6 +10,8 @@ export interface Run {
   total_cost_usd: number | null;
   total_input_tokens: number | null;
   total_output_tokens: number | null;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;
@@ -28,6 +30,7 @@ export type RunStatus =
   | "paused"
   | "stopped"
   | "completed"
+  | "completed_no_changes"
   | "error"
   | "crashed"
   | "killed"
@@ -59,12 +62,14 @@ export interface AuditEvent {
 }
 
 export interface UsageEvent {
+  context_tokens: number;
   input_tokens: number;
   output_tokens: number;
   total_input_tokens: number;
   total_output_tokens: number;
   cache_creation_input_tokens: number;
   cache_read_input_tokens: number;
+  total_cost_usd: number;
   ts: string;
 }
 
@@ -113,6 +118,13 @@ export const STATUS_META: Record<
     color: "text-[#88ccff]",
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
+    pulse: false,
+  },
+  completed_no_changes: {
+    label: "No Changes",
+    color: "text-[#777]",
+    bg: "bg-[#777]/10",
+    dot: "bg-[#777]",
     pulse: false,
   },
   error: {

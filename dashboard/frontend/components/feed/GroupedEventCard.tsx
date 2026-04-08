@@ -926,21 +926,6 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
   );
 }
 
-/* ── Usage Tick ── */
-function UsageTick({ data, ts }: { data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }) {
-  const fmt = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(1)}k` : String(n);
-  return (
-    <div className="flex items-center gap-2 px-4 py-1 text-[9px] text-[#777]">
-      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#44ccdd" strokeWidth="1" opacity="0.3">
-        <rect x="0.5" y="4" width="1.5" height="3.5" rx="0.3" /><rect x="3" y="2" width="1.5" height="5.5" rx="0.3" /><rect x="5.5" y="0.5" width="1.5" height="7" rx="0.3" />
-      </svg>
-      <span>{fmt(data.total_input)}↓ {fmt(data.total_output)}↑</span>
-      {data.cache_read > 0 && <span>cache:{fmt(data.cache_read)}</span>}
-      <span className="ml-auto tabular-nums">{fmtTime(ts)}</span>
-    </div>
-  );
-}
-
 /* ── Control ── */
 function ControlMessage({ text, ts }: { text: string; ts: string }) {
   return (
@@ -1024,8 +1009,6 @@ export function GroupedEventCard({ event, isLast = false, runActive = false, run
       return <AgentRunCard tool={event.tool} childTools={event.childTools} finalText={event.finalText} agentType={event.agentType} ts={event.ts} runActive={runActive} runPaused={runPaused} />;
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
-    case "usage_tick":
-      return <UsageTick data={event.data} ts={event.ts} />;
     case "control":
       return <ControlMessage text={event.text} ts={event.ts} />;
     case "user_prompt":

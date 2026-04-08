@@ -162,6 +162,8 @@ class _Session:
                     event = _serialize_message(message)
                     if event:
                         self._emit(event)
+                    if isinstance(message, ResultMessage):
+                        break
                     if self._ended:
                         break
             self._emit({"event": "session_end", "data": {}})

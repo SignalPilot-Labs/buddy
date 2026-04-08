@@ -444,7 +444,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
       case "rate_limit_paused":
         return d.reason ? `${d.reason} · resets ${formatEpoch(d.resets_at as number)}` : `resets ${formatEpoch(d.resets_at as number)}`;
       case "end_session_denied":
-        return `${d.time_remaining || "?"} remaining`;
+        return `${d.remaining_minutes || "?"}m remaining`;
       case "sdk_config":
         return `${d.model || "?"} · effort:${d.effort || "?"} · ${(d.mcp_servers as string[])?.join(", ") || ""}`;
       case "stop_requested":

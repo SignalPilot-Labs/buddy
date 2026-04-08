@@ -35,16 +35,16 @@ describe("formatCost", () => {
     expect(formatCost(null)).toBe("");
   });
 
-  it("returns $0.00 for 0", () => {
-    expect(formatCost(0)).toBe("$0.00");
+  it("returns ~$0.00 for 0", () => {
+    expect(formatCost(0)).toBe("~$0.00");
   });
 
-  it("formats a positive cost with $ prefix and two decimal places", () => {
-    expect(formatCost(1.5)).toBe("$1.50");
+  it("formats a positive cost with ~$ prefix and two decimal places", () => {
+    expect(formatCost(1.5)).toBe("~$1.50");
   });
 
   it("formats a larger cost correctly", () => {
-    expect(formatCost(12.345)).toBe("$12.35");
+    expect(formatCost(12.345)).toBe("~$12.35");
   });
 });
 

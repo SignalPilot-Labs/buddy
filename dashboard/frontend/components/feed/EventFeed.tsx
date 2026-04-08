@@ -75,10 +75,6 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
     }
   }, []);
 
-  const toolCount = events.filter(
-    (e) => e._kind === "tool" && e.data.phase === "pre"
-  ).length;
-
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
       {/* Mini toolbar */}
@@ -86,10 +82,6 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-[#888]">Events</span>
           <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{events.length}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Tools</span>
-          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{toolCount}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-[#888]">Groups</span>

@@ -132,6 +132,7 @@ class AgentServer:
             active.status = "running"
             active.events = events
             active.session = session
+            active.run_context = ctx
 
             try:
                 log.info("Run %s: starting agent loop", run_id)
@@ -154,6 +155,12 @@ class AgentServer:
 
     def _on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
         """Handle task completion or crash. Persists final status to DB."""
+        ctx = active.run_context
+        cost = ctx.total_cost if ctx is not None else 0.0
+        input_tokens = ctx.total_input_tokens if ctx is not None else 0
+        output_tokens = ctx.total_output_tokens if ctx is not None else 0
+        cache_creation = ctx.cache_creation_input_tokens if ctx is not None else 0
+        cache_read = ctx.cache_read_input_tokens if ctx is not None else 0
         try:
             exc = task.exception()
             if exc:
@@ -163,14 +170,16 @@ class AgentServer:
                 active.error_message = str(exc)
                 if active.run_id:
                     asyncio.create_task(db.finish_run(
-                        active.run_id, "crashed", None, 0.0, 0, 0, str(exc), None, None,
+                        active.run_id, "crashed", None, cost, input_tokens, output_tokens,
+                        str(exc), None, None, cache_creation, cache_read,
                     ))
         except asyncio.CancelledError:
             active.status = "killed"
             active.error_message = "Cancelled"
             if active.run_id:
                 asyncio.create_task(db.finish_run(
-                    active.run_id, "killed", None, 0.0, 0, 0, "Cancelled", None, None,
+                    active.run_id, "killed", None, cost, input_tokens, output_tokens,
+                    "Cancelled", None, None, cache_creation, cache_read,
                 ))
         finally:
             active.task = None

@@ -11,7 +11,6 @@ export type GroupedEvent =
   | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "single_tool"; tool: ToolCall; ts: string }
-  | { type: "usage_tick"; data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }
   | { type: "control"; text: string; ts: string }
   | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
   | { type: "user_prompt"; prompt: string; ts: string }
@@ -68,7 +67,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "planner_invoked":
       return { type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
-      return { type: "milestone", label: "Session Denied", detail: `${d.time_remaining || "?"} remaining`, color: "#ffaa00", ts, event };
+      return { type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
       return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
@@ -223,25 +222,9 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       continue;
     }
 
-    // ── Usage: Collapse into a single tick (take the last one in a burst) ──
+    // ── Usage: skip from feed (data consumed by StatsBar, not shown in feed) ──
     if (ev._kind === "usage") {
-      let lastUsage = ev.data;
       i++;
-      while (i < events.length && events[i]._kind === "usage") {
-        lastUsage = (events[i] as { _kind: "usage"; data: typeof lastUsage }).data;
-        i++;
-      }
-      result.push({
-        type: "usage_tick",
-        data: {
-          input_tokens: lastUsage.input_tokens,
-          output_tokens: lastUsage.output_tokens,
-          total_input: lastUsage.total_input_tokens,
-          total_output: lastUsage.total_output_tokens,
-          cache_read: lastUsage.cache_read_input_tokens,
-        },
-        ts: lastUsage.ts,
-      });
       continue;
     }
 

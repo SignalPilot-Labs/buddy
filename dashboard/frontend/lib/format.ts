@@ -8,7 +8,7 @@ export function timeAgo(date: string): string {
 
 export function formatCost(usd: number | null): string {
   if (usd === null) return "";
-  return `$${usd.toFixed(2)}`;
+  return `~$${usd.toFixed(2)}`;
 }
 
 export function formatTokens(n: number | null): string {
