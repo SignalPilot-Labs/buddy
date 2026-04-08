@@ -9,12 +9,14 @@ import base64
 import json
 import logging
 import os
+import re
 import uuid
 from collections.abc import Callable, Coroutine
 from datetime import datetime, timezone
 from typing import Any
 
 from utils.constants import (
+    BRANCH_SLUG_MAX_LEN,
     GIT_RETRY_ATTEMPTS,
     GIT_RETRY_DELAY_SEC,
     WORK_DIR,
@@ -32,7 +34,7 @@ class RepoOps:
     Public API:
         setup_auth(repo, exec_timeout, clone_timeout) -> None
         ensure_base_branch(base_branch, exec_timeout) -> None
-        get_branch_name() -> str
+        get_branch_name(custom_prompt) -> str
         create_branch(branch_name, base_branch, exec_timeout) -> str
         push_branch(branch_name, exec_timeout) -> None
         create_pr(branch_name, run_id, base_branch, exec_timeout) -> str
@@ -138,10 +140,14 @@ class RepoOps:
         await self.run_git(["checkout", "-b", branch_name], exec_timeout, WORK_DIR)
         return branch_name
 
-    def get_branch_name(self) -> str:
-        """Generate a unique branch name."""
+    def get_branch_name(self, custom_prompt: str | None) -> str:
+        """Generate a unique branch name, embedding a prompt slug when provided."""
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         short_id = uuid.uuid4().hex[:6]
+        if custom_prompt:
+            slug = _slugify(custom_prompt, BRANCH_SLUG_MAX_LEN)
+            if slug:
+                return f"autofyn/{date_str}-{slug}-{short_id}"
         return f"autofyn/{date_str}-{short_id}"
 
     # -- Push / PR --
@@ -469,6 +475,17 @@ class RepoOps:
 
 
 # -- Pure Helpers (no state) --
+
+
+def _slugify(text: str, max_len: int) -> str:
+    """Convert text to a branch-safe slug truncated to max_len characters."""
+    slug = text.lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    slug = re.sub(r"-{2,}", "-", slug)
+    slug = slug.strip("-")
+    slug = slug[:max_len]
+    slug = slug.rstrip("-")
+    return slug
 
 
 def _parse_name_status(raw: str) -> dict[str, str]:

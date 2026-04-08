@@ -15,7 +15,9 @@ export function RunItem({
   active: boolean;
   onClick: () => void;
 }) {
-  const branchShort = run.branch_name.replace("autofyn/", "").slice(0, 20);
+  const label = run.custom_prompt
+    ? run.custom_prompt.slice(0, 40)
+    : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   return (
     <motion.button
@@ -41,7 +43,7 @@ export function RunItem({
           "text-[12px] font-medium truncate flex-1",
           active ? "text-[#e8e8e8]" : "text-[#ccc]"
         )}>
-          {branchShort}
+          {label}
         </span>
         <StatusBadge status={run.status} />
       </div>

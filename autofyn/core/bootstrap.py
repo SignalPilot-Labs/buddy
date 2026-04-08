@@ -54,7 +54,7 @@ class Bootstrap:
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
         branch_name = await self._setup_git(
-            base_branch, github_repo, exec_timeout, clone_timeout
+            base_branch, github_repo, exec_timeout, clone_timeout, custom_prompt
         )
         await db.update_run_branch(run_id, branch_name)
         log.info("Run %s on branch %s", run_id, branch_name)
@@ -172,11 +172,12 @@ class Bootstrap:
         github_repo: str,
         exec_timeout: int,
         clone_timeout: int,
+        custom_prompt: str | None,
     ) -> str:
         """Clone repo in sandbox, create branch. Returns branch name."""
         await self._repo_ops.setup_auth(github_repo, exec_timeout, clone_timeout)
         await self._repo_ops.ensure_base_branch(base_branch, exec_timeout)
-        branch_name = self._repo_ops.get_branch_name()
+        branch_name = self._repo_ops.get_branch_name(custom_prompt)
         await self._repo_ops.create_branch(branch_name, base_branch, exec_timeout)
         return branch_name
 
