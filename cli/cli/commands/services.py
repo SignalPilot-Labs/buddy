@@ -62,6 +62,77 @@ def start_services(allow_docker: bool) -> None:
         os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
+    _ensure_tokens()
+
+
+def _ensure_tokens() -> None:
+    """Check for missing tokens and offer to auto-detect from CLI tools."""
+    from cli.client import get_client
+
+    client = get_client()
+    try:
+        status = client.get("/api/settings/status")
+    except SystemExit:
+        return  # dashboard not reachable yet, skip
+
+    if status.get("configured"):
+        return
+
+    updates: dict[str, str] = {}
+
+    if not status.get("has_claude_token"):
+        token = _detect_claude_token()
+        if token:
+            updates["claude_token"] = token
+
+    if not status.get("has_git_token"):
+        token = _detect_git_token()
+        if token:
+            updates["git_token"] = token
+
+    if updates:
+        try:
+            client.put("/api/settings", json=updates)
+            console.print(
+                f"[green]✓[/green] Saved {', '.join(updates.keys())} to settings"
+            )
+        except SystemExit:
+            console.print("[yellow]Failed to save tokens — set them manually via settings[/yellow]")
+
+
+def _run_token_cmd(cmd: list[str]) -> str | None:
+    """Run a command and return stdout, or None if it fails or isn't installed."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return None
+
+
+def _detect_claude_token() -> str | None:
+    """Try to get Claude OAuth token via `claude setup-token`."""
+    token = _run_token_cmd(["claude", "setup-token"])
+    if token:
+        masked = token[:12] + "****"
+        if typer.confirm(f"Found Claude token ({masked}). Use it?", default=True):
+            return token
+    console.print("[dim]No Claude token found. Enter it manually:[/dim]")
+    entered = typer.prompt("Claude OAuth token", default="", hide_input=True)
+    return entered if entered.strip() else None
+
+
+def _detect_git_token() -> str | None:
+    """Try to get GitHub token via `gh auth token`."""
+    token = _run_token_cmd(["gh", "auth", "token"])
+    if token:
+        masked = token[:7] + "****"
+        if typer.confirm(f"Found GitHub token ({masked}). Use it?", default=True):
+            return token
+    console.print("[dim]No GitHub token found. Enter it manually:[/dim]")
+    entered = typer.prompt("GitHub personal access token", default="", hide_input=True)
+    return entered if entered.strip() else None
 
 
 def update_services() -> None:
