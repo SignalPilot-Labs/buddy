@@ -114,25 +114,29 @@ def _run_token_cmd(cmd: list[str]) -> str | None:
 
 def _detect_claude_token() -> str | None:
     """Try to get Claude OAuth token via `claude setup-token`."""
+    console.print("\n[bold]Claude OAuth Token[/bold]")
+    console.print("[dim]Checking claude CLI for an existing token...[/dim]")
     token = _run_token_cmd(["claude", "setup-token"])
     if token:
         masked = token[:12] + "****"
-        if typer.confirm(f"Found Claude token ({masked}). Use it?", default=True):
+        if typer.confirm(f"Found token from claude CLI ({masked}). Use it?", default=True):
             return token
-    console.print("[dim]No Claude token found. Enter it manually:[/dim]")
-    entered = typer.prompt("Claude OAuth token", default="", hide_input=True)
+    console.print("[dim]No token found. Run `claude setup-token` to authenticate, or paste one below.[/dim]")
+    entered = typer.prompt("Claude OAuth token (enter to skip)", default="", hide_input=True)
     return entered if entered.strip() else None
 
 
 def _detect_git_token() -> str | None:
     """Try to get GitHub token via `gh auth token`."""
+    console.print("\n[bold]GitHub Personal Access Token[/bold]")
+    console.print("[dim]Checking gh CLI for an existing token...[/dim]")
     token = _run_token_cmd(["gh", "auth", "token"])
     if token:
         masked = token[:7] + "****"
-        if typer.confirm(f"Found GitHub token ({masked}). Use it?", default=True):
+        if typer.confirm(f"Found token from gh CLI ({masked}). Use it?", default=True):
             return token
-    console.print("[dim]No GitHub token found. Enter it manually:[/dim]")
-    entered = typer.prompt("GitHub personal access token", default="", hide_input=True)
+    console.print("[dim]No token found. Run `gh auth login` to authenticate, or paste one below.[/dim]")
+    entered = typer.prompt("GitHub token (enter to skip)", default="", hide_input=True)
     return entered if entered.strip() else None
 
 
