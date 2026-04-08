@@ -303,7 +303,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
           )}
         </div>
         <span className={clsx("text-[11px] font-semibold", isPlanner ? "text-[#ff8844]" : "text-[#ccc]")}>
-          {isPlanner ? "Planner" : "Worker Agent"}
+          {isPlanner ? "Planner" : "AutoFyn"}
         </span>
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         {thinking && (

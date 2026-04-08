@@ -210,7 +210,7 @@ class Bootstrap:
                 "description": "Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
                 "prompt": self._prompts.load_subagent_prompt("reviewer"),
                 "model": "opus",
-                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             },
             "explorer": {
                 "description": "Explore codebase, find patterns, read docs. Read-only research.",
@@ -221,6 +221,12 @@ class Bootstrap:
             "planner": {
                 "description": "Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
                 "prompt": self._prompts.load_subagent_prompt("planner"),
+                "model": "opus",
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+            },
+            "design-reviewer": {
+                "description": "UI/UX design review. Call alongside reviewer when frontend-builder made changes. Catches visual inconsistencies, spacing, hierarchy, accessibility, and AI slop.",
+                "prompt": self._prompts.load_subagent_prompt("design-reviewer"),
                 "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
