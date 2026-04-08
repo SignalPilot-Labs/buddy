@@ -8,6 +8,7 @@ import { getToolCategory, TOOL_COLORS, type ToolCategory } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import type { GroupedEvent } from "@/lib/groupEvents";
 import { extractReadPaths, extractEditSummary, extractBashCommands } from "@/lib/groupEvents";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 /* ── Helpers ── */
 function fmtTime(ts: string): string {
@@ -330,8 +331,8 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
               [{collapsed ? "expand" : "collapse"}]
             </button>
           )}
-          <div className={clsx("text-[11px] leading-[1.7] whitespace-pre-wrap break-words", isPlanner ? "text-[#cc9966]" : "text-[#bbb]", collapsed && "max-h-[100px] overflow-hidden")}>
-            {collapsed ? text.slice(0, 500) + "…" : text}
+          <div className={clsx(collapsed && "max-h-[100px] overflow-hidden")}>
+            <MarkdownContent content={collapsed ? text.slice(0, 500) + "\u2026" : text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
           </div>
           {collapsed && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#050505] to-transparent" />}
           {/* Only show blinking cursor on the last message */}
@@ -755,8 +756,8 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
               </button>
               {showFinalText && (
                 <div className="px-4 pb-3">
-                  <div className="text-[10px] text-[#bbb] whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
-                    {finalText}
+                  <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
+                    <MarkdownContent content={finalText} className="text-[10px] text-[#bbb]" />
                   </div>
                 </div>
               )}
@@ -931,7 +932,9 @@ function UserPromptCard({ prompt, ts }: { prompt: string; ts: string }) {
           <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
           <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         </div>
-        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
+        <div className="max-h-[300px] overflow-y-auto">
+          <MarkdownContent content={prompt} className="text-[12px] text-[#cce8ff]" />
+        </div>
       </div>
     </motion.div>
   );

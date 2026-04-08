@@ -8,6 +8,7 @@ import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 function PendingInjectBubble({ prompt, ts, status }: { prompt: string; ts: string; status: "delivering" | "failed" }) {
   const time = new Date(ts).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -26,7 +27,9 @@ function PendingInjectBubble({ prompt, ts, status }: { prompt: string; ts: strin
             <span>{time}</span>
           </span>
         </div>
-        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
+        <div className="max-h-[300px] overflow-y-auto">
+          <MarkdownContent content={prompt} className="text-[12px] text-[#cce8ff]" />
+        </div>
       </div>
     </motion.div>
   );
