@@ -290,7 +290,7 @@ test <- function() {
     samples_norm <- ars(
         f               = function(x) stats::dnorm(x, mean = 0.0, sd = 1.0),
         initial_points  = c(-1.5, 0.0, 1.5),
-        n               = 2000L,
+        n               = 10000L,
         lower           = -8.0,
         upper           =  8.0
     )

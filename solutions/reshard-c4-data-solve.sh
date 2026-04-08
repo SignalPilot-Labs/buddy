@@ -2,6 +2,8 @@
 set -e
 
 # Create the pyproject.toml for the uv venv in /app
+# Use setuptools with no packages — this is a scripts-only project.
+# hatchling fails when there are no Python packages to discover.
 cat > /app/pyproject.toml << 'EOF'
 [project]
 name = "reshard-c4"
@@ -10,8 +12,11 @@ requires-python = ">=3.11"
 dependencies = []
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
 EOF
 
 # Create compress.py
@@ -178,7 +183,7 @@ def write_manifest(manifest_entries: list[dict], output_dir: str) -> None:
 
 def main() -> None:
     if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <input_dir> <output_dir}", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <input_dir> <output_dir>", file=sys.stderr)
         sys.exit(1)
 
     input_dir = sys.argv[1]

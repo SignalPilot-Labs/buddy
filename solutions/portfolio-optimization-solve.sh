@@ -6,6 +6,9 @@ cat > /app/portfolio_optimized.c << 'EOF'
 /*
  * High-performance portfolio calculations using C extension
  * Implements: portfolio_risk = sqrt(x^T * S * x), portfolio_return = x^T * r
+ *
+ * NOTE: -ffast-math is intentionally NOT used to preserve IEEE 754 exact
+ * semantics matching the Python baseline within 1e-10 tolerance.
  */
 
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -37,7 +40,9 @@ static PyObject* portfolio_risk_c(PyObject *self, PyObject *args) {
     double *w = (double *)PyArray_DATA(weights);
     double *S = (double *)PyArray_DATA(cov);
 
-    /* Compute x^T * S * x using row-major layout of S */
+    /* Compute x^T * S * x using row-major layout of S
+     * Loop order matches Python baseline: outer i, inner j accumulate row_dot
+     * Sequential accumulation matches Python float arithmetic. */
     double risk_squared = 0.0;
     for (npy_intp i = 0; i < n; i++) {
         double row_dot = 0.0;
@@ -102,7 +107,9 @@ static struct PyModuleDef moduledef = {
 };
 
 PyMODINIT_FUNC PyInit_portfolio_optimized_c(void) {
-    import_array();
+    if (import_array() < 0) {
+        return NULL;
+    }
     return PyModule_Create(&moduledef);
 }
 EOF
@@ -150,9 +157,23 @@ def portfolio_return_c(weights, expected_returns):
 __all__ = ['portfolio_risk_c', 'portfolio_return_c']
 EOF
 
+# Write setup.py without -ffast-math to preserve IEEE 754 semantics
+# and match Python baseline results within 1e-10 tolerance
+cat > /app/setup.py << 'EOF'
+import numpy
+from setuptools import Extension, setup
+
+module = Extension('portfolio_optimized_c',
+                   sources=['portfolio_optimized.c'],
+                   include_dirs=[numpy.get_include()],
+                   extra_compile_args=['-O2', '-fno-tree-vectorize'])
+
+setup(name='portfolio_optimized',
+      ext_modules=[module])
+EOF
+
 # Build the C extension in /app
 cd /app
 python3 setup.py build_ext --inplace
 
-echo "Build complete. Running benchmark..."
-python3 benchmark.py
+echo "Build complete."
