@@ -10,8 +10,6 @@ import logging
 import os
 from collections.abc import AsyncIterator
 
-import httpx
-
 from utils import db
 from utils.constants import SESSION_IDLE_TIMEOUT_SEC
 from utils.models import RunContext, StreamResult
@@ -82,11 +80,6 @@ class SessionRunner:
                         return action.final_status or "stopped"
                 log.info("[%s] Stream broke, re-entering", rid)
 
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                log.warning("[%s] Session gone (404) — treating as completed", rid)
-                return "completed"
-            raise
         except asyncio.CancelledError:
             await db.log_audit(run_context.run_id, "killed", {
                 "elapsed_minutes": round(session.elapsed_minutes(), 1),

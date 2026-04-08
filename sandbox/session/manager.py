@@ -73,7 +73,7 @@ class SessionManager:
         if len(self._sessions) >= MAX_CONCURRENT_SESSIONS:
             raise RuntimeError(f"Max sessions ({MAX_CONCURRENT_SESSIONS}) reached")
         session_id = uuid.uuid4().hex[:12]
-        session = _Session(session_id, options_dict, self._remove_session)
+        session = _Session(session_id, options_dict)
         self._sessions[session_id] = session
         session.task = asyncio.create_task(session.run())
         log.info("Session %s started", session_id)
@@ -124,13 +124,9 @@ class SessionManager:
 class _Session:
     """A single Claude SDK session running in the sandbox."""
 
-    def __init__(
-        self, session_id: str, options_dict: dict,
-        cleanup_callback: Callable[[str], None],
-    ):
+    def __init__(self, session_id: str, options_dict: dict):
         self.session_id = session_id
         self.options_dict = options_dict
-        self._cleanup = cleanup_callback
         self.events: asyncio.Queue = asyncio.Queue(maxsize=SESSION_EVENT_QUEUE_SIZE)
         self.client: ClaudeSDKClient | None = None
         self.task: asyncio.Task | None = None
@@ -172,8 +168,6 @@ class _Session:
         except Exception as e:
             log.error("Session %s error: %s", self.session_id, e, exc_info=True)
             self._emit({"event": "session_error", "data": {"error": str(e)}})
-        finally:
-            self._cleanup(self.session_id)
 
     def _emit(self, event: dict) -> None:
         """Put event on queue. Drops oldest if full."""
