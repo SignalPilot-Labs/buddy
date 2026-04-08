@@ -63,5 +63,8 @@ class PromptLoader:
         return self._load("query/idle_nudge").replace("{idle_timeout}", idle_timeout)
 
     def load_subagent_prompt(self, name: str) -> str:
-        """Load a subagent system prompt from prompts/subagents/{name}.md."""
-        return self._load(f"subagents/{name}")
+        """Load a subagent system prompt with shared rules appended."""
+        agent = self._load(f"subagents/{name}")
+        git = self._load("git-rules")
+        verification = self._load("verification-rules")
+        return f"{agent}\n\n{git}\n\n{verification}"

@@ -39,7 +39,7 @@ class SSEDispatcher:
         data = event.get("data", {})
 
         if event_type == "assistant_message":
-            self._handle_assistant_message(data)
+            await self._handle_assistant_message(data)
 
         elif event_type == "rate_limit":
             return DispatchResult(rate_limit_data=data)
@@ -74,17 +74,27 @@ class SSEDispatcher:
 
     # ── Event Handlers ──
 
-    def _handle_assistant_message(self, data: dict) -> None:
-        """Log assistant message content and accumulate usage."""
+    async def _handle_assistant_message(self, data: dict) -> None:
+        """Log assistant message content, write to DB for dashboard, accumulate usage."""
+        run_id = self._run_context.run_id
         for block in data.get("content", []):
             block_type = block.get("type", "")
             if block_type == "text":
                 text = block.get("text", "")
                 log.info("[%s] %s", self._rid,
                          text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
+                if text.strip():
+                    await db.log_audit(run_id, "llm_text", {
+                        "text": text, "agent_role": self._run_context.agent_role,
+                    })
             elif block_type == "thinking":
+                thinking = block.get("thinking", "")
                 log.info("[%s] [thinking] %s...",
-                         self._rid, block.get("thinking", "")[:100])
+                         self._rid, thinking[:100])
+                if thinking.strip():
+                    await db.log_audit(run_id, "llm_thinking", {
+                        "text": thinking, "agent_role": self._run_context.agent_role,
+                    })
             elif block_type == "tool_use":
                 log.info("[%s] Tool: %s", self._rid, block.get("name", ""))
         self._accumulate_usage(data)
