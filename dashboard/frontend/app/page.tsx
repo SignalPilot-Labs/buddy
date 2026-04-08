@@ -496,7 +496,7 @@ export default function MonitorPage() {
         <Button
           variant="success"
           size="md"
-          onClick={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+          onClick={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
           disabled={!agentReachable || !isConfigured}
           title={!isConfigured ? "Configure credentials in Settings first" : undefined}
           icon={
@@ -748,7 +748,7 @@ export default function MonitorPage() {
         repos={repos}
         activeRepo={activeRepoFilter}
         onRepoSelect={handleRepoSwitch}
-        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        onNewRun={() => { fetchBranches().then(setBranches); setStartModalOpen(true); }}
         isConfigured={isConfigured}
       />
     </div>

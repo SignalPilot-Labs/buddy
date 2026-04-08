@@ -268,10 +268,9 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
-export async function fetchBranches(repo?: string): Promise<string[]> {
+export async function fetchBranches(): Promise<string[]> {
   try {
-    const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
-    const res = await apiFetch(`/api/agent/branches${params}`);
+    const res = await apiFetch(`/api/agent/branches`);
     if (!res.ok) return ["main"];
     return res.json();
   } catch (err) {
