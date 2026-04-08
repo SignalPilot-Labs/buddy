@@ -93,7 +93,7 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={`$${(live.costUsd || run.total_cost_usd || 0).toFixed(2)}`}
+        value={`~$${(live.costUsd || run.total_cost_usd || 0).toFixed(2)}`}
         accent="text-[#00ff88]"
       />
       <Stat
