@@ -29,6 +29,9 @@ MASK_PREFIX_DEFAULT = 6
 # Settings keys that must be encrypted at rest
 SECRET_KEYS = frozenset({"claude_token", "git_token"})
 
+# Mask value used in GET /settings for encrypted env var values
+ENV_VARS_MASK_CHAR = "****"
+
 # Default values
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"

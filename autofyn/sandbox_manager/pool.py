@@ -47,10 +47,16 @@ class SandboxPool:
                 env[key] = val
         return env
 
-    async def create(self, run_key: str, health_timeout: int) -> SandboxClient:
+    async def create(
+        self, run_key: str, health_timeout: int, extra_env: dict[str, str] | None,
+    ) -> SandboxClient:
         """Spin up a sandbox container for a run. Returns a connected SandboxClient."""
         container_name = f"autofyn-sandbox-{run_key}"
         volume_name = f"autofyn-repo-{run_key}"
+
+        env = self._container_env()
+        if extra_env is not None:
+            env.update(extra_env)
 
         container: Container = await asyncio.to_thread(
             self._docker.containers.run,
@@ -64,7 +70,7 @@ class SandboxPool:
             # gVisor requires these capabilities
             cap_add=["SYS_PTRACE", "SYS_ADMIN"],
             security_opt=["apparmor:unconfined"],
-            environment=self._container_env(),
+            environment=env,
         )
         self._containers[run_key] = container.id or ""
         log.info("Started sandbox %s (%s)", container_name, container.short_id)

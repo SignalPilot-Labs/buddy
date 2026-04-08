@@ -21,6 +21,7 @@ class StartRunRequest(BaseModel):
     duration_minutes: float = Field(default=0, ge=0, description="Session duration in minutes. 0 = unlimited.")
     base_branch: str = Field(default="main", min_length=1, max_length=256, description="Branch to base the work on.")
     extended_context: bool = Field(default=False, description="Enable 1M extended context.")
+    repo: str | None = Field(None, description="Active repo slug for per-repo env vars lookup.")
 
 
 class UpdateSettingsRequest(BaseModel):

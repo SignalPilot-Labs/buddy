@@ -132,6 +132,7 @@ export async function startRun(
   durationMinutes: number,
   baseBranch: string,
   extendedContext: boolean,
+  repo: string | null,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
@@ -142,6 +143,7 @@ export async function startRun(
       duration_minutes: durationMinutes,
       base_branch: baseBranch,
       extended_context: extendedContext,
+      repo: repo || null,
     }),
   });
   if (!res.ok) {
@@ -149,6 +151,25 @@ export async function startRun(
     throw new Error(err.detail || `HTTP ${res.status}`);
   }
   return res.json();
+}
+
+export async function fetchRepoEnv(repo: string): Promise<Record<string, string>> {
+  const res = await apiFetch(`/api/repos/${repo}/env`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.env_vars || {};
+}
+
+export async function saveRepoEnv(repo: string, envVars: Record<string, string>): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/env`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ env_vars: envVars }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Failed to save env vars (HTTP ${res.status})`);
+  }
 }
 
 export async function stopAgentInstant(runId: string): Promise<{ ok: boolean }> {

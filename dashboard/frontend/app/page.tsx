@@ -308,7 +308,7 @@ export default function MonitorPage() {
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
         refreshRuns();
         if (result.run_id) {
           handleSelectRun(result.run_id);
@@ -323,7 +323,7 @@ export default function MonitorPage() {
         setBusy(false);
       }
     },
-    [addEvent, handleSelectRun, refreshRuns],
+    [addEvent, handleSelectRun, refreshRuns, activeRepoFilter],
   );
 
   const runStatus: RunStatus | null =
@@ -576,6 +576,7 @@ export default function MonitorPage() {
         onStart={handleStartRun}
         busy={busy}
         branches={branches}
+        activeRepo={activeRepoFilter}
       />
 
       {/* Onboarding Modal */}
