@@ -60,6 +60,7 @@ async def run_migrations() -> None:
     async with _engine.begin() as conn:
         await _migrate_control_signals_constraint(conn)
         await _migrate_cache_token_columns(conn)
+        await _migrate_context_tokens_column(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -93,6 +94,19 @@ async def _migrate_cache_token_columns(conn) -> None:
                 f"ALTER TABLE runs ADD COLUMN {col} INTEGER DEFAULT 0"
             ))
             log.info("Added column runs.%s", col)
+
+
+async def _migrate_context_tokens_column(conn) -> None:
+    """Add context_tokens column to runs table if it doesn't exist."""
+    result = await conn.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'runs' AND column_name = 'context_tokens'"
+    ))
+    if result.first() is None:
+        await conn.execute(text(
+            "ALTER TABLE runs ADD COLUMN context_tokens INTEGER DEFAULT 0"
+        ))
+        log.info("Added column runs.context_tokens")
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:

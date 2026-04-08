@@ -180,4 +180,5 @@ class SSEDispatcher:
             ctx.run_id, ctx.total_cost,
             ctx.total_input_tokens, ctx.total_output_tokens,
             ctx.cache_creation_input_tokens, ctx.cache_read_input_tokens,
+            self._latest_context,
         )

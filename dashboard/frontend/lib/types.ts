@@ -17,6 +17,7 @@ export interface Run {
   github_repo: string | null;
   custom_prompt: string | null;
   duration_minutes: number;
+  context_tokens: number;
 }
 
 export interface RepoInfo {
