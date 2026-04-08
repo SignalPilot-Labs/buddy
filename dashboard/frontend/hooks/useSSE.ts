@@ -61,7 +61,7 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
 
 const POLL_INTERVAL = SSE_POLL_INTERVAL_MS;
 
-export function useSSE(runId: string | null) {
+export function useSSE(runId: string | null, onRunEnded?: () => void) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
@@ -87,25 +87,26 @@ export function useSSE(runId: string | null) {
         try {
           const result = await pollEvents(runId!, afterTool, afterAudit);
           if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
+            let runEnded = false;
             setEvents((prev) => {
               let next = prev;
               for (const tc of result.tool_calls) {
                 afterTool = Math.max(afterTool, tc.id ?? 0);
                 next = mergeToolEvent(next, tc);
               }
-              let runEnded = false;
               for (const ae of result.audit_events) {
                 afterAudit = Math.max(afterAudit, ae.id ?? 0);
                 next = processAudit(next, ae);
                 if (ae.event_type === "run_ended") runEnded = true;
               }
-              if (runEnded && pollingRef.current) {
-                clearInterval(pollingRef.current);
-                pollingRef.current = null;
-                setConnected(false);
-              }
               return next;
             });
+            if (runEnded && pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+              setConnected(false);
+              onRunEnded?.();
+            }
           }
         } catch (err) {
           console.warn("Poll request failed:", err);
@@ -179,6 +180,7 @@ export function useSSE(runId: string | null) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
       }
+      onRunEnded?.();
     });
 
     es.onerror = () => {
@@ -195,7 +197,7 @@ export function useSSE(runId: string | null) {
         pollingRef.current = null;
       }
     };
-  }, [runId]);
+  }, [runId, onRunEnded]);
 
   return { events, connected, clearEvents };
 }

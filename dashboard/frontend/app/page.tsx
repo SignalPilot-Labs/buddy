@@ -59,7 +59,7 @@ export default function MonitorPage() {
     status: "delivering" | "failed";
   } | null>(null);
 
-  const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId);
+  const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId, refreshRuns);
 
   // Merge live events into history — SSE post events need to find their pre in history
   const allEvents = useMemo(
