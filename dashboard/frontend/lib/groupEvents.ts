@@ -223,25 +223,9 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       continue;
     }
 
-    // ── Usage: Collapse into a single tick (take the last one in a burst) ──
+    // ── Usage: skip from feed (data consumed by StatsBar, not shown in feed) ──
     if (ev._kind === "usage") {
-      let lastUsage = ev.data;
       i++;
-      while (i < events.length && events[i]._kind === "usage") {
-        lastUsage = (events[i] as { _kind: "usage"; data: typeof lastUsage }).data;
-        i++;
-      }
-      result.push({
-        type: "usage_tick",
-        data: {
-          input_tokens: lastUsage.input_tokens,
-          output_tokens: lastUsage.output_tokens,
-          total_input: lastUsage.total_input_tokens,
-          total_output: lastUsage.total_output_tokens,
-          cache_read: lastUsage.cache_read_input_tokens,
-        },
-        ts: lastUsage.ts,
-      });
       continue;
     }
 
