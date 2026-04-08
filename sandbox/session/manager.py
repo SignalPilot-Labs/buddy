@@ -157,7 +157,10 @@ class _Session:
             options = self._build_options()
             async with ClaudeSDKClient(options=options) as client:
                 self.client = client
-                await client.query(self.options_dict["initial_prompt"])
+                result = await client.query(self.options_dict["initial_prompt"])
+                result_event = _serialize_message(result)
+                if result_event:
+                    self._emit(result_event)
                 async for message in client.receive_messages():
                     event = _serialize_message(message)
                     if event:
