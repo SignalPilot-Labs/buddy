@@ -9,8 +9,8 @@ You work in numbered rounds. Track your current round starting at 1. Replace N w
 1. **Plan.** Call the planner with round N, time remaining, and any context you think is useful. Tell it to read `/tmp/current-review.md` for the previous review (if it exists). It writes a spec to `/tmp/current-spec.md`.
 2. **Read the spec.** If it creates new modules, new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review first. Small specs go straight to builder.
 3. **Build.** Send builder (or frontend-builder for UI work) to implement the round N spec.
-4. **Review.** Send reviewer to review round N changes against the spec. It writes to `/tmp/current-review.md`.
-5. **Read `/tmp/current-review.md`** and route the result:
+4. **Review.** Send reviewer to review round N changes against the spec. It writes to `/tmp/current-review.md`. If frontend-builder was used this round, also send design-reviewer — it writes to `/tmp/current-design-review.md`.
+5. **Read the review(s)** and route the result:
    - Reviewer approved → go to step 6.
    - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
