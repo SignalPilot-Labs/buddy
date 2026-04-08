@@ -15,5 +15,15 @@ dependencies = [
     "psycopg[binary]>=3.2.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pyright",
+    "mypy",
+    "ruff",
+    "black",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["."]

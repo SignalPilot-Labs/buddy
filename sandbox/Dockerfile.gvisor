@@ -57,15 +57,6 @@ RUN npm install -g \
     eslint \
     prettier
 
-# Python dev tools (used by builder/reviewer for verification)
-RUN uv pip install --system --no-cache \
-    pytest \
-    pytest-asyncio \
-    pyright \
-    mypy \
-    ruff \
-    black
-
 RUN mkdir -p /opt/autofyn
 
 # Create non-root user BEFORE copying app files (avoids slow chown -R)
@@ -79,7 +70,8 @@ COPY --chown=agentuser:agentuser config/ /opt/autofyn/config/
 
 # Sandbox packages — deps first for layer caching
 COPY --chown=agentuser:agentuser sandbox/pyproject.toml /opt/autofyn/
-RUN uv pip install --system --no-cache /opt/autofyn/
+# Runtime + dev tools (pytest, pyright, ruff, etc. for builder/reviewer)
+RUN uv pip install --system --no-cache "/opt/autofyn/[dev]"
 
 # Source code (changes here don't bust dep install cache)
 COPY --chown=agentuser:agentuser sandbox/constants.py /opt/autofyn/
