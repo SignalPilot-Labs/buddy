@@ -28,6 +28,7 @@ export type RunStatus =
   | "paused"
   | "stopped"
   | "completed"
+  | "completed_no_changes"
   | "error"
   | "crashed"
   | "killed"
@@ -113,6 +114,13 @@ export const STATUS_META: Record<
     color: "text-[#88ccff]",
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
+    pulse: false,
+  },
+  completed_no_changes: {
+    label: "No Changes",
+    color: "text-[#777]",
+    bg: "bg-[#777]/10",
+    dot: "bg-[#777]",
     pulse: false,
   },
   error: {

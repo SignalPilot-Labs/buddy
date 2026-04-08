@@ -31,7 +31,7 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
-const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed"]);
+const TERMINAL_STATUSES = new Set(["completed", "completed_no_changes", "stopped", "error", "crashed", "killed"]);
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
