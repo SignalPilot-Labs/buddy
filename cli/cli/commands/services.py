@@ -47,8 +47,19 @@ def build_services() -> None:
     console.print("[green]✓[/green] AutoFyn images built")
 
 
-def start_services() -> None:
+_DOCKER_WARNING = (
+    "[bold yellow]⚠ WARNING:[/bold yellow] --allow-docker grants the agent "
+    "[bold]full access to the host Docker daemon[/bold].\n"
+    "  The agent can create, inspect, and remove any container on this machine.\n"
+    "  Only use this if you trust the prompts you send.\n"
+)
+
+
+def start_services(allow_docker: bool) -> None:
     """Run up.sh — tears down stale containers then docker compose up -d."""
+    if allow_docker:
+        console.print(_DOCKER_WARNING)
+        os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
 

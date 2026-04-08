@@ -63,6 +63,7 @@ autofyn run get <run_id>               # run details + action menu
 ```
 # Services
 autofyn start                          # start services (fast, no rebuild)
+autofyn start --allow-docker           # start with Docker access for sandbox (unsafe)
 autofyn stop                           # stop all services
 autofyn update                         # pull latest code + rebuild images
 autofyn logs                           # stream all container logs (Ctrl+C to stop)
@@ -96,6 +97,16 @@ autofyn config set --api-key KEY       # update CLI config
 ```
 
 Use `--json` on any command for machine-readable output.
+
+### Docker access
+
+By default, sandboxes cannot use Docker. If your task requires the agent to build images or manage containers, start with `--allow-docker`:
+
+```bash
+autofyn start --allow-docker
+```
+
+This mounts the host Docker socket into sandbox containers, giving the agent full Docker daemon access. Only use this if you trust the prompts you send — the agent can create, inspect, and remove any container on the host.
 
 ---
 

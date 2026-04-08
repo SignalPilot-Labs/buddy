@@ -37,6 +37,14 @@ RUN ARCH=$(uname -m) && \
     chmod +x /usr/local/bin/firecracker /usr/local/bin/jailer && \
     rm -rf /tmp/release-*
 
+# Docker CLI (inert without socket mount — enabled via --allow-docker at start)
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+    > /etc/apt/sources.list.d/docker.list \
+    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create working directories
 RUN mkdir -p /opt/autofyn/{kernel,rootfs,sockets,overlays}
 

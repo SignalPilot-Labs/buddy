@@ -14,6 +14,8 @@ import docker.errors
 from docker.models.containers import Container
 
 from utils.constants import (
+    DOCKER_SOCKET_PATH,
+    ENV_KEY_ALLOW_DOCKER,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE,
@@ -33,6 +35,7 @@ class SandboxPool:
     def __init__(self) -> None:
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
+        self._allow_docker = os.environ.get(ENV_KEY_ALLOW_DOCKER, "").lower() in ("1", "true", "yes")
 
     def _container_env(self) -> dict[str, str]:
         """Build env vars for pool-created sandbox containers.
@@ -58,6 +61,13 @@ class SandboxPool:
         if extra_env is not None:
             env.update(extra_env)
 
+        volumes: dict[str, dict[str, str]] = {
+            volume_name: {"bind": "/home/agentuser/repo", "mode": "rw"},
+        }
+        if self._allow_docker:
+            volumes[DOCKER_SOCKET_PATH] = {"bind": DOCKER_SOCKET_PATH, "mode": "rw"}
+            log.warning("Docker socket mounted into sandbox %s (--allow-docker)", container_name)
+
         container: Container = await asyncio.to_thread(
             self._docker.containers.run,
             image=SANDBOX_POOL_IMAGE,
@@ -66,7 +76,7 @@ class SandboxPool:
             detach=True,
             remove=False,
             network=SANDBOX_POOL_NETWORK,
-            volumes={volume_name: {"bind": "/home/agentuser/repo", "mode": "rw"}},
+            volumes=volumes,
             # gVisor requires these capabilities
             cap_add=["SYS_PTRACE", "SYS_ADMIN"],
             security_opt=["apparmor:unconfined"],

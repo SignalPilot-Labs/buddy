@@ -4,7 +4,7 @@ Resolution order (later overrides earlier):
   1. Built-in defaults (config/config.yml in repo)
   2. ~/.autofyn/config.yml (global user config)
   3. .autofyn/config.yml (per-project config)
-  4. Environment variables (SP_* prefix, highest priority)
+  4. Environment variables (AF_* prefix, highest priority)
 
 On first run, copies the default config to .autofyn/config.yml so the
 user has a visible, editable file.
@@ -74,18 +74,19 @@ def _ensure_project_config() -> None:
 
 def _apply_env_overrides(config: dict) -> dict:
     """Override config sections from environment variables."""
-    # Sandbox overrides (SP_* prefix)
+    # Sandbox overrides (AF_* prefix)
     sandbox = config.get("sandbox", {})
     sandbox_env_map = {
-        "SP_SANDBOX_URL": ("url", str),
-        "SP_MAX_VMS": ("max_vms", int),
-        "SP_VM_MEMORY_MB": ("vm_memory_mb", int),
-        "SP_VM_VCPUS": ("vm_vcpus", int),
-        "SP_VM_TIMEOUT_SEC": ("vm_timeout_sec", int),
-        "SP_EXEC_TIMEOUT_SEC": ("exec_timeout_sec", int),
-        "SP_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
-        "SP_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
-        "SP_LOG_LEVEL": ("log_level", str),
+        "AF_SANDBOX_URL": ("url", str),
+        "AF_MAX_VMS": ("max_vms", int),
+        "AF_VM_MEMORY_MB": ("vm_memory_mb", int),
+        "AF_VM_VCPUS": ("vm_vcpus", int),
+        "AF_VM_TIMEOUT_SEC": ("vm_timeout_sec", int),
+        "AF_EXEC_TIMEOUT_SEC": ("exec_timeout_sec", int),
+        "AF_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
+        "AF_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
+        "AF_LOG_LEVEL": ("log_level", str),
+        "AF_ALLOW_DOCKER": ("allow_docker", lambda v: v.lower() in ("1", "true", "yes")),
     }
     for env_var, (key, cast) in sandbox_env_map.items():
         val = os.getenv(env_var)
@@ -118,7 +119,18 @@ def sandbox_config() -> dict:
     return load().get("sandbox", {})
 
 
-_REQUIRED_DB_KEYS = {"host", "port", "name", "user", "password", "pool_size", "max_overflow", "pool_timeout", "pool_recycle", "echo"}
+_REQUIRED_DB_KEYS = {
+    "host",
+    "port",
+    "name",
+    "user",
+    "password",
+    "pool_size",
+    "max_overflow",
+    "pool_timeout",
+    "pool_recycle",
+    "echo",
+}
 
 
 def database_config() -> dict:
@@ -128,7 +140,9 @@ def database_config() -> dict:
         raise RuntimeError("Missing 'database' section in config.yml")
     missing = _REQUIRED_DB_KEYS - set(cfg.keys())
     if missing:
-        raise RuntimeError(f"Missing database config keys: {', '.join(sorted(missing))}")
+        raise RuntimeError(
+            f"Missing database config keys: {', '.join(sorted(missing))}"
+        )
     return cfg
 
 
