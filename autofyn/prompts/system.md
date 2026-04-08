@@ -37,7 +37,11 @@ When the spec touches React, Next.js, CSS, or UI components, the round changes:
 
 - **Step 3:** Use `frontend-builder` instead of `builder`. Never send UI work to the generic builder.
 - **Step 4:** Send `design-reviewer` alongside `reviewer`. Both review in parallel — reviewer checks code quality, design-reviewer checks UI/UX.
-- **Step 5 routing:** Both must approve before committing. If design-reviewer flags UI issues, send fixes to `frontend-builder` (not builder). If reviewer flags code issues, also send to `frontend-builder`.
+- **Step 5 routing:** Both must approve before committing.
+  - Design-reviewer flagged UI fixes (spacing, colors, alignment) → send to `frontend-builder`.
+  - Design-reviewer flagged design concerns (wrong UX approach, bad layout pattern) → back to planner.
+  - Reviewer flagged code issues → send to `frontend-builder`.
+  - Reviewer flagged design concerns → back to planner.
 
 If a spec has both backend and frontend changes, split the build: `builder` for backend files, `frontend-builder` for UI files. Both get reviewed.
 
