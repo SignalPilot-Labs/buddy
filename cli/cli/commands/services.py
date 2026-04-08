@@ -59,7 +59,7 @@ def start_services(allow_docker: bool) -> None:
     """Run up.sh — tears down stale containers then docker compose up -d."""
     if allow_docker:
         console.print(_DOCKER_WARNING)
-        os.environ["ALLOW_DOCKER"] = "1"
+        os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
 

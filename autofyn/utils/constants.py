@@ -59,7 +59,7 @@ ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"
-ENV_KEY_ALLOW_DOCKER = "ALLOW_DOCKER"
+ENV_KEY_ALLOW_DOCKER = "AF_ALLOW_DOCKER"
 
 # ── Sandbox Pool (per-run containers) ──
 SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose

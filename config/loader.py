@@ -4,7 +4,7 @@ Resolution order (later overrides earlier):
   1. Built-in defaults (config/config.yml in repo)
   2. ~/.autofyn/config.yml (global user config)
   3. .autofyn/config.yml (per-project config)
-  4. Environment variables (* prefix, highest priority)
+  4. Environment variables (AF_* prefix, highest priority)
 
 On first run, copies the default config to .autofyn/config.yml so the
 user has a visible, editable file.
@@ -74,19 +74,19 @@ def _ensure_project_config() -> None:
 
 def _apply_env_overrides(config: dict) -> dict:
     """Override config sections from environment variables."""
-    # Sandbox overrides (* prefix)
+    # Sandbox overrides (AF_* prefix)
     sandbox = config.get("sandbox", {})
     sandbox_env_map = {
-        "SANDBOX_URL": ("url", str),
-        "MAX_VMS": ("max_vms", int),
-        "VM_MEMORY_MB": ("vm_memory_mb", int),
-        "VM_VCPUS": ("vm_vcpus", int),
-        "VM_TIMEOUT_SEC": ("vm_timeout_sec", int),
-        "EXEC_TIMEOUT_SEC": ("exec_timeout_sec", int),
-        "CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
-        "NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
-        "LOG_LEVEL": ("log_level", str),
-        "ALLOW_DOCKER": ("allow_docker", lambda v: v.lower() in ("1", "true", "yes")),
+        "AF_SANDBOX_URL": ("url", str),
+        "AF_MAX_VMS": ("max_vms", int),
+        "AF_VM_MEMORY_MB": ("vm_memory_mb", int),
+        "AF_VM_VCPUS": ("vm_vcpus", int),
+        "AF_VM_TIMEOUT_SEC": ("vm_timeout_sec", int),
+        "AF_EXEC_TIMEOUT_SEC": ("exec_timeout_sec", int),
+        "AF_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
+        "AF_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
+        "AF_LOG_LEVEL": ("log_level", str),
+        "AF_ALLOW_DOCKER": ("allow_docker", lambda v: v.lower() in ("1", "true", "yes")),
     }
     for env_var, (key, cast) in sandbox_env_map.items():
         val = os.getenv(env_var)
