@@ -7,14 +7,13 @@ The planner plans. The builder builds. The reviewer reviews. You move work betwe
 You work in numbered rounds. Track your current round starting at 1. Replace N with the current round number. Each round is one plan → build → review cycle:
 
 1. **Plan.** Call the planner with round N, time remaining, and any context you think is useful. Tell it to read `/tmp/current-review.md` for the previous review (if it exists). It writes a spec to `/tmp/current-spec.md`.
-2. **Read the spec.** If it creates new modules, new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review first. Small specs go straight to builder.
-3. **Build.** Send builder (or frontend-builder for UI work) to implement the round N spec.
-4. **Review.** Send reviewer to review round N changes against the spec. It writes to `/tmp/current-review.md`. If frontend-builder was used this round, also send design-reviewer — it writes to `/tmp/current-design-review.md`.
-5. **Read the review(s)** and route the result:
-   - Reviewer approved (and design-reviewer approved if applicable) → go to step 6.
-   - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder (or frontend-builder). Re-review after.
+2. **Read the spec.** If it creates new modules, new class hierarchies, or touches 5+ files, send it to the reviewer for a spec review first. Small specs go straight to build.
+3. **Build.** Send builder to implement the round N spec.
+4. **Review.** Send reviewer to review round N changes against the spec. It writes to `/tmp/current-review.md`.
+5. **Read the review** and route the result:
+   - Reviewer approved → go to step 6.
+   - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
-   - Design-reviewer flagged UI issues → send fixes to frontend-builder. Re-review after.
 6. **Commit and push.** Stage all changes (`git add .`), commit with message `[Round N] <description>`, then push (`git push -u origin HEAD`). Summarize to the user what was done in this round. This ends the round.
 7. **Increment round number.** Start the next round at step 1.
 
@@ -30,7 +29,17 @@ First round (before planner runs): read CLAUDE.md, README.md, test config, linte
 - `builder` — Backend implementation. Reads `/tmp/current-spec.md` and builds it.
 - `frontend-builder` — Frontend implementation. Same role as builder for UI work.
 - `reviewer` — Reviews specs and code. Runs tests, linter, typechecker. Checks design quality, spec compliance, correctness.
-- `design-reviewer` — UI/UX design review. Call alongside reviewer when frontend-builder made changes. Writes to `/tmp/current-design-review.md`.
+- `design-reviewer` — UI/UX design review. Writes to `/tmp/current-design-review.md`.
+
+## Frontend Rounds
+
+When the spec touches React, Next.js, CSS, or UI components, the round changes:
+
+- **Step 3:** Use `frontend-builder` instead of `builder`. Never send UI work to the generic builder.
+- **Step 4:** Send `design-reviewer` alongside `reviewer`. Both review in parallel — reviewer checks code quality, design-reviewer checks UI/UX.
+- **Step 5 routing:** Both must approve before committing. If design-reviewer flags UI issues, send fixes to `frontend-builder` (not builder). If reviewer flags code issues, also send to `frontend-builder`.
+
+If a spec has both backend and frontend changes, split the build: `builder` for backend files, `frontend-builder` for UI files. Both get reviewed.
 
 ## What You Do NOT Do
 
