@@ -40,6 +40,24 @@ export const PROMPT_LABEL_MAX_LEN = 40;
 // localStorage keys
 export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "autofyn_extended_context";
 
+// Run status sets for control bar enabling logic.
+// Must match backend's accepted statuses in resume_run and inject_prompt endpoints.
+export const RESUMABLE_STATUSES: ReadonlyArray<string> = [
+  "paused",
+  "completed",
+  "stopped",
+  "error",
+];
+
+export const INJECTABLE_STATUSES: ReadonlyArray<string> = [
+  "running",
+  "paused",
+  "rate_limited",
+  "completed",
+  "stopped",
+  "error",
+];
+
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.
   // Client-side: use empty string so all /api/* requests go to the same origin

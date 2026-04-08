@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { RunStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
+import { RESUMABLE_STATUSES, INJECTABLE_STATUSES } from "@/lib/constants";
 
 interface ControlBarProps {
   status: RunStatus | null;
@@ -33,8 +34,9 @@ export function ControlBar({
 
   const isActive = ["running", "paused", "rate_limited"].includes(status || "");
   const canPause = status === "running";
-  const canResume = status === "paused";
-  const canInject = ["running", "paused", "rate_limited"].includes(status || "");
+  const canResume = RESUMABLE_STATUSES.includes(status || "");
+  const canInject = INJECTABLE_STATUSES.includes(status || "");
+  const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
   const handleKill = () => {
     if (!showKillConfirm) {
@@ -82,7 +84,7 @@ export function ControlBar({
           </svg>
         }
       >
-        Resume
+        {resumeLabel}
       </Button>
 
       {sessionLocked && (

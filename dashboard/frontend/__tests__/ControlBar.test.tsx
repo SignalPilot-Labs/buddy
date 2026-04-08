@@ -96,4 +96,42 @@ describe("ControlBar", () => {
     await userEvent.click(screen.getByText("Inject"));
     expect(props.onToggleInject).toHaveBeenCalledOnce();
   });
+
+  it("Resume label says Resume when paused", () => {
+    renderBar({ status: "paused" });
+    expect(screen.getByText("Resume").closest("button")).not.toBeDisabled();
+  });
+
+  it("Resume is enabled when status is completed and label says Restart", () => {
+    renderBar({ status: "completed" });
+    const btn = screen.getByText("Restart").closest("button");
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("Resume is enabled when status is stopped and label says Restart", () => {
+    renderBar({ status: "stopped" });
+    const btn = screen.getByText("Restart").closest("button");
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("Resume is enabled when status is error and label says Restart", () => {
+    renderBar({ status: "error" });
+    const btn = screen.getByText("Restart").closest("button");
+    expect(btn).not.toBeDisabled();
+  });
+
+  it("Inject is enabled when status is completed", () => {
+    renderBar({ status: "completed" });
+    expect(screen.getByText("Inject").closest("button")).not.toBeDisabled();
+  });
+
+  it("Inject is enabled when status is stopped", () => {
+    renderBar({ status: "stopped" });
+    expect(screen.getByText("Inject").closest("button")).not.toBeDisabled();
+  });
+
+  it("Inject is enabled when status is error", () => {
+    renderBar({ status: "error" });
+    expect(screen.getByText("Inject").closest("button")).not.toBeDisabled();
+  });
 });
