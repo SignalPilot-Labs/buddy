@@ -42,14 +42,22 @@ export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "autofyn_extended_context";
 
 // Run status sets for control bar enabling logic.
 // Must match backend's accepted statuses in resume_run and inject_prompt endpoints.
-export const RESUMABLE_STATUSES: ReadonlyArray<string> = [
+import type { RunStatus } from "./types";
+
+export const ACTIVE_STATUSES: ReadonlyArray<RunStatus> = [
+  "running",
+  "paused",
+  "rate_limited",
+];
+
+export const RESUMABLE_STATUSES: ReadonlyArray<RunStatus> = [
   "paused",
   "completed",
   "stopped",
   "error",
 ];
 
-export const INJECTABLE_STATUSES: ReadonlyArray<string> = [
+export const INJECTABLE_STATUSES: ReadonlyArray<RunStatus> = [
   "running",
   "paused",
   "rate_limited",
