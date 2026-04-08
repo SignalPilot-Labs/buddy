@@ -37,6 +37,19 @@ class ExecResult:
     exit_code: int
 
 
+# ── Git Setup ──
+
+@dataclass
+class GitSetupParams:
+    """Parameters for git repository setup during bootstrap."""
+
+    base_branch: str
+    github_repo: str
+    exec_timeout: int
+    clone_timeout: int
+    custom_prompt: str | None
+
+
 # ── Runtime Context ──
 
 @dataclass

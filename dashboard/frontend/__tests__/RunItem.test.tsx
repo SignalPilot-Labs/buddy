@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { RunItem } from "@/components/sidebar/RunItem";
 import type { Run } from "@/lib/types";
+import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
 
 function makeRun(overrides: Partial<Run> = {}): Run {
   return {
@@ -33,9 +34,32 @@ function makeRun(overrides: Partial<Run> = {}): Run {
 }
 
 describe("RunItem", () => {
-  it("renders branch name without prefix", () => {
-    render(<RunItem run={makeRun()} active={false} onClick={vi.fn()} />);
+  it("renders branch name without prefix when custom_prompt is null", () => {
+    render(<RunItem run={makeRun({ custom_prompt: null })} active={false} onClick={vi.fn()} />);
     expect(screen.getByText(/abc123/)).toBeInTheDocument();
+  });
+
+  it("shows custom_prompt as the label when set", () => {
+    render(
+      <RunItem
+        run={makeRun({ custom_prompt: "Fix the login button on mobile" })}
+        active={false}
+        onClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Fix the login button on mobile")).toBeInTheDocument();
+  });
+
+  it("truncates long custom_prompt to PROMPT_LABEL_MAX_LEN characters", () => {
+    const longPrompt = "A".repeat(PROMPT_LABEL_MAX_LEN * 2);
+    render(
+      <RunItem
+        run={makeRun({ custom_prompt: longPrompt })}
+        active={false}
+        onClick={vi.fn()}
+      />
+    );
+    expect(screen.getByText("A".repeat(PROMPT_LABEL_MAX_LEN))).toBeInTheDocument();
   });
 
   it("shows tool call count when nonzero", () => {

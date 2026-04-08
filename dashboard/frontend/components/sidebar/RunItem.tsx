@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { timeAgo, formatCost, formatTokens } from "@/lib/format";
+import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
 
 export function RunItem({
   run,
@@ -15,7 +16,9 @@ export function RunItem({
   active: boolean;
   onClick: () => void;
 }) {
-  const branchShort = run.branch_name.replace("autofyn/", "").slice(0, 20);
+  const label = run.custom_prompt
+    ? run.custom_prompt.slice(0, PROMPT_LABEL_MAX_LEN)
+    : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   return (
     <motion.button
@@ -41,7 +44,7 @@ export function RunItem({
           "text-[12px] font-medium truncate flex-1",
           active ? "text-[#e8e8e8]" : "text-[#ccc]"
         )}>
-          {branchShort}
+          {label}
         </span>
         <StatusBadge status={run.status} />
       </div>
