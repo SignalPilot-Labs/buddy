@@ -104,7 +104,13 @@ export function StatsBar({
           </svg>
         }
         label="Context"
-        value={live.contextTokens > 0 ? formatTokenCount(live.contextTokens) : "—"}
+        value={
+          live.contextTokens > 0
+            ? formatTokenCount(live.contextTokens)
+            : (run.context_tokens ?? 0) > 0
+              ? formatTokenCount(run.context_tokens)
+              : "—"
+        }
         accent="text-[#88ccff]"
       />
       {run.pr_url && (

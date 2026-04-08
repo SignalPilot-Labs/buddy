@@ -34,6 +34,19 @@ logging.basicConfig(level=getattr(logging, cfg.get("log_level", "info").upper())
 log = logging.getLogger("sandbox.server")
 
 
+def require_session(handler):
+    """Decorator that returns 404 if the session ID is not found."""
+    async def wrapper(request: web.Request):
+        try:
+            return await handler(request)
+        except RuntimeError as e:
+            if "not found" in str(e):
+                return web.json_response({"error": str(e)}, status=404)
+            raise
+    wrapper.__name__ = handler.__name__
+    return wrapper
+
+
 # ─── Subprocess env ──────────────────────────────────────────────────────────
 
 _STRIP_PATTERN = re.compile(SECRET_ENV_VARS) if SECRET_ENV_VARS else None
@@ -127,6 +140,7 @@ async def handle_session_start(request: web.Request) -> web.Response:
     return web.json_response({"session_id": session_id})
 
 
+@require_session
 async def handle_session_events(request: web.Request) -> web.StreamResponse:
     """Stream SSE events from a session."""
     session_id = request.match_info["session_id"]
@@ -155,6 +169,7 @@ async def handle_session_events(request: web.Request) -> web.StreamResponse:
     return response
 
 
+@require_session
 async def handle_session_message(request: web.Request) -> web.Response:
     """Send a follow-up message to a session."""
     session_id = request.match_info["session_id"]
@@ -164,6 +179,7 @@ async def handle_session_message(request: web.Request) -> web.Response:
     return web.json_response({"status": "sent"})
 
 
+@require_session
 async def handle_session_interrupt(request: web.Request) -> web.Response:
     """Interrupt a session's current response."""
     session_id = request.match_info["session_id"]
@@ -172,6 +188,7 @@ async def handle_session_interrupt(request: web.Request) -> web.Response:
     return web.json_response({"status": "interrupted"})
 
 
+@require_session
 async def handle_session_stop(request: web.Request) -> web.Response:
     """Stop a session."""
     session_id = request.match_info["session_id"]

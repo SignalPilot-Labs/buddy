@@ -173,6 +173,7 @@ async def update_run_cost(
     total_output_tokens: int,
     cache_creation_input_tokens: int,
     cache_read_input_tokens: int,
+    context_tokens: int,
 ) -> None:
     """Persist current cost/token values mid-run. Called at each SDK round boundary."""
     async with get_session_factory()() as s:
@@ -183,6 +184,7 @@ async def update_run_cost(
                 total_output_tokens=total_output_tokens,
                 cache_creation_input_tokens=cache_creation_input_tokens,
                 cache_read_input_tokens=cache_read_input_tokens,
+                context_tokens=context_tokens,
             )
         )
         await s.commit()

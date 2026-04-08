@@ -78,6 +78,7 @@ async def _check_run_ended(run_id: str) -> dict | None:
         "total_output_tokens": run.total_output_tokens,
         "cache_creation_input_tokens": run.cache_creation_input_tokens,
         "cache_read_input_tokens": run.cache_read_input_tokens,
+        "context_tokens": run.context_tokens,
     }
 
 
