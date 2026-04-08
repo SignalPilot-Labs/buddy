@@ -6,7 +6,6 @@ import type { Run, FeedEvent } from "@/lib/types";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
-const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
 function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
   let contextTokens = 0;
@@ -61,7 +60,6 @@ export function StatsBar({
   connected: boolean;
   events?: FeedEvent[];
 }) {
-  const isActive = run != null && ACTIVE_STATUSES.has(run.status);
   const live = useMemo(() => computeLiveStats(events), [events]);
 
   if (!run) {
@@ -85,7 +83,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(isActive ? live.toolCount : run.total_tool_calls || 0)}
+        value={String(live.toolCount || run.total_tool_calls || 0)}
       />
       <Stat
         icon={
@@ -95,11 +93,7 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={
-          isActive
-            ? live.costUsd > 0 ? `$${live.costUsd.toFixed(2)}` : "—"
-            : `$${(run.total_cost_usd || 0).toFixed(2)}`
-        }
+        value={`$${(live.costUsd || run.total_cost_usd || 0).toFixed(2)}`}
         accent="text-[#00ff88]"
       />
       <Stat
@@ -110,7 +104,7 @@ export function StatsBar({
           </svg>
         }
         label="Context"
-        value={isActive && live.contextTokens > 0 ? formatTokenCount(live.contextTokens) : "—"}
+        value={live.contextTokens > 0 ? formatTokenCount(live.contextTokens) : "—"}
         accent="text-[#88ccff]"
       />
       {run.pr_url && (
