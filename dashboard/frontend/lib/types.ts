@@ -62,6 +62,7 @@ export interface AuditEvent {
 }
 
 export interface UsageEvent {
+  context_tokens: number;
   input_tokens: number;
   output_tokens: number;
   total_input_tokens: number;

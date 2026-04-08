@@ -9,19 +9,19 @@ const EMPTY_EVENTS: FeedEvent[] = [];
 const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
 function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
-  let totalTokens = 0;
+  let contextTokens = 0;
   let costUsd = 0;
 
   for (const e of events) {
     if (e._kind === "tool" && e.data.phase === "pre") {
       toolCount++;
     } else if (e._kind === "usage") {
-      totalTokens = (e.data.total_input_tokens || 0) + (e.data.total_output_tokens || 0);
+      contextTokens = e.data.context_tokens || 0;
       costUsd = e.data.total_cost_usd || 0;
     }
   }
 
-  return { toolCount, totalTokens, costUsd };
+  return { toolCount, contextTokens, costUsd };
 }
 
 function formatTokenCount(n: number): string {
@@ -110,10 +110,7 @@ export function StatsBar({
           </svg>
         }
         label="Context"
-        value={(() => {
-          const tokens = isActive ? live.totalTokens : (run.total_input_tokens || 0) + (run.total_output_tokens || 0);
-          return tokens ? formatTokenCount(tokens) : "—";
-        })()}
+        value={isActive && live.contextTokens > 0 ? formatTokenCount(live.contextTokens) : "—"}
         accent="text-[#88ccff]"
       />
       {run.pr_url && (
