@@ -230,6 +230,50 @@ describe("extractBashCommands", () => {
   });
 });
 
+/* ── milestone detail rendering ── */
+
+describe("milestone detail text", () => {
+  it("end_session_denied uses remaining_minutes key", () => {
+    const events: FeedEvent[] = [
+      {
+        _kind: "audit",
+        data: {
+          id: 1,
+          run_id: "r",
+          event_type: "end_session_denied",
+          details: { remaining_minutes: 25.3 },
+          ts: new Date().toISOString(),
+        },
+      },
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(1);
+    if (result[0].type === "milestone") {
+      expect(result[0].detail).toBe("25.3m remaining");
+    }
+  });
+
+  it("end_session_denied shows ? when remaining_minutes missing", () => {
+    const events: FeedEvent[] = [
+      {
+        _kind: "audit",
+        data: {
+          id: 2,
+          run_id: "r",
+          event_type: "end_session_denied",
+          details: {},
+          ts: new Date().toISOString(),
+        },
+      },
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(1);
+    if (result[0].type === "milestone") {
+      expect(result[0].detail).toBe("?m remaining");
+    }
+  });
+});
+
 /* ── groupEvents smoke tests ── */
 
 describe("groupEvents", () => {

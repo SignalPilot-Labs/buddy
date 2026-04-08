@@ -204,3 +204,58 @@ class TestSSEDispatcher:
         })
 
         tracker.track_subagent_start.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("core.sse_dispatch.db", new_callable=MagicMock)
+    async def test_result_cost_is_idempotent_not_additive(self, mock_db):
+        """Multiple result events with same session cost don't double-count."""
+        mock_db.save_session_id = AsyncMock()
+        mock_db.log_audit = AsyncMock()
+        mock_db.update_run_cost = AsyncMock()
+        session, tracker = _build_mocks()
+        run_context = _make_ctx()
+        run_context.total_cost = 0.50
+        dispatcher = _make_dispatcher(run_context, session, tracker)
+
+        result_event = {
+            "event": "result",
+            "data": {"session_id": "sess-1", "total_cost_usd": 2.00, "num_turns": 5},
+        }
+        await dispatcher.dispatch(result_event)
+        assert run_context.total_cost == 2.50
+
+        await dispatcher.dispatch(result_event)
+        assert run_context.total_cost == 2.50
+
+    @pytest.mark.asyncio
+    @patch("core.sse_dispatch.db", new_callable=MagicMock)
+    async def test_usage_emit_throttled(self, mock_db):
+        """Usage audit events are emitted every USAGE_EMIT_INTERVAL messages."""
+        mock_db.log_audit = AsyncMock()
+        session, tracker = _build_mocks()
+        dispatcher = _make_dispatcher(_make_ctx(), session, tracker)
+
+        msg = {
+            "event": "assistant_message",
+            "data": {
+                "content": [{"type": "text", "text": "x"}],
+                "usage": {"input_tokens": 1, "output_tokens": 1},
+            },
+        }
+        for _ in range(9):
+            await dispatcher.dispatch(msg)
+
+        usage_calls = [
+            c for c in mock_db.log_audit.call_args_list
+            if c.args[1] == "usage"
+        ]
+        assert len(usage_calls) == 0
+
+        await dispatcher.dispatch(msg)
+
+        usage_calls = [
+            c for c in mock_db.log_audit.call_args_list
+            if c.args[1] == "usage"
+        ]
+        assert len(usage_calls) == 1
+        assert usage_calls[0].args[2]["total_input_tokens"] == 10
