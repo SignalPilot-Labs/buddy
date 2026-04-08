@@ -34,7 +34,7 @@ class SSEDispatcher:
         self._rid = run_context.run_id[:8]
         self._message_count: int = 0
         self._cost_baseline: float = run_context.total_cost
-        self._latest_input: int = 0
+        self._latest_context: int = 0
         self._latest_context_tokens: int = 0
 
     async def dispatch(self, event: dict) -> DispatchResult:
@@ -149,15 +149,19 @@ class SSEDispatcher:
         """Add per-message usage to run context. Emits throttled usage audit events."""
         usage = data.get("usage")
         if usage:
-            self._latest_input = usage.get("input_tokens", 0)
-            self._run_context.total_input_tokens += self._latest_input
-            self._run_context.total_output_tokens += usage.get("output_tokens", 0)
-            self._run_context.cache_creation_input_tokens += usage.get("cache_creation_input_tokens", 0)
-            self._run_context.cache_read_input_tokens += usage.get("cache_read_input_tokens", 0)
+            inp = usage.get("input_tokens", 0)
+            out = usage.get("output_tokens", 0)
+            cache_create = usage.get("cache_creation_input_tokens", 0)
+            cache_read = usage.get("cache_read_input_tokens", 0)
+            self._latest_context = inp + out + cache_create + cache_read
+            self._run_context.total_input_tokens += inp
+            self._run_context.total_output_tokens += out
+            self._run_context.cache_creation_input_tokens += cache_create
+            self._run_context.cache_read_input_tokens += cache_read
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
             await db.log_audit(self._run_context.run_id, "usage", {
-                "context_tokens": self._latest_input,
+                "context_tokens": self._latest_context,
                 "total_input_tokens": self._run_context.total_input_tokens,
                 "total_output_tokens": self._run_context.total_output_tokens,
                 "cache_creation_input_tokens": self._run_context.cache_creation_input_tokens,
