@@ -33,6 +33,7 @@ class SSEDispatcher:
         self._tracker = tracker
         self._rid = run_context.run_id[:8]
         self._message_count: int = 0
+        self._cost_baseline: float = run_context.total_cost
 
     async def dispatch(self, event: dict) -> DispatchResult:
         """Route a single SSE event. Returns result for session runner to act on."""
@@ -127,7 +128,7 @@ class SSEDispatcher:
             await db.save_session_id(run_id, session_id)
         cost = data.get("total_cost_usd")
         if cost:
-            self._run_context.total_cost += cost
+            self._run_context.total_cost = self._cost_baseline + cost
         await db.log_audit(run_id, "round_complete", {
             "turns": data.get("num_turns"),
             "cost_usd": cost,

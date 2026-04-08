@@ -66,6 +66,8 @@ export function useSSE(runId: string | null, onRunEnded?: () => void) {
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onRunEndedRef = useRef(onRunEnded);
+  onRunEndedRef.current = onRunEnded;
 
   const clearEvents = useCallback(() => setEvents([]), []);
 
@@ -105,7 +107,7 @@ export function useSSE(runId: string | null, onRunEnded?: () => void) {
               clearInterval(pollingRef.current);
               pollingRef.current = null;
               setConnected(false);
-              onRunEnded?.();
+              onRunEndedRef.current?.();
             }
           }
         } catch (err) {
@@ -180,7 +182,7 @@ export function useSSE(runId: string | null, onRunEnded?: () => void) {
         clearInterval(pollingRef.current);
         pollingRef.current = null;
       }
-      onRunEnded?.();
+      onRunEndedRef.current?.();
     });
 
     es.onerror = () => {
@@ -197,7 +199,7 @@ export function useSSE(runId: string | null, onRunEnded?: () => void) {
         pollingRef.current = null;
       }
     };
-  }, [runId, onRunEnded]);
+  }, [runId]);
 
   return { events, connected, clearEvents };
 }
