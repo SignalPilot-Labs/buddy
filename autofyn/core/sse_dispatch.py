@@ -34,6 +34,8 @@ class SSEDispatcher:
         self._rid = run_context.run_id[:8]
         self._message_count: int = 0
         self._cost_baseline: float = run_context.total_cost
+        self._latest_input: int = 0
+        self._latest_context_tokens: int = 0
 
     async def dispatch(self, event: dict) -> DispatchResult:
         """Route a single SSE event. Returns result for session runner to act on."""
@@ -146,17 +148,16 @@ class SSEDispatcher:
     async def _accumulate_usage(self, data: dict) -> None:
         """Add per-message usage to run context. Emits throttled usage audit events."""
         usage = data.get("usage")
-        current_input = 0
         if usage:
-            current_input = usage.get("input_tokens", 0)
-            self._run_context.total_input_tokens += current_input
+            self._latest_input = usage.get("input_tokens", 0)
+            self._run_context.total_input_tokens += self._latest_input
             self._run_context.total_output_tokens += usage.get("output_tokens", 0)
             self._run_context.cache_creation_input_tokens += usage.get("cache_creation_input_tokens", 0)
             self._run_context.cache_read_input_tokens += usage.get("cache_read_input_tokens", 0)
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
             await db.log_audit(self._run_context.run_id, "usage", {
-                "context_tokens": current_input,
+                "context_tokens": self._latest_input,
                 "total_input_tokens": self._run_context.total_input_tokens,
                 "total_output_tokens": self._run_context.total_output_tokens,
                 "cache_creation_input_tokens": self._run_context.cache_creation_input_tokens,
