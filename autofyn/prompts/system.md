@@ -29,6 +29,7 @@ First round (before planner runs): read CLAUDE.md, README.md, test config, linte
 - `builder` — Backend implementation. Reads `/tmp/current-spec.md` and builds it.
 - `frontend-builder` — Frontend implementation. Same role as builder for UI work.
 - `reviewer` — Reviews specs and code. Runs tests, linter, typechecker. Checks design quality, spec compliance, correctness.
+- `design-reviewer` — UI/UX design review. Call alongside reviewer when frontend-builder made changes. Writes to `/tmp/current-design-review.md`.
 
 ## What You Do NOT Do
 

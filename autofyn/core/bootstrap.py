@@ -224,6 +224,12 @@ class Bootstrap:
                 "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             },
+            "design-reviewer": {
+                "description": "UI/UX design review. Call alongside reviewer when frontend-builder made changes. Catches visual inconsistencies, spacing, hierarchy, accessibility, and AI slop.",
+                "prompt": self._prompts.load_subagent_prompt("design-reviewer"),
+                "model": "opus",
+                "tools": ["Read", "Glob", "Grep", "Bash"],
+            },
         }
 
     def _build_session_options(
