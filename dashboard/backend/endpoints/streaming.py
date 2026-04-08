@@ -20,7 +20,7 @@ log = logging.getLogger("dashboard.streaming")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_query)])
 
-_RUN_ENDED_STATUSES = frozenset({"completed", "stopped", "killed", "crashed", "error"})
+_RUN_ENDED_STATUSES = frozenset({"completed", "completed_no_changes", "stopped", "killed", "crashed", "error"})
 
 
 class _PollResult(NamedTuple):
