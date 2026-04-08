@@ -232,6 +232,7 @@ class TestSSEDispatcher:
     async def test_usage_emit_throttled(self, mock_db):
         """Usage audit events are emitted every USAGE_EMIT_INTERVAL messages."""
         mock_db.log_audit = AsyncMock()
+        mock_db.update_run_cost = AsyncMock()
         session, tracker = _build_mocks()
         dispatcher = _make_dispatcher(_make_ctx(), session, tracker)
 

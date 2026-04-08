@@ -159,7 +159,6 @@ class _Session:
                 self.client = client
                 await client.query(self.options_dict["initial_prompt"])
                 async for message in client.receive_messages():
-                    log.info("SDK message: %s", type(message).__name__)
                     event = _serialize_message(message)
                     if event:
                         self._emit(event)

@@ -32,6 +32,12 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 # ── Usage Tracking ──
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
+# ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
+COST_PER_INPUT = 15.0 / 1_000_000
+COST_PER_OUTPUT = 75.0 / 1_000_000
+COST_PER_CACHE_WRITE = 18.75 / 1_000_000
+COST_PER_CACHE_READ = 1.50 / 1_000_000
+
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500

@@ -7,7 +7,10 @@ Returns DispatchResult so the session runner can orchestrate side effects.
 import logging
 
 from utils import db
-from utils.constants import LOG_PREVIEW_LIMIT, USAGE_EMIT_INTERVAL
+from utils.constants import (
+    LOG_PREVIEW_LIMIT, USAGE_EMIT_INTERVAL,
+    COST_PER_INPUT, COST_PER_OUTPUT, COST_PER_CACHE_WRITE, COST_PER_CACHE_READ,
+)
 from utils.models import DispatchResult, RunContext
 from tools.session import SessionGate
 from tools.subagent_tracker import SubagentTracker
@@ -158,6 +161,12 @@ class SSEDispatcher:
             self._run_context.total_output_tokens += out
             self._run_context.cache_creation_input_tokens += cache_create
             self._run_context.cache_read_input_tokens += cache_read
+            self._run_context.total_cost = self._cost_baseline + (
+                self._run_context.total_input_tokens * COST_PER_INPUT
+                + self._run_context.total_output_tokens * COST_PER_OUTPUT
+                + self._run_context.cache_creation_input_tokens * COST_PER_CACHE_WRITE
+                + self._run_context.cache_read_input_tokens * COST_PER_CACHE_READ
+            )
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
             await db.log_audit(self._run_context.run_id, "usage", {
