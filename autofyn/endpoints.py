@@ -6,18 +6,33 @@ All FastAPI routes are registered here via register_routes().
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI, HTTPException
 
 from utils import db
-from utils.constants import MAX_CONCURRENT_RUNS
+from utils.constants import ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, MAX_CONCURRENT_RUNS
 from utils.models import ActiveRun, HealthResponse, HealthRunEntry, StartRequest, InjectRequest
 
 if TYPE_CHECKING:
     from server import AgentServer
+
+
+def _merge_tokens_into_env(
+    env: dict[str, str] | None,
+    claude_token: str | None,
+    git_token: str | None,
+) -> dict[str, str] | None:
+    """Merge per-run tokens into the env dict without touching os.environ."""
+    if not claude_token and not git_token:
+        return env
+    merged: dict[str, str] = dict(env) if env is not None else {}
+    if claude_token:
+        merged[ENV_KEY_CLAUDE_TOKEN] = claude_token
+    if git_token:
+        merged[ENV_KEY_GIT_TOKEN] = git_token
+    return merged
 
 
 def register_routes(app: FastAPI, server: AgentServer) -> None:
@@ -47,12 +62,7 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
     async def start_run(body: StartRequest):
         server._check_capacity()
 
-        # Set credentials in env for this process. Tokens are per-account,
-        # not per-run — each sandbox gets them via RepoOps._auth_env().
-        if body.claude_token:
-            os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = body.claude_token
-        if body.git_token:
-            os.environ["GIT_TOKEN"] = body.git_token
+        body.env = _merge_tokens_into_env(body.env, body.claude_token, body.git_token)
 
         run_id = str(uuid.uuid4())
         if not body.github_repo:

@@ -52,6 +52,10 @@ SANDBOX_CLONE_TIMEOUT_DEFAULT = 300
 SANDBOX_HEALTH_TIMEOUT_DEFAULT = 5
 SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 
+# ── Token env keys — passed per-run via extra_env, not os.environ ──
+ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
+ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
+
 # ── Sandbox Pool (per-run containers) ──
 SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
 SANDBOX_POOL_NETWORK = "autofyn_default"         # compose default network
@@ -59,6 +63,4 @@ SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
 SANDBOX_POOL_ENV_PASSTHROUGH = [
     "AGENT_INTERNAL_SECRET",
-    "CLAUDE_CODE_OAUTH_TOKEN",
-    "GIT_TOKEN",
 ]

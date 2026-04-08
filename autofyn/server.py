@@ -88,8 +88,8 @@ class AgentServer:
             raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
 
     def _active_count(self) -> int:
-        """Count non-terminal runs."""
-        return sum(1 for r in self._runs.values() if r.status in ("starting", "running"))
+        """Count non-terminal runs (including paused — they still hold sandbox resources)."""
+        return sum(1 for r in self._runs.values() if r.status in ("starting", "running", "paused"))
 
     def _get_run(self, run_id: str) -> ActiveRun:
         """Look up a run or raise 404."""
@@ -104,6 +104,7 @@ class AgentServer:
             return self._get_run(run_id)
         for r in self._runs.values():
             if r.status == "running" and r.events:
+                log.warning("_get_run_or_first called without run_id — falling back to first active run")
                 return r
         raise HTTPException(status_code=409, detail="No run in progress")
 
