@@ -154,18 +154,22 @@ export async function startRun(
 }
 
 export async function fetchRepoEnv(repo: string): Promise<Record<string, string>> {
-  const res = await apiFetch(`/api/repos/${encodeURIComponent(repo)}/env`);
+  const res = await apiFetch(`/api/repos/${repo}/env`);
   if (!res.ok) return {};
   const data = await res.json();
   return data.env_vars || {};
 }
 
 export async function saveRepoEnv(repo: string, envVars: Record<string, string>): Promise<void> {
-  await apiFetch(`/api/repos/${encodeURIComponent(repo)}/env`, {
+  const res = await apiFetch(`/api/repos/${repo}/env`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ env_vars: envVars }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Failed to save env vars (HTTP ${res.status})`);
+  }
 }
 
 export async function stopAgentInstant(runId: string): Promise<{ ok: boolean }> {

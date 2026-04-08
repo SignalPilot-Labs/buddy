@@ -205,13 +205,15 @@ export function StartRunModal({
     return false;
   });
   const [envText, setEnvText] = useState("");
+  const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch saved env vars when modal opens
   useEffect(() => {
     if (open && activeRepo) {
+      setEnvError(null);
       fetchRepoEnv(activeRepo).then((env) => {
-        if (Object.keys(env).length > 0) setEnvText(envToText(env));
+        setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       });
     }
   }, [open, activeRepo]);
@@ -243,9 +245,14 @@ export function StartRunModal({
       selectedQuick !== null
         ? QUICK_PROMPTS[selectedQuick].prompt
         : customPrompt.trim() || undefined;
-    const env = parseEnvText(envText);
-    if (activeRepo && Object.keys(env).length > 0) {
-      await saveRepoEnv(activeRepo, env);
+    if (activeRepo) {
+      try {
+        await saveRepoEnv(activeRepo, parseEnvText(envText));
+        setEnvError(null);
+      } catch (e) {
+        setEnvError(e instanceof Error ? e.message : "Failed to save env vars");
+        return;
+      }
     }
     onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
   };
@@ -413,6 +420,7 @@ export function StartRunModal({
                   <p className="mt-1 text-[9px] text-[#666]">
                     KEY=value per line. Encrypted and injected into sandbox.
                   </p>
+                  {envError && <p className="mt-1 text-[9px] text-[#ff4444]">{envError}</p>}
                 </div>
 
                 {/* Budget */}
