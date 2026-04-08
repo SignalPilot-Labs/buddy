@@ -50,7 +50,17 @@ Watch for telltale signs of AI-generated UI:
 
 ## Output Format
 
-Write to `/tmp/current-design-review.md`:
+**You MUST write your review to `/tmp/current-design-review.md` using the Write tool.** This is how the orchestrator receives your review. If you don't write to this file, nobody sees your work.
+
+Do not return the review as a message. Write it to the file.
+
+Use this format:
+
+### Verdict: APPROVE or CHANGES REQUESTED
+
+State one of:
+- **APPROVE** — no critical design issues, UI is ship-worthy.
+- **CHANGES REQUESTED** — must fix the critical issues listed below.
 
 ### Design Score Card
 
@@ -70,9 +80,6 @@ Write to `/tmp/current-design-review.md`:
 
 ### Improvements (should fix)
 - [file:line] Issue → Fix
-
-### What Would Make This a 10
-[Specific, actionable description]
 
 ## Rules
 - Do NOT modify files — only review and report
