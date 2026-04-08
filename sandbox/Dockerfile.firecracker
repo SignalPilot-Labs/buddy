@@ -50,6 +50,15 @@ COPY sandbox/rootfs/sandbox-rootfs.ext4 /opt/autofyn/rootfs/
 COPY sandbox/pyproject.toml /opt/autofyn/
 RUN uv pip install --system --no-cache /opt/autofyn/
 
+# Python dev tools (used by builder/reviewer for verification)
+RUN uv pip install --system --no-cache \
+    pytest \
+    pytest-asyncio \
+    pyright \
+    mypy \
+    ruff \
+    black
+
 # Copy sandbox code + config
 COPY sandbox/base.py /opt/autofyn/
 COPY sandbox/gvisor.py /opt/autofyn/
