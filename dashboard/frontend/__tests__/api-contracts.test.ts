@@ -36,7 +36,7 @@ afterEach(() => {
 
 describe("startRun", () => {
   it("sends POST to /api/agent/start with all params", async () => {
-    await startRun("fix bugs", 10, 30, "main", true);
+    await startRun("fix bugs", 10, 30, "main", true, "owner/repo");
     expect(fetchCalls).toHaveLength(1);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBe("fix bugs");
@@ -44,15 +44,16 @@ describe("startRun", () => {
     expect(body.duration_minutes).toBe(30);
     expect(body.base_branch).toBe("main");
     expect(body.extended_context).toBe(true);
+    expect(body.repo).toBe("owner/repo");
   });
 
   it("returns run_id from response", async () => {
-    const result = await startRun("test", 0, 0, "main", false);
+    const result = await startRun("test", 0, 0, "main", false, null);
     expect(result.run_id).toBe("test-run-id");
   });
 
   it("sends null prompt when undefined", async () => {
-    await startRun(undefined, 0, 0, "main", false);
+    await startRun(undefined, 0, 0, "main", false, null);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBeNull();
   });

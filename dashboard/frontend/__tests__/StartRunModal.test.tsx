@@ -17,6 +17,7 @@ function renderModal(overrides = {}) {
     onStart: vi.fn(),
     busy: false,
     branches: ["main", "staging", "develop"],
+    activeRepo: null,
   };
   const props = { ...defaults, ...overrides };
   return { ...render(<StartRunModal {...props} />), props };
