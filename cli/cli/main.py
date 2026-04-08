@@ -51,14 +51,17 @@ def main(
 
 
 @app.command("start")
-def start() -> None:
+def start(
+    allow_docker: bool = typer.Option(False, "--allow-docker", help="Mount Docker socket into sandbox containers"),
+) -> None:
     """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
 
     \b
     Example:
       autofyn start
+      autofyn start --allow-docker    # Give agent Docker access (unsafe)
     """
-    services.start_services()
+    services.start_services(allow_docker)
 
 
 @app.command("stop")

@@ -28,6 +28,7 @@ sandbox:
   max_concurrent_sessions: 5
   session_event_queue_size: 1000
   log_level: info
+  allow_docker: false  # mount Docker socket into sandbox (--allow-docker flag)
 
 agent:
   port: 8500
