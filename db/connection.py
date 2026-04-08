@@ -59,6 +59,7 @@ async def run_migrations() -> None:
         raise RuntimeError("Not connected. Call connect() first.")
     async with _engine.begin() as conn:
         await _migrate_control_signals_constraint(conn)
+        await _migrate_cache_token_columns(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -78,6 +79,20 @@ async def _migrate_control_signals_constraint(conn) -> None:
             f"CHECK (signal IN {expected})"
         ))
         log.info("Migrated ck_control_signals_signal constraint")
+
+
+async def _migrate_cache_token_columns(conn) -> None:
+    """Add cache token columns to runs table if they don't exist."""
+    for col in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+        result = await conn.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'runs' AND column_name = :col"
+        ), {"col": col})
+        if result.first() is None:
+            await conn.execute(text(
+                f"ALTER TABLE runs ADD COLUMN {col} INTEGER DEFAULT 0"
+            ))
+            log.info("Added column runs.%s", col)
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:
