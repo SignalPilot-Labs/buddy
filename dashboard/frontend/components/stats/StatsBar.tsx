@@ -3,31 +3,31 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
-import { formatTokens } from "@/lib/format";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
 const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
-
 function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let cacheRead = 0;
+  let totalTokens = 0;
   let costUsd = 0;
 
   for (const e of events) {
     if (e._kind === "tool" && e.data.phase === "pre") {
       toolCount++;
     } else if (e._kind === "usage") {
-      inputTokens = e.data.total_input_tokens || 0;
-      outputTokens = e.data.total_output_tokens || 0;
-      cacheRead = e.data.cache_read_input_tokens || 0;
+      totalTokens = (e.data.total_input_tokens || 0) + (e.data.total_output_tokens || 0);
       costUsd = e.data.total_cost_usd || 0;
     }
   }
 
-  return { toolCount, inputTokens, outputTokens, cacheRead, costUsd };
+  return { toolCount, totalTokens, costUsd };
+}
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 function Stat({
@@ -105,28 +105,17 @@ export function StatsBar({
       <Stat
         icon={
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M1 5h3l1.5-3 2 6L9 5" />
+            <rect x="1" y="1" width="8" height="8" rx="1" />
+            <path d="M1 1v8" />
           </svg>
         }
-        label="In/Out"
-        value={
-          isActive
-            ? `${formatTokens(live.inputTokens)} / ${formatTokens(live.outputTokens)}`
-            : `${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`
-        }
+        label="Context"
+        value={(() => {
+          const tokens = isActive ? live.totalTokens : (run.total_input_tokens || 0) + (run.total_output_tokens || 0);
+          return tokens ? formatTokenCount(tokens) : "—";
+        })()}
+        accent="text-[#88ccff]"
       />
-      {isActive && live.cacheRead > 0 && (
-        <Stat
-          icon={
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M2 3h6M2 5h6M2 7h6" />
-            </svg>
-          }
-          label="Cache"
-          value={formatTokens(live.cacheRead)}
-          accent="text-[#88ccff]"
-        />
-      )}
       {run.pr_url && (
         <a
           href={run.pr_url}
