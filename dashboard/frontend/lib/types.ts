@@ -68,6 +68,7 @@ export interface UsageEvent {
   total_output_tokens: number;
   cache_creation_input_tokens: number;
   cache_read_input_tokens: number;
+  total_cost_usd: number;
   ts: string;
 }
 

@@ -13,6 +13,8 @@ function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
   let inputTokens = 0;
   let outputTokens = 0;
+  let cacheRead = 0;
+  let costUsd = 0;
 
   for (const e of events) {
     if (e._kind === "tool" && e.data.phase === "pre") {
@@ -20,10 +22,12 @@ function computeLiveStats(events: FeedEvent[]) {
     } else if (e._kind === "usage") {
       inputTokens = e.data.total_input_tokens || 0;
       outputTokens = e.data.total_output_tokens || 0;
+      cacheRead = e.data.cache_read_input_tokens || 0;
+      costUsd = e.data.total_cost_usd || 0;
     }
   }
 
-  return { toolCount, inputTokens, outputTokens };
+  return { toolCount, inputTokens, outputTokens, cacheRead, costUsd };
 }
 
 function Stat({
@@ -92,8 +96,8 @@ export function StatsBar({
         }
         label="Cost"
         value={
-          isActive && !run.total_cost_usd
-            ? "—"
+          isActive
+            ? live.costUsd > 0 ? `$${live.costUsd.toFixed(2)}` : "—"
             : `$${(run.total_cost_usd || 0).toFixed(2)}`
         }
         accent="text-[#00ff88]"
@@ -111,6 +115,18 @@ export function StatsBar({
             : `${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`
         }
       />
+      {isActive && live.cacheRead > 0 && (
+        <Stat
+          icon={
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 3h6M2 5h6M2 7h6" />
+            </svg>
+          }
+          label="Cache"
+          value={formatTokens(live.cacheRead)}
+          accent="text-[#88ccff]"
+        />
+      )}
       {run.pr_url && (
         <a
           href={run.pr_url}
