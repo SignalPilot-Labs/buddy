@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 export function LLMTextBlock({
   text,
@@ -62,12 +63,9 @@ export function LLMTextBlock({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className={clsx(
-                  "text-[11px] leading-relaxed whitespace-pre-wrap break-words block",
-                  isPlanner ? "text-[#cc8855]" : "text-[#bbb]"
-                )}
+                className="block"
               >
-                {text}
+                <MarkdownContent content={text} className={clsx("text-[11px]", isPlanner ? "text-[#cc8855]" : "text-[#bbb]")} />
               </motion.span>
             ) : (
               <motion.span

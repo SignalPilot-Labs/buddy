@@ -8,6 +8,7 @@ import { getToolCategory, TOOL_COLORS, type ToolCategory } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import type { GroupedEvent } from "@/lib/groupEvents";
 import { extractReadPaths, extractEditSummary, extractBashCommands } from "@/lib/groupEvents";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 
 /* ── Helpers ── */
 function fmtTime(ts: string): string {
@@ -22,6 +23,18 @@ function fmtDuration(ms: number): string {
 function shortPath(p: string): string {
   const parts = p.split("/");
   return parts.length <= 2 ? p : parts.slice(-2).join("/");
+}
+function extractResultText(data: Record<string, unknown>): string {
+  if ("result" in data && typeof data.result === "string") return data.result;
+  if ("_raw" in data && typeof data._raw === "string") return data._raw;
+  const content = data.content;
+  if (Array.isArray(content)) {
+    const texts = content
+      .filter((b: unknown) => typeof b === "object" && b !== null && (b as Record<string, unknown>).type === "text")
+      .map((b: unknown) => String((b as Record<string, unknown>).text || ""));
+    if (texts.length > 0) return texts.join("\n");
+  }
+  return "";
 }
 
 /* ── Chevron ── */
@@ -287,9 +300,7 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
 /* ── LLM Message ── */
 function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; text: string; thinking: string; ts: string; isLast: boolean }) {
   const [showThinking, setShowThinking] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const isPlanner = role === "planner";
-  const isLong = text.length > 3000;
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
@@ -324,17 +335,8 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       )}
 
       {text && (
-        <div className="relative">
-          {isLong && (
-            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#ccc] transition-colors">
-              [{collapsed ? "expand" : "collapse"}]
-            </button>
-          )}
-          <div className={clsx("text-[11px] leading-[1.7] whitespace-pre-wrap break-words", isPlanner ? "text-[#cc9966]" : "text-[#bbb]", collapsed && "max-h-[100px] overflow-hidden")}>
-            {collapsed ? text.slice(0, 500) + "…" : text}
-          </div>
-          {collapsed && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#050505] to-transparent" />}
-          {/* Only show blinking cursor on the last message */}
+        <div>
+          <MarkdownContent content={text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
           {isLast && (
             <span className={clsx("inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]", isPlanner ? "bg-[#ff8844]/30" : "bg-[#00ff88]/25")}
               style={{ animation: "blink 1s step-end infinite" }} />
@@ -755,8 +757,8 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
               </button>
               {showFinalText && (
                 <div className="px-4 pb-3">
-                  <div className="text-[10px] text-[#bbb] whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
-                    {finalText}
+                  <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
+                    <MarkdownContent content={finalText} className="text-[10px] text-[#bbb]" />
                   </div>
                 </div>
               )}
@@ -773,14 +775,12 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
             </div>
           )}
 
-          {/* Raw result — hidden when finalText is available since that's the actual output */}
-          {tool.output_data && !finalText && (
+          {/* Result text — hidden when finalText is available since that's the actual output */}
+          {tool.output_data && !finalText && extractResultText(tool.output_data) && (
             <div className="border-t border-white/[0.03] px-4 py-3">
               <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
-              <div className="text-[10px] text-[#888] whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto leading-relaxed">
-                {typeof tool.output_data === "object" && "result" in tool.output_data
-                  ? String(tool.output_data.result).slice(0, 2000)
-                  : JSON.stringify(tool.output_data, null, 2).slice(0, 2000)}
+              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
+                <MarkdownContent content={extractResultText(tool.output_data)} className="text-[10px] text-[#888]" />
               </div>
             </div>
           )}
@@ -931,7 +931,9 @@ function UserPromptCard({ prompt, ts }: { prompt: string; ts: string }) {
           <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">You</span>
           <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         </div>
-        <p className="text-[12px] text-[#cce8ff] leading-relaxed break-words whitespace-pre-wrap max-h-[300px] overflow-y-auto">{prompt}</p>
+        <div className="max-h-[300px] overflow-y-auto">
+          <MarkdownContent content={prompt} className="text-[12px] text-[#cce8ff]" />
+        </div>
       </div>
     </motion.div>
   );
