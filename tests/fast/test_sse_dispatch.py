@@ -113,6 +113,9 @@ class TestSSEDispatcher:
         assert dispatched.result_data["total_cost_usd"] == 1.25
         mock_db.save_session_id.assert_awaited_once_with("run-1", "sess-abc")
         mock_db.update_run_cost.assert_awaited_once()
+        cost_args = mock_db.update_run_cost.call_args[0]
+        assert cost_args[0] == "run-1"  # run_id
+        assert cost_args[-1] == 0  # context_tokens (no prior assistant_message)
 
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
@@ -267,3 +270,6 @@ class TestSSEDispatcher:
         ]
         assert len(usage_calls) == 1
         assert usage_calls[0].args[2]["total_input_tokens"] == 10
+        # context_tokens should be passed to update_run_cost (input + output per message)
+        cost_args = mock_db.update_run_cost.call_args[0]
+        assert cost_args[-1] == 2  # context_tokens: 1 input + 1 output

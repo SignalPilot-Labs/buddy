@@ -107,7 +107,7 @@ export function StatsBar({
         value={
           live.contextTokens > 0
             ? formatTokenCount(live.contextTokens)
-            : run.context_tokens > 0
+            : (run.context_tokens ?? 0) > 0
               ? formatTokenCount(run.context_tokens)
               : "—"
         }
