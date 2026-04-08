@@ -83,7 +83,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(live.toolCount || run.total_tool_calls || 0)}
+        value={String(run.total_tool_calls || live.toolCount || 0)}
       />
       <Stat
         icon={
