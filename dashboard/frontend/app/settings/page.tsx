@@ -220,6 +220,7 @@ export default function SettingsPage() {
   };
 
   const handleRemoveToken = async (index: number) => {
+    setTokenError(null);
     try {
       await removePoolToken(index);
       setTokens(await fetchPoolTokens());

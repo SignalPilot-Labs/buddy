@@ -183,7 +183,7 @@ export function useSSE(runId: string | null) {
 
     es.onerror = () => {
       setConnected(false);
-      if (!sseGotMessage) switchToPolling();
+      switchToPolling();
     };
 
     return () => {

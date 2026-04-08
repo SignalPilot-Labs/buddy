@@ -31,7 +31,7 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
-const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed", "completed_no_changes"]);
+const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed"]);
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -86,15 +86,19 @@ export default function MonitorPage() {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
+  const [busy, setBusy] = useState(false);
+
   const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
     if (selectedRunId) {
-      fn(selectedRunId).catch((e) =>
-        addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
-      );
+      setBusy(true);
+      fn(selectedRunId)
+        .then(() => refreshRuns())
+        .catch((e) =>
+          addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
+        )
+        .finally(() => setBusy(false));
     }
-  }, [selectedRunId, addEvent]);
-
-  const [busy, setBusy] = useState(false);
+  }, [selectedRunId, addEvent, refreshRuns]);
 
   // Poll agent health — auto-select new runs when they appear
   useEffect(() => {
@@ -627,7 +631,7 @@ export default function MonitorPage() {
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
             <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-            <StatsBar run={selectedRun} connected={connected} />
+            <StatsBar run={selectedRun} connected={connected} events={allEvents} />
           </main>
 
           {/* Right sidebar - Changes / Logs */}
@@ -681,7 +685,7 @@ export default function MonitorPage() {
           {mobilePanel === "feed" && (
             <>
               <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-              <StatsBar run={selectedRun} connected={connected} />
+              <StatsBar run={selectedRun} connected={connected} events={allEvents} />
             </>
           )}
           {mobilePanel === "changes" && (
@@ -734,11 +738,11 @@ export default function MonitorPage() {
         open={controlsOpen}
         onClose={() => setControlsOpen(false)}
         status={runStatus}
-        onPause={() => selectedRunId && pauseAgent(selectedRunId)}
-        onResume={() => selectedRunId && resumeAgent(selectedRunId)}
-        onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
-        onKill={() => selectedRunId && killAgent(selectedRunId)}
-        onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}
+        onPause={() => controlAction("Pause", pauseAgent)}
+        onResume={() => controlAction("Resume", resumeAgent)}
+        onStop={() => controlAction("Stop", stopAgentInstant)}
+        onKill={() => controlAction("Kill", killAgent)}
+        onUnlock={() => controlAction("Unlock", unlockAgent)}
         onToggleInject={() => setInjectOpen(!injectOpen)}
         busy={busy}
         repos={repos}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RunStatus } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 
@@ -30,6 +30,9 @@ export function ControlBar({
   timeRemaining,
 }: ControlBarProps) {
   const [showKillConfirm, setShowKillConfirm] = useState(false);
+  const killTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => { return () => { if (killTimerRef.current) clearTimeout(killTimerRef.current); }; }, []);
 
   const isActive = ["running", "paused", "rate_limited"].includes(status || "");
   const canPause = status === "running";
@@ -39,7 +42,7 @@ export function ControlBar({
   const handleKill = () => {
     if (!showKillConfirm) {
       setShowKillConfirm(true);
-      setTimeout(() => setShowKillConfirm(false), 3000);
+      killTimerRef.current = setTimeout(() => setShowKillConfirm(false), 3000);
       return;
     }
     onKill();
