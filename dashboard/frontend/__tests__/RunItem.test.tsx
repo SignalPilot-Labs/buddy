@@ -10,6 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi } from "vitest";
 import { RunItem } from "@/components/sidebar/RunItem";
 import type { Run } from "@/lib/types";
+import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
 
 function makeRun(overrides: Partial<Run> = {}): Run {
   return {
@@ -49,8 +50,8 @@ describe("RunItem", () => {
     expect(screen.getByText("Fix the login button on mobile")).toBeInTheDocument();
   });
 
-  it("truncates long custom_prompt to 40 characters", () => {
-    const longPrompt = "A".repeat(80);
+  it("truncates long custom_prompt to PROMPT_LABEL_MAX_LEN characters", () => {
+    const longPrompt = "A".repeat(PROMPT_LABEL_MAX_LEN * 2);
     render(
       <RunItem
         run={makeRun({ custom_prompt: longPrompt })}
@@ -58,7 +59,7 @@ describe("RunItem", () => {
         onClick={vi.fn()}
       />
     );
-    expect(screen.getByText("A".repeat(40))).toBeInTheDocument();
+    expect(screen.getByText("A".repeat(PROMPT_LABEL_MAX_LEN))).toBeInTheDocument();
   });
 
   it("shows tool call count when nonzero", () => {

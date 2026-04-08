@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import type { Run } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { timeAgo, formatCost, formatTokens } from "@/lib/format";
+import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
 
 export function RunItem({
   run,
@@ -16,7 +17,7 @@ export function RunItem({
   onClick: () => void;
 }) {
   const label = run.custom_prompt
-    ? run.custom_prompt.slice(0, 40)
+    ? run.custom_prompt.slice(0, PROMPT_LABEL_MAX_LEN)
     : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   return (

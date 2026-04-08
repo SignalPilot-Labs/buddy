@@ -10,7 +10,7 @@ import time
 
 from utils import db
 from utils.constants import PROMPT_SUMMARY_LIMIT
-from utils.models import RunContext
+from utils.models import GitSetupParams, RunContext
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.repo_ops import RepoOps
@@ -53,9 +53,14 @@ class Bootstrap:
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        branch_name = await self._setup_git(
-            base_branch, github_repo, exec_timeout, clone_timeout, custom_prompt
+        git_params = GitSetupParams(
+            base_branch=base_branch,
+            github_repo=github_repo,
+            exec_timeout=exec_timeout,
+            clone_timeout=clone_timeout,
+            custom_prompt=custom_prompt,
         )
+        branch_name = await self._setup_git(git_params)
         await db.update_run_branch(run_id, branch_name)
         log.info("Run %s on branch %s", run_id, branch_name)
 
@@ -166,19 +171,16 @@ class Bootstrap:
 
     # -- Git --
 
-    async def _setup_git(
-        self,
-        base_branch: str,
-        github_repo: str,
-        exec_timeout: int,
-        clone_timeout: int,
-        custom_prompt: str | None,
-    ) -> str:
+    async def _setup_git(self, params: GitSetupParams) -> str:
         """Clone repo in sandbox, create branch. Returns branch name."""
-        await self._repo_ops.setup_auth(github_repo, exec_timeout, clone_timeout)
-        await self._repo_ops.ensure_base_branch(base_branch, exec_timeout)
-        branch_name = self._repo_ops.get_branch_name(custom_prompt)
-        await self._repo_ops.create_branch(branch_name, base_branch, exec_timeout)
+        await self._repo_ops.setup_auth(
+            params.github_repo, params.exec_timeout, params.clone_timeout
+        )
+        await self._repo_ops.ensure_base_branch(params.base_branch, params.exec_timeout)
+        branch_name = self._repo_ops.get_branch_name(params.custom_prompt)
+        await self._repo_ops.create_branch(
+            branch_name, params.base_branch, params.exec_timeout
+        )
         return branch_name
 
     # -- Services --

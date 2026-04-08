@@ -34,6 +34,9 @@ export const HISTORY_FETCH_LIMIT = 500;
 export const CONTAINER_LOGS_POLL_MS = 3000;
 export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
 
+// Sidebar
+export const PROMPT_LABEL_MAX_LEN = 40;
+
 // localStorage keys
 export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "autofyn_extended_context";
 

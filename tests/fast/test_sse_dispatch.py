@@ -43,7 +43,7 @@ class TestSSEDispatcher:
     """Tests for SSEDispatcher.dispatch() event handling."""
 
     @pytest.mark.asyncio
-    @patch("core.sse_dispatch.db", new_callable=MagicMock)
+    @patch("core.sse_dispatch.db", new_callable=AsyncMock)
     async def test_assistant_message_accumulates_usage(self, mock_db):
         """assistant_message events accumulate token usage."""
         session, tracker = _build_mocks()
