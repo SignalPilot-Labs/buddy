@@ -356,21 +356,21 @@ function ReadGroupCard({ tools, ts, totalDuration, label }: { tools: ToolCall[];
   const paths = useMemo(() => isRead ? extractReadPaths(tools) : [], [tools, isRead]);
   const colors = TOOL_COLORS[cat];
   const iconColor = colors?.iconColor || "#88ccff";
-  const subtitle = isRead
+  const subtitle = useMemo(() => isRead
     ? paths.slice(0, 3).map(p => shortPath(p)).join(", ") + (paths.length > 3 ? ` +${paths.length - 3} more` : "")
     : tools.map(t => {
         const inp = t.input_data || {};
         return (inp.pattern as string) || (inp.file_path as string) || "";
-      }).filter(Boolean).slice(0, 3).join(", ");
+      }).filter(Boolean).slice(0, 3).join(", "), [tools, paths, isRead]);
 
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#88ccff]/8 bg-[#88ccff]/[0.02] overflow-hidden">
+      className="rounded-lg border overflow-hidden" style={{ borderColor: `${iconColor}14`, backgroundColor: `${iconColor}05` }}>
       <button onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
-        <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#88ccff]/8 shrink-0">{getToolIcon(cat, iconColor)}</div>
+        <div className="flex items-center justify-center h-8 w-8 rounded-md shrink-0" style={{ backgroundColor: `${iconColor}14` }}>{getToolIcon(cat, iconColor)}</div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#88ccff]">{label}</div>
+          <div className="text-[11px] font-medium" style={{ color: iconColor }}>{label}</div>
           {subtitle && <div className="text-[9px] text-[#888] mt-0.5 truncate">{subtitle}</div>}
         </div>
         <span className="text-[9px] text-[#777] tabular-nums shrink-0">{fmtTime(ts)}</span>
