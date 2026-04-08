@@ -396,6 +396,25 @@ export function StartRunModal({
                   </div>
                 </div>
 
+                {/* Environment Variables */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    Environment Variables
+                  </label>
+                  <textarea
+                    value={envText}
+                    onChange={(e) => setEnvText(e.target.value)}
+                    placeholder={"API_KEY=your-value\nDATABASE_URL=postgres://..."}
+                    rows={3}
+                    className="mt-2 w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#555] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <p className="mt-1 text-[9px] text-[#666]">
+                    KEY=value per line. Encrypted and injected into sandbox.
+                  </p>
+                </div>
+
                 {/* Budget */}
                 <div>
                   <label
@@ -464,25 +483,6 @@ export function StartRunModal({
                   </label>
                   <p className="text-[9px] text-[#666] mt-1 ml-5">
                     Uses more of your daily quota but allows larger context windows
-                  </p>
-                </div>
-
-                {/* Environment Variables */}
-                <div>
-                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
-                    Environment Variables
-                  </label>
-                  <textarea
-                    value={envText}
-                    onChange={(e) => setEnvText(e.target.value)}
-                    placeholder={"API_KEY=your-value\nDATABASE_URL=postgres://..."}
-                    rows={3}
-                    className="mt-2 w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#555] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                  <p className="mt-1 text-[9px] text-[#666]">
-                    One KEY=value per line. Encrypted at rest, injected into the sandbox container.
                   </p>
                 </div>
               </div>
