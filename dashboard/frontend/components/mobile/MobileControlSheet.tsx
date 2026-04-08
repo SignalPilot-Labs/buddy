@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
+import { ACTIVE_STATUSES, RESUMABLE_STATUSES, INJECTABLE_STATUSES } from "@/lib/constants";
 
 interface MobileControlSheetProps {
   open: boolean;
@@ -44,10 +45,12 @@ export function MobileControlSheet({
   onNewRun,
   isConfigured,
 }: MobileControlSheetProps) {
-  const isActive = ["running", "paused", "rate_limited"].includes(status || "");
+  const s = status ?? ("" as never);
+  const isActive = ACTIVE_STATUSES.includes(s);
   const canPause = status === "running";
-  const canResume = status === "paused";
-  const canInject = ["running", "paused"].includes(status || "");
+  const canResume = RESUMABLE_STATUSES.includes(s);
+  const canInject = INJECTABLE_STATUSES.includes(s);
+  const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
   // Lock body scroll when open
   useEffect(() => {
@@ -147,7 +150,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Resume
+                      {resumeLabel}
                     </Button>
                     <Button
                       variant="primary"

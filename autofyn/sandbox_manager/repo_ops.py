@@ -142,13 +142,12 @@ class RepoOps:
 
     def get_branch_name(self, custom_prompt: str | None) -> str:
         """Generate a unique branch name, embedding a prompt slug when provided."""
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         short_id = uuid.uuid4().hex[:6]
         if custom_prompt:
             slug = _slugify(custom_prompt, BRANCH_SLUG_MAX_LEN)
             if slug:
-                return f"autofyn/{date_str}-{slug}-{short_id}"
-        return f"autofyn/{date_str}-{short_id}"
+                return f"autofyn/{slug}-{short_id}"
+        return f"autofyn/{short_id}"
 
     # -- Push / PR --
 
