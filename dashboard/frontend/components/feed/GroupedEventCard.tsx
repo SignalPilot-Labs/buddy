@@ -24,11 +24,6 @@ function shortPath(p: string): string {
   const parts = p.split("/");
   return parts.length <= 2 ? p : parts.slice(-2).join("/");
 }
-function truncateAtLine(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  const cut = text.lastIndexOf("\n", maxLen);
-  return (cut > 0 ? text.slice(0, cut) : text.slice(0, maxLen)) + "\n\u2026";
-}
 
 /* ── Chevron ── */
 function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
@@ -293,9 +288,7 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
 /* ── LLM Message ── */
 function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; text: string; thinking: string; ts: string; isLast: boolean }) {
   const [showThinking, setShowThinking] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
   const isPlanner = role === "planner";
-  const isLong = text.length > 3000;
 
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}
@@ -330,17 +323,8 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
       )}
 
       {text && (
-        <div className="relative">
-          {isLong && (
-            <button onClick={() => setCollapsed(!collapsed)} className="absolute top-0 right-0 text-[9px] text-[#888] hover:text-[#ccc] transition-colors">
-              [{collapsed ? "expand" : "collapse"}]
-            </button>
-          )}
-          <div className={clsx(collapsed && "max-h-[100px] overflow-hidden")}>
-            <MarkdownContent content={collapsed ? truncateAtLine(text, 500) : text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
-          </div>
-          {collapsed && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#050505] to-transparent" />}
-          {/* Only show blinking cursor on the last message */}
+        <div>
+          <MarkdownContent content={text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
           {isLast && (
             <span className={clsx("inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]", isPlanner ? "bg-[#ff8844]/30" : "bg-[#00ff88]/25")}
               style={{ animation: "blink 1s step-end infinite" }} />
