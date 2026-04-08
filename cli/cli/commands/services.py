@@ -76,17 +76,17 @@ def _ensure_tokens() -> None:
         console.print("[yellow]Dashboard not reachable yet — set tokens manually via: autofyn settings set[/yellow]")
         return
 
-    if status.get("configured"):
+    if status["configured"]:
         return
 
     updates: dict[str, str] = {}
 
-    if not status.get("has_claude_token"):
+    if not status["has_claude_token"]:
         token = _detect_claude_token()
         if token:
             updates["claude_token"] = token
 
-    if not status.get("has_git_token"):
+    if not status["has_git_token"]:
         token = _detect_git_token()
         if token:
             updates["git_token"] = token
