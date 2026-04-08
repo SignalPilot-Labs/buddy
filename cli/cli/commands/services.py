@@ -73,7 +73,8 @@ def _ensure_tokens() -> None:
     try:
         status = client.get("/api/settings/status")
     except SystemExit:
-        return  # dashboard not reachable yet, skip
+        console.print("[yellow]Dashboard not reachable yet — set tokens manually via: autofyn settings set[/yellow]")
+        return
 
     if status.get("configured"):
         return
