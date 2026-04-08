@@ -10,6 +10,8 @@ export interface Run {
   total_cost_usd: number | null;
   total_input_tokens: number | null;
   total_output_tokens: number | null;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;

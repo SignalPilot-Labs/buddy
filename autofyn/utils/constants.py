@@ -29,6 +29,9 @@ RATE_LIMIT_SLEEP_BUFFER_SEC = 5
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
 
+# ── Usage Tracking ──
+USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
+
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500

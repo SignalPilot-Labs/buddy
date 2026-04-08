@@ -114,6 +114,8 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "total_cost_usd": run.total_cost_usd,
             "total_input_tokens": run.total_input_tokens,
             "total_output_tokens": run.total_output_tokens,
+            "cache_creation_input_tokens": run.cache_creation_input_tokens,
+            "cache_read_input_tokens": run.cache_read_input_tokens,
         }
 
 
@@ -136,6 +138,8 @@ async def finish_run(
     error_message: str | None,
     rate_limit_info: dict | None,
     diff_stats: list | None,
+    cache_creation_input_tokens: int,
+    cache_read_input_tokens: int,
 ) -> None:
     """Mark a run as finished with final stats."""
     async with get_session_factory()() as s:
@@ -144,18 +148,41 @@ async def finish_run(
             .where(ToolCall.run_id == run_id, ToolCall.phase == "pre")
         )).scalar_one()
 
+        await s.execute(update(Run).where(Run.id == run_id).values(
+            ended_at=datetime.now(timezone.utc),
+            status=status,
+            pr_url=pr_url,
+            total_cost_usd=total_cost_usd,
+            total_input_tokens=total_input_tokens,
+            total_output_tokens=total_output_tokens,
+            error_message=error_message,
+            rate_limit_info=rate_limit_info,
+            diff_stats=diff_stats,
+            total_tool_calls=tool_count,
+            cache_creation_input_tokens=cache_creation_input_tokens,
+            cache_read_input_tokens=cache_read_input_tokens,
+        ))
+        await s.commit()
+
+
+@swallow_errors
+async def update_run_cost(
+    run_id: str,
+    total_cost_usd: float,
+    total_input_tokens: int,
+    total_output_tokens: int,
+    cache_creation_input_tokens: int,
+    cache_read_input_tokens: int,
+) -> None:
+    """Persist current cost/token values mid-run. Called at each SDK round boundary."""
+    async with get_session_factory()() as s:
         await s.execute(
             update(Run).where(Run.id == run_id).values(
-                ended_at=datetime.now(timezone.utc),
-                status=status,
-                pr_url=pr_url,
                 total_cost_usd=total_cost_usd,
                 total_input_tokens=total_input_tokens,
                 total_output_tokens=total_output_tokens,
-                error_message=error_message,
-                rate_limit_info=rate_limit_info,
-                diff_stats=diff_stats,
-                total_tool_calls=tool_count,
+                cache_creation_input_tokens=cache_creation_input_tokens,
+                cache_read_input_tokens=cache_read_input_tokens,
             )
         )
         await s.commit()

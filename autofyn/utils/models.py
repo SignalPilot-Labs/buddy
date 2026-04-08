@@ -52,6 +52,8 @@ class RunContext:
     total_cost: float = 0.0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
@@ -111,6 +113,7 @@ class ActiveRun:
     task: asyncio.Task | None = field(default=None, repr=False)
     events: EventBus | None = field(default=None, repr=False)
     session: SessionGate | None = field(default=None, repr=False)
+    run_context: RunContext | None = field(default=None, repr=False)
 
 
 # ── HTTP Request Schemas ──

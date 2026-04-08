@@ -50,6 +50,8 @@ class Run(Base):
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0)
     total_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_creation_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     rate_limit_info: Mapped[dict | None] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text)
     sdk_session_id: Mapped[str | None] = mapped_column(String)

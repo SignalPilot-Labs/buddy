@@ -35,6 +35,7 @@ class RunTeardown:
             run_context.run_id, status, pr_url,
             run_context.total_cost, run_context.total_input_tokens, run_context.total_output_tokens,
             None, None, diff_stats,
+            run_context.cache_creation_input_tokens, run_context.cache_read_input_tokens,
         )
         log.info("Run complete: status=%s cost=$%.2f", status, run_context.total_cost)
         return pr_url

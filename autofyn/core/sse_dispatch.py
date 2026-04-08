@@ -7,7 +7,7 @@ Returns DispatchResult so the session runner can orchestrate side effects.
 import logging
 
 from utils import db
-from utils.constants import LOG_PREVIEW_LIMIT
+from utils.constants import LOG_PREVIEW_LIMIT, USAGE_EMIT_INTERVAL
 from utils.models import DispatchResult, RunContext
 from tools.session import SessionGate
 from tools.subagent_tracker import SubagentTracker
@@ -32,6 +32,7 @@ class SSEDispatcher:
         self._session = session
         self._tracker = tracker
         self._rid = run_context.run_id[:8]
+        self._message_count: int = 0
 
     async def dispatch(self, event: dict) -> DispatchResult:
         """Route a single SSE event. Returns result for session runner to act on."""
@@ -97,7 +98,7 @@ class SSEDispatcher:
                     })
             elif block_type == "tool_use":
                 log.info("[%s] Tool: %s", self._rid, block.get("name", ""))
-        self._accumulate_usage(data)
+        await self._accumulate_usage(data)
 
     def _handle_subagent_start(self, data: dict) -> None:
         """Track subagent start."""
@@ -119,31 +120,42 @@ class SSEDispatcher:
             self._tracker.track_tool_use(agent_id)
 
     async def _handle_result(self, data: dict) -> None:
-        """Save session ID and update cost tracking."""
+        """Save session ID, update cost tracking, and persist to DB."""
         run_id = self._run_context.run_id
         session_id = data.get("session_id")
         if session_id:
             await db.save_session_id(run_id, session_id)
         cost = data.get("total_cost_usd")
         if cost:
-            self._run_context.total_cost = cost
-        usage = data.get("usage")
-        if usage:
-            self._run_context.total_input_tokens = usage.get(
-                "input_tokens", self._run_context.total_input_tokens,
-            )
-            self._run_context.total_output_tokens = usage.get(
-                "output_tokens", self._run_context.total_output_tokens,
-            )
+            self._run_context.total_cost += cost
         await db.log_audit(run_id, "round_complete", {
             "turns": data.get("num_turns"),
             "cost_usd": cost,
             "elapsed_minutes": round(self._session.elapsed_minutes(), 1),
         })
+        await db.update_run_cost(
+            run_id,
+            self._run_context.total_cost,
+            self._run_context.total_input_tokens,
+            self._run_context.total_output_tokens,
+            self._run_context.cache_creation_input_tokens,
+            self._run_context.cache_read_input_tokens,
+        )
 
-    def _accumulate_usage(self, data: dict) -> None:
-        """Add usage to run context."""
+    async def _accumulate_usage(self, data: dict) -> None:
+        """Add per-message usage to run context. Emits throttled usage audit events."""
         usage = data.get("usage")
         if usage:
             self._run_context.total_input_tokens += usage.get("input_tokens", 0)
             self._run_context.total_output_tokens += usage.get("output_tokens", 0)
+            self._run_context.cache_creation_input_tokens += usage.get("cache_creation_input_tokens", 0)
+            self._run_context.cache_read_input_tokens += usage.get("cache_read_input_tokens", 0)
+        self._message_count += 1
+        if self._message_count % USAGE_EMIT_INTERVAL == 0:
+            await db.log_audit(self._run_context.run_id, "usage", {
+                "total_input_tokens": self._run_context.total_input_tokens,
+                "total_output_tokens": self._run_context.total_output_tokens,
+                "cache_creation_input_tokens": self._run_context.cache_creation_input_tokens,
+                "cache_read_input_tokens": self._run_context.cache_read_input_tokens,
+                "total_cost_usd": self._run_context.total_cost,
+            })
