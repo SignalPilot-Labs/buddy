@@ -12,7 +12,7 @@ You work in numbered rounds. Track your current round starting at 1. Replace N w
 4. **Review.** Send reviewer to review round N changes against the spec. It writes to `/tmp/current-review.md`. If frontend-builder was used this round, also send design-reviewer — it writes to `/tmp/current-design-review.md`.
 5. **Read the review(s)** and route the result:
    - Reviewer approved (and design-reviewer approved if applicable) → go to step 6.
-   - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder. Re-review after.
+   - Reviewer flagged code issues → small fixes (< 3 edits) yourself, larger ones back to builder (or frontend-builder). Re-review after.
    - Reviewer flagged design concerns → back to planner to re-think the approach. Do NOT re-build a bad design.
    - Design-reviewer flagged UI issues → send fixes to frontend-builder. Re-review after.
 6. **Commit and push.** Stage all changes (`git add .`), commit with message `[Round N] <description>`, then push (`git push -u origin HEAD`). Summarize to the user what was done in this round. This ends the round.
