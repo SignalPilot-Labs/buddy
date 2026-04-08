@@ -24,6 +24,18 @@ function shortPath(p: string): string {
   const parts = p.split("/");
   return parts.length <= 2 ? p : parts.slice(-2).join("/");
 }
+function extractResultText(data: Record<string, unknown>): string {
+  if ("result" in data && typeof data.result === "string") return data.result;
+  if ("_raw" in data && typeof data._raw === "string") return data._raw;
+  const content = data.content;
+  if (Array.isArray(content)) {
+    const texts = content
+      .filter((b: unknown) => typeof b === "object" && b !== null && (b as Record<string, unknown>).type === "text")
+      .map((b: unknown) => String((b as Record<string, unknown>).text || ""));
+    if (texts.length > 0) return texts.join("\n");
+  }
+  return "";
+}
 
 /* ── Chevron ── */
 function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
@@ -763,17 +775,19 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
             </div>
           )}
 
-          {/* Raw result — hidden when finalText is available since that's the actual output */}
-          {tool.output_data && !finalText && (
-            <div className="border-t border-white/[0.03] px-4 py-3">
-              <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
-              <div className="text-[10px] text-[#888] whitespace-pre-wrap break-words bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto leading-relaxed">
-                {typeof tool.output_data === "object" && "result" in tool.output_data
-                  ? String(tool.output_data.result).slice(0, 2000)
-                  : JSON.stringify(tool.output_data, null, 2).slice(0, 2000)}
+          {/* Result text — hidden when finalText is available since that's the actual output */}
+          {tool.output_data && !finalText && (() => {
+            const text = extractResultText(tool.output_data);
+            if (!text) return null;
+            return (
+              <div className="border-t border-white/[0.03] px-4 py-3">
+                <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
+                <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
+                  <MarkdownContent content={text} className="text-[10px] text-[#888]" />
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </motion.div>
       )}
     </motion.div>
