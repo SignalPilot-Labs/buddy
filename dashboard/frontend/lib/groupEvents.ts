@@ -11,7 +11,6 @@ export type GroupedEvent =
   | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "single_tool"; tool: ToolCall; ts: string }
-  | { type: "usage_tick"; data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }
   | { type: "control"; text: string; ts: string }
   | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
   | { type: "user_prompt"; prompt: string; ts: string }

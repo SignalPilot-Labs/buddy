@@ -207,8 +207,8 @@ class TestSSEDispatcher:
 
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
-    async def test_result_cost_is_idempotent_not_additive(self, mock_db):
-        """Multiple result events with same session cost don't double-count."""
+    async def test_result_rebases_baseline_so_estimates_dont_overwrite(self, mock_db):
+        """After result settles cost, estimates build on top of settled value."""
         mock_db.save_session_id = AsyncMock()
         mock_db.log_audit = AsyncMock()
         mock_db.update_run_cost = AsyncMock()
@@ -217,15 +217,22 @@ class TestSSEDispatcher:
         run_context.total_cost = 0.50
         dispatcher = _make_dispatcher(run_context, session, tracker)
 
-        result_event = {
+        # SDK result settles cost at baseline(0.50) + session(2.00) = 2.50
+        await dispatcher.dispatch({
             "event": "result",
             "data": {"session_id": "sess-1", "total_cost_usd": 2.00, "num_turns": 5},
-        }
-        await dispatcher.dispatch(result_event)
+        })
         assert run_context.total_cost == 2.50
 
-        await dispatcher.dispatch(result_event)
-        assert run_context.total_cost == 2.50
+        # Next usage estimate should build on 2.50, not revert to old estimate
+        await dispatcher.dispatch({
+            "event": "assistant_message",
+            "data": {
+                "content": [{"type": "text", "text": "hi"}],
+                "usage": {"input_tokens": 100, "output_tokens": 50},
+            },
+        })
+        assert run_context.total_cost > 2.50
 
     @pytest.mark.asyncio
     @patch("core.sse_dispatch.db", new_callable=MagicMock)
