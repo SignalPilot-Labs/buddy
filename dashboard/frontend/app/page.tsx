@@ -10,6 +10,7 @@ import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
+import { isAtCapacity } from "@/lib/capacity";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
@@ -352,7 +353,7 @@ export default function MonitorPage() {
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const isConfigured = settingsStatus?.configured ?? false;
-  const atCapacity = agentHealth !== null && agentHealth !== undefined && agentHealth.active_runs >= agentHealth.max_concurrent && agentHealth.max_concurrent > 0;
+  const atCapacity = isAtCapacity(agentHealth);
   const activeRunHealth = selectedRunId
     ? agentHealth?.runs.find((r) => r.run_id === selectedRunId)
     : undefined;

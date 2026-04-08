@@ -68,7 +68,7 @@ class TestParallelRunCapacity:
             result = get_run_or_first(runs, None)
 
         assert result is active
-        assert "_get_run_or_first called without run_id" in caplog.text
+        assert "get_run_or_first called without run_id" in caplog.text
 
     def test_get_run_or_first_by_id(self) -> None:
         target = ActiveRun(run_id="run-xyz", status="running")

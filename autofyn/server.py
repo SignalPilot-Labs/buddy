@@ -26,7 +26,7 @@ from utils.constants import (
     SERVER_PORT,
 )
 from utils.prompts import PromptLoader
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun, ResumeRequest, StartRequest
 from utils.run_helpers import (
     CapacityError,
     RunLookupError,
@@ -143,6 +143,45 @@ class AgentServer:
 
             try:
                 log.info("Run %s: starting agent loop", run_id)
+                status = await runner.execute(
+                    options, ctx, session, events, tracker, initial,
+                )
+                log.info("Run %s: loop returned status=%s", run_id, status)
+            finally:
+                events.stop_pulse_checker()
+
+            log.info("Run %s: starting teardown", run_id)
+            await teardown.finalize(ctx, status, self._exec_timeout)
+            log.info("Run %s: teardown complete", run_id)
+            active.status = status
+        finally:
+            active.events = None
+            active.session = None
+            await sandbox.close()
+            await self._pool.destroy(run_id)
+
+    async def _execute_resume(self, active: ActiveRun, body: ResumeRequest) -> None:
+        """Spin up sandbox → bootstrap resume → execute → teardown → destroy sandbox."""
+        run_id = body.run_id
+        budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
+
+        sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
+        try:
+            repo_ops = RepoOps(sandbox)
+            bootstrap = Bootstrap(repo_ops, sandbox)
+            runner = SessionRunner(sandbox, self._prompts)
+            teardown = RunTeardown(repo_ops)
+
+            ctx, options, session, events, tracker, initial = await bootstrap.setup_resume(
+                run_id, budget, self._exec_timeout, self._clone_timeout, body.prompt,
+            )
+
+            active.status = "running"
+            active.events = events
+            active.session = session
+
+            try:
+                log.info("Run %s: resuming agent loop", run_id)
                 status = await runner.execute(
                     options, ctx, session, events, tracker, initial,
                 )

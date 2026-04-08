@@ -10,28 +10,17 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { Button } from "@/components/ui/Button";
 import type { AgentHealth } from "@/lib/api";
+import { isAtCapacity } from "@/lib/capacity";
 
 interface NewRunButtonProps {
   agentHealth: AgentHealth | null;
   isConfigured: boolean;
 }
 
-function deriveStates(agentHealth: AgentHealth | null): {
-  agentReachable: boolean;
-  atCapacity: boolean;
-} {
+function renderNewRunButton({ agentHealth, isConfigured }: NewRunButtonProps) {
   const agentReachable =
     agentHealth != null && agentHealth.status !== "unreachable";
-  const atCapacity =
-    agentHealth !== null &&
-    agentHealth !== undefined &&
-    agentHealth.active_runs >= agentHealth.max_concurrent &&
-    agentHealth.max_concurrent > 0;
-  return { agentReachable, atCapacity };
-}
-
-function renderNewRunButton({ agentHealth, isConfigured }: NewRunButtonProps) {
-  const { agentReachable, atCapacity } = deriveStates(agentHealth);
+  const atCapacity = isAtCapacity(agentHealth);
 
   const buttonText = !isConfigured
     ? "Setup Required"

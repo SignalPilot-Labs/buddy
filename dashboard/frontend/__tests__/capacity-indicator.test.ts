@@ -7,6 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import type { AgentHealth } from "@/lib/api";
+import { isAtCapacity } from "@/lib/capacity";
 
 const UNREACHABLE: AgentHealth = {
   status: "unreachable",
@@ -15,18 +16,9 @@ const UNREACHABLE: AgentHealth = {
   runs: [],
 };
 
-function deriveAtCapacity(agentHealth: AgentHealth | null): boolean {
-  return (
-    agentHealth !== null &&
-    agentHealth !== undefined &&
-    agentHealth.active_runs >= agentHealth.max_concurrent &&
-    agentHealth.max_concurrent > 0
-  );
-}
-
 describe("atCapacity derived state", () => {
   it("is false when agentHealth is null", () => {
-    expect(deriveAtCapacity(null)).toBe(false);
+    expect(isAtCapacity(null)).toBe(false);
   });
 
   it("is false when active_runs is below max_concurrent", () => {
@@ -36,7 +28,7 @@ describe("atCapacity derived state", () => {
       max_concurrent: 5,
       runs: [],
     };
-    expect(deriveAtCapacity(health)).toBe(false);
+    expect(isAtCapacity(health)).toBe(false);
   });
 
   it("is true when active_runs equals max_concurrent", () => {
@@ -46,7 +38,7 @@ describe("atCapacity derived state", () => {
       max_concurrent: 5,
       runs: [],
     };
-    expect(deriveAtCapacity(health)).toBe(true);
+    expect(isAtCapacity(health)).toBe(true);
   });
 
   it("is true when active_runs exceeds max_concurrent", () => {
@@ -56,11 +48,11 @@ describe("atCapacity derived state", () => {
       max_concurrent: 5,
       runs: [],
     };
-    expect(deriveAtCapacity(health)).toBe(true);
+    expect(isAtCapacity(health)).toBe(true);
   });
 
   it("is false when agentHealth is unreachable (max_concurrent is 0)", () => {
-    expect(deriveAtCapacity(UNREACHABLE)).toBe(false);
+    expect(isAtCapacity(UNREACHABLE)).toBe(false);
   });
 
   it("is false when active_runs is 0 and max_concurrent is 5", () => {
@@ -70,7 +62,7 @@ describe("atCapacity derived state", () => {
       max_concurrent: 5,
       runs: [],
     };
-    expect(deriveAtCapacity(health)).toBe(false);
+    expect(isAtCapacity(health)).toBe(false);
   });
 
   it("is false when active_runs is 1 below max_concurrent", () => {
@@ -80,6 +72,6 @@ describe("atCapacity derived state", () => {
       max_concurrent: 5,
       runs: [],
     };
-    expect(deriveAtCapacity(health)).toBe(false);
+    expect(isAtCapacity(health)).toBe(false);
   });
 });

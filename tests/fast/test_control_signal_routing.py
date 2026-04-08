@@ -86,7 +86,7 @@ class TestSendControlSignalForwardsToAgent:
         ):
             await send_control_signal("run-1", "resume", {"paused"}, None)
             mock_agent.assert_called_once()
-            assert mock_agent.call_args[0][1] == "/resume_signal"
+            assert mock_agent.call_args[0][1] == "/resume"
 
     @pytest.mark.asyncio
     async def test_forwards_kill_to_agent(self):

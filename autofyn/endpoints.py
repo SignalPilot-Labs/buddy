@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException
 
 from utils import db
 from utils.constants import MAX_CONCURRENT_RUNS
-from utils.models import ActiveRun, HealthResponse, HealthRunEntry, StartRequest, InjectRequest
+from utils.models import ActiveRun, HealthResponse, HealthRunEntry, StartRequest, ResumeRequest, InjectRequest
 from utils.run_helpers import merge_tokens_into_env
 
 if TYPE_CHECKING:
@@ -83,13 +83,31 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
         r.events.push("pause", None)
         return {"ok": True, "event": "pause", "run_id": r.run_id}
 
-    @app.post("/resume_signal")
-    async def resume_signal(run_id: str | None = None):
-        r = server._get_run_or_first(run_id)
-        if not r.events:
-            raise HTTPException(status_code=409, detail="Run not accepting signals")
-        r.events.push("resume", None)
-        return {"ok": True, "event": "resume", "run_id": r.run_id}
+    @app.post("/resume")
+    async def resume(body: ResumeRequest | None = None, run_id: str | None = None):
+        """Unpause a paused run, or restart a completed/stopped run."""
+        rid = (body.run_id if body else None) or run_id
+        active = server._runs.get(rid or "") if rid else None
+
+        if active and active.status == "paused" and active.events:
+            active.events.push("resume", None)
+            return {"ok": True, "event": "resume", "run_id": active.run_id}
+
+        if not body or not body.run_id:
+            raise HTTPException(status_code=422, detail="run_id is required for restart")
+
+        server._check_capacity()
+        body.env = merge_tokens_into_env(body.env, body.claude_token, body.git_token)
+
+        active_run = ActiveRun(run_id=body.run_id)
+        server._runs[body.run_id] = active_run
+
+        task = asyncio.create_task(
+            server._execute_resume(active_run, body)
+        )
+        active_run.task = task
+        task.add_done_callback(lambda t: server._on_task_done(active_run, t))
+        return {"ok": True, "status": "starting", "run_id": body.run_id}
 
     @app.post("/inject")
     async def inject(body: InjectRequest, run_id: str | None = None):

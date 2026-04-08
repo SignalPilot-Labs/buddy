@@ -70,6 +70,6 @@ def get_run_or_first(runs: dict[str, ActiveRun], run_id: str | None) -> ActiveRu
         return run
     for r in runs.values():
         if r.status == "running" and r.events:
-            log.warning("_get_run_or_first called without run_id — falling back to first active run")
+            log.warning("get_run_or_first called without run_id — falling back to first active run")
             return r
     raise RunLookupError(status_code=409, detail="No run in progress")
