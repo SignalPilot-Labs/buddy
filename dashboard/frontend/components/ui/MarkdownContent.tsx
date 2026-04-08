@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { clsx } from "clsx";
@@ -18,6 +19,7 @@ const MARKDOWN_COMPONENTS: Components = {
   h4: ({ children }) => <h4 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[11px]">{children}</h4>,
   strong: ({ children }) => <strong className="font-semibold text-[#ddd]">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
+  del: ({ children }) => <del className="opacity-60">{children}</del>,
   a: ({ children, href }) => (
     <a
       href={href}
@@ -54,11 +56,11 @@ const MARKDOWN_COMPONENTS: Components = {
   td: ({ children }) => <td className="border border-white/10 px-2 py-1">{children}</td>,
 };
 
-export function MarkdownContent({ content, className }: MarkdownContentProps): React.ReactElement | null {
+export const MarkdownContent = memo(function MarkdownContent({ content, className }: MarkdownContentProps): React.ReactElement | null {
   if (!content) return null;
   return (
     <div className={clsx("break-words leading-[1.7]", className)}>
       <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>{content}</Markdown>
     </div>
   );
-}
+});

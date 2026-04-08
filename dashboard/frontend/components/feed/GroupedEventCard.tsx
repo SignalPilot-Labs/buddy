@@ -776,18 +776,14 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
           )}
 
           {/* Result text — hidden when finalText is available since that's the actual output */}
-          {tool.output_data && !finalText && (() => {
-            const text = extractResultText(tool.output_data);
-            if (!text) return null;
-            return (
-              <div className="border-t border-white/[0.03] px-4 py-3">
-                <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
-                <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
-                  <MarkdownContent content={text} className="text-[10px] text-[#888]" />
-                </div>
+          {tool.output_data && !finalText && extractResultText(tool.output_data) && (
+            <div className="border-t border-white/[0.03] px-4 py-3">
+              <div className="text-[9px] uppercase tracking-[0.15em] text-[#00ff88]/50 mb-1.5">Result</div>
+              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
+                <MarkdownContent content={extractResultText(tool.output_data)} className="text-[10px] text-[#888]" />
               </div>
-            );
-          })()}
+            </div>
+          )}
         </motion.div>
       )}
     </motion.div>
