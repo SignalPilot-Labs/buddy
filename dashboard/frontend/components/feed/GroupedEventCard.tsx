@@ -441,7 +441,7 @@ function EditGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
                 </button>
                 {expandedFile === i && !!(tools[i]?.output_data?.structuredPatch) && (
                   <div className="px-4 pb-3">
-                    <DiffBlock patch={tools[i].output_data!.structuredPatch as Array<Record<string, unknown>>} />
+                    <DiffBlock patch={tools[i]?.output_data?.structuredPatch as Array<Record<string, unknown>>} />
                   </div>
                 )}
               </div>
@@ -849,7 +849,7 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
     case "read": summary = shortPath((input.file_path as string) || ""); break;
     case "write": case "edit": summary = shortPath((input.file_path as string) || ""); break;
     case "glob": summary = (input.pattern as string) || ""; break;
-    case "grep": summary = `/${input.pattern}/ in ${shortPath((input.path as string) || "")}`; break;
+    case "grep": summary = `/${(input.pattern as string) || ""}/ in ${shortPath((input.path as string) || "")}`; break;
     case "todo": { const todos = (input.todos as Array<{status: string}>) || []; summary = `${todos.filter(t => t.status === "completed").length}✓ ${todos.filter(t => t.status === "in_progress").length}◉ ${todos.filter(t => t.status === "pending").length}○`; break; }
     case "skill": summary = (input.skill as string) || ""; break;
     case "tool_search": summary = (input.query as string) || ""; break;

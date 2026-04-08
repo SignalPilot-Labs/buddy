@@ -1,5 +1,5 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_KEY, getApiBase, UI_PORT } from "./constants";
+import { getApiKey, getApiBase, UI_PORT } from "./constants";
 
 import { apiFetch } from "./fetch";
 
@@ -76,7 +76,7 @@ export async function injectPrompt(
 
 export function createSSE(runId: string): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}`,
+    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(getApiKey())}`,
   );
 }
 

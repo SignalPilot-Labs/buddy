@@ -19,7 +19,7 @@ export function useRuns(repo?: string | null, pollInterval = 8000) {
     } catch (err) {
       console.warn("Failed to fetch runs, will retry:", err);
     } finally {
-      if (gen === genRef.current) setLoading(false);
+      setLoading(false);
     }
   }, [repo]);
 

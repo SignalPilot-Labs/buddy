@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -44,10 +44,23 @@ export function MobileControlSheet({
   onNewRun,
   isConfigured,
 }: MobileControlSheetProps) {
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
+
   const isActive = ["running", "paused", "rate_limited"].includes(status || "");
   const canPause = status === "running";
   const canResume = status === "paused";
-  const canInject = ["running", "paused"].includes(status || "");
+  const canInject = ["running", "paused", "rate_limited"].includes(status || "");
+
+  const handleKill = () => {
+    if (!showKillConfirm) {
+      setShowKillConfirm(true);
+      setTimeout(() => setShowKillConfirm(false), 3000);
+      return;
+    }
+    onKill();
+    onClose();
+    setShowKillConfirm(false);
+  };
 
   // Lock body scroll when open
   useEffect(() => {
@@ -182,7 +195,7 @@ export function MobileControlSheet({
                       variant="danger"
                       size="md"
                       disabled={!isActive || busy}
-                      onClick={() => { onKill(); onClose(); }}
+                      onClick={handleKill}
                       className="justify-center"
                       icon={
                         <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -192,7 +205,7 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Kill
+                      {showKillConfirm ? "Confirm?" : "Kill"}
                     </Button>
                     <Button
                       variant="warning"

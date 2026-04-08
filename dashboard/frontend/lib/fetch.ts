@@ -1,9 +1,9 @@
 /**Authenticated fetch wrapper — injects X-API-Key on every request.*/
 
-import { API_KEY, getApiBase } from "./constants";
+import { getApiKey, getApiBase } from "./constants";
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  return { "X-API-Key": API_KEY, ...extra };
+  return { "X-API-Key": getApiKey(), ...extra };
 }
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {

@@ -19,8 +19,6 @@ export function getApiKey(): string {
   return process.env.DASHBOARD_API_KEY || "";
 }
 
-export const API_KEY = getApiKey();
-
 // Polling intervals (ms)
 export const AGENT_HEALTH_POLL_MS = 10_000;
 export const NETWORK_INFO_POLL_MS = 30_000;

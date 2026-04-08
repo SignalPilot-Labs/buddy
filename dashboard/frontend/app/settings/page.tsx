@@ -183,7 +183,7 @@ export default function SettingsPage() {
       const r = await fetchRepos();
       setRepos(r);
     } catch (err) {
-      console.error("Failed to remove repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Operation failed");
     }
   };
 
@@ -199,7 +199,7 @@ export default function SettingsPage() {
       setStatus(s);
       setSettings(cfg);
     } catch (err) {
-      console.error("Failed to set active repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Operation failed");
     }
   };
 
