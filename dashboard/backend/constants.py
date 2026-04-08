@@ -52,7 +52,7 @@ LOG_TAIL_MAX: int = 5000
 # Signal → agent endpoint path mapping (used by send_control_signal)
 SIGNAL_AGENT_PATHS: dict[str, str] = {
     "pause": "/pause",
-    "resume": "/resume_signal",
+    "resume": "/resume",
     "stop": "/stop",
     "unlock": "/unlock",
     "inject": "/inject",

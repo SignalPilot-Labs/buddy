@@ -46,18 +46,9 @@ COPY sandbox/kernel/vmlinux.bin /opt/autofyn/kernel/
 # Copy rootfs (Python sandbox environment as ext4 image)
 COPY sandbox/rootfs/sandbox-rootfs.ext4 /opt/autofyn/rootfs/
 
-# Install Python deps
+# Install Python deps + dev tools (pytest, pyright, ruff, etc. for builder/reviewer)
 COPY sandbox/pyproject.toml /opt/autofyn/
-RUN uv pip install --system --no-cache /opt/autofyn/
-
-# Python dev tools (used by builder/reviewer for verification)
-RUN uv pip install --system --no-cache \
-    pytest \
-    pytest-asyncio \
-    pyright \
-    mypy \
-    ruff \
-    black
+RUN uv pip install --system --no-cache "/opt/autofyn/[dev]"
 
 # Copy sandbox code + config
 COPY sandbox/base.py /opt/autofyn/

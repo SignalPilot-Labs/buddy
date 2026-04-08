@@ -26,7 +26,14 @@ from utils.constants import (
     SERVER_PORT,
 )
 from utils.prompts import PromptLoader
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun, ResumeRequest, StartRequest
+from utils.run_helpers import (
+    CapacityError,
+    RunLookupError,
+    active_count,
+    check_capacity,
+    get_run_or_first,
+)
 from sandbox_manager.pool import SandboxPool
 from sandbox_manager.repo_ops import RepoOps
 from core.bootstrap import Bootstrap
@@ -82,14 +89,16 @@ class AgentServer:
         await self._pool.destroy_all()
         await db.close_db()
 
+    def _active_count(self) -> int:
+        """Count non-terminal runs (including paused — they still hold sandbox resources)."""
+        return active_count(self._runs)
+
     def _check_capacity(self) -> None:
         """Raise 409 if max concurrent runs reached."""
-        if self._active_count() >= MAX_CONCURRENT_RUNS:
-            raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
-
-    def _active_count(self) -> int:
-        """Count non-terminal runs."""
-        return sum(1 for r in self._runs.values() if r.status in ("starting", "running"))
+        try:
+            check_capacity(self._runs, MAX_CONCURRENT_RUNS)
+        except CapacityError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail) from e
 
     def _get_run(self, run_id: str) -> ActiveRun:
         """Look up a run or raise 404."""
@@ -100,12 +109,10 @@ class AgentServer:
 
     def _get_run_or_first(self, run_id: str | None) -> ActiveRun:
         """Get specific run by id, or first running run. Raises 409 if none."""
-        if run_id:
-            return self._get_run(run_id)
-        for r in self._runs.values():
-            if r.status == "running" and r.events:
-                return r
-        raise HTTPException(status_code=409, detail="No run in progress")
+        try:
+            return get_run_or_first(self._runs, run_id)
+        except RunLookupError as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail) from e
 
     # ── Run Lifecycle ──
 
@@ -136,6 +143,45 @@ class AgentServer:
 
             try:
                 log.info("Run %s: starting agent loop", run_id)
+                status = await runner.execute(
+                    options, ctx, session, events, tracker, initial,
+                )
+                log.info("Run %s: loop returned status=%s", run_id, status)
+            finally:
+                events.stop_pulse_checker()
+
+            log.info("Run %s: starting teardown", run_id)
+            await teardown.finalize(ctx, status, self._exec_timeout)
+            log.info("Run %s: teardown complete", run_id)
+            active.status = status
+        finally:
+            active.events = None
+            active.session = None
+            await sandbox.close()
+            await self._pool.destroy(run_id)
+
+    async def _execute_resume(self, active: ActiveRun, body: ResumeRequest) -> None:
+        """Spin up sandbox → bootstrap resume → execute → teardown → destroy sandbox."""
+        run_id = body.run_id
+        budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
+
+        sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
+        try:
+            repo_ops = RepoOps(sandbox)
+            bootstrap = Bootstrap(repo_ops, sandbox)
+            runner = SessionRunner(sandbox, self._prompts)
+            teardown = RunTeardown(repo_ops)
+
+            ctx, options, session, events, tracker, initial = await bootstrap.setup_resume(
+                run_id, budget, self._exec_timeout, self._clone_timeout, body.prompt,
+            )
+
+            active.status = "running"
+            active.events = events
+            active.session = session
+
+            try:
+                log.info("Run %s: resuming agent loop", run_id)
                 status = await runner.execute(
                     options, ctx, session, events, tracker, initial,
                 )

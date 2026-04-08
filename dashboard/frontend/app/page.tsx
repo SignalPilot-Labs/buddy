@@ -10,6 +10,7 @@ import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
+import { isAtCapacity } from "@/lib/capacity";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
@@ -96,7 +97,11 @@ export default function MonitorPage() {
 
   const [busy, setBusy] = useState(false);
 
-  // Poll agent health — auto-select new runs when they appear
+  const selectedRunIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
+
+  // Poll agent health — auto-select new runs when they appear, but only if
+  // the user isn't already watching an active run.
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
@@ -105,7 +110,14 @@ export default function MonitorPage() {
         const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
         if (newRun) {
           refreshRuns();
-          setSelectedRunId(newRun.run_id);
+          const currentId = selectedRunIdRef.current;
+          const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
+          const currentIsTerminal = currentRunInHealth
+            ? TERMINAL_STATUSES.has(currentRunInHealth.status)
+            : true;
+          if (currentId === null || currentIsTerminal) {
+            setSelectedRunId(newRun.run_id);
+          }
         }
         return h;
       });
@@ -341,6 +353,7 @@ export default function MonitorPage() {
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
   const isConfigured = settingsStatus?.configured ?? false;
+  const atCapacity = isAtCapacity(agentHealth);
   const activeRunHealth = selectedRunId
     ? agentHealth?.runs.find((r) => r.run_id === selectedRunId)
     : undefined;
@@ -469,10 +482,10 @@ export default function MonitorPage() {
                 : agentIdle
                   ? "Idle"
                   : agentHealth?.active_runs && agentHealth.active_runs > 1
-                    ? `${agentHealth.active_runs} runs active`
+                    ? `${agentHealth.active_runs} runs active${atCapacity ? " (full)" : ""}`
                     : activeRunHealth?.elapsed_minutes != null
-                      ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m`
-                      : "Active"}
+                      ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m${atCapacity ? " (full)" : ""}`
+                      : `Active${atCapacity ? " (full)" : ""}`}
           </span>
         </div>
 
@@ -493,8 +506,8 @@ export default function MonitorPage() {
           variant="success"
           size="md"
           onClick={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
-          disabled={!agentReachable || !isConfigured}
-          title={!isConfigured ? "Configure credentials in Settings first" : undefined}
+          disabled={!agentReachable || !isConfigured || atCapacity}
+          title={!isConfigured ? "Configure credentials in Settings first" : atCapacity ? "Agent is at maximum capacity" : undefined}
           icon={
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
               <polygon points="3 2 8 5 3 8" />
@@ -505,7 +518,9 @@ export default function MonitorPage() {
             ? "Setup Required"
             : !agentReachable
               ? "Offline"
-              : "New Run"}
+              : atCapacity
+                ? "At Capacity"
+                : "New Run"}
         </Button>
 
         <div className="w-px h-4 bg-[#1a1a1a]" />
