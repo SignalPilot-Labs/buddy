@@ -507,6 +507,48 @@ function BashGroupCard({ tools, ts, totalDuration }: { tools: ToolCall[]; ts: st
   );
 }
 
+/* ── Child Tool Row (expandable) ── */
+function ChildToolRow({ tool, isLast }: { tool: ToolCall; isLast: boolean }) {
+  const [open, setOpen] = useState(false);
+  const cat = getToolCategory(tool.tool_name);
+  const colors = TOOL_COLORS[cat];
+  const inp = tool.input_data || {};
+  const fp = (inp.file_path as string) || "";
+  const cmd = (inp.command as string) || "";
+  const desc = (inp.description as string) || "";
+  const pattern = (inp.pattern as string) || "";
+  const grepPath = (inp.path as string) || "";
+  const detail = fp ? shortPath(fp)
+    : pattern ? `/${pattern}/${grepPath ? ` in ${shortPath(grepPath)}` : ""}`
+    : cmd ? cmd.slice(0, 60)
+    : desc ? desc.slice(0, 60) : "";
+  const hasOutput = !!tool.output_data;
+
+  return (
+    <div className={clsx(!isLast && "border-b border-white/[0.02]")}>
+      <button
+        onClick={() => hasOutput && setOpen(!open)}
+        className={clsx(
+          "flex items-center gap-2 px-4 py-1.5 text-[10px] w-full text-left transition-colors",
+          hasOutput ? "hover:bg-white/[0.02] cursor-pointer" : "cursor-default"
+        )}
+      >
+        <span className="opacity-50 shrink-0">{getToolIcon(cat, colors?.iconColor || "#888")}</span>
+        <span className={clsx("shrink-0 font-medium", colors?.text || "text-[#888]")}>{tool.tool_name}</span>
+        {detail && <span className="text-[#666] truncate flex-1 min-w-0">{detail}</span>}
+        {!detail && <span className="flex-1" />}
+        {!!tool.duration_ms && <span className="text-[9px] text-[#666] tabular-nums shrink-0">{fmtDuration(tool.duration_ms)}</span>}
+        {hasOutput && <Chevron open={open} size={8} />}
+      </button>
+      {open && hasOutput && (
+        <div className="px-4 pb-2">
+          <StyledToolOutput tool={tool} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Agent Run ── */
 const IDLE_WARN_MS = 60_000; // 1 min — show warning (backend handles kill at 10 min)
 
@@ -701,33 +743,9 @@ function AgentRunCard({ tool, childTools, finalText, agentType, ts, runActive = 
           {/* Child tool list */}
           {childTools.length > 0 && (
             <div className="max-h-[400px] overflow-y-auto">
-              {childTools.map((ct, idx) => {
-                const cat = getToolCategory(ct.tool_name);
-                const colors = TOOL_COLORS[cat];
-                const inp = ct.input_data || {};
-                const fp = (inp.file_path as string) || "";
-                const cmd = (inp.command as string) || "";
-                const desc = (inp.description as string) || "";
-                const pattern = (inp.pattern as string) || "";
-                const grepPath = (inp.path as string) || "";
-                const detail = fp ? shortPath(fp)
-                  : pattern ? `/${pattern}/${grepPath ? ` in ${shortPath(grepPath)}` : ""}`
-                  : cmd ? cmd.slice(0, 60)
-                  : desc ? desc.slice(0, 60) : "";
-                return (
-                  <div key={idx}
-                    className={clsx(
-                      "flex items-center gap-2 px-4 py-1.5 text-[10px] transition-colors hover:bg-white/[0.02]",
-                      idx < childTools.length - 1 && "border-b border-white/[0.02]"
-                    )}>
-                    <span className="opacity-50 shrink-0">{getToolIcon(cat, colors?.iconColor || "#888")}</span>
-                    <span className={clsx("shrink-0 font-medium", colors?.text || "text-[#888]")}>{ct.tool_name}</span>
-                    {detail && <span className="text-[#666] truncate flex-1 min-w-0">{detail}</span>}
-                    {!detail && <span className="flex-1" />}
-                    {!!ct.duration_ms && <span className="text-[9px] text-[#666] tabular-nums shrink-0">{fmtDuration(ct.duration_ms)}</span>}
-                  </div>
-                );
-              })}
+              {childTools.map((ct, idx) => (
+                <ChildToolRow key={idx} tool={ct} isLast={idx === childTools.length - 1} />
+              ))}
             </div>
           )}
 
