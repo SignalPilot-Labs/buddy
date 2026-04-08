@@ -24,6 +24,11 @@ function shortPath(p: string): string {
   const parts = p.split("/");
   return parts.length <= 2 ? p : parts.slice(-2).join("/");
 }
+function truncateAtLine(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text;
+  const cut = text.lastIndexOf("\n", maxLen);
+  return (cut > 0 ? text.slice(0, cut) : text.slice(0, maxLen)) + "\n\u2026";
+}
 
 /* ── Chevron ── */
 function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
@@ -332,7 +337,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
             </button>
           )}
           <div className={clsx(collapsed && "max-h-[100px] overflow-hidden")}>
-            <MarkdownContent content={collapsed ? text.slice(0, 500) + "\u2026" : text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
+            <MarkdownContent content={collapsed ? truncateAtLine(text, 500) : text} className={clsx("text-[11px]", isPlanner ? "text-[#cc9966]" : "text-[#bbb]")} />
           </div>
           {collapsed && <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#050505] to-transparent" />}
           {/* Only show blinking cursor on the last message */}
