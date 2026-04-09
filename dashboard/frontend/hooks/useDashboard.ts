@@ -55,7 +55,7 @@ export interface DashboardState {
   controlAction: (label: string, fn: (id: string) => Promise<unknown>) => void;
   handleToggleSidebar: () => void;
   handleRepoSwitch: (repo: string) => Promise<void>;
-  handleSelectRun: (id: string) => Promise<void>;
+  handleSelectRun: (id: string) => Promise<FeedEvent[]>;
   handleStartRun: (
     prompt: string | undefined,
     budget: number,
@@ -272,7 +272,7 @@ export function useDashboard(): DashboardState {
   }, [runs, selectedRunId]);
 
   const handleSelectRun = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<FeedEvent[]> => {
       const gen = ++selectGenRef.current;
       sseRef.current.disconnect();
       setSelectedRunId(id);
@@ -282,19 +282,22 @@ export function useDashboard(): DashboardState {
       sseRef.current.clearEvents();
       let lastToolId = 0;
       let lastAuditId = 0;
+      let loadedEvents: FeedEvent[] = [];
       try {
         const result = await loadRunHistory(id);
-        if (gen !== selectGenRef.current) return;
+        if (gen !== selectGenRef.current) return loadedEvents;
         setHistoryEvents(result.events);
+        loadedEvents = result.events;
         lastToolId = result.lastToolId;
         lastAuditId = result.lastAuditId;
       } catch (err) {
         console.warn("Failed to load history:", err);
       }
-      if (gen !== selectGenRef.current) return;
+      if (gen !== selectGenRef.current) return loadedEvents;
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
       refreshRuns();
+      return loadedEvents;
     },
     [refreshRuns],
   );
@@ -316,29 +319,6 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
-  const handleStartRun = useCallback(
-    async (
-      prompt: string | undefined,
-      budget: number,
-      durationMinutes: number,
-      baseBranch: string,
-      extendedContext: boolean = false,
-    ) => {
-      setStartModalOpen(false);
-      setBusy(true);
-      try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
-        refreshRuns();
-        if (result.run_id) handleSelectRun(result.run_id);
-      } catch (err) {
-        addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
-      } finally {
-        setBusy(false);
-      }
-    },
-    [addEvent, handleSelectRun, refreshRuns, activeRepoFilter],
-  );
-
   const runStatus: RunStatus | null = (selectedRun?.status as RunStatus) || null;
 
   const addPendingMessage = useCallback(
@@ -355,6 +335,37 @@ export function useDashboard(): DashboardState {
       setPendingMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: "failed" } : m));
     },
     [],
+  );
+
+  const handleStartRun = useCallback(
+    async (
+      prompt: string | undefined,
+      budget: number,
+      durationMinutes: number,
+      baseBranch: string,
+      extendedContext: boolean = false,
+    ) => {
+      setStartModalOpen(false);
+      setBusy(true);
+      try {
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
+        refreshRuns();
+        if (result.run_id) {
+          const events = await handleSelectRun(result.run_id);
+          if (prompt) {
+            const hasPrompt = events.some((e) =>
+              e._kind === "audit" && (e.data.event_type === "prompt_submitted" || e.data.event_type === "prompt_injected"),
+            );
+            if (!hasPrompt) addPendingMessage(prompt);
+          }
+        }
+      } catch (err) {
+        addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
+      } finally {
+        setBusy(false);
+      }
+    },
+    [addEvent, addPendingMessage, handleSelectRun, refreshRuns, activeRepoFilter],
   );
 
   const handleInject = useCallback(
