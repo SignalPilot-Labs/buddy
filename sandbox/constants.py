@@ -26,4 +26,4 @@ EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
 
 # ── Subagent Limits ──
 SUBAGENT_TIMEOUT_SEC: int = 45 * 60
-INPUT_SUMMARY_MAX_LEN: int = 200
+INPUT_SUMMARY_MAX_LEN: int = 1000
