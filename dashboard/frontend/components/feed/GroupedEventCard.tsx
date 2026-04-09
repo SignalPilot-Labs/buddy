@@ -91,7 +91,7 @@ export function GroupedEventCard({
     case "control":
       return <ControlMessage text={event.text} ts={event.ts} />;
     case "user_prompt":
-      return <UserPromptCard prompt={event.prompt} ts={event.ts} />;
+      return <UserPromptCard prompt={event.prompt} ts={event.ts} pending={event.pending} failed={event.failed} />;
     case "milestone":
       return (
         <MilestoneCard

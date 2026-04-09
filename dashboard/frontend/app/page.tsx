@@ -35,7 +35,6 @@ export default function MonitorPage() {
     connected,
     branches,
     isMobile,
-    pendingPrompt,
     isConfigured,
     atCapacity,
     busy,
@@ -199,7 +198,6 @@ export default function MonitorPage() {
               events={allEvents}
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
-              pendingPrompt={pendingPrompt}
             />
             <CommandInput
               runId={selectedRunId}
@@ -240,7 +238,6 @@ export default function MonitorPage() {
           selectedRun={selectedRun}
           connected={connected}
           busy={busy}
-          pendingPrompt={pendingPrompt}
           controlsOpen={controlsOpen}
           setControlsOpen={setControlsOpen}
           onSelectRun={handleSelectRun}

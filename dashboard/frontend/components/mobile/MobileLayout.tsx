@@ -19,7 +19,6 @@ export interface MobileLayoutProps {
   selectedRun: Run | null;
   connected: boolean;
   busy: boolean;
-  pendingPrompt: { prompt: string; ts: string; status: "delivering" | "failed" } | null;
   controlsOpen: boolean;
   setControlsOpen: (v: boolean) => void;
   onSelectRun: (id: string) => void;
@@ -87,7 +86,6 @@ export function MobileLayout({
   selectedRun,
   connected,
   busy,
-  pendingPrompt,
   controlsOpen,
   setControlsOpen,
   onSelectRun,
@@ -115,7 +113,6 @@ export function MobileLayout({
               events={allEvents}
               runActive={runActive(runStatus)}
               runPaused={runStatus === "paused"}
-              pendingPrompt={pendingPrompt}
             />
             <CommandInput
               runId={selectedRunId}
