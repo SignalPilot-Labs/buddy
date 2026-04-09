@@ -73,7 +73,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "stop_requested":
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
     case "pause_requested":
-      return { type: "milestone", label: "Paused", detail: "", color: "#ffaa00", ts, event };
+      return { type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
     case "resumed":
       return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
     case "rate_limit_paused": {
@@ -95,7 +95,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "prompt_submitted":
       return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
     case "session_resumed":
-      return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };
+      return { type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
     case "auto_commit":
       return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
     case "push_failed":

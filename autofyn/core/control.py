@@ -121,7 +121,10 @@ class ControlHandler:
             return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
         if result.startswith("inject:"):
             prompt = result[7:]
-            await db.log_audit(self._run_id, "resumed", {"via": "inject", "prompt": prompt[:100]})
+            await db.log_audit(self._run_id, "resumed", {"via": "inject"})
+            await db.log_audit(self._run_id, "prompt_injected", {
+                "prompt": prompt, "delivery": "pause_resume",
+            })
             await self._sandbox.send_message(
                 self._session_id, f"Operator message: {prompt}",
             )

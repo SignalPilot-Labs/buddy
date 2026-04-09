@@ -102,7 +102,7 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [pendingPrompt, setPendingPrompt] = useState<{
-    prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
+    prompt: string; ts: string; clearOn: string[]; knownCount: number;
     status: "delivering" | "failed"; isRestart?: boolean;
   } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,7 +134,7 @@ export function useDashboard(): DashboardState {
     if (!pendingPrompt) return 0;
     const allEvts = [...historyEvents, ...liveEvents];
     return allEvts.filter(
-      (e) => e._kind === "audit" && e.data.event_type === pendingPrompt.clearOn,
+      (e) => e._kind === "audit" && pendingPrompt.clearOn.includes(e.data.event_type),
     ).length;
   }, [historyEvents, liveEvents, pendingPrompt]);
 
@@ -325,7 +325,7 @@ export function useDashboard(): DashboardState {
   const handleInject = useCallback(
     (prompt: string) => {
       if (!selectedRunId) return;
-      setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
+      setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: ["prompt_injected"], knownCount: pendingClearCount, status: "delivering" });
       apiInjectPrompt(selectedRunId, prompt).catch((e) => {
         setPendingPrompt(null);
         addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
@@ -338,7 +338,7 @@ export function useDashboard(): DashboardState {
     (prompt: string) => {
       if (!selectedRunId) return;
       if (prompt) {
-        setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering", isRestart: true });
+        setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: ["prompt_injected"], knownCount: pendingClearCount, status: "delivering", isRestart: true });
       }
       resumeAgent(selectedRunId, prompt).catch((e) => {
         setPendingPrompt(null);

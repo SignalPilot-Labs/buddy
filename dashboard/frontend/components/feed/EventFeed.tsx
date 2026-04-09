@@ -59,7 +59,7 @@ export function EventFeed({
   const grouped = useMemo(() => groupEvents(events), [events]);
 
   const lastInterruptionTs = useMemo(() => {
-    const interruptLabels = new Set(["Paused", "Stop Requested", "Resumed"]);
+    const interruptLabels = new Set(["Pause Requested", "Stop Requested", "Resumed"]);
     for (let i = grouped.length - 1; i >= 0; i--) {
       const gev = grouped[i];
       if (gev.type === "milestone" && interruptLabels.has(gev.label)) {
