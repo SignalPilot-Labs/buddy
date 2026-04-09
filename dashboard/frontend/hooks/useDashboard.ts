@@ -39,6 +39,7 @@ export interface DashboardState {
   isConfigured: boolean;
   atCapacity: boolean;
   busy: boolean;
+  historyLoading: boolean;
 
   // UI state
   activeRepoFilter: string | null;
@@ -101,6 +102,7 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [busy, setBusy] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
 
   const selectedRunIdRef = useRef<string | null>(null);
@@ -282,7 +284,7 @@ export function useDashboard(): DashboardState {
       setSelectedRunId(id);
       setPendingMessages([]);
       localStorage.setItem("autofyn_last_run_id", id);
-      setHistoryEvents([]);
+      setHistoryLoading(true);
       sseRef.current.clearEvents();
       let lastToolId = 0;
       let lastAuditId = 0;
@@ -296,6 +298,9 @@ export function useDashboard(): DashboardState {
         lastAuditId = result.lastAuditId;
       } catch (err) {
         console.warn("Failed to load history:", err);
+        if (gen === selectGenRef.current) setHistoryEvents([]);
+      } finally {
+        if (gen === selectGenRef.current) setHistoryLoading(false);
       }
       if (gen !== selectGenRef.current) return loadedEvents;
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
@@ -440,6 +445,7 @@ export function useDashboard(): DashboardState {
     isConfigured,
     atCapacity,
     busy,
+    historyLoading,
     activeRepoFilter,
     startModalOpen,
     showKillConfirm,

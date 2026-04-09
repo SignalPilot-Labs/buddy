@@ -15,16 +15,26 @@ const FAB_ANIMATE = { opacity: 1, y: 0 };
 const FAB_EXIT = { opacity: 0, y: 8 };
 const FAB_TRANSITION = { duration: 0.15 };
 
+const CARD_ENTER_DURATION = 0.2;
+const CARD_ENTER_Y = 6;
+const CARD_ENTER_EASE = "easeOut";
+const SKELETON_COUNT = 3;
+const SKELETON_HEIGHT = "h-12";
+const LOADING_OPACITY = 0.4;
+const LOADING_OPACITY_TRANSITION = "opacity 0.2s";
+
 export function EventFeed({
   events,
   pendingMessages = [],
   runActive = false,
   runPaused = false,
+  isLoading = false,
 }: {
   events: FeedEvent[];
   pendingMessages?: PendingMessage[];
   runActive?: boolean;
   runPaused?: boolean;
+  isLoading?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -75,6 +85,10 @@ export function EventFeed({
 
   const newEventCount = Math.max(0, events.length - seenCount);
 
+  const hasContent = events.length > 0 || pendingMessages.length > 0;
+  const showSkeleton = isLoading && !hasContent;
+  const containerOpacity = isLoading && hasContent ? LOADING_OPACITY : 1;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
       {/* Event list */}
@@ -82,26 +96,42 @@ export function EventFeed({
         ref={containerRef}
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 space-y-2"
+        style={{ opacity: containerOpacity, transition: LOADING_OPACITY_TRANSITION }}
       >
-        {events.length === 0 && pendingMessages.length === 0 ? (
+        {showSkeleton ? (
+          <div className="space-y-3 py-4">
+            {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+              <div key={i} className={`${SKELETON_HEIGHT} rounded bg-white/[0.03] animate-pulse`} />
+            ))}
+          </div>
+        ) : !hasContent ? (
           <div className="flex items-center justify-center h-full">
             <EmptyEvents />
           </div>
         ) : (
           <>
-            {grouped.map((gev, i) => (
-              <ErrorBoundary
-                key={`g-${i}`}
-                fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
-              >
-                <GroupedEventCard
-                  event={gev}
-                  isLast={i === grouped.length - 1 && pendingMessages.length === 0}
-                  runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
-                  runPaused={runPaused}
-                />
-              </ErrorBoundary>
-            ))}
+            <AnimatePresence mode="popLayout">
+              {grouped.map((gev, i) => (
+                <motion.div
+                  key={gev.id}
+                  initial={{ opacity: 0, y: CARD_ENTER_Y }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: CARD_ENTER_DURATION, ease: CARD_ENTER_EASE }}
+                >
+                  <ErrorBoundary
+                    fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+                  >
+                    <GroupedEventCard
+                      event={gev}
+                      isLast={i === grouped.length - 1 && pendingMessages.length === 0}
+                      runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                      runPaused={runPaused}
+                    />
+                  </ErrorBoundary>
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {pendingMessages.map((msg) => (
               <UserPromptCard
                 key={`pending-${msg.id}`}

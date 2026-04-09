@@ -20,6 +20,7 @@ export interface MobileLayoutProps {
   selectedRun: Run | null;
   connected: boolean;
   busy: boolean;
+  historyLoading: boolean;
   controlsOpen: boolean;
   setControlsOpen: (v: boolean) => void;
   onSelectRun: (id: string) => void;
@@ -88,6 +89,7 @@ export function MobileLayout({
   selectedRun,
   connected,
   busy,
+  historyLoading,
   controlsOpen,
   setControlsOpen,
   onSelectRun,
@@ -116,6 +118,7 @@ export function MobileLayout({
               pendingMessages={pendingMessages}
               runActive={runActive(runStatus)}
               runPaused={runStatus === "paused"}
+              isLoading={historyLoading}
             />
             <CommandInput
               runId={selectedRunId}
