@@ -44,27 +44,29 @@ function Stat({
     <div className="flex items-center gap-1.5">
       <span className="text-[#777]">{icon}</span>
       <span className="text-[10px] text-[#777]">{label}</span>
-      <span className={`text-[10px] font-semibold tabular-nums ${accent || "text-[#e8e8e8]"}`}>
+      <span className={`text-[10px] font-semibold tabular-nums ${accent ?? "text-[#e8e8e8]"}`}>
         {value}
       </span>
     </div>
   );
 }
 
-export function StatsBar({
-  run,
-  connected,
-  events = EMPTY_EVENTS,
-}: {
+export interface StatsRowProps {
   run: Run | null;
   connected: boolean;
   events?: FeedEvent[];
-}) {
+}
+
+export function StatsRow({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
 
   if (!run) {
     return (
-      <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <div className="h-7 flex items-center px-1">
         <span className="text-[10px] text-[#777]">No run selected</span>
       </div>
     );
@@ -74,7 +76,7 @@ export function StatsBar({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-[36px] sm:h-8 flex items-center gap-3 sm:gap-5 px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505] overflow-x-auto"
+      className="min-h-[28px] flex items-center gap-3 sm:gap-5 px-1 overflow-x-auto"
     >
       <Stat
         icon={
@@ -145,5 +147,17 @@ export function StatsBar({
         </span>
       </div>
     </motion.div>
+  );
+}
+
+export function StatsBar({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
+  return (
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <StatsRow run={run} connected={connected} events={events} />
+    </div>
   );
 }

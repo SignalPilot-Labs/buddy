@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog, fetchAgentHealth, fetchBranches, fetchRepos, setActiveRepo } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, HISTORY_FETCH_LIMIT, TERMINAL_STATUSES } from "@/lib/constants";
 import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import type { AgentHealth } from "@/lib/api";
 import { fetchSettingsStatus } from "@/lib/settings-api";
@@ -17,10 +17,8 @@ import { useMobile } from "@/hooks/useMobile";
 import { startRun as apiStartRun, stopAgentInstant, killAgent, pauseAgent, resumeAgent, unlockAgent, injectPrompt as apiInjectPrompt } from "@/lib/api";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
-import { ControlBar } from "@/components/controls/ControlBar";
-import { InjectPanel } from "@/components/controls/InjectPanel";
+import { CommandInput } from "@/components/controls/CommandInput";
 import { StartRunModal } from "@/components/controls/StartRunModal";
-import { StatsBar } from "@/components/stats/StatsBar";
 import { RateLimitBanner } from "@/components/controls/RateLimitBanner";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -32,7 +30,6 @@ import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
-const TERMINAL_STATUSES = new Set(["completed", "stopped", "error", "crashed", "killed", "completed_no_changes"]);
 
 export default function MonitorPage() {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -43,8 +40,8 @@ export default function MonitorPage() {
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [historyEvents, setHistoryEvents] = useState<FeedEvent[]>([]);
-  const [injectOpen, setInjectOpen] = useState(false);
   const [startModalOpen, setStartModalOpen] = useState(false);
+  const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [agentHealth, setAgentHealth] = useState<AgentHealth | null>(null);
   const [branches, setBranches] = useState<string[]>(["main"]);
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
@@ -113,7 +110,7 @@ export default function MonitorPage() {
           const currentId = selectedRunIdRef.current;
           const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
           const currentIsTerminal = currentRunInHealth
-            ? TERMINAL_STATUSES.has(currentRunInHealth.status)
+            ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
             : true;
           if (currentId === null || currentIsTerminal) {
             setSelectedRunId(newRun.run_id);
@@ -341,6 +338,42 @@ export default function MonitorPage() {
   const runStatus: RunStatus | null =
     (selectedRun?.status as RunStatus) || null;
 
+  const handleInject = useCallback(
+    (prompt: string) => {
+      if (!selectedRunId) return;
+      setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
+      apiInjectPrompt(selectedRunId, prompt).catch((e) => {
+        setPendingPrompt(null);
+        addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
+      });
+    },
+    [selectedRunId, pendingClearCount, addEvent],
+  );
+
+  const handleRestart = useCallback(
+    (prompt: string) => {
+      if (!selectedRunId) return;
+      if (prompt) {
+        setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
+      }
+      resumeAgent(selectedRunId).catch((e) => {
+        setPendingPrompt(null);
+        addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
+      });
+    },
+    [selectedRunId, pendingClearCount, addEvent],
+  );
+
+  const handleHeaderKill = useCallback(() => {
+    if (!showKillConfirm) {
+      setShowKillConfirm(true);
+      setTimeout(() => setShowKillConfirm(false), 3000);
+      return;
+    }
+    controlAction("Kill", killAgent);
+    setShowKillConfirm(false);
+  }, [showKillConfirm, controlAction]);
+
   // Mark pending bubble as failed when run reaches a terminal state
   useEffect(() => {
     if (!pendingPrompt || pendingPrompt.status === "failed") return;
@@ -525,18 +558,44 @@ export default function MonitorPage() {
 
         <div className="w-px h-4 bg-[#1a1a1a]" />
 
-        <ControlBar
-          status={runStatus}
-          onPause={() => controlAction("Pause", pauseAgent)}
-          onResume={() => controlAction("Resume", resumeAgent)}
-          onStop={() => controlAction("Stop", stopAgentInstant)}
-          onKill={() => controlAction("Kill", killAgent)}
-          onUnlock={() => controlAction("Unlock", unlockAgent)}
-          onToggleInject={() => setInjectOpen(!injectOpen)}
-          busy={busy}
-          sessionLocked={activeRunHealth?.session_unlocked === false}
-          timeRemaining={activeRunHealth?.time_remaining || null}
-        />
+        {/* Stop / Kill icon-only buttons */}
+        <div className="flex items-center gap-1">
+          {activeRunHealth?.session_unlocked === false && activeRunHealth?.time_remaining && (
+            <span className="text-[10px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#ffaa00" strokeWidth="1" opacity="0.5">
+                <rect x="1.5" y="4" width="5" height="3" rx="0.5" />
+                <path d="M2.5 4V3a1.5 1.5 0 013 0v1" />
+              </svg>
+              {activeRunHealth.time_remaining}
+            </span>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={!["running", "paused", "rate_limited"].includes(runStatus ?? "") || busy}
+            onClick={() => controlAction("Stop", stopAgentInstant)}
+            title="Stop run"
+            className="p-1"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2" y="2" width="6" height="6" rx="0.5" />
+            </svg>
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            disabled={!["running", "paused", "rate_limited"].includes(runStatus ?? "") || busy}
+            onClick={handleHeaderKill}
+            title={showKillConfirm ? "Click again to confirm kill" : "Kill run"}
+            className={`p-1 ${showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="5" cy="5" r="4" />
+              <line x1="3" y1="3" x2="7" y2="7" />
+              <line x1="7" y1="3" x2="3" y2="7" />
+            </svg>
+          </Button>
+        </div>
       </header>
 
       {/* Mobile Top Bar */}
@@ -561,28 +620,6 @@ export default function MonitorPage() {
           </Link>
         </div>
       </header>
-
-      {/* Inject Panel */}
-      <InjectPanel
-        open={injectOpen}
-        onClose={() => setInjectOpen(false)}
-        onSend={(prompt: string) => {
-          if (selectedRunId) {
-            setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
-            apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-              setPendingPrompt(null);
-              addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
-            });
-          } else {
-            addEvent({
-              _kind: "control",
-              text: "No run selected",
-              ts: new Date().toISOString(),
-            });
-          }
-        }}
-        busy={busy}
-      />
 
       {/* Start Run Modal */}
       <StartRunModal
@@ -643,7 +680,18 @@ export default function MonitorPage() {
           {/* Center - Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
             <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-            <StatsBar run={selectedRun} connected={connected} events={allEvents} />
+            <CommandInput
+              runId={selectedRunId}
+              status={runStatus}
+              run={selectedRun}
+              connected={connected}
+              events={allEvents}
+              busy={busy}
+              onPause={() => controlAction("Pause", pauseAgent)}
+              onResume={() => controlAction("Resume", resumeAgent)}
+              onInject={handleInject}
+              onRestart={handleRestart}
+            />
           </main>
 
           {/* Right sidebar - Changes / Logs */}
@@ -697,7 +745,18 @@ export default function MonitorPage() {
           {mobilePanel === "feed" && (
             <>
               <EventFeed events={allEvents} runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"} runPaused={runStatus === "paused"} pendingPrompt={pendingPrompt} />
-              <StatsBar run={selectedRun} connected={connected} events={allEvents} />
+              <CommandInput
+                runId={selectedRunId}
+                status={runStatus}
+                run={selectedRun}
+                connected={connected}
+                events={allEvents}
+                busy={busy}
+                onPause={() => controlAction("Pause", pauseAgent)}
+                onResume={() => controlAction("Resume", resumeAgent)}
+                onInject={handleInject}
+                onRestart={handleRestart}
+              />
             </>
           )}
           {mobilePanel === "changes" && (
@@ -755,7 +814,7 @@ export default function MonitorPage() {
         onStop={() => selectedRunId && stopAgentInstant(selectedRunId)}
         onKill={() => selectedRunId && killAgent(selectedRunId)}
         onUnlock={() => selectedRunId && unlockAgent(selectedRunId)}
-        onToggleInject={() => setInjectOpen(!injectOpen)}
+        onToggleInject={() => setMobilePanel("feed")}
         busy={busy}
         repos={repos}
         activeRepo={activeRepoFilter}

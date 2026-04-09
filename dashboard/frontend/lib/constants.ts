@@ -66,6 +66,15 @@ export const INJECTABLE_STATUSES: ReadonlyArray<RunStatus> = [
   "error",
 ];
 
+export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
+  "completed",
+  "stopped",
+  "error",
+  "crashed",
+  "killed",
+  "completed_no_changes",
+]);
+
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.
   // Client-side: use empty string so all /api/* requests go to the same origin

@@ -4,7 +4,7 @@ import { clsx } from "clsx";
 import { forwardRef } from "react";
 
 type Variant = "ghost" | "danger" | "success" | "warning" | "primary";
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "pill" | "lg";
 
 const variantStyles: Record<Variant, string> = {
   ghost:
@@ -34,7 +34,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "disabled:opacity-30 disabled:pointer-events-none",
         "active:scale-[0.97]",
         variantStyles[variant],
-        size === "sm" ? "px-2 py-1 text-[10px]" : size === "md" ? "px-3 py-1.5 text-[11px]" : "px-4 py-2.5 text-[13px] min-h-[44px]",
+        size === "sm" ? "px-2 py-1 text-[10px]" : size === "md" ? "px-3 py-1.5 text-[11px]" : size === "pill" ? "rounded-full px-3 py-1 text-[11px]" : "px-4 py-2.5 text-[13px] min-h-[44px]",
         className
       )}
       {...props}
