@@ -12,6 +12,13 @@ RATE_LIMIT_MAX_WAIT_SEC = (
 )
 SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
 
+# ── Agent Models ──
+MODEL_OPUS = "opus"
+MODEL_SONNET = "sonnet"
+DEFAULT_AGENT_ROLE = "worker"
+SESSION_EFFORT = "medium"
+SESSION_PERMISSION_MODE = "bypassPermissions"
+
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
 OPERATOR_MESSAGES_PATH = "/tmp/operator-messages.md"
