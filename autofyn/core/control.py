@@ -111,6 +111,7 @@ class ControlHandler:
         result = await self._events.handle_pause(self._run_id)
 
         if result == "stop":
+            await db.log_audit(self._run_id, "stop_requested", {})
             return ControlAction(stop=True, break_stream=False, final_status="stopped", pause=False)
         if result == "resume":
             await db.log_audit(self._run_id, "resumed", {})
