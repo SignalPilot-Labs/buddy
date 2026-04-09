@@ -38,7 +38,9 @@ export function TerminalOutput({
     return (
       <div className="text-[9px] text-[#777] italic py-1">no output</div>
     );
-  const lines = text.split("\n");
+  const allLines = text.split("\n");
+  const lines = allLines.slice(0, 200);
+  const outputTruncated = allLines.length > 200;
   return (
     <div className="font-mono text-[10px] leading-relaxed max-h-[300px] overflow-y-auto">
       {lines.map((line, i) => (
@@ -62,6 +64,11 @@ export function TerminalOutput({
           {line || "\u00A0"}
         </div>
       ))}
+      {outputTruncated && (
+        <div className="px-2 py-1.5 text-[9px] text-[#777] text-center border-t border-white/[0.04]">
+          … {allLines.length - 200} more lines
+        </div>
+      )}
     </div>
   );
 }

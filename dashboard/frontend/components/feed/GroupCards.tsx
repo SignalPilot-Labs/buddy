@@ -66,7 +66,7 @@ export function ChildToolRow({
           {tool.tool_name}
         </span>
         {detail && (
-          <span className="text-[#666] truncate flex-1 min-w-0">{detail}</span>
+          <span className="text-[#666] truncate flex-1 min-w-0" title={fp || detail}>{detail}</span>
         )}
         {!detail && <span className="flex-1" />}
         {!!tool.duration_ms && (
