@@ -328,7 +328,7 @@ function LLMMessageCard({ role, text, thinking, ts, isLast }: { role: string; te
         <span className="text-[9px] text-[#777] tabular-nums">{fmtTime(ts)}</span>
         {thinking && (
           <button onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[9px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1">
+            className="ml-auto text-[10px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5" cy="5" r="3.5" /><circle cx="5" cy="5" r="1" /></svg>
             {showThinking ? "hide reasoning" : "show reasoning"}
           </button>
@@ -905,7 +905,7 @@ function SingleToolCard({ tool }: { tool: ToolCall }) {
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
       className={clsx("rounded-lg border overflow-hidden", denied ? "border-[#ff4444]/10 bg-[#ff4444]/[0.02]" : "border-white/[0.04] bg-white/[0.01]")}>
       <button onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.02] transition-colors text-left">
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left">
         <span className="opacity-60 shrink-0">{getToolIcon(cat, denied ? "#ff4444" : colors.iconColor)}</span>
         <span className={clsx("text-[10px] font-semibold shrink-0", denied ? "text-[#ff4444]" : colors.text)}>{tool.tool_name}</span>
         {denied && <span className="text-[9px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">DENIED</span>}
@@ -940,7 +940,7 @@ function ControlMessage({ text, ts }: { text: string; ts: string }) {
   return (
     <div className="flex items-center gap-2 px-4 py-2">
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-      <div className="flex items-center gap-1.5 text-[9px] text-[#ffaa00]/70">
+      <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/70">
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="2 4 5 7 2 10" /><line x1="6" y1="10" x2="9" y2="10" /></svg>
         {text}
         <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
@@ -992,7 +992,7 @@ function DividerCard({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <div className="flex-1 terminal-hr" />
-      <span className="text-[9px] text-[#777] uppercase tracking-wider">{label}</span>
+      <span className="text-[10px] text-[#777] uppercase tracking-wider">{label}</span>
       <div className="flex-1 terminal-hr" />
     </div>
   );

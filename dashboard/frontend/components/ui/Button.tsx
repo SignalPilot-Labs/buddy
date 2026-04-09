@@ -10,11 +10,11 @@ const variantStyles: Record<Variant, string> = {
   ghost:
     "bg-white/[0.04] text-[#aaa] hover:bg-white/[0.08] hover:text-white border-[#1a1a1a]",
   primary:
-    "bg-[#88ccff]/10 text-[#88ccff] hover:bg-[#88ccff]/20 border-[#88ccff]/20",
+    "bg-[#88ccff]/10 text-[#88ccff] hover:bg-[#88ccff]/20 border-[#88ccff]/20 hover:shadow-[0_0_12px_rgba(136,204,255,0.12)]",
   danger:
     "bg-[#ff4444]/8 text-[#ff4444] hover:bg-[#ff4444]/15 border-[#ff4444]/15",
   success:
-    "bg-[#00ff88]/8 text-[#00ff88] hover:bg-[#00ff88]/15 border-[#00ff88]/15",
+    "bg-[#00ff88]/8 text-[#00ff88] hover:bg-[#00ff88]/15 border-[#00ff88]/15 hover:shadow-[0_0_12px_rgba(0,255,136,0.15)]",
   warning:
     "bg-[#ffaa00]/8 text-[#ffaa00] hover:bg-[#ffaa00]/15 border-[#ffaa00]/15",
 };
@@ -30,7 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={clsx(
-        "inline-flex items-center gap-1.5 rounded border font-medium transition-all duration-150",
+        "inline-flex items-center gap-1.5 rounded border font-medium transition-all duration-150 shadow-sm",
         "disabled:opacity-30 disabled:pointer-events-none",
         "active:scale-[0.97]",
         variantStyles[variant],

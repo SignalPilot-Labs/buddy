@@ -164,7 +164,7 @@ export function CommandInput({
                   }}
                   onClick={() => handlePresetClick(p.text)}
                   aria-label={`Quick prompt: ${p.label}`}
-                  className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] transition-colors border border-[#1a1a1a]"
+                  className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] hover:bg-gradient-to-r hover:from-transparent hover:via-white/[0.01] hover:to-transparent transition-colors border border-[#1a1a1a]"
                 >
                   {p.label}
                 </button>
@@ -176,30 +176,28 @@ export function CommandInput({
 
       {/* Textarea + smart button */}
       <div className="relative px-3 py-2">
-        <div className="border-t border-[#111] pt-2">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            placeholder={placeholder}
-            rows={1}
-            disabled={!runId}
-            className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg pl-3 pr-32 py-2.5 text-[11px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-5"
-            style={{ minHeight: "40px" }}
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          rows={1}
+          disabled={!runId}
+          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg pl-3 pr-32 py-2.5 text-[11px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-5"
+          style={{ minHeight: "40px" }}
+        />
+        <div className="absolute right-5 bottom-4 flex items-center">
+          <SmartButton
+            state={{ ...buttonState, disabled: buttonState.disabled || busy }}
+            onClick={handleAction}
           />
-          <div className="absolute right-5 bottom-4 flex items-center">
-            <SmartButton
-              state={{ ...buttonState, disabled: buttonState.disabled || busy }}
-              onClick={handleAction}
-            />
-          </div>
         </div>
         {hasText && (
           <div className="flex justify-end mt-1">
-            <span className="text-[9px] text-[#444]">Enter to send · Shift+Enter for newline</span>
+            <span className="text-[10px] text-[#444]">Enter to send · Shift+Enter for newline</span>
           </div>
         )}
       </div>
