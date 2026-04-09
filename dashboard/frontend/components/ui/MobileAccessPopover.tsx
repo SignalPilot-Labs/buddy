@@ -54,7 +54,7 @@ export function MobileAccessPopover() {
             className="absolute top-full right-0 mt-1 z-50 w-[260px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-xl shadow-black/50 overflow-hidden"
           >
             <div className="px-3 py-2 border-b border-[#1a1a1a]">
-              <span className="text-[9px] uppercase tracking-[0.1em] text-[#666] font-semibold">
+              <span className="text-[10px] uppercase tracking-[0.1em] text-[#666] font-semibold">
                 Mobile Access
               </span>
             </div>

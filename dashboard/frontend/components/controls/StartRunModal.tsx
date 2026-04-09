@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
+import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
 function BranchPicker({
   branches,
@@ -122,9 +124,27 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, extendedContext: boolean) => void;
   busy: boolean;
   branches: string[];
+  activeRepo: string | null;
+  defaultExtendedContext?: boolean;
+}
+
+function parseEnvText(text: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    const key = trimmed.slice(0, eqIdx).trim();
+    if (key) result[key] = trimmed.slice(eqIdx + 1);
+  }
+  return result;
+}
+
+function envToText(env: Record<string, string>): string {
+  return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
 
 const DURATION_PRESETS = [
@@ -168,6 +188,8 @@ export function StartRunModal({
   onStart,
   busy,
   branches,
+  activeRepo,
+  defaultExtendedContext = false,
 }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
@@ -175,7 +197,26 @@ export function StartRunModal({
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
+  const [extendedContext, setExtendedContext] = useState(() => {
+    if (defaultExtendedContext) return true;
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
+    }
+    return false;
+  });
+  const [envText, setEnvText] = useState("");
+  const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch saved env vars when modal opens
+  useEffect(() => {
+    if (open && activeRepo) {
+      setEnvError(null);
+      fetchRepoEnv(activeRepo).then((env) => {
+        setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
+      });
+    }
+  }, [open, activeRepo]);
 
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
@@ -199,12 +240,21 @@ export function StartRunModal({
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     const prompt =
       selectedQuick !== null
         ? QUICK_PROMPTS[selectedQuick].prompt
         : customPrompt.trim() || undefined;
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch);
+    if (activeRepo) {
+      try {
+        await saveRepoEnv(activeRepo, parseEnvText(envText));
+        setEnvError(null);
+      } catch (e) {
+        setEnvError(e instanceof Error ? e.message : "Failed to save env vars");
+        return;
+      }
+    }
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -250,10 +300,10 @@ export function StartRunModal({
                   </div>
                   <div>
                     <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
-                      Start Improvement Run
+                      New Run
                     </h2>
                     <p className="text-[9px] text-[#999] mt-0.5">
-                      Creates a branch, makes improvements, opens a PR
+                      Spawns an isolated container with its own sandbox
                     </p>
                   </div>
                 </div>
@@ -353,6 +403,26 @@ export function StartRunModal({
                   </div>
                 </div>
 
+                {/* Environment Variables */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    Environment Variables
+                  </label>
+                  <textarea
+                    value={envText}
+                    onChange={(e) => setEnvText(e.target.value)}
+                    placeholder={"API_KEY=your-value\nDATABASE_URL=postgres://..."}
+                    rows={3}
+                    className="mt-2 w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#555] resize-y focus:outline-none focus:border-[#00ff88]/30 transition-all"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <p className="mt-1 text-[9px] text-[#666]">
+                    KEY=value per line. Encrypted and injected into sandbox.
+                  </p>
+                  {envError && <p className="mt-1 text-[9px] text-[#ff4444]">{envError}</p>}
+                </div>
+
                 {/* Budget */}
                 <div>
                   <label
@@ -397,6 +467,32 @@ export function StartRunModal({
                     </div>
                   )}
                 </div>
+                {/* Extended Context */}
+                <div>
+                  <label
+                    className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold flex items-center gap-2 cursor-pointer select-none"
+                    onClick={() => setExtendedContext(!extendedContext)}
+                  >
+                    <span
+                      className={clsx(
+                        "flex items-center justify-center h-3 w-3 rounded border transition-all",
+                        extendedContext
+                          ? "bg-[#00ff88] border-[#00ff88]"
+                          : "border-[#666] bg-transparent"
+                      )}
+                    >
+                      {extendedContext && (
+                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
+                          <polyline points="1.5 4 3 5.5 6.5 2" />
+                        </svg>
+                      )}
+                    </span>
+                    Extended Context (1M)
+                  </label>
+                  <p className="text-[9px] text-[#666] mt-1 ml-5">
+                    Uses more of your daily quota but allows larger context windows
+                  </p>
+                </div>
               </div>
 
               {/* Footer */}
@@ -419,7 +515,7 @@ export function StartRunModal({
                       </svg>
                     }
                   >
-                    {busy ? "Starting..." : "Start Run"}
+                    {busy ? "Starting..." : "New Run"}
                   </Button>
                 </div>
               </div>

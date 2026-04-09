@@ -7,11 +7,10 @@ standard logging module, never silently swallowed.
 
 import functools
 import logging
-import os
-import uuid
+
 from datetime import datetime, timezone
 
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select, update
 
 from db.connection import connect, close, get_session_factory
 from db.models import AuditLog, Run, ToolCall
@@ -45,27 +44,37 @@ async def close_db() -> None:
     await close()
 
 
-async def create_run(
-    branch_name: str,
+async def create_run_starting(
+    run_id: str,
     custom_prompt: str | None,
     duration_minutes: float,
     base_branch: str,
     github_repo: str | None,
-) -> str:
-    """Create a new run record. Returns the run UUID."""
-    run_id = str(uuid.uuid4())
-    repo = github_repo or os.environ.get("GITHUB_REPO") or None
+) -> None:
+    """Create a run record with status 'starting'. Called at /start time."""
+    repo = github_repo
     async with get_session_factory()() as s:
         s.add(Run(
             id=run_id,
-            branch_name=branch_name,
+            branch_name="pending",
+            status="starting",
             custom_prompt=custom_prompt,
             duration_minutes=duration_minutes,
             base_branch=base_branch,
             github_repo=repo,
         ))
         await s.commit()
-    return run_id
+
+
+async def update_run_branch(run_id: str, branch_name: str) -> None:
+    """Set the branch name once git setup completes."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Run).where(Run.id == run_id).values(
+                branch_name=branch_name, status="running",
+            )
+        )
+        await s.commit()
 
 
 @swallow_errors
@@ -102,9 +111,12 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "custom_prompt": run.custom_prompt,
             "duration_minutes": run.duration_minutes,
             "base_branch": run.base_branch,
+            "github_repo": run.github_repo,
             "total_cost_usd": run.total_cost_usd,
             "total_input_tokens": run.total_input_tokens,
             "total_output_tokens": run.total_output_tokens,
+            "cache_creation_input_tokens": run.cache_creation_input_tokens,
+            "cache_read_input_tokens": run.cache_read_input_tokens,
         }
 
 
@@ -117,6 +129,17 @@ async def get_run_base_branch(run_id: str) -> str | None:
         return run.base_branch
 
 
+async def get_operator_messages(run_id: str) -> list[dict]:
+    """Get all operator-injected prompts for a run, ordered by time."""
+    async with get_session_factory()() as s:
+        rows = (await s.execute(
+            select(AuditLog.ts, AuditLog.details)
+            .where(AuditLog.run_id == run_id, AuditLog.event_type == "prompt_injected")
+            .order_by(AuditLog.ts)
+        )).all()
+        return [{"ts": r.ts.isoformat(), "prompt": r.details.get("prompt", "")} for r in rows]
+
+
 async def finish_run(
     run_id: str,
     status: str,
@@ -127,6 +150,8 @@ async def finish_run(
     error_message: str | None,
     rate_limit_info: dict | None,
     diff_stats: list | None,
+    cache_creation_input_tokens: int,
+    cache_read_input_tokens: int,
 ) -> None:
     """Mark a run as finished with final stats."""
     async with get_session_factory()() as s:
@@ -135,58 +160,46 @@ async def finish_run(
             .where(ToolCall.run_id == run_id, ToolCall.phase == "pre")
         )).scalar_one()
 
-        await s.execute(
-            update(Run).where(Run.id == run_id).values(
-                ended_at=datetime.now(timezone.utc),
-                status=status,
-                pr_url=pr_url,
-                total_cost_usd=total_cost_usd,
-                total_input_tokens=total_input_tokens,
-                total_output_tokens=total_output_tokens,
-                error_message=error_message,
-                rate_limit_info=rate_limit_info,
-                diff_stats=diff_stats,
-                total_tool_calls=tool_count,
-            )
-        )
+        await s.execute(update(Run).where(Run.id == run_id).values(
+            ended_at=datetime.now(timezone.utc),
+            status=status,
+            pr_url=pr_url,
+            total_cost_usd=total_cost_usd,
+            total_input_tokens=total_input_tokens,
+            total_output_tokens=total_output_tokens,
+            error_message=error_message,
+            rate_limit_info=rate_limit_info,
+            diff_stats=diff_stats,
+            total_tool_calls=tool_count,
+            cache_creation_input_tokens=cache_creation_input_tokens,
+            cache_read_input_tokens=cache_read_input_tokens,
+        ))
         await s.commit()
 
 
 @swallow_errors
-async def log_tool_call(
+async def update_run_cost(
     run_id: str,
-    phase: str,
-    tool_name: str,
-    input_data: dict | None,
-    output_data: dict | None,
-    duration_ms: int | None,
-    permitted: bool,
-    deny_reason: str | None,
-    agent_role: str,
-    tool_use_id: str | None,
-    session_id: str | None,
-    agent_id: str | None,
-) -> int | None:
-    """Log a tool call. Returns the row id."""
+    total_cost_usd: float,
+    total_input_tokens: int,
+    total_output_tokens: int,
+    cache_creation_input_tokens: int,
+    cache_read_input_tokens: int,
+    context_tokens: int,
+) -> None:
+    """Persist current cost/token values mid-run. Called at each SDK round boundary."""
     async with get_session_factory()() as s:
-        tc = ToolCall(
-            run_id=run_id,
-            phase=phase,
-            tool_name=tool_name,
-            input_data=input_data,
-            output_data=output_data,
-            duration_ms=duration_ms,
-            permitted=permitted,
-            deny_reason=deny_reason,
-            agent_role=agent_role,
-            tool_use_id=tool_use_id,
-            session_id=session_id,
-            agent_id=agent_id,
+        await s.execute(
+            update(Run).where(Run.id == run_id).values(
+                total_cost_usd=total_cost_usd,
+                total_input_tokens=total_input_tokens,
+                total_output_tokens=total_output_tokens,
+                cache_creation_input_tokens=cache_creation_input_tokens,
+                cache_read_input_tokens=cache_read_input_tokens,
+                context_tokens=context_tokens,
+            )
         )
-        s.add(tc)
         await s.commit()
-        await s.refresh(tc)
-        return tc.id
 
 
 @swallow_errors
@@ -216,7 +229,7 @@ async def mark_crashed_runs() -> int:
     async with get_session_factory()() as s:
         result = await s.execute(
             update(Run)
-            .where(Run.status.in_(["running", "paused", "rate_limited"]))
+            .where(Run.status.in_(["starting", "running", "paused", "rate_limited"]))
             .values(
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),

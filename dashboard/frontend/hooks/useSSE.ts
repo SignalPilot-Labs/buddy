@@ -6,6 +6,11 @@ import { createSSE, pollEvents } from "@/lib/api";
 import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS } from "@/lib/constants";
 import { mergeToolEvent } from "@/lib/eventMerge";
 
+export interface SSECursor {
+  afterTool: number;
+  afterAudit: number;
+}
+
 function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
   const details =
     typeof raw.details === "string"
@@ -61,23 +66,50 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
 
 const POLL_INTERVAL = SSE_POLL_INTERVAL_MS;
 
-export function useSSE(runId: string | null) {
+export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runIdRef = useRef<string | null>(null);
+  const onRunEndedRef = useRef(onRunEnded);
+  const onSessionResumedRef = useRef(onSessionResumed);
+  onRunEndedRef.current = onRunEnded;
+  onSessionResumedRef.current = onSessionResumed;
 
   const clearEvents = useCallback(() => setEvents([]), []);
 
-  useEffect(() => {
-    if (!runId) return;
+  const disconnect = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
+    }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setConnected(false);
+    runIdRef.current = null;
+  }, []);
 
+  const connect = useCallback((runId: string, cursor: SSECursor) => {
+    // Clean up any existing connection
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+
+    runIdRef.current = runId;
     setEvents([]);
     setConnected(false);
 
     let sseGotMessage = false;
-    let afterTool = 0;
-    let afterAudit = 0;
+    let afterTool = cursor.afterTool;
+    let afterAudit = cursor.afterAudit;
 
     // --- Polling fallback ---
     function startPolling() {
@@ -85,27 +117,29 @@ export function useSSE(runId: string | null) {
       setConnected(true);
       pollingRef.current = setInterval(async () => {
         try {
-          const result = await pollEvents(runId!, afterTool, afterAudit);
+          const result = await pollEvents(runId, afterTool, afterAudit);
           if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
+            let runEnded = false;
             setEvents((prev) => {
               let next = prev;
               for (const tc of result.tool_calls) {
                 afterTool = Math.max(afterTool, tc.id ?? 0);
                 next = mergeToolEvent(next, tc);
               }
-              let runEnded = false;
               for (const ae of result.audit_events) {
                 afterAudit = Math.max(afterAudit, ae.id ?? 0);
                 next = processAudit(next, ae);
                 if (ae.event_type === "run_ended") runEnded = true;
-              }
-              if (runEnded && pollingRef.current) {
-                clearInterval(pollingRef.current);
-                pollingRef.current = null;
-                setConnected(false);
+                if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
               }
               return next;
             });
+            if (runEnded && pollingRef.current) {
+              clearInterval(pollingRef.current);
+              pollingRef.current = null;
+              setConnected(false);
+              onRunEndedRef.current?.();
+            }
           }
         } catch (err) {
           console.warn("Poll request failed:", err);
@@ -115,31 +149,25 @@ export function useSSE(runId: string | null) {
 
     function switchToPolling() {
       if (pollingRef.current) return;
-      if (esRef.current) {
-        esRef.current.close();
-        esRef.current = null;
-      }
+      if (esRef.current) { esRef.current.close(); esRef.current = null; }
       startPolling();
     }
 
     // --- SSE primary with timeout fallback ---
-    const es = createSSE(runId);
+    const es = createSSE(runId, cursor.afterTool, cursor.afterAudit);
     esRef.current = es;
 
-    // If no SSE message within 3s, assume SSE is blocked and switch to polling
-    const sseTimeout = setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       if (!sseGotMessage) switchToPolling();
     }, SSE_FALLBACK_TIMEOUT_MS);
 
     es.addEventListener("connected", () => {
       sseGotMessage = true;
-      clearTimeout(sseTimeout);
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       setConnected(true);
     });
 
-    es.addEventListener("ping", () => {
-      sseGotMessage = true;
-    });
+    es.addEventListener("ping", () => { sseGotMessage = true; });
 
     es.addEventListener("tool_call", (e) => {
       sseGotMessage = true;
@@ -155,6 +183,7 @@ export function useSSE(runId: string | null) {
       sseGotMessage = true;
       try {
         const raw: AuditEvent = JSON.parse(e.data);
+        if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
         setEvents((prev) => processAudit(prev, raw));
       } catch (err) {
         console.warn("Failed to parse audit SSE event:", err);
@@ -167,35 +196,25 @@ export function useSSE(runId: string | null) {
         const data = JSON.parse(e.data);
         setEvents((prev) => [
           ...prev,
-          { _kind: "audit", data: { id: 0, run_id: runId ?? "", event_type: "run_ended", details: data, ts: new Date().toISOString() } },
+          { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
         ]);
       } catch (err) {
         console.warn("Failed to parse run_ended SSE event:", err);
       }
       setConnected(false);
       es.close();
-      // Stop polling if it was active — run is done
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      onRunEndedRef.current?.();
     });
 
     es.onerror = () => {
       setConnected(false);
       if (!sseGotMessage) switchToPolling();
     };
+  }, []);
 
-    return () => {
-      clearTimeout(sseTimeout);
-      es.close();
-      esRef.current = null;
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
-    };
-  }, [runId]);
+  // Clean up on unmount
+  useEffect(() => () => { disconnect(); }, [disconnect]);
 
-  return { events, connected, clearEvents };
+  return { events, connected, clearEvents, connect, disconnect };
 }

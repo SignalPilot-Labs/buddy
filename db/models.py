@@ -50,6 +50,8 @@ class Run(Base):
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0)
     total_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_creation_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_input_tokens: Mapped[int] = mapped_column(Integer, default=0)
     rate_limit_info: Mapped[dict | None] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text)
     sdk_session_id: Mapped[str | None] = mapped_column(String)
@@ -59,6 +61,7 @@ class Run(Base):
     rate_limit_resets_at: Mapped[int | None] = mapped_column(Integer)
     diff_stats: Mapped[list | None] = mapped_column(JSONB)
     github_repo: Mapped[str | None] = mapped_column(String)
+    context_tokens: Mapped[int] = mapped_column(Integer, default=0)
 
     tool_calls: Mapped[list["ToolCall"]] = relationship(back_populates="run", cascade="all, delete-orphan")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="run", cascade="all, delete-orphan")
@@ -117,7 +120,7 @@ class ControlSignal(Base):
     __tablename__ = "control_signals"
     __table_args__ = (
         CheckConstraint(
-            "signal IN ('pause', 'resume', 'inject', 'stop', 'unlock')",
+            "signal IN ('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')",
             name="ck_control_signals_signal",
         ),
         Index("ix_control_signals_run_id", "run_id"),

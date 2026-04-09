@@ -27,11 +27,14 @@ export function EmptyTerminal() {
 
 export function EmptyEvents() {
   return (
-    <div className="flex flex-col items-center gap-4 py-12">
-      <EmptyTerminal />
+    <div className="flex flex-col items-center gap-4 py-16">
+      <div className="rounded-xl border border-white/[0.04] bg-white/[0.01] p-4">
+        <EmptyTerminal />
+      </div>
       <div className="text-center space-y-1.5">
         <p className="text-[12px] text-[#aaa] font-medium">Waiting for events</p>
         <p className="text-[11px] text-[#777]">Select a run or start a new one to see live activity</p>
+        <p className="text-[10px] text-[#555]">Press N to start a new run</p>
       </div>
     </div>
   );

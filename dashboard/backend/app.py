@@ -12,7 +12,7 @@ from backend.endpoints.settings import router as settings_router
 from backend.endpoints.streaming import router as streaming_router
 from backend.endpoints.network import router as network_router
 from backend.utils import autofill_settings
-from db.connection import connect, close
+from db.connection import connect, create_tables, run_migrations, close
 
 _DEFAULT_CORS_ORIGINS = "http://localhost:3400"
 _ALLOWED_METHODS = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
@@ -33,8 +33,10 @@ def _cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(_application: FastAPI):
-    """Connect to DB on startup, close on shutdown."""
+    """Create tables, connect to DB on startup, close on shutdown."""
     await connect()
+    await create_tables()
+    await run_migrations()
     await autofill_settings(MASTER_KEY_PATH)
     yield
     await close()

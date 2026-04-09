@@ -11,10 +11,9 @@ export type GroupedEvent =
   | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { type: "single_tool"; tool: ToolCall; ts: string }
-  | { type: "usage_tick"; data: { input_tokens: number; output_tokens: number; total_input: number; total_output: number; cache_read: number }; ts: string }
   | { type: "control"; text: string; ts: string }
   | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
-  | { type: "user_prompt"; prompt: string; ts: string }
+  | { type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
   | { type: "divider"; label: string; ts: string };
 
 /* ── Grouping Logic ── */
@@ -38,13 +37,6 @@ function getTs(e: FeedEvent): number {
   return new Date(e.ts).getTime();
 }
 
-function getTsStr(e: FeedEvent): string {
-  if (e._kind === "tool") return e.data.ts;
-  if (e._kind === "audit") return e.data.ts;
-  if (e._kind === "usage") return e.data.ts;
-  return e.ts;
-}
-
 function extractFilePath(tc: ToolCall): string {
   const input = tc.input_data || {};
   const output = tc.output_data || {};
@@ -61,7 +53,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "run_started":
       return { type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
     case "round_complete":
-      return { type: "divider", label: `Round ${d.round} complete · ${(d.cost_usd as number)?.toFixed(3) || "?"} USD · ${d.turns} turns`, ts };
+      return null; // Rounds are detected from git commit tool calls, not this audit event
     case "pr_created":
       return { type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":
@@ -75,17 +67,35 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "planner_invoked":
       return { type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
-      return { type: "milestone", label: "Session Denied", detail: `${d.time_remaining || "?"} remaining`, color: "#ffaa00", ts, event };
+      return { type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
       return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
-    case "rate_limit_paused":
-      return { type: "milestone", label: "Rate Limited", detail: `wait ${d.wait_seconds || "?"}s`, color: "#ffaa00", ts, event };
+    case "pause_requested":
+      return { type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
+    case "resumed":
+      return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
+    case "rate_limit_paused": {
+      const resetEpoch = d.resets_at as number | undefined;
+      const resetDetail = resetEpoch
+        ? (() => {
+            const resetDate = new Date(resetEpoch * 1000);
+            const diffMs = resetEpoch * 1000 - Date.now();
+            const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+            if (diffMs <= 0) return `resets ${timeStr} (ready)`;
+            const h = Math.floor(diffMs / 3600000);
+            const m = Math.floor((diffMs % 3600000) / 60000);
+            return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
+          })()
+        : (d.reason as string) || "out of credits";
+      return { type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
+    }
     case "prompt_injected":
-      return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
+    case "prompt_submitted":
+      return { type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
     case "session_resumed":
-      return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };
+      return { type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
     case "auto_commit":
       return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
     case "push_failed":
@@ -212,25 +222,9 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       continue;
     }
 
-    // ── Usage: Collapse into a single tick (take the last one in a burst) ──
+    // ── Usage: skip from feed (data consumed by StatsBar, not shown in feed) ──
     if (ev._kind === "usage") {
-      let lastUsage = ev.data;
       i++;
-      while (i < events.length && events[i]._kind === "usage") {
-        lastUsage = (events[i] as { _kind: "usage"; data: typeof lastUsage }).data;
-        i++;
-      }
-      result.push({
-        type: "usage_tick",
-        data: {
-          input_tokens: lastUsage.input_tokens,
-          output_tokens: lastUsage.output_tokens,
-          total_input: lastUsage.total_input_tokens,
-          total_output: lastUsage.total_output_tokens,
-          cache_read: lastUsage.cache_read_input_tokens,
-        },
-        ts: lastUsage.ts,
-      });
       continue;
     }
 
@@ -374,7 +368,47 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     i++;
   }
 
-  return result;
+  return _insertCommitDividers(result);
+}
+
+const ROUND_PATTERN = /\[Round\s+(\d+)\]/i;
+
+function _insertCommitDividers(groups: GroupedEvent[]): GroupedEvent[] {
+  /** Insert a divider after any bash tool that runs git commit. */
+  const out: GroupedEvent[] = [];
+  for (const gev of groups) {
+    out.push(gev);
+    const commitRound = _detectGitCommit(gev);
+    if (commitRound !== null) {
+      const roundLabel = commitRound > 0 ? `Round ${commitRound}` : "Round";
+      out.push({ type: "divider", label: `${roundLabel} complete`, ts: gev.ts });
+    }
+  }
+  return out;
+}
+
+function _detectGitCommit(gev: GroupedEvent): number | null {
+  /** Check if a grouped event contains a git commit. Returns round number or 0 if unknown. */
+  const commands = _extractCommands(gev);
+  for (const cmd of commands) {
+    if (!cmd.includes("git commit") && !cmd.includes("git -c") ) continue;
+    if (!cmd.includes("commit")) continue;
+    const match = cmd.match(ROUND_PATTERN);
+    if (match) return parseInt(match[1], 10);
+    return 0;
+  }
+  return null;
+}
+
+function _extractCommands(gev: GroupedEvent): string[] {
+  /** Extract command strings from bash tools or groups. */
+  if (gev.type === "single_tool") {
+    return [(gev.tool.input_data?.command as string) || ""];
+  }
+  if (gev.type === "bash_group") {
+    return gev.tools.map((t) => (t.input_data?.command as string) || "");
+  }
+  return [];
 }
 
 /* ── Helpers for rendering ── */

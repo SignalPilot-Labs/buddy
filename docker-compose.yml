@@ -4,6 +4,8 @@
 #   docker compose up --build -d              # macOS / no KVM (gVisor sandbox)
 #   docker compose --profile firecracker up --build -d  # Linux with /dev/kvm
 
+name: autofyn
+
 services:
   db:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
@@ -21,15 +23,6 @@ services:
       timeout: 3s
       retries: 5
 
-  db-init:
-    build:
-      context: .
-      dockerfile: db/Dockerfile
-    container_name: autofyn-db-init
-    depends_on:
-      db:
-        condition: service_healthy
-
   dashboard:
     build:
       context: .
@@ -45,8 +38,8 @@ services:
     volumes:
       - autofyn-keys:/data
     depends_on:
-      db-init:
-        condition: service_completed_successfully
+      db:
+        condition: service_healthy
 
   agent:
     build:
@@ -54,13 +47,11 @@ services:
       dockerfile: autofyn/Dockerfile.agent
     container_name: autofyn-agent
     restart: unless-stopped
-    env_file:
-      - path: .env
-        required: false
     environment:
       GIT_TERMINAL_PROMPT: "0"
-      SP_SANDBOX_URL: http://sandbox:8080
+      AF_SANDBOX_URL: http://sandbox:8080
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
       interval: 10s
@@ -69,15 +60,13 @@ services:
       start_period: 30s
     volumes:
       - .:/workspace:rw
-      - /var/run/docker.sock:/var/run/docker.sock
-      - claude-agent-sessions:/home/agentuser/.claude
-      - agent-repo:/home/agentuser/repo
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     working_dir: /workspace
     depends_on:
-      db-init:
-        condition: service_completed_successfully
       dashboard:
         condition: service_started
+      sandbox:
+        condition: service_healthy
 
   # gVisor sandbox (default — works everywhere)
   sandbox:
@@ -86,11 +75,26 @@ services:
       dockerfile: sandbox/Dockerfile.gvisor
     container_name: autofyn-sandbox
     restart: unless-stopped
+    environment:
+      GIT_TERMINAL_PROMPT: "0"
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+    depends_on:
+      dashboard:
+        condition: service_started
     cap_add:
       - SYS_PTRACE
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
+    volumes:
+      - agent-repo:/home/agentuser/repo
+      - claude-agent-sessions:/home/agentuser/.claude
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
   # Firecracker sandbox (Linux with KVM only)
   sandbox-firecracker:
@@ -106,6 +110,8 @@ services:
       - SYS_ADMIN
     volumes:
       - sandbox-overlays:/opt/autofyn/overlays
+      - agent-repo:/home/agentuser/repo
+      - claude-agent-sessions:/home/agentuser/.claude
     profiles: ["firecracker"]
 
 volumes:

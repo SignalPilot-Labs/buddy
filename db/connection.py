@@ -4,10 +4,15 @@ All connection parameters come from config/loader.py (config.yml + env overrides
 No hardcoded defaults here — config.yml is the single source of truth.
 """
 
+import logging
+
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from config.loader import database_config
 from db.models import Base
+
+log = logging.getLogger("db.connection")
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
@@ -42,6 +47,66 @@ async def create_tables() -> None:
         raise RuntimeError("Not connected. Call connect() first.")
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def run_migrations() -> None:
+    """Reconcile DB schema with ORM models on startup.
+
+    SQLAlchemy's create_all won't alter existing constraints, so we handle
+    known migrations here. Each migration is idempotent and safe to re-run.
+    """
+    if _engine is None:
+        raise RuntimeError("Not connected. Call connect() first.")
+    async with _engine.begin() as conn:
+        await _migrate_control_signals_constraint(conn)
+        await _migrate_cache_token_columns(conn)
+        await _migrate_context_tokens_column(conn)
+
+
+async def _migrate_control_signals_constraint(conn) -> None:
+    """Ensure control_signals check constraint includes all valid signals."""
+    expected = "('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')"
+    result = await conn.execute(text(
+        "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+        "WHERE conname = 'ck_control_signals_signal'"
+    ))
+    row = result.first()
+    if row is None:
+        return
+    if "'kill'" not in (row[0] or ""):
+        await conn.execute(text("ALTER TABLE control_signals DROP CONSTRAINT ck_control_signals_signal"))
+        await conn.execute(text(
+            f"ALTER TABLE control_signals ADD CONSTRAINT ck_control_signals_signal "
+            f"CHECK (signal IN {expected})"
+        ))
+        log.info("Migrated ck_control_signals_signal constraint")
+
+
+async def _migrate_cache_token_columns(conn) -> None:
+    """Add cache token columns to runs table if they don't exist."""
+    for col in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+        result = await conn.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'runs' AND column_name = :col"
+        ), {"col": col})
+        if result.first() is None:
+            await conn.execute(text(
+                f"ALTER TABLE runs ADD COLUMN {col} INTEGER DEFAULT 0"
+            ))
+            log.info("Added column runs.%s", col)
+
+
+async def _migrate_context_tokens_column(conn) -> None:
+    """Add context_tokens column to runs table if it doesn't exist."""
+    result = await conn.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'runs' AND column_name = 'context_tokens'"
+    ))
+    if result.first() is None:
+        await conn.execute(text(
+            "ALTER TABLE runs ADD COLUMN context_tokens INTEGER DEFAULT 0"
+        ))
+        log.info("Added column runs.context_tokens")
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:

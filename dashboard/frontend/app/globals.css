@@ -425,6 +425,11 @@ input[type="number"]::-webkit-outer-spin-button {
   box-shadow: 0 0 12px -2px rgba(0, 255, 136, 0.3);
 }
 
+/* Desktop sidebar width transition */
+.desktop-sidebar {
+  transition: width 0.2s ease;
+}
+
 /* Tool call type indicators */
 .tool-bash { border-left-color: var(--color-success); }
 .tool-read { border-left-color: #88ccff; }

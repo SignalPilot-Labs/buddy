@@ -10,9 +10,14 @@ export interface Run {
   total_cost_usd: number | null;
   total_input_tokens: number | null;
   total_output_tokens: number | null;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
   error_message: string | null;
   rate_limit_resets_at: number | null;
   github_repo: string | null;
+  custom_prompt: string | null;
+  duration_minutes: number;
+  context_tokens: number;
 }
 
 export interface RepoInfo {
@@ -21,10 +26,12 @@ export interface RepoInfo {
 }
 
 export type RunStatus =
+  | "starting"
   | "running"
   | "paused"
   | "stopped"
   | "completed"
+  | "completed_no_changes"
   | "error"
   | "crashed"
   | "killed"
@@ -56,12 +63,14 @@ export interface AuditEvent {
 }
 
 export interface UsageEvent {
+  context_tokens: number;
   input_tokens: number;
   output_tokens: number;
   total_input_tokens: number;
   total_output_tokens: number;
   cache_creation_input_tokens: number;
   cache_read_input_tokens: number;
+  total_cost_usd: number;
   ts: string;
 }
 
@@ -77,6 +86,13 @@ export const STATUS_META: Record<
   RunStatus,
   { label: string; color: string; bg: string; dot: string; pulse: boolean }
 > = {
+  starting: {
+    label: "Starting",
+    color: "text-[#ffaa00]",
+    bg: "bg-[#ffaa00]/10",
+    dot: "bg-[#ffaa00]",
+    pulse: true,
+  },
   running: {
     label: "Running",
     color: "text-[#00ff88]",
@@ -103,6 +119,13 @@ export const STATUS_META: Record<
     color: "text-[#88ccff]",
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
+    pulse: false,
+  },
+  completed_no_changes: {
+    label: "No Changes",
+    color: "text-[#777]",
+    bg: "bg-[#777]/10",
+    dot: "bg-[#777]",
     pulse: false,
   },
   error: {
@@ -134,6 +157,14 @@ export const STATUS_META: Record<
     pulse: true,
   },
 };
+
+/* ── Pending Message (UI-only, never in event stream) ── */
+export interface PendingMessage {
+  id: number;
+  prompt: string;
+  ts: string;
+  status: "pending" | "failed";
+}
 
 /* ── Tool Categories ── */
 // All 20 tool types from the database, mapped to visual categories
@@ -240,12 +271,15 @@ export type AuditEventType =
   | "fatal_error"
   | "rate_limit_paused"
   | "stop_requested"
+  | "pause_requested"
+  | "resumed"
   | "subagent_start"
   | "subagent_complete"
   | "subagent_stuck"
   | "subagent_timeout"
   | "stuck_recovery"
   | "prompt_injected"
+  | "prompt_submitted"
   | "session_resumed"
   | "push_failed"
   | "auto_commit"
@@ -277,7 +311,9 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  stop_requested:      { label: "Stop Requested",     color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  pause_requested:     { label: "Pause Requested",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  resumed:             { label: "Resumed",           color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_timeout:    { label: "Subagent Timeout",  color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },

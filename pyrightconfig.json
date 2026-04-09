@@ -1,10 +1,19 @@
 {
   "extraPaths": [
-    "autofyn"
+    "autofyn",
+    "sandbox",
+    "dashboard",
+    "db"
   ],
   "include": [
-    "autofyn",
-    "tests"
+    "."
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/node_modules",
+    "**/.next",
+    ".ruff_cache",
+    "cli"
   ],
   "typeCheckingMode": "standard"
 }

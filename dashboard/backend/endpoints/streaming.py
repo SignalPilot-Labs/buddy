@@ -20,7 +20,7 @@ log = logging.getLogger("dashboard.streaming")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_query)])
 
-_RUN_ENDED_STATUSES = frozenset({"completed", "stopped", "killed", "crashed", "error"})
+_RUN_ENDED_STATUSES = frozenset({"completed", "completed_no_changes", "stopped", "killed", "crashed", "error"})
 
 
 class _PollResult(NamedTuple):
@@ -28,7 +28,7 @@ class _PollResult(NamedTuple):
     audit_events: list[str]
     last_tool_id: int
     last_audit_id: int
-    ended_status: str | None
+    ended_payload: dict | None
 
 
 @router.get("/stream/latest")
@@ -65,11 +65,21 @@ async def _fetch_new_audit_events(s: AsyncSession, run_id: str, last_id: int) ->
     return events, new_last
 
 
-async def _check_run_ended(run_id: str) -> str | None:
-    """Return the run status if it has ended, else None."""
+async def _check_run_ended(run_id: str) -> dict | None:
+    """Return a cost payload dict if the run has ended, else None."""
     async with session() as s:
-        status = (await s.execute(select(Run.status).where(Run.id == run_id))).scalar_one_or_none()
-    return status if status in _RUN_ENDED_STATUSES else None
+        run = (await s.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
+    if run is None or run.status not in _RUN_ENDED_STATUSES:
+        return None
+    return {
+        "status": run.status,
+        "total_cost_usd": run.total_cost_usd,
+        "total_input_tokens": run.total_input_tokens,
+        "total_output_tokens": run.total_output_tokens,
+        "cache_creation_input_tokens": run.cache_creation_input_tokens,
+        "cache_read_input_tokens": run.cache_read_input_tokens,
+        "context_tokens": run.context_tokens,
+    }
 
 
 async def _init_cursors(run_id: str) -> tuple[int, int]:
@@ -91,16 +101,23 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
         audit_events, new_audit_id = await _fetch_new_audit_events(s, run_id, last_audit_id)
 
     found_any = bool(tool_events or audit_events)
-    ended_status = None if found_any else await _check_run_ended(run_id)
-    return _PollResult(tool_events, audit_events, new_tool_id, new_audit_id, ended_status)
+    ended_payload = None if found_any else await _check_run_ended(run_id)
+    return _PollResult(tool_events, audit_events, new_tool_id, new_audit_id, ended_payload)
 
 
 @router.get("/stream/{run_id}")
-async def stream_events(run_id: str = RunId) -> StreamingResponse:
+async def stream_events(
+    run_id: str = RunId,
+    after_tool: int = Query(default=-1),
+    after_audit: int = Query(default=-1),
+) -> StreamingResponse:
     """SSE endpoint — polls Postgres for new tool calls and audit events."""
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        last_tool_id, last_audit_id = await _init_cursors(run_id)
+        if after_tool >= 0 and after_audit >= 0:
+            last_tool_id, last_audit_id = after_tool, after_audit
+        else:
+            last_tool_id, last_audit_id = await _init_cursors(run_id)
         yield f"event: connected\ndata: {json.dumps({'run_id': run_id})}\n\n"
 
         while True:
@@ -112,8 +129,8 @@ async def stream_events(run_id: str = RunId) -> StreamingResponse:
                 yield ev
             if not (result.tool_events or result.audit_events):
                 yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
-            if result.ended_status:
-                yield f"event: run_ended\ndata: {json.dumps({'status': result.ended_status})}\n\n"
+            if result.ended_payload:
+                yield f"event: run_ended\ndata: {json.dumps(result.ended_payload)}\n\n"
                 return
             await asyncio.sleep(SSE_POLL_INTERVAL_SEC)
 

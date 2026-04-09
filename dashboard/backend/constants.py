@@ -29,6 +29,9 @@ MASK_PREFIX_DEFAULT = 6
 # Settings keys that must be encrypted at rest
 SECRET_KEYS = frozenset({"claude_token", "git_token"})
 
+# Mask value used in GET /settings for encrypted env var values
+ENV_VARS_MASK_CHAR = "****"
+
 # Default values
 DEFAULT_BASE_BRANCH = "main"
 DEFAULT_STOP_REASON = "Operator requested stop"
@@ -40,3 +43,18 @@ HOST_IP_ENV = "HOST_IP"
 
 # Polling (incremental — frontend HISTORY_FETCH_LIMIT=500 is for initial load)
 POLL_LIMIT_DEFAULT = 100
+
+# Query defaults
+QUERY_DEFAULT_LIMIT: int = 200
+LOG_TAIL_DEFAULT: int = 500
+LOG_TAIL_MAX: int = 5000
+
+# Signal → agent endpoint path mapping (used by send_control_signal)
+SIGNAL_AGENT_PATHS: dict[str, str] = {
+    "pause": "/pause",
+    "resume": "/resume",
+    "stop": "/stop",
+    "unlock": "/unlock",
+    "inject": "/inject",
+    "kill": "/kill",
+}

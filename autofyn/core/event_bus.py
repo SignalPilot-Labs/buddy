@@ -10,7 +10,7 @@ import logging
 
 from utils import db
 from utils.constants import PULSE_CHECK_INTERVAL_SEC
-from tools.db_logger import DBLogger
+from tools.subagent_tracker import SubagentTracker
 
 log = logging.getLogger("core.events")
 
@@ -26,7 +26,7 @@ class EventBus:
         stop_pulse_checker()    — cancel the background task
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._queue: asyncio.Queue = asyncio.Queue()
         self._pulse_task: asyncio.Task | None = None
 
@@ -41,12 +41,9 @@ class EventBus:
         except asyncio.QueueEmpty:
             return None
 
-    async def wait(self, timeout: float) -> dict | None:
-        """Blocking: wait up to timeout seconds for an event."""
-        try:
-            return await asyncio.wait_for(self._queue.get(), timeout=timeout)
-        except asyncio.TimeoutError:
-            return None
+    async def wait_for_event(self) -> dict:
+        """Block until an event arrives. Cancellation-safe."""
+        return await self._queue.get()
 
     async def handle_pause(self, run_id: str) -> str:
         """Block until resume/stop/inject event arrives. Returns action string."""
@@ -54,9 +51,7 @@ class EventBus:
         await db.update_run_status(run_id, "paused")
 
         while True:
-            event = await self.wait(timeout=2.0)
-            if not event:
-                continue
+            event = await self.wait_for_event()
             kind = event["event"]
             if kind == "resume":
                 log.info("RESUMED")
@@ -64,6 +59,7 @@ class EventBus:
                 return "resume"
             if kind == "stop":
                 log.info("STOPPED during pause")
+                await db.update_run_status(run_id, "stopped")
                 return "stop"
             if kind == "inject":
                 payload = event.get("payload", "")
@@ -74,10 +70,10 @@ class EventBus:
                 return "unlock"
             log.warning("Unknown event during pause: %s", kind)
 
-    def start_pulse_checker(self, run_id: str, logger: DBLogger) -> None:
+    def start_pulse_checker(self, run_id: str, tracker: SubagentTracker) -> None:
         """Start (or restart) the background stuck-subagent checker."""
         self.stop_pulse_checker()
-        self._pulse_task = asyncio.create_task(self._pulse_loop(run_id, logger))
+        self._pulse_task = asyncio.create_task(self._pulse_loop(run_id, tracker))
 
     def stop_pulse_checker(self) -> None:
         """Cancel the background pulse checker."""
@@ -85,11 +81,10 @@ class EventBus:
             self._pulse_task.cancel()
         self._pulse_task = None
 
-    async def _pulse_loop(self, run_id: str, logger: DBLogger) -> None:
-        """Check for stuck subagents at a fixed interval."""
+    async def _pulse_loop(self, run_id: str, tracker: SubagentTracker) -> None:
+        """Check for stuck subagents at a fixed interval. Recurring — keeps firing."""
         while True:
             await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
-            stuck = logger.get_stuck_subagents()
+            stuck = tracker.get_stuck_subagents()
             if stuck:
                 self.push("stuck_recovery", json.dumps(stuck))
-                return

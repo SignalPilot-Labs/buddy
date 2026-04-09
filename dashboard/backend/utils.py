@@ -5,6 +5,7 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import date, datetime
 from typing import Any
 
 import httpx
@@ -14,7 +15,14 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import crypto
-from backend.constants import AGENT_API_URL, AGENT_TIMEOUT_SHORT, MASTER_KEY_PATH, SECRET_KEYS
+from backend.constants import (
+    AGENT_API_URL,
+    AGENT_TIMEOUT_SHORT,
+    MASK_PREFIX_CLAUDE_TOKEN,
+    MASTER_KEY_PATH,
+    SECRET_KEYS,
+    SIGNAL_AGENT_PATHS,
+)
 from db.connection import get_session_factory
 from db.models import ControlSignal, Run, Setting
 
@@ -42,9 +50,38 @@ def model_to_dict(obj) -> dict:
     """Convert an ORM model instance to a JSON-safe dict."""
     d = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
     for key, val in d.items():
-        if hasattr(val, "isoformat"):
+        if isinstance(val, (datetime, date)):
             d[key] = val.isoformat()
     return d
+
+
+# ---------------------------------------------------------------------------
+# Control signals
+# ---------------------------------------------------------------------------
+
+async def send_control_signal(
+    run_id: str, signal: str, valid_statuses: set[str], payload: str | None,
+) -> dict:
+    """Validate run status, log to DB, and forward to agent EventBus."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status not in valid_statuses:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot send '{signal}' to run with status '{run.status}'",
+            )
+        s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
+        await s.commit()
+
+    agent_path = SIGNAL_AGENT_PATHS.get(signal)
+    if agent_path:
+        json_body = {"payload": payload} if signal == "inject" else None
+        params = {"run_id": run_id}
+        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None)
+
+    return {"ok": True, "signal": signal, "run_id": run_id}
 
 
 # ---------------------------------------------------------------------------
@@ -84,9 +121,9 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
         await save_repo_list(s, repos)
 
 
-async def read_credentials() -> dict:
+async def read_credentials(repo: str | None) -> dict:
     """Read and decrypt stored credentials. Picks next Claude token round-robin."""
-    creds: dict[str, str] = {}
+    creds: dict[str, Any] = {}
     async with session() as s:
         for key in ("git_token", "github_repo"):
             setting = await s.get(Setting, key)
@@ -103,6 +140,16 @@ async def read_credentials() -> dict:
         token = await _pick_next_claude_token(s)
         if token:
             creds["claude_token"] = token
+
+        if repo:
+            env_key = f"env_vars:{repo}"
+            env_setting = await s.get(Setting, env_key)
+            if env_setting:
+                try:
+                    plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
+                    creds["env"] = json.loads(plain)
+                except Exception as e:
+                    log.error("Failed to decrypt %s: %s", env_key, e)
 
     return creds
 
@@ -185,7 +232,7 @@ async def list_pool_tokens() -> list[dict]:
         return []
     active_idx = current_idx % len(tokens)
     return [
-        {"index": i, "masked": crypto.mask(t, prefix_len=8), "active": i == active_idx}
+        {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": i == active_idx}
         for i, t in enumerate(tokens)
     ]
 
@@ -213,42 +260,8 @@ async def remove_token_from_pool(index: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Control signals
-# ---------------------------------------------------------------------------
-
-async def send_control_signal(
-    run_id: str,
-    signal: str,
-    allowed_statuses: set[str],
-    payload: str | None,
-) -> dict:
-    """Validate run status, persist signal, then forward to agent."""
-    async with session() as s:
-        run = await s.get(Run, run_id)
-        if not run:
-            raise HTTPException(status_code=404, detail="Run not found")
-        if run.status not in allowed_statuses:
-            raise HTTPException(status_code=409, detail=f"Cannot {signal} run with status '{run.status}'")
-        s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
-        await s.commit()
-    await send_agent_signal(signal, payload)
-    result = {"ok": True, "signal": signal}
-    if payload:
-        result["payload_length"] = len(payload)
-    return result
-
-
-# ---------------------------------------------------------------------------
 # Agent HTTP proxy
 # ---------------------------------------------------------------------------
-
-_SIGNAL_ENDPOINT_MAP = {
-    "resume": "resume_signal",
-    "pause": "pause",
-    "inject": "inject",
-    "stop": "stop",
-    "unlock": "unlock",
-}
 
 
 async def agent_request(
@@ -272,14 +285,15 @@ async def agent_request(
             res = await client.request(
                 method, f"{AGENT_API_URL}{path}", json=json_body, params=params, headers=headers,
             )
-            if res.status_code == 409:
-                raise HTTPException(status_code=409, detail=res.json().get("detail", "Conflict"))
             if res.status_code >= 400:
                 log.warning("Agent returned %d for %s %s", res.status_code, method, path)
                 try:
                     detail = res.json().get("detail", f"Agent error {res.status_code}")
                 except Exception:
                     detail = f"Agent error {res.status_code}"
+                # Preserve client-meaningful status codes; wrap others as 502
+                if res.status_code in (404, 409, 422, 429):
+                    raise HTTPException(status_code=res.status_code, detail=detail)
                 raise HTTPException(status_code=502, detail=detail)
             return res.json()
     except HTTPException:
@@ -289,13 +303,6 @@ async def agent_request(
             return fallback
         log.error("Agent request failed: %s %s — %s", method, path, e)
         raise HTTPException(status_code=502, detail="Agent service unavailable")
-
-
-async def send_agent_signal(signal: str, payload: str | None) -> None:
-    """Forward a control signal to the agent container via HTTP."""
-    endpoint = _SIGNAL_ENDPOINT_MAP.get(signal, signal)
-    body = {"payload": payload} if payload else {}
-    await agent_request("POST", f"/{endpoint}", AGENT_TIMEOUT_SHORT, body, None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +319,6 @@ async def autofill_settings(master_key_path: str) -> None:
         env_mappings = {
             "claude_token": "CLAUDE_CODE_OAUTH_TOKEN",
             "git_token": "GIT_TOKEN",
-            "github_repo": "GITHUB_REPO",
             "max_budget_usd": "MAX_BUDGET_USD",
         }
 

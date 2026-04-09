@@ -49,50 +49,6 @@ class PromptLoader:
         """Load the continuation prompt."""
         return self._load("query/continue")
 
-    def build_planner_message(
-        self,
-        round_num: int,
-        elapsed_minutes: float,
-        duration_minutes: float,
-        tool_summary: str,
-        files_changed: str,
-        commits: str,
-        cost_so_far: float,
-        round_summary: str,
-        original_prompt: str,
-        operator_messages: list[tuple[str, str]],
-    ) -> str:
-        """Build the message sent to the planner subagent each round."""
-        if duration_minutes > 0:
-            pct = min(100, int((elapsed_minutes / duration_minutes) * 100))
-            elapsed_str = f"{int(elapsed_minutes)}m"
-            duration_str = f"{int(duration_minutes)}m"
-        else:
-            pct = 0
-            elapsed_str = f"{int(elapsed_minutes)}m"
-            duration_str = "unlimited"
-
-        operator_section = "## Operator Messages\n\n(none)"
-        if operator_messages:
-            msgs = "\n".join(f"- [{ts}] {msg}" for ts, msg in operator_messages)
-            operator_section = f"## Operator Messages\n\nLatest takes priority.\n\n{msgs}"
-
-        template = self._load("query/planner")
-        return template.format(
-            round_num=round_num,
-            prev_round_num=max(1, round_num - 1),
-            elapsed=elapsed_str,
-            duration=duration_str,
-            pct_complete=pct,
-            tool_summary=tool_summary or "none",
-            files_changed=files_changed or "none",
-            commits=commits or "none",
-            cost_so_far=f"{cost_so_far:.2f}",
-            round_summary=round_summary or "No summary available.",
-            original_prompt=original_prompt or "General improvement pass.",
-            operator_section=operator_section,
-        )
-
     def build_stop_prompt(self, reason: str) -> str:
         """Load the stop prompt, optionally prefixed with a reason."""
         base = self._load("query/stop")
@@ -100,6 +56,15 @@ class PromptLoader:
             return f"Stop reason: {reason}\n\n{base}"
         return base
 
+    def build_idle_nudge(self, idle_seconds: int) -> str:
+        """Load the idle nudge prompt, formatted with the actual timeout."""
+        minutes = idle_seconds // 60
+        idle_timeout = f"{minutes} minute{'s' if minutes != 1 else ''}"
+        return self._load("query/idle_nudge").replace("{idle_timeout}", idle_timeout)
+
     def load_subagent_prompt(self, name: str) -> str:
-        """Load a subagent system prompt from prompts/subagents/{name}.md."""
-        return self._load(f"subagents/{name}")
+        """Load a subagent system prompt with shared rules appended."""
+        agent = self._load(f"subagents/{name}")
+        git = self._load("git-rules")
+        verification = self._load("verification-rules")
+        return f"{agent}\n\n{git}\n\n{verification}"

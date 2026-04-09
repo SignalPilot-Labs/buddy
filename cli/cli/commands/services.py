@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import getpass
+import os
+import re
 import subprocess
 import sys
 
 import typer
 
+from pathlib import Path
+
+from cli.client import get_client
 from cli.constants import AUTOFYN_HOME, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.git import detect_local_repo
 from cli.output import console
 
 
@@ -15,6 +22,7 @@ def _compose(args: list[str]) -> None:
     """Run ``docker compose <args>`` in the AutoFyn home directory."""
     cmd = ["docker", "compose"] + args
     console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
+    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default")
     result = subprocess.run(cmd, cwd=AUTOFYN_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
@@ -31,12 +39,16 @@ def _run_script(script_path: str) -> None:
 
 
 def _git_pull() -> None:
-    """Run git pull in AUTOFYN_HOME to update the installation."""
-    console.print(f"[dim]→ git pull in {AUTOFYN_HOME}[/dim]")
-    result = subprocess.run(["git", "pull"], cwd=AUTOFYN_HOME)
-    if result.returncode != 0:
-        console.print(f"[red]git pull exited with code {result.returncode}[/red]")
-        sys.exit(result.returncode)
+    """Fetch latest and reset to origin/main. Safe for install directory."""
+    console.print(f"[dim]→ git fetch + reset in {AUTOFYN_HOME}[/dim]")
+    fetch = subprocess.run(["git", "fetch", "origin", "main"], cwd=AUTOFYN_HOME)
+    if fetch.returncode != 0:
+        console.print(f"[red]git fetch exited with code {fetch.returncode}[/red]")
+        sys.exit(fetch.returncode)
+    reset = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=AUTOFYN_HOME)
+    if reset.returncode != 0:
+        console.print(f"[red]git reset exited with code {reset.returncode}[/red]")
+        sys.exit(reset.returncode)
 
 
 def build_services() -> None:
@@ -45,11 +57,159 @@ def build_services() -> None:
     console.print("[green]✓[/green] AutoFyn images built")
 
 
-def start_services() -> None:
-    """Run up.sh — docker compose up -d only. No build."""
+_DOCKER_WARNING = (
+    "[bold yellow]⚠ WARNING:[/bold yellow] --allow-docker grants the agent "
+    "[bold]full access to the host Docker daemon[/bold].\n"
+    "  The agent can create, inspect, and remove any container on this machine.\n"
+    "  Only use this if you trust the prompts you send.\n"
+)
+
+
+def start_services(allow_docker: bool) -> None:
+    """Run up.sh — tears down stale containers then docker compose up -d."""
+    if allow_docker:
+        console.print(_DOCKER_WARNING)
+        os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
+    try:
+        _ensure_tokens()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[dim]Skipped token setup. Run: autofyn settings set[/dim]")
 
+
+def _ensure_tokens() -> None:
+    """Check for missing tokens and offer to auto-detect from CLI tools."""
+    client = get_client()
+    try:
+        status = client.get("/api/settings/status")
+    except SystemExit:
+        console.print(
+            "[yellow]Dashboard not reachable yet — set tokens manually via: autofyn settings set[/yellow]"
+        )
+        return
+
+    if status["configured"]:
+        return
+
+    updates: dict[str, str] = {}
+
+    if not status["has_claude_token"]:
+        token = _detect_claude_token()
+        if token:
+            updates["claude_token"] = token
+
+    if not status["has_git_token"]:
+        token = _detect_git_token()
+        if token:
+            updates["git_token"] = token
+
+    if updates:
+        try:
+            client.put("/api/settings", json=updates)
+            console.print(
+                f"[green]✓[/green] Saved {', '.join(updates.keys())} to settings"
+            )
+        except SystemExit:
+            console.print(
+                "[yellow]Failed to save tokens — set them manually via settings[/yellow]"
+            )
+
+    if not status["has_github_repo"]:
+        _detect_repo(client)
+
+    console.print(
+        "[green]✓[/green] Setup complete. Open [bold]http://localhost:3400[/bold] or run [bold]autofyn run new[/bold]"
+    )
+
+
+def _run_token_cmd(cmd: list[str]) -> str | None:
+    """Run a command and return stdout, or None if it fails or isn't installed."""
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return None
+
+
+def _ask_yes_no(prompt: str) -> bool:
+    """Ask a yes/no question. Returns True for yes (default)."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    answer = input(f"{prompt} [Y/n]: ").strip().lower()
+    return answer in ("", "y", "yes")
+
+
+def _ask_token(prompt: str) -> str | None:
+    """Ask user to paste a token. Enter to skip."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    token = getpass.getpass(f"{prompt} (enter to skip): ").strip()
+    return token if token else None
+
+
+def _detect_claude_token() -> str | None:
+    """Get Claude OAuth token via `claude setup-token` (interactive OAuth flow)."""
+    console.print("\n[bold]Claude OAuth Token[/bold]")
+    if _ask_yes_no("Run `claude setup-token` to authenticate via browser?"):
+        try:
+            result = subprocess.run(
+                ["claude", "setup-token"],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            if result.returncode == 0 and result.stdout:
+                match = re.search(r"(sk-ant-\S+)", result.stdout)
+                if match:
+                    token = match.group(1)
+                    print(f"✓ Token received ({token[:12]}****)")
+                    return token
+        except FileNotFoundError:
+            console.print(
+                "[yellow]claude CLI not installed. Install it: npm install -g @anthropic-ai/claude-code[/yellow]"
+            )
+    console.print("[dim]Paste your token below, or press enter to skip.[/dim]")
+    return _ask_token("Claude OAuth token")
+
+
+def _detect_git_token() -> str | None:
+    """Try to get GitHub token via `gh auth token`."""
+    console.print("\n[bold]GitHub Personal Access Token[/bold]")
+    console.print("[dim]Checking gh CLI for an existing token...[/dim]")
+    token = _run_token_cmd(["gh", "auth", "token"])
+    if token:
+        masked = token[:7] + "****"
+        if _ask_yes_no(f"Found token from gh CLI ({masked}). Use it?"):
+            return token
+    console.print(
+        "[dim]No token found. Run `gh auth login` to authenticate, or paste one below.[/dim]"
+    )
+    return _ask_token("GitHub token")
+
+
+def _detect_repo(client) -> None:
+    """Auto-detect local git repo and save as active repo."""
+    console.print("\n[bold]GitHub Repository[/bold]")
+    slug = detect_local_repo(Path.cwd())
+    if slug:
+        if _ask_yes_no(f"Detected repo: {slug}. Use it?"):
+            client.put("/api/settings", json={"github_repo": slug})
+            client.put("/api/repos/active", json={"repo": slug})
+            console.print(f"[green]✓[/green] Active repo set to {slug}")
+            console.print(
+                "[dim]Add more repos with: autofyn repos set-active owner/repo[/dim]"
+            )
+            return
+    repo = input("GitHub repo (owner/repo, enter to skip): ").strip()
+    if repo:
+        client.put("/api/settings", json={"github_repo": repo})
+        client.put("/api/repos/active", json={"repo": repo})
+        console.print(f"[green]✓[/green] Active repo set to {repo}")
+        console.print(
+            "[dim]Add more repos with: autofyn repos set-active owner/repo[/dim]"
+        )
 
 
 def update_services() -> None:
@@ -74,7 +234,7 @@ def show_logs(tail_lines: int) -> None:
 
 def stop_services() -> None:
     """Stop all AutoFyn services."""
-    _compose(["stop"])
+    _compose(["down"])
     console.print("[green]✓[/green] AutoFyn services stopped")
 
 

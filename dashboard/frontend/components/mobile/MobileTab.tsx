@@ -33,7 +33,7 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
         )}
       </div>
 
-      <span className="text-[9px] font-medium">{label}</span>
+      <span className="text-[10px] font-medium">{label}</span>
     </button>
   );
 }

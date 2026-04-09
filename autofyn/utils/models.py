@@ -1,11 +1,53 @@
 """All data models for the agent package — runtime context, results, and HTTP request schemas."""
 
+from __future__ import annotations
+
+import asyncio
+import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
+
+if TYPE_CHECKING:
+    from core.event_bus import EventBus
+    from tools.session import SessionGate
+
+
+# ── Sandbox Communication ──
+
+@dataclass
+class ExecRequest:
+    """Command execution request sent to the sandbox."""
+
+    args: list[str]
+    cwd: str
+    timeout: int
+    env: dict[str, str]
+
+
+@dataclass
+class ExecResult:
+    """Command execution result returned from the sandbox."""
+
+    stdout: str
+    stderr: str
+    exit_code: int
+
+
+# ── Git Setup ──
+
+@dataclass
+class GitSetupParams:
+    """Parameters for git repository setup during bootstrap."""
+
+    base_branch: str
+    github_repo: str
+    exec_timeout: int
+    clone_timeout: int
+    custom_prompt: str | None
 
 
 # ── Runtime Context ──
@@ -23,19 +65,68 @@ class RunContext:
     total_cost: float = 0.0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
+    cache_creation_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
 
 
 @dataclass
-class RoundResult:
-    """Structured return from runner.process_round()."""
+class StreamResult:
+    """Structured return from SessionRunner._process_stream()."""
 
     should_stop: bool
     final_status: str | None
     session_ended: bool
     result_message: Any | None
-    round_tools: list[str] = field(default_factory=list)
-    round_text_chunks: list[str] = field(default_factory=list)
-    pending_injects: list[str] = field(default_factory=list)
+    pause: bool
+
+
+@dataclass
+class DispatchResult:
+    """Result of dispatching a single SSE event.
+
+    The dispatcher returns flags for actions the session runner must take.
+    This keeps the dispatcher free of control/EventBus dependencies.
+    """
+
+    result_data: dict | None = None
+    rate_limit_data: dict | None = None
+    subagent_completed: bool = False
+
+    @classmethod
+    def ok(cls) -> "DispatchResult":
+        """Event handled, no action needed."""
+        return cls()
+
+
+@dataclass
+class ControlAction:
+    """Result of a control event. Tells SessionRunner what to do next."""
+
+    stop: bool
+    break_stream: bool
+    final_status: str | None
+    pause: bool
+
+    @classmethod
+    def no_action(cls) -> "ControlAction":
+        """No control action needed."""
+        return cls(stop=False, break_stream=False, final_status=None, pause=False)
+
+
+# ── Active Run (in-process tracking for concurrent runs) ──
+
+@dataclass
+class ActiveRun:
+    """Tracks one in-progress run in the server's run dict."""
+
+    run_id: str | None = None
+    status: str = "starting"
+    started_at: float = field(default_factory=time.time)
+    error_message: str | None = None
+    task: asyncio.Task | None = field(default=None, repr=False)
+    events: EventBus | None = field(default=None, repr=False)
+    session: SessionGate | None = field(default=None, repr=False)
+    run_context: RunContext | None = field(default=None, repr=False)
 
 
 # ── HTTP Request Schemas ──
@@ -47,9 +138,11 @@ class StartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
+    extended_context: bool = False
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
+    env: dict[str, str] | None = None
 
     @field_validator("max_budget_usd")
     @classmethod
@@ -82,6 +175,7 @@ class ResumeRequest(BaseModel):
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
+    env: dict[str, str] | None = None
 
     @field_validator("max_budget_usd")
     @classmethod
@@ -109,3 +203,25 @@ class InjectRequest(BaseModel):
         if v is not None and len(v) > INJECT_PAYLOAD_MAX_LEN:
             raise ValueError(f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters")
         return v
+
+
+# ── Health Response ──
+
+class HealthRunEntry(BaseModel):
+    """Per-run details in the health response."""
+
+    run_id: str
+    status: str
+    started_at: float
+    elapsed_minutes: float | None = None
+    time_remaining: str | None = None
+    session_unlocked: bool | None = None
+
+
+class HealthResponse(BaseModel):
+    """GET /health response."""
+
+    status: str
+    active_runs: int
+    max_concurrent: int
+    runs: list[HealthRunEntry]

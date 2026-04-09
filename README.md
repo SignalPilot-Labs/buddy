@@ -21,20 +21,20 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/autofyn.git
+git clone https://github.com/SignalPilot-Labs/AutoFyn.git
 cd autofyn && ./install.sh             # installs CLI + builds Docker images
-autofyn start                          # start services
+autofyn start                          # auto-detects tokens from claude/gh CLI
 ```
 
-To update an existing install: `autofyn update`
+Open [http://localhost:3400](http://localhost:3400) for the dashboard.
 
-### Configure
-
-Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+On first start, AutoFyn will auto-detect your Claude token (via `claude setup-token`) and GitHub token (via `gh auth token`), and detect the repo from your local git remote. You can also configure manually:
 
 ```bash
 autofyn settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
 ```
+
+To update an existing install: `autofyn update`
 
 ### Run
 
@@ -63,6 +63,7 @@ autofyn run get <run_id>               # run details + action menu
 ```
 # Services
 autofyn start                          # start services (fast, no rebuild)
+autofyn start --allow-docker           # start with Docker access for sandbox (unsafe)
 autofyn stop                           # stop all services
 autofyn update                         # pull latest code + rebuild images
 autofyn logs                           # stream all container logs (Ctrl+C to stop)
@@ -96,6 +97,16 @@ autofyn config set --api-key KEY       # update CLI config
 ```
 
 Use `--json` on any command for machine-readable output.
+
+### Docker access
+
+By default, sandboxes cannot use Docker. If your task requires the agent to build images or manage containers, start with `--allow-docker`:
+
+```bash
+autofyn start --allow-docker
+```
+
+This mounts the host Docker socket into sandbox containers, giving the agent full Docker daemon access. Only use this if you trust the prompts you send — the agent can create, inspect, and remove any container on the host.
 
 ---
 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
+import { ACTIVE_STATUSES, RESUMABLE_STATUSES, INJECTABLE_STATUSES } from "@/lib/constants";
 
 interface MobileControlSheetProps {
   open: boolean;
@@ -44,10 +45,12 @@ export function MobileControlSheet({
   onNewRun,
   isConfigured,
 }: MobileControlSheetProps) {
-  const isActive = ["running", "paused", "rate_limited"].includes(status || "");
+  const s = status ?? ("" as never);
+  const isActive = ACTIVE_STATUSES.includes(s);
   const canPause = status === "running";
-  const canResume = status === "paused";
-  const canInject = ["running", "paused"].includes(status || "");
+  const canResume = RESUMABLE_STATUSES.includes(s);
+  const canInject = INJECTABLE_STATUSES.includes(s);
+  const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
   // Lock body scroll when open
   useEffect(() => {
@@ -100,7 +103,7 @@ export function MobileControlSheet({
               {/* New Run */}
               <Button
                 variant="success"
-                size="lg"
+                size="md"
                 onClick={() => { onNewRun(); onClose(); }}
                 disabled={!isConfigured}
                 className="w-full justify-center"
@@ -122,7 +125,7 @@ export function MobileControlSheet({
                   <div className="grid grid-cols-3 gap-2">
                     <Button
                       variant="warning"
-                      size="lg"
+                      size="md"
                       disabled={!canPause || busy}
                       onClick={() => { onPause(); onClose(); }}
                       className="justify-center"
@@ -137,7 +140,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="success"
-                      size="lg"
+                      size="md"
                       disabled={!canResume || busy}
                       onClick={() => { onResume(); onClose(); }}
                       className="justify-center"
@@ -147,11 +150,11 @@ export function MobileControlSheet({
                         </svg>
                       }
                     >
-                      Resume
+                      {resumeLabel}
                     </Button>
                     <Button
                       variant="primary"
-                      size="lg"
+                      size="md"
                       disabled={!canInject || busy}
                       onClick={() => { onToggleInject(); onClose(); }}
                       className="justify-center"
@@ -166,7 +169,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="danger"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onStop(); onClose(); }}
                       className="justify-center"
@@ -180,7 +183,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="danger"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onKill(); onClose(); }}
                       className="justify-center"
@@ -196,7 +199,7 @@ export function MobileControlSheet({
                     </Button>
                     <Button
                       variant="warning"
-                      size="lg"
+                      size="md"
                       disabled={!isActive || busy}
                       onClick={() => { onUnlock(); onClose(); }}
                       className="justify-center"

@@ -3,119 +3,15 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import type { FeedEvent, FileChange } from "@/lib/types";
+import type { FeedEvent } from "@/lib/types";
 import type { DiffFile, DiffStats } from "@/lib/api";
 import { fetchRunDiff } from "@/lib/api";
-import { getToolCategory } from "@/lib/types";
-
-/* ── Extract file changes from tool call events (live) ── */
-function extractFileChanges(events: FeedEvent[]): FileChange[] {
-  const changes: FileChange[] = [];
-  for (const ev of events) {
-    if (ev._kind !== "tool") continue;
-    const tc = ev.data;
-    const cat = getToolCategory(tc.tool_name);
-    const input = tc.input_data || {};
-    const output = tc.output_data || {};
-
-    switch (cat) {
-      case "read": {
-        const fileObj = (output as Record<string, unknown>)?.file as Record<string, unknown> | undefined;
-        const fp = (input.file_path as string) || (fileObj?.filePath as string) || "";
-        if (fp) changes.push({ path: norm(fp), action: "read", timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        break;
-      }
-      case "write": {
-        const fp = (input.file_path as string) || (output.filePath as string) || "";
-        if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0;
-          if (patch) for (const h of patch) added += (h.newLines as number) || 0;
-          changes.push({ path: norm(fp), action: "write", linesAdded: added || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        }
-        break;
-      }
-      case "edit": {
-        const fp = (input.file_path as string) || (output.filePath as string) || "";
-        if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0, removed = 0;
-          if (patch) for (const h of patch) for (const l of ((h.lines as string[]) || [])) {
-            if (l.startsWith("+") && !l.startsWith("+++")) added++;
-            if (l.startsWith("-") && !l.startsWith("---")) removed++;
-          }
-          changes.push({ path: norm(fp), action: "edit", linesAdded: added || undefined, linesRemoved: removed || undefined, timestamp: tc.ts, toolCallId: tc.id, toolName: tc.tool_name });
-        }
-        break;
-      }
-    }
-  }
-  return changes;
-}
-
-function norm(p: string): string {
-  return p.replace(/^\/home\/agentuser\/repo\//, "").replace(/^\/workspace\//, "").replace(/^\/home\/agentuser\//, "~/");
-}
-
-/* ── Tree node ── */
-interface TreeNode {
-  name: string;
-  fullPath: string;
-  isDir: boolean;
-  children: Map<string, TreeNode>;
-  added: number;
-  removed: number;
-  status?: string;
-}
-
-function buildTreeFromDiff(files: DiffFile[]): TreeNode {
-  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
-  for (const f of files) {
-    const parts = f.path.split("/").filter(Boolean);
-    let cur = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      if (!cur.children.has(part)) {
-        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
-      }
-      cur = cur.children.get(part)!;
-      if (isLast) {
-        cur.added = f.added;
-        cur.removed = f.removed;
-        cur.status = f.status;
-      }
-    }
-  }
-  return root;
-}
-
-function buildTreeFromChanges(changes: FileChange[]): TreeNode {
-  const root: TreeNode = { name: "", fullPath: "", isDir: true, children: new Map(), added: 0, removed: 0 };
-  const seen = new Map<string, { added: number; removed: number }>();
-  for (const c of changes) {
-    if (c.action === "read") continue;
-    const key = c.path;
-    const existing = seen.get(key) || { added: 0, removed: 0 };
-    existing.added += c.linesAdded || 0;
-    existing.removed += c.linesRemoved || 0;
-    seen.set(key, existing);
-  }
-  for (const [path, stats] of seen) {
-    const parts = path.split("/").filter(Boolean);
-    let cur = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      if (!cur.children.has(part)) {
-        cur.children.set(part, { name: part, fullPath: parts.slice(0, i + 1).join("/"), isDir: !isLast, children: new Map(), added: 0, removed: 0 });
-      }
-      cur = cur.children.get(part)!;
-      if (isLast) { cur.added = stats.added; cur.removed = stats.removed; cur.status = "modified"; }
-    }
-  }
-  return root;
-}
+import {
+  extractFileChanges,
+  buildTreeFromDiff,
+  buildTreeFromChanges,
+} from "@/lib/worktree-utils";
+import type { TreeNode } from "@/lib/worktree-utils";
 
 /* ── Icons ── */
 function FileIcon({ name, status }: { name: string; status?: string }) {
@@ -204,8 +100,8 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
 
         {(totalAdded > 0 || totalRemoved > 0) && (
           <span className="flex items-center gap-1 shrink-0">
-            {totalAdded > 0 && <span className="text-[9px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
-            {totalRemoved > 0 && <span className="text-[9px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
+            {totalAdded > 0 && <span className="text-[10px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
+            {totalRemoved > 0 && <span className="text-[10px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
           </span>
         )}
 
@@ -260,9 +156,8 @@ function FileList({ files }: { files: DiffFile[] }) {
 
 /* ── Main WorkTree Panel ── */
 export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId: string | null; mobile?: boolean }) {
-  const [activeTab, setActiveTab] = useState<"tree" | "files">("tree");
+  const [activeTab, setActiveTab] = useState<"tree" | "files" | "live">("tree");
   const [collapsed, setCollapsed] = useState(false);
-  const [sessionOpen, setSessionOpen] = useState(true);
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
 
@@ -278,7 +173,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   useEffect(() => {
     if (!runId || !isLiveDiff) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId).then(d => { if (d.source !== "unavailable") setDiffData(d); }).catch(() => {});
+      fetchRunDiff(runId).then(setDiffData).catch(() => {});
     }, 15000);
     return () => clearInterval(id);
   }, [runId, isLiveDiff]);
@@ -345,46 +240,35 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
             </div>
           )}
 
-          {/* Session — always-visible collapsible, open by default */}
-          {hasLive && (
-            <div className="border-b border-[#1a1a1a]/60">
-              <button
-                onClick={() => setSessionOpen(!sessionOpen)}
-                className="w-full flex items-center gap-1.5 px-3 py-1.5 hover:bg-white/[0.02] transition-colors text-left">
-                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round"
-                  className={clsx("shrink-0 transition-transform duration-150", sessionOpen && "rotate-90")}>
-                  <polyline points="2 1 6 4 2 7" />
-                </svg>
-                <span className="text-[10px] font-medium text-[#888]">Session</span>
-                <span className="text-[9px] text-[#555] ml-auto tabular-nums">
-                  {liveChanges.filter(c => c.action !== "read").length} files
-                </span>
-              </button>
-              {sessionOpen && liveTree.children.size > 0 && (
-                <div className="pb-1">
-                  {Array.from(liveTree.children.values())
-                    .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
-                    .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Git diff tabs */}
-          {hasGitDiff && (
-            <div className="flex border-b border-[#1a1a1a]/60">
+          {/* Tabs */}
+          <div className="flex border-b border-[#1a1a1a]/60">
+            {hasGitDiff && (
               <button onClick={() => setActiveTab("tree")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "tree" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
                 Tree
               </button>
+            )}
+            {hasGitDiff && (
               <button onClick={() => setActiveTab("files")}
                 className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
                   activeTab === "files" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
                 Files
               </button>
-            </div>
-          )}
+            )}
+            {hasLive && (
+              <button onClick={() => setActiveTab("live")}
+                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
+                  activeTab === "live" ? "text-[#e8e8e8] border-b border-[#00ff88]" : "text-[#888] hover:text-[#ccc]")}>
+                Session
+              </button>
+            )}
+            {!hasGitDiff && !hasLive && (
+              <div className="flex-1 py-1.5 text-[10px] text-[#777] text-center">
+                {diffLoading ? "Loading..." : "No changes"}
+              </div>
+            )}
+          </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto py-1">
@@ -394,14 +278,20 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
               </div>
             )}
 
-            {hasGitDiff && activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
+            {activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
               Array.from(diffTree.children.values())
                 .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
 
-            {hasGitDiff && activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
+            {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
               <FileList files={diffData.files} />
+            )}
+
+            {activeTab === "live" && liveTree.children.size > 0 && (
+              Array.from(liveTree.children.values())
+                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
+                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
 
             {!diffLoading && !hasGitDiff && !hasLive && (

@@ -6,30 +6,27 @@ import type { Run, FeedEvent } from "@/lib/types";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
-function formatTokens(n: number | null): string {
-  if (!n) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.floor(n / 1_000)}k`;
-  return n.toString();
-}
-
-const ACTIVE_STATUSES = new Set(["running", "paused", "rate_limited"]);
-
 function computeLiveStats(events: FeedEvent[]) {
   let toolCount = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
+  let contextTokens = 0;
+  let costUsd = 0;
 
   for (const e of events) {
     if (e._kind === "tool" && e.data.phase === "pre") {
       toolCount++;
     } else if (e._kind === "usage") {
-      inputTokens = e.data.total_input_tokens || 0;
-      outputTokens = e.data.total_output_tokens || 0;
+      contextTokens = e.data.context_tokens || 0;
+      costUsd = e.data.total_cost_usd || 0;
     }
   }
 
-  return { toolCount, inputTokens, outputTokens };
+  return { toolCount, contextTokens, costUsd };
+}
+
+function formatTokenCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
 }
 
 function Stat({
@@ -44,31 +41,32 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 min-w-0 shrink-0">
       <span className="text-[#777]">{icon}</span>
       <span className="text-[10px] text-[#777]">{label}</span>
-      <span className={`text-[10px] font-semibold tabular-nums ${accent || "text-[#e8e8e8]"}`}>
+      <span className={`text-[10px] font-semibold tabular-nums truncate ${accent ?? "text-[#e8e8e8]"}`}>
         {value}
       </span>
     </div>
   );
 }
 
-export function StatsBar({
-  run,
-  connected,
-  events = EMPTY_EVENTS,
-}: {
+export interface StatsRowProps {
   run: Run | null;
   connected: boolean;
   events?: FeedEvent[];
-}) {
-  const isActive = run != null && ACTIVE_STATUSES.has(run.status);
+}
+
+export function StatsRow({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
 
   if (!run) {
     return (
-      <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <div className="h-7 flex items-center px-1">
         <span className="text-[10px] text-[#777]">No run selected</span>
       </div>
     );
@@ -78,8 +76,19 @@ export function StatsBar({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-[36px] sm:h-8 flex items-center gap-3 sm:gap-5 px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505] overflow-x-auto"
+      className="min-h-[28px] flex items-center gap-3 sm:gap-5 px-1 overflow-hidden"
     >
+      <div className="flex items-center gap-1.5">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            connected ? "bg-[#00ff88]" : "bg-[#444]"
+          }`}
+          style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
+        />
+        <span className="text-[10px] text-[#888]">
+          {connected ? "Live" : "Disconnected"}
+        </span>
+      </div>
       <Stat
         icon={
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -87,7 +96,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(isActive ? live.toolCount : run.total_tool_calls || 0)}
+        value={String(run.total_tool_calls || live.toolCount || 0)}
       />
       <Stat
         icon={
@@ -97,25 +106,25 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={
-          isActive && !run.total_cost_usd
-            ? "—"
-            : `$${(run.total_cost_usd || 0).toFixed(2)}`
-        }
+        value={`~$${(run.total_cost_usd || live.costUsd || 0).toFixed(2)}`}
         accent="text-[#00ff88]"
       />
       <Stat
         icon={
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path d="M1 5h3l1.5-3 2 6L9 5" />
+            <rect x="1" y="1" width="8" height="8" rx="1" />
+            <path d="M1 1v8" />
           </svg>
         }
-        label="In/Out"
+        label="Context"
         value={
-          isActive
-            ? `${formatTokens(live.inputTokens)} / ${formatTokens(live.outputTokens)}`
-            : `${formatTokens(run.total_input_tokens)} / ${formatTokens(run.total_output_tokens)}`
+          live.contextTokens > 0
+            ? formatTokenCount(live.contextTokens)
+            : (run.context_tokens ?? 0) > 0
+              ? formatTokenCount(run.context_tokens)
+              : "—"
         }
+        accent="text-[#88ccff]"
       />
       {run.pr_url && (
         <a
@@ -134,20 +143,18 @@ export function StatsBar({
           PR #{run.pr_url.split("/").pop()}
         </a>
       )}
-
-      <div className="flex-1" />
-
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            connected ? "bg-[#00ff88]" : "bg-[#444]"
-          }`}
-          style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
-        />
-        <span className="text-[10px] text-[#888]">
-          {connected ? "Live" : "Disconnected"}
-        </span>
-      </div>
     </motion.div>
+  );
+}
+
+export function StatsBar({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
+  return (
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <StatsRow run={run} connected={connected} events={events} />
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 """Dashboard API endpoints — settings, repos, and token pool."""
 
+import json
 import logging
 import re
 
@@ -8,6 +9,7 @@ from sqlalchemy import select, func
 
 from backend import auth, crypto
 from backend.constants import (
+    ENV_VARS_MASK_CHAR,
     MASK_PREFIX_CLAUDE_TOKEN,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
@@ -57,6 +59,11 @@ def _decrypt_setting(setting: Setting) -> str:
     return crypto.mask(plain, prefix_len=prefix)
 
 
+def _env_vars_key(repo: str) -> str:
+    """Setting table key for per-repo environment variables."""
+    return f"env_vars:{repo}"
+
+
 @router.get("/settings")
 async def get_settings() -> dict:
     """Get all settings with secrets masked."""
@@ -64,12 +71,14 @@ async def get_settings() -> dict:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
         for setting in result.scalars().all():
+            if setting.key.startswith("env_vars:"):
+                continue
             if setting.encrypted:
                 try:
                     settings[setting.key] = _decrypt_setting(setting)
                 except Exception as e:
                     log.error("Failed to decrypt setting '%s': %s", setting.key, e)
-                    settings[setting.key] = "****"
+                    settings[setting.key] = ENV_VARS_MASK_CHAR
             else:
                 settings[setting.key] = setting.value
         return settings
@@ -88,6 +97,39 @@ async def update_settings(body: UpdateSettingsRequest) -> dict:
             await ensure_repo_in_list(s, updates["github_repo"])
         await s.commit()
     return {"ok": True, "updated": list(updates.keys())}
+
+
+@router.get("/repos/{repo:path}/env")
+async def get_repo_env(repo: str) -> dict:
+    """Get decrypted env vars for a repo. Values are shown in plaintext for the settings UI."""
+    async with session() as s:
+        setting = await s.get(Setting, _env_vars_key(repo))
+        if not setting:
+            return {"repo": repo, "env_vars": {}}
+        try:
+            env_dict: dict[str, str] = json.loads(
+                crypto.decrypt(setting.value, MASTER_KEY_PATH),
+            )
+            return {"repo": repo, "env_vars": env_dict}
+        except Exception as e:
+            log.error("Failed to decrypt env vars for %s: %s", repo, e)
+            return {"repo": repo, "env_vars": {}}
+
+
+@router.put("/repos/{repo:path}/env")
+async def save_repo_env(repo: str, body: dict) -> dict:
+    """Save env vars for a repo. Full replacement — omitted keys are deleted."""
+    env_vars: dict[str, str] = body.get("env_vars", {})
+    async with session() as s:
+        if env_vars:
+            encrypted = crypto.encrypt(json.dumps(env_vars), MASTER_KEY_PATH)
+            await upsert_setting(s, _env_vars_key(repo), encrypted, True)
+        else:
+            existing = await s.get(Setting, _env_vars_key(repo))
+            if existing:
+                await s.delete(existing)
+        await s.commit()
+    return {"ok": True, "repo": repo, "key_count": len(env_vars)}
 
 
 @router.get("/repos")

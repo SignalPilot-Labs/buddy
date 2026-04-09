@@ -12,12 +12,14 @@ from backend.constants import (
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
     DEFAULT_STOP_REASON,
+    LOG_TAIL_DEFAULT,
+    LOG_TAIL_MAX,
+    QUERY_DEFAULT_LIMIT,
     QUERY_MAX_LIMIT,
     RUNS_PAGE_SIZE,
 )
 from backend.models import (
     ControlSignalRequest,
-    ResumeRunRequest,
     RunId,
     StartRunRequest,
 )
@@ -63,7 +65,7 @@ async def get_run(run_id: str = RunId) -> dict:
 @router.get("/runs/{run_id}/tools")
 async def get_tool_calls(
     run_id: str = RunId,
-    limit: int = Query(default=200, le=QUERY_MAX_LIMIT),
+    limit: int = Query(default=QUERY_DEFAULT_LIMIT, le=QUERY_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
 ) -> list:
     """List tool calls for a run."""
@@ -81,7 +83,7 @@ async def get_tool_calls(
 @router.get("/runs/{run_id}/audit")
 async def get_audit_log(
     run_id: str = RunId,
-    limit: int = Query(default=200, le=QUERY_MAX_LIMIT),
+    limit: int = Query(default=QUERY_DEFAULT_LIMIT, le=QUERY_MAX_LIMIT),
     offset: int = Query(default=0, ge=0),
 ) -> list:
     """List audit log entries for a run."""
@@ -106,26 +108,40 @@ async def pause_run(run_id: str = RunId) -> dict:
     return await send_control_signal(run_id, "pause", {"running"}, None)
 
 
-@router.post("/runs/{run_id}/resume")
-async def resume_run(run_id: str = RunId) -> dict:
-    """Resume a paused agent."""
-    return await send_control_signal(run_id, "resume", {"paused"}, None)
-
-
-async def _resume_completed_run(run: Run, run_id: str, prompt: str, s: AsyncSession) -> dict:
+async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: AsyncSession) -> dict:
     """Resume a completed/stopped/error run with the given prompt."""
-    creds = await read_credentials()
+    creds = await read_credentials(run.github_repo)
     resume_body = {
         "run_id": run_id,
         "prompt": prompt,
         "claude_token": creds.get("claude_token"),
         "git_token": creds.get("git_token"),
         "github_repo": creds.get("github_repo"),
+        "env": creds.get("env"),
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
     run.status = "running"
+    run.error_message = None
     await s.commit()
-    return {"ok": True, "signal": "inject_resume", "run_id": run_id, "resumed": True}
+    return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
+
+
+@router.post("/runs/{run_id}/resume")
+async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -> dict:
+    """Resume a run — unpause if paused, restart if completed/stopped."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status == "paused":
+            prompt = (body.payload or "").strip() or None
+            if prompt:
+                return await send_control_signal(run_id, "inject", {"paused"}, prompt)
+            return await send_control_signal(run_id, "resume", {"paused"}, None)
+        restartable = ("completed", "completed_no_changes", "stopped", "error", "crashed", "killed")
+        if run.status in restartable:
+            return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)
+        raise HTTPException(status_code=409, detail=f"Cannot resume run with status '{run.status}'")
 
 
 @router.post("/runs/{run_id}/inject")
@@ -159,6 +175,12 @@ async def unlock_run(run_id: str = RunId) -> dict:
     return await send_control_signal(run_id, "unlock", {"running", "paused", "rate_limited"}, None)
 
 
+@router.post("/runs/{run_id}/kill")
+async def kill_run(run_id: str = RunId) -> dict:
+    """Kill a run immediately (cancels the task)."""
+    return await send_control_signal(run_id, "kill", {"running", "paused", "rate_limited"}, None)
+
+
 # ---------------------------------------------------------------------------
 # Agent proxy
 # ---------------------------------------------------------------------------
@@ -166,19 +188,25 @@ async def unlock_run(run_id: str = RunId) -> dict:
 @router.get("/agent/health")
 async def agent_health() -> dict:
     """Check if agent container is reachable."""
-    return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {"status": "unreachable"})
+    return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {
+        "status": "unreachable", "active_runs": 0, "max_concurrent": 0, "runs": [],
+    })
 
 
 @router.post("/agent/start")
 async def start_agent_run(body: StartRunRequest) -> dict:
     """Trigger a new improvement run."""
-    creds = await read_credentials()
+    creds = await read_credentials(body.repo)
     return await agent_request("POST", "/start", AGENT_TIMEOUT_LONG, {
         "prompt": body.prompt,
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
-        **creds,
+        "extended_context": body.extended_context,
+        "claude_token": creds.get("claude_token"),
+        "git_token": creds.get("git_token"),
+        "github_repo": creds.get("github_repo"),
+        "env": creds.get("env"),
     }, None, None)
 
 
@@ -188,25 +216,10 @@ async def list_branches() -> list:
     return await agent_request("GET", "/branches", AGENT_TIMEOUT_LONG, None, None, ["main"])
 
 
-@router.post("/agent/stop")
-async def stop_agent_instant() -> dict:
-    """Immediately stop the agent via HTTP."""
-    return await agent_request("POST", "/stop", AGENT_TIMEOUT_SHORT, None, None, None)
-
-
-@router.post("/agent/resume")
-async def resume_agent_run(body: ResumeRunRequest) -> dict:
-    """Resume a previous run."""
-    creds = await read_credentials()
-    return await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, {
-        "run_id": body.run_id, "max_budget_usd": body.max_budget_usd, **creds,
-    }, None, None)
-
-
-@router.post("/agent/kill")
-async def kill_agent() -> dict:
-    """Force-kill the agent process."""
-    return await agent_request("POST", "/kill", AGENT_TIMEOUT_SHORT, None, None, None)
+@router.get("/agent/logs")
+async def agent_logs(tail: int = Query(default=LOG_TAIL_DEFAULT, le=LOG_TAIL_MAX)) -> dict:
+    """Fetch container logs from the agent."""
+    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, {"tail": tail}, {"lines": [], "total": 0})
 
 
 # ---------------------------------------------------------------------------
