@@ -92,8 +92,8 @@ COPY --chown=agentuser:agentuser db/__init__.py /opt/autofyn/db/__init__.py
 RUN uv pip install --system --no-cache /opt/autofyn/db/
 COPY --chown=agentuser:agentuser db/ /opt/autofyn/db/
 
-# Skills (copied at build time, not via API)
-COPY --chown=agentuser:agentuser autofyn/skills/ /opt/autofyn/skills/
+# Skills — under /opt/autofyn/.claude/skills/ (discovered via add_dirs, not ~/.claude volume)
+COPY --chown=agentuser:agentuser autofyn/skills/ /opt/autofyn/.claude/skills/
 
 RUN chown agentuser:agentuser /opt/autofyn
 

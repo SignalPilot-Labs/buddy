@@ -43,7 +43,6 @@ COPY --chown=agentuser:agentuser autofyn/tools/ /app/tools/
 COPY --chown=agentuser:agentuser autofyn/utils/ /app/utils/
 COPY --chown=agentuser:agentuser autofyn/sandbox_manager/ /app/sandbox_manager/
 COPY --chown=agentuser:agentuser autofyn/prompts/ /app/prompts/
-COPY --chown=agentuser:agentuser autofyn/skills/ /app/skills/
 COPY --chown=agentuser:agentuser autofyn/endpoints.py /app/endpoints.py
 COPY --chown=agentuser:agentuser autofyn/server.py /app/server.py
 

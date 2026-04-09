@@ -6,7 +6,7 @@ Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude
 
 Three containers: `autofyn/` is the brain (orchestrator, decisions, DB), `sandbox/` is the hands (executes all code, git, Claude SDK), `dashboard/` is the control plane (starts/stops runs, settings, SSE streaming). Agent never runs untrusted code — everything goes through HTTP to sandbox.
 
-The orchestrator delegates to subagents (planner, builder, reviewer, explorer, frontend-builder). Planner writes specs to `/tmp/current-spec.md`, builders read and implement, reviewer writes findings to `/tmp/current-review.md`. Subagents communicate through these shared files.
+The orchestrator delegates to subagents organized by phase: Explore (code-explorer, debugger), Plan (architect), Build (backend-dev, frontend-dev), Review (code-reviewer, ui-reviewer, security-reviewer). Subagents communicate through files at `/tmp/<phase>/round-N-<agent>.md`.
 
 ## Package Layout
 
@@ -30,7 +30,7 @@ The orchestrator delegates to subagents (planner, builder, reviewer, explorer, f
 
 # Code Rules
 
-These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must follow them. No exceptions.
+These rules are mandatory. All AI agents must follow them. No exceptions.
 
 ## Imports
 

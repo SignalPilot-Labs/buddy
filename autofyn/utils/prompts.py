@@ -63,8 +63,19 @@ class PromptLoader:
         return self._load("query/idle_nudge").replace("{idle_timeout}", idle_timeout)
 
     def load_subagent_prompt(self, name: str) -> str:
-        """Load a subagent system prompt with shared rules appended."""
+        """Load a subagent system prompt with shared rules appended.
+
+        Git rules are appended to all subagents.
+        Verification rules are only appended to build and review phase agents.
+        """
         agent = self._load(f"subagents/{name}")
         git = self._load("git-rules")
-        verification = self._load("verification-rules")
-        return f"{agent}\n\n{git}\n\n{verification}"
+        agents_with_verification = (
+            "build/backend-dev",
+            "build/frontend-dev",
+            "review/code-reviewer",
+        )
+        if name in agents_with_verification:
+            verification = self._load("verification-rules")
+            return f"{agent}\n\n{git}\n\n{verification}"
+        return f"{agent}\n\n{git}"

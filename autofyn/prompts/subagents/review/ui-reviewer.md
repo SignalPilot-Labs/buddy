@@ -43,24 +43,26 @@ Watch for telltale signs of AI-generated UI:
 
 ## Process
 
-1. Read `/tmp/current-spec.md` to understand the intent.
-2. Read the changed frontend files (`git diff` for modified components).
-3. Review against the dimensions above.
-4. Write your review to `/tmp/current-design-review.md`.
+1. Read `/tmp/plan/round-N-architect.md` (the orchestrator tells you N) to understand the intent.
+2. Read `/tmp/build/round-N-*` for the build report — what was implemented and any warnings.
+3. Read the changed frontend files (`git diff` for modified components).
+4. Review against the dimensions above.
+5. Write your review to `/tmp/review/round-N-ui-reviewer.md`.
 
 ## Output Format
 
-**You MUST write your review to `/tmp/current-design-review.md` using the Write tool.** This is how the orchestrator receives your review. If you don't write to this file, nobody sees your work.
+**You MUST write your review to `/tmp/review/round-N-ui-reviewer.md`** (replace N with the round number the orchestrator gave you). This is how the orchestrator receives your review. If you don't write to this file, nobody sees your work.
 
 Do not return the review as a message. Write it to the file.
 
 Use this format:
 
-### Verdict: APPROVE or CHANGES REQUESTED
+### Verdict: APPROVE, CHANGES REQUESTED, or RETHINK
 
 State one of:
 - **APPROVE** — no critical design issues, UI is ship-worthy.
-- **CHANGES REQUESTED** — must fix the critical issues listed below.
+- **CHANGES REQUESTED** — must fix the critical issues listed below. The design direction is sound, the implementation needs work.
+- **RETHINK** — the UI/UX approach itself is wrong. Don't fix the components — go back to the architect with a different design direction. Explain why the current approach fails for users and suggest alternatives.
 
 ### Design Score Card
 

@@ -9,8 +9,8 @@ import os
 import time
 
 from utils import db
-from utils.constants import PROMPT_SUMMARY_LIMIT
-from utils.models import GitSetupParams, RunContext
+from utils.constants import OPERATOR_MESSAGES_PATH, PROMPT_SUMMARY_LIMIT
+from utils.models import ExecRequest, GitSetupParams, RunContext
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.repo_ops import RepoOps
@@ -175,6 +175,7 @@ class Bootstrap:
             })
 
         operator_messages = await db.get_operator_messages(run_id)
+        await self._restore_operator_messages(operator_messages, exec_timeout)
         initial = self._build_resume_prompt(run_info, prompt, operator_messages)
         return run_context, session_options, session, events, tracker, initial
 
@@ -192,6 +193,23 @@ class Bootstrap:
         )
         return branch_name
 
+    async def _restore_operator_messages(
+        self, messages: list[dict], exec_timeout: int,
+    ) -> None:
+        """Recreate /tmp/operator-messages.md from DB on resume."""
+        if not messages:
+            return
+        lines = [f"[{msg['ts']}] {msg['prompt']}" for msg in messages]
+        content = "\n".join(lines) + "\n"
+        escaped = content.replace("'", "'\\''")
+        await self._sandbox.exec(ExecRequest(
+            args=["sh", "-c", f"mkdir -p /tmp && printf '%s' '{escaped}' > {OPERATOR_MESSAGES_PATH}"],
+            cwd="/tmp",
+            timeout=exec_timeout,
+            env={},
+        ))
+        log.info("Restored %d operator messages to %s", len(messages), OPERATOR_MESSAGES_PATH)
+
     # -- Services --
 
     def _create_services(
@@ -206,39 +224,55 @@ class Bootstrap:
     def _build_subagents(self) -> dict[str, dict]:
         """Build subagent definitions as plain dicts for sandbox."""
         return {
-            "builder": {
-                "description": "Write code, implement features, create files. Use for all code generation tasks.",
-                "prompt": self._prompts.load_subagent_prompt("builder"),
+            # Explore phase
+            "code-explorer": {
+                "description": "Map codebase structure, find implementations, trace dependencies. Call when you need to understand how code is organized or where something lives. Read-only — writes findings to /tmp/explore/round-N-code-explorer.md.",
+                "prompt": self._prompts.load_subagent_prompt("explore/code-explorer"),
                 "model": "sonnet",
-                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             },
-            "frontend-builder": {
-                "description": "Build React/Next.js components, pages, and styling. Use for all frontend work.",
-                "prompt": self._prompts.load_subagent_prompt("frontend-builder"),
+            "debugger": {
+                "description": "Diagnose bugs and failures. Find root causes, read logs, reproduce issues. Call when something is broken and you need to find why. Writes findings to /tmp/explore/round-N-debugger.md.",
+                "prompt": self._prompts.load_subagent_prompt("explore/debugger"),
                 "model": "sonnet",
-                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
-            "reviewer": {
-                "description": "Review code, run tests/linter/typechecker, report bugs, security, and quality issues. Call after every build.",
-                "prompt": self._prompts.load_subagent_prompt("reviewer"),
+            # Plan phase
+            "architect": {
+                "description": "Design the next unit of work. Analyze current state, make structural decisions, write spec to /tmp/plan/round-N-architect.md. Call to plan before building.",
+                "prompt": self._prompts.load_subagent_prompt("plan/architect"),
                 "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             },
-            "explorer": {
-                "description": "Explore codebase, find patterns, read docs. Read-only research.",
-                "prompt": self._prompts.load_subagent_prompt("explorer"),
+            # Build phase
+            "backend-dev": {
+                "description": "Implement Python, APIs, database, infrastructure code. Reads spec from /tmp/plan/round-N-architect.md, writes build report to /tmp/build/round-N-backend-dev.md. Never use for React/Next.js/CSS/UI work.",
+                "prompt": self._prompts.load_subagent_prompt("build/backend-dev"),
                 "model": "sonnet",
-                "tools": ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             },
-            "planner": {
-                "description": "Analyze progress and plan the next step. Call between build rounds to decide what to do next.",
-                "prompt": self._prompts.load_subagent_prompt("planner"),
+            "frontend-dev": {
+                "description": "Implement React, Next.js, TypeScript UI, CSS, styling. Reads spec from /tmp/plan/round-N-architect.md, writes build report to /tmp/build/round-N-frontend-dev.md. Never use for Python/backend work.",
+                "prompt": self._prompts.load_subagent_prompt("build/frontend-dev"),
+                "model": "sonnet",
+                "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            },
+            # Review phase
+            "code-reviewer": {
+                "description": "Review code for correctness, security, and quality. Runs tests, typechecker, linter. Writes verdict to /tmp/review/round-N-code-reviewer.md. Call after every build.",
+                "prompt": self._prompts.load_subagent_prompt("review/code-reviewer"),
                 "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
             },
-            "design-reviewer": {
-                "description": "UI/UX design review. Call alongside reviewer when frontend-builder made changes. Catches visual inconsistencies, spacing, hierarchy, accessibility, and AI slop.",
-                "prompt": self._prompts.load_subagent_prompt("design-reviewer"),
+            "ui-reviewer": {
+                "description": "Review frontend for visual consistency, spacing, hierarchy, accessibility, and AI slop. Writes to /tmp/review/round-N-ui-reviewer.md. Call alongside code-reviewer when frontend-dev made changes.",
+                "prompt": self._prompts.load_subagent_prompt("review/ui-reviewer"),
+                "model": "opus",
+                "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
+            },
+            "security-reviewer": {
+                "description": "Audit code for security vulnerabilities: injection, auth gaps, leaked secrets, unsafe config. Writes to /tmp/review/round-N-security-reviewer.md. Call when changes touch auth, user input, APIs, or secrets.",
+                "prompt": self._prompts.load_subagent_prompt("review/security-reviewer"),
                 "model": "opus",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
@@ -273,7 +307,7 @@ class Bootstrap:
                 "append": system_prompt.get("append", ""),
             },
             "cwd": self._repo_ops.get_work_dir(),
-            "add_dirs": ["/workspace", "/home/agentuser/research"],
+            "add_dirs": ["/workspace", "/home/agentuser/research", "/opt/autofyn"],
             "setting_sources": ["project"],
             "max_budget_usd": budget if budget > 0 else None,
             "resume": resume_id,

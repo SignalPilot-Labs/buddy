@@ -14,9 +14,11 @@ import time
 
 from utils import db
 from utils.constants import (
+    OPERATOR_MESSAGES_PATH,
     RATE_LIMIT_MAX_WAIT_SEC,
     RATE_LIMIT_SLEEP_BUFFER_SEC,
 )
+from utils.models import ExecRequest
 from utils.models import ControlAction, RunContext
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
@@ -125,6 +127,7 @@ class ControlHandler:
             await db.log_audit(self._run_id, "prompt_injected", {
                 "prompt": prompt, "delivery": "pause_resume",
             })
+            await self._persist_operator_message(prompt)
             await self._sandbox.send_message(
                 self._session_id, f"Operator message: {prompt}",
             )
@@ -169,12 +172,27 @@ class ControlHandler:
 
     # ── Inject Delivery ──
 
+    async def _persist_operator_message(self, prompt: str) -> None:
+        """Append operator message to /tmp/operator-messages.md in the sandbox."""
+        ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        line = f"[{ts}] {prompt}"
+        try:
+            await self._sandbox.exec(ExecRequest(
+                args=["sh", "-c", f"mkdir -p /tmp && echo {_shell_quote(line)} >> {OPERATOR_MESSAGES_PATH}"],
+                cwd="/tmp",
+                timeout=5,
+                env={},
+            ))
+        except Exception as exc:
+            log.warning("[%s] Failed to persist operator message: %s", self._rid, exc)
+
     async def _deliver_pending_injects(self) -> None:
         """Flush all pending injects into the session immediately."""
         for prompt in self._pending_injects:
             await db.log_audit(self._run_id, "prompt_injected", {
                 "prompt": prompt, "delivery": "immediate",
             })
+            await self._persist_operator_message(prompt)
             await self._sandbox.send_message(
                 self._session_id, f"Operator message: {prompt}",
             )
@@ -197,6 +215,7 @@ class ControlHandler:
             await db.log_audit(run_context.run_id, "prompt_injected", {
                 "prompt": prompt, "delivery": "subagent_boundary",
             })
+            await self._persist_operator_message(prompt)
             parts.append(f"Operator message: {prompt}")
         self._pending_injects.clear()
 
@@ -285,4 +304,9 @@ class ControlHandler:
         await db.update_run_status(run_id, "running")
         log.info("[%s] Rate limit reset, resuming", self._rid)
         return ControlAction.no_action()
+
+
+def _shell_quote(s: str) -> str:
+    """Shell-escape a string for safe use in echo commands."""
+    return "'" + s.replace("'", "'\\''") + "'"
 
