@@ -122,12 +122,14 @@ class Bootstrap:
         run_info = await db.get_run_for_resume(run_id)
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
+        if not run_info.get("github_repo"):
+            raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
         await self._repo_ops.setup_auth(
-            run_info.get("github_repo", ""),
+            run_info["github_repo"],
             exec_timeout,
             clone_timeout,
         )
@@ -143,7 +145,7 @@ class Bootstrap:
             branch_name=run_info["branch_name"],
             base_branch=run_info.get("base_branch", "main"),
             duration_minutes=run_info.get("duration_minutes", 0),
-            github_repo=run_info.get("github_repo", ""),
+            github_repo=run_info["github_repo"],
             total_cost=run_info.get("total_cost_usd", 0) or 0,
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
