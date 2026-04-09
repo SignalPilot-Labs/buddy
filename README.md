@@ -23,18 +23,18 @@ Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — i
 ```bash
 git clone https://github.com/SignalPilot-Labs/AutoFyn.git
 cd autofyn && ./install.sh             # installs CLI + builds Docker images
-autofyn start                          # start services
+autofyn start                          # auto-detects tokens from claude/gh CLI
 ```
 
-To update an existing install: `autofyn update`
+Open [http://localhost:3400](http://localhost:3400) for the dashboard.
 
-### Configure
-
-Via CLI or the web UI at [http://localhost:3400](http://localhost:3400):
+On first start, AutoFyn will auto-detect your Claude token (via `claude setup-token`) and GitHub token (via `gh auth token`), and detect the repo from your local git remote. You can also configure manually:
 
 ```bash
 autofyn settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
 ```
+
+To update an existing install: `autofyn update`
 
 ### Run
 
