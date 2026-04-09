@@ -86,7 +86,7 @@ export function DashboardHeader({
         onClick={onToggleSidebar}
         title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="p-1.5 rounded hover:bg-white/[0.04] text-[#666] hover:text-[#999] transition-colors flex-shrink-0"
+        className="p-2 rounded hover:bg-white/[0.04] text-[#666] hover:text-[#999] transition-colors flex-shrink-0"
       >
         {sidebarCollapsed ? (
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -168,7 +168,7 @@ export function DashboardHeader({
       {/* Settings link */}
       <Link
         href="/settings"
-        className="p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
+        className="p-2 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
         title="Settings"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -185,8 +185,9 @@ export function DashboardHeader({
         disabled={!agentReachable || !isConfigured || atCapacity}
         title={newRunTitle}
         icon={
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <polygon points="3 2 8 5 3 8" />
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="6" y1="2" x2="6" y2="10" />
+            <line x1="2" y1="6" x2="10" y2="6" />
           </svg>
         }
       >
@@ -212,11 +213,13 @@ export function DashboardHeader({
           disabled={!canControl}
           onClick={onStop}
           title="Stop run"
-          className="p-1"
+          icon={
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="2" y="2" width="6" height="6" rx="0.5" />
+            </svg>
+          }
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="2" y="2" width="6" height="6" rx="0.5" />
-          </svg>
+          Stop
         </Button>
         <Button
           variant="danger"
@@ -224,13 +227,16 @@ export function DashboardHeader({
           disabled={!canControl}
           onClick={onKill}
           title={showKillConfirm ? "Click again to confirm kill" : "Kill run"}
-          className={`p-1 ${showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}`}
+          className={showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}
+          icon={
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <circle cx="5" cy="5" r="4" />
+              <line x1="3" y1="3" x2="7" y2="7" />
+              <line x1="7" y1="3" x2="3" y2="7" />
+            </svg>
+          }
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="5" cy="5" r="4" />
-            <line x1="3" y1="3" x2="7" y2="7" />
-            <line x1="7" y1="3" x2="3" y2="7" />
-          </svg>
+          Kill
         </Button>
       </div>
     </header>

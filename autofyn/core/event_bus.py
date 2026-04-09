@@ -59,6 +59,7 @@ class EventBus:
                 return "resume"
             if kind == "stop":
                 log.info("STOPPED during pause")
+                await db.update_run_status(run_id, "stopped")
                 return "stop"
             if kind == "inject":
                 payload = event.get("payload", "")

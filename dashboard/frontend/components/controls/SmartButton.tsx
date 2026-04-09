@@ -1,22 +1,21 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
 import type { ButtonState, ButtonIcon } from "@/lib/commandState";
 
 function ButtonIconSvg({ icon }: { icon: ButtonIcon }): React.ReactElement {
   if (icon === "pause") {
     return (
-      <svg width="12" height="12" viewBox="0 0 10 10" fill="currentColor">
-        <rect x="2" y="2" width="2" height="6" rx="0.5" />
-        <rect x="6" y="2" width="2" height="6" rx="0.5" />
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+        <rect x="3" y="2" width="3" height="10" rx="1" />
+        <rect x="8" y="2" width="3" height="10" rx="1" />
       </svg>
     );
   }
-  // "send"
+  // "send" — arrow up
   return (
-    <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M1 9L5 5 1 1" />
-      <path d="M5 9L9 5 5 1" />
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 12V3" />
+      <path d="M3 7l4-4 4 4" />
     </svg>
   );
 }
@@ -29,15 +28,18 @@ interface SmartButtonProps {
 
 export function SmartButton({ state, onClick, className }: SmartButtonProps): React.ReactElement {
   return (
-    <Button
-      variant={state.variant}
-      size="pill"
+    <button
+      type="button"
       disabled={state.disabled}
       onClick={onClick}
-      className={`font-semibold transition-all duration-150 ${className ?? ""}`}
-      icon={<ButtonIconSvg icon={state.icon} />}
+      className={`h-9 w-9 flex items-center justify-center rounded-lg border transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
+        state.icon === "pause"
+          ? "text-[#ffcc44] border-[#ffcc44]/20 hover:bg-[#ffcc44]/10 focus-visible:outline-[#ffcc44]/50"
+          : "text-[#00ff88] border-[#00ff88]/20 hover:bg-[#00ff88]/10 focus-visible:outline-[#00ff88]/50"
+      } ${className ?? ""}`}
+      title={state.label}
     >
-      {state.label}
-    </Button>
+      <ButtonIconSvg icon={state.icon} />
+    </button>
   );
 }

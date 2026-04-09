@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import type { Run, FeedEvent, RunStatus } from "@/lib/types";
 import { TERMINAL_STATUSES } from "@/lib/constants";
 import { getButtonState } from "@/lib/commandState";
@@ -11,19 +10,19 @@ import { StatsRow } from "@/components/stats/StatsBar";
 const PRESETS = [
   {
     label: "Wrap up",
-    text: "You're done for now \u2014 commit your progress, write a summary of what you did and what remains, then stop.",
+    text: "Wrap up. Commit your progress with a clear summary of what was done and what remains, then stop.",
   },
   {
     label: "Focus security",
-    text: "Focus specifically on security issues next. Check the SECURITY_AUDIT.md and address the CRITICAL and HIGH findings.",
+    text: "Focus on security. Do a security-focused review of the changes you've made so far and fix any issues you find.",
   },
   {
-    label: "Run tests",
-    text: "Stop making changes and run the full test suite. Report any failures.",
+    label: "Fresh angle",
+    text: "Step back and attack the problem from a fresh angle. Don't iterate on your existing approach — try something different.",
   },
   {
     label: "Add tests",
-    text: "Focus on adding test coverage for the gateway module. Don't make any other changes.",
+    text: "Focus on increasing test coverage for the code you've changed. Don't make any other changes.",
   },
 ];
 
@@ -41,8 +40,8 @@ const PLACEHOLDER_BY_STATUS: Record<string, string> = {
 
 const DEFAULT_PLACEHOLDER = "Select a run to send a message...";
 const MAX_TEXTAREA_ROWS = 6;
-const TEXTAREA_LINE_HEIGHT = 20;
-const TEXTAREA_VERTICAL_PADDING = 20;
+const TEXTAREA_LINE_HEIGHT = 24; // matches leading-6
+const TEXTAREA_VERTICAL_PADDING = 24; // py-3 = 12px top + 12px bottom
 
 export interface CommandInputProps {
   runId: string | null;
@@ -70,7 +69,6 @@ export function CommandInput({
   onRestart,
 }: CommandInputProps): React.ReactElement {
   const [text, setText] = useState("");
-  const [focused, setFocused] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const hasText = text.trim().length > 0;
@@ -134,72 +132,56 @@ export function CommandInput({
     [],
   );
 
-  const showPresets = focused || hasText;
-
   return (
     <div className="border-t border-[#1a1a1a] bg-[#0a0a0a] flex flex-col">
-      {/* Stats row */}
-      <div className="px-3 pt-2">
-        <StatsRow run={run} connected={connected} events={events} />
+      {/* Preset chips — always visible */}
+      <div className="flex gap-1.5 px-3 pt-2 flex-wrap">
+        {PRESETS.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              handlePresetClick(p.text);
+            }}
+            onClick={() => handlePresetClick(p.text)}
+            aria-label={`Quick prompt: ${p.label}`}
+            className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] transition-colors border border-[#1a1a1a]"
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
-      {/* Preset chips — animated reveal */}
-      <AnimatePresence>
-        {showPresets && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
-            <div className="flex gap-1.5 px-3 pt-2 flex-wrap">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handlePresetClick(p.text);
-                  }}
-                  onClick={() => handlePresetClick(p.text)}
-                  aria-label={`Quick prompt: ${p.label}`}
-                  className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] hover:bg-gradient-to-r hover:from-transparent hover:via-white/[0.01] hover:to-transparent transition-colors border border-[#1a1a1a]"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Textarea + smart button */}
-      <div className="relative px-3 py-2">
+      {/* Textarea */}
+      <div className="px-3 pt-2">
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
           placeholder={placeholder}
-          rows={1}
+          rows={2}
           disabled={!runId}
-          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg pl-3 pr-32 py-2.5 text-[11px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-5"
-          style={{ minHeight: "40px" }}
+          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg px-3 py-3 text-[12px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
+          style={{ minHeight: "60px" }}
         />
-        <div className="absolute right-5 bottom-4 flex items-center">
-          <SmartButton
-            state={{ ...buttonState, disabled: buttonState.disabled || busy }}
-            onClick={handleAction}
-          />
-        </div>
         {hasText && (
-          <div className="flex justify-end mt-1">
-            <span className="text-[10px] text-[#444]">Enter to send · Shift+Enter for newline</span>
+          <div className="text-right mt-0.5">
+            <span className="text-[9px] text-[#444]">Enter to send · Shift+Enter for newline</span>
           </div>
         )}
+      </div>
+
+      {/* Stats row + action button */}
+      <div className="flex items-center px-3 py-2 gap-2">
+        <div className="flex-1 min-w-0">
+          <StatsRow run={run} connected={connected} events={events} />
+        </div>
+        <SmartButton
+          state={{ ...buttonState, disabled: buttonState.disabled || busy }}
+          onClick={handleAction}
+        />
       </div>
     </div>
   );
