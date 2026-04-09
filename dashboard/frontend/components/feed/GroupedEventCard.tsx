@@ -221,6 +221,15 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
   const input = tool.input_data || {};
   const output = tool.output_data || {};
 
+  // Error: tool failed (must be before specialized renderers)
+  if (tool.output_data?.error && Object.keys(tool.output_data).length === 1) {
+    return (
+      <div className="text-[10px] text-[#ff4444]/80 bg-[#ff4444]/[0.04] rounded border border-[#ff4444]/10 px-2.5 py-2 font-mono whitespace-pre-wrap break-all">
+        {String(tool.output_data.error)}
+      </div>
+    );
+  }
+
   // Bash: terminal output
   if (cat === "bash" && tool.output_data) {
     return (
@@ -279,15 +288,6 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
         </div>
       );
     }
-  }
-
-  // Error: tool failed
-  if (tool.output_data?.error) {
-    return (
-      <div className="text-[10px] text-[#ff4444]/80 bg-[#ff4444]/[0.04] rounded border border-[#ff4444]/10 px-2.5 py-2 font-mono whitespace-pre-wrap break-all">
-        {String(tool.output_data.error)}
-      </div>
-    );
   }
 
   // Fallback: pretty JSON
