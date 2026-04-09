@@ -121,7 +121,7 @@ def _detect_claude_token() -> str | None:
     if typer.confirm("Run `claude setup-token` to authenticate via browser?", default=True):
         try:
             result = subprocess.run(
-                ["claude", "setup-token"], capture_output=True, text=True,
+                ["claude", "setup-token"], stdout=subprocess.PIPE, text=True,
             )
             if result.returncode == 0 and result.stdout.strip():
                 token = result.stdout.strip().splitlines()[-1]
