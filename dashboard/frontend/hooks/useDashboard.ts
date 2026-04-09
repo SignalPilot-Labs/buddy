@@ -268,7 +268,10 @@ export function useDashboard(): DashboardState {
   useEffect(() => {
     if (selectedRunId) {
       const found = runs.find((r) => r.id === selectedRunId);
-      if (found) setSelectedRun(found);
+      if (found) {
+        setSelectedRun(found);
+        if (TERMINAL_STATUSES.has(found.status as RunStatus)) setBusy(false);
+      }
     }
   }, [runs, selectedRunId]);
 
