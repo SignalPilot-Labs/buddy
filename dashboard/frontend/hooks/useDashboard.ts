@@ -132,15 +132,23 @@ export function useDashboard(): DashboardState {
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Clear pending messages FIFO when real prompt events arrive via SSE
+  // Clear pending messages FIFO when NEW prompt events arrive via SSE
+  const confirmedCountRef = useRef(0);
   useEffect(() => {
     const realCount = liveEvents.filter(
       (e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"),
     ).length;
-    if (realCount === 0) return;
+    // Reset ref when liveEvents is cleared (run switch, session resumed, etc.)
+    if (realCount < confirmedCountRef.current) {
+      confirmedCountRef.current = realCount;
+      return;
+    }
+    const newArrivals = realCount - confirmedCountRef.current;
+    confirmedCountRef.current = realCount;
+    if (newArrivals <= 0) return;
     setPendingMessages((prev) => {
       const pendingCount = prev.filter((m) => m.status === "pending").length;
-      const toRemove = Math.min(realCount, pendingCount);
+      const toRemove = Math.min(newArrivals, pendingCount);
       if (toRemove === 0) return prev;
       let removed = 0;
       return prev.filter((m) => {
