@@ -232,7 +232,7 @@ describe("EventFeed empty state", () => {
 /* ── EventFeed: user_prompt as interruption boundary ── */
 
 describe("EventFeed user_prompt interruption boundary", () => {
-  it("renders agent card before user_prompt with runActive=false", () => {
+  it("agent card before user_prompt gets runActive=false (no 'running' text)", () => {
     const t0 = "2026-01-01T10:00:00.000Z";
     const t1 = "2026-01-01T10:00:10.000Z";
 
@@ -241,17 +241,13 @@ describe("EventFeed user_prompt interruption boundary", () => {
       makeAuditEvent(5, "prompt_injected", { prompt: "stop exploring" }, t1),
     ];
 
-    const { container } = render(
-      <EventFeed events={events} runActive={true} />,
-    );
-    expect(container).toBeInTheDocument();
-
-    // The agent card should NOT show a "running" status indicator
-    const runningTexts = screen.queryAllByText("running");
-    expect(runningTexts).toHaveLength(0);
+    render(<EventFeed events={events} runActive={true} />);
+    // Agent card before the user_prompt should NOT show "running" or "finalizing"
+    expect(screen.queryAllByText("running")).toHaveLength(0);
+    expect(screen.queryAllByText("finalizing")).toHaveLength(0);
   });
 
-  it("renders agent card after user_prompt with runActive=true", () => {
+  it("agent card after user_prompt keeps runActive=true", () => {
     const t0 = "2026-01-01T10:00:00.000Z";
     const t1 = "2026-01-01T10:00:10.000Z";
 
@@ -263,6 +259,40 @@ describe("EventFeed user_prompt interruption boundary", () => {
     const { container } = render(
       <EventFeed events={events} runActive={true} />,
     );
+    expect(container).toBeInTheDocument();
+  });
+
+  it("pause_requested milestone also acts as interruption boundary", () => {
+    const t0 = "2026-01-01T10:00:00.000Z";
+    const t1 = "2026-01-01T10:00:10.000Z";
+
+    const events: FeedEvent[] = [
+      makeAgentToolEvent(t0),
+      makeAuditEvent(6, "pause_requested", {}, t1),
+    ];
+
+    render(<EventFeed events={events} runActive={true} />);
+    expect(screen.queryAllByText("running")).toHaveLength(0);
+    expect(screen.queryAllByText("finalizing")).toHaveLength(0);
+  });
+
+  it("last user_prompt is the interruption boundary (not earlier ones)", () => {
+    const t0 = "2026-01-01T10:00:00.000Z";
+    const t1 = "2026-01-01T10:00:05.000Z";
+    const t2 = "2026-01-01T10:00:10.000Z";
+    const t3 = "2026-01-01T10:00:15.000Z";
+
+    const events: FeedEvent[] = [
+      makeAgentToolEvent(t0),
+      makeAuditEvent(5, "prompt_injected", { prompt: "first" }, t1),
+      makeAuditEvent(6, "resumed", { via: "inject" }, t2),
+      makeAgentToolEvent(t3),
+    ];
+
+    const { container } = render(
+      <EventFeed events={events} runActive={true} />,
+    );
+    // Should render — the second agent card (t3) is after the last interruption (t1)
     expect(container).toBeInTheDocument();
   });
 });
