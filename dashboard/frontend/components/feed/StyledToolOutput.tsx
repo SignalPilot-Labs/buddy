@@ -48,8 +48,9 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
 
   if (cat === "read" && tool.output_data) {
     const fileObj = (output.file as Record<string, unknown>) || {};
-    const content = String(fileObj.content || "");
-    const totalLines = Number(fileObj.totalLines || 0);
+    const content = typeof fileObj.content === "string" ? fileObj.content : String(fileObj.content || "");
+    const rawTotal = Number(fileObj.totalLines);
+    const totalLines = Number.isFinite(rawTotal) ? rawTotal : 0;
     const filePath = String(fileObj.filePath || input.file_path || "");
     if (content) {
       return (
