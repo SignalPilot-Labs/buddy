@@ -11,8 +11,8 @@ import os
 from collections.abc import AsyncIterator
 
 from utils import db
-from utils.constants import SESSION_IDLE_TIMEOUT_SEC
-from utils.models import RunContext, StreamResult
+from utils.constants import OPERATOR_MESSAGES_PATH, PHASE_DIRS, RUN_STATE_BASE, SESSION_IDLE_TIMEOUT_SEC
+from utils.models import ExecRequest, RunContext, StreamResult
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from core.control import ControlHandler
@@ -91,6 +91,7 @@ class SessionRunner:
             return "error"
         finally:
             events.stop_pulse_checker()
+            await self._persist_phase_files(run_context.run_id)
             await self._cleanup_session(session_id)
 
     async def _process_stream(
@@ -190,6 +191,26 @@ class SessionRunner:
         """Start a sandbox SDK session. Returns session_id."""
         session_options["initial_prompt"] = initial_prompt
         return await self._sandbox.start_session(session_options)
+
+    async def _persist_phase_files(self, run_id: str) -> None:
+        """Copy /tmp/<phase>/ and operator-messages.md to persistent storage."""
+        state_dir = f"{RUN_STATE_BASE}/{run_id}"
+        src_dirs = " ".join(f"/tmp/{d}" for d in PHASE_DIRS)
+        try:
+            await self._sandbox.exec(ExecRequest(
+                args=["sh", "-c", (
+                    f"mkdir -p {state_dir}"
+                    f" && cp -r {src_dirs} {state_dir}/ 2>/dev/null;"
+                    f" cp {OPERATOR_MESSAGES_PATH} {state_dir}/ 2>/dev/null;"
+                    " true"
+                )],
+                cwd="/tmp",
+                timeout=10,
+                env={},
+            ))
+            log.info("[%s] Phase files persisted to %s", run_id[:8], state_dir)
+        except Exception as exc:
+            log.warning("[%s] Failed to persist phase files: %s", run_id[:8], exc)
 
     async def _cleanup_session(self, session_id: str | None) -> None:
         """Stop the sandbox session if one was started."""

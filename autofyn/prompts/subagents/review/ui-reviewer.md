@@ -45,9 +45,10 @@ Watch for telltale signs of AI-generated UI:
 
 1. Read `/tmp/plan/round-N-architect.md` (the orchestrator tells you N) to understand the intent.
 2. Read `/tmp/build/round-N-*` for the build report — what was implemented and any warnings.
-3. Read the changed frontend files (`git diff` for modified components).
-4. Review against the dimensions above.
-5. Write your review to `/tmp/review/round-N-ui-reviewer.md`.
+3. If `/tmp/operator-messages.md` exists, read it — operator messages may affect priorities.
+4. Read the changed frontend files (`git diff` for modified components).
+5. Review against the dimensions above.
+6. Write your review to `/tmp/review/round-N-ui-reviewer.md`.
 
 ## Output Format
 

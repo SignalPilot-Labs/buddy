@@ -9,7 +9,7 @@ import os
 import time
 
 from utils import db
-from utils.constants import OPERATOR_MESSAGES_PATH, PROMPT_SUMMARY_LIMIT
+from utils.constants import OPERATOR_MESSAGES_PATH, PHASE_DIRS, PROMPT_SUMMARY_LIMIT, RUN_STATE_BASE
 from utils.models import ExecRequest, GitSetupParams, RunContext
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
@@ -105,6 +105,8 @@ class Bootstrap:
                 {"prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT]},
             )
 
+        await self._create_phase_dirs()
+
         initial = (
             custom_prompt if custom_prompt else self._prompts.build_initial_prompt()
         )
@@ -149,7 +151,8 @@ class Bootstrap:
             total_cost=run_info.get("total_cost_usd", 0) or 0,
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
-            cache_creation_input_tokens=run_info.get("cache_creation_input_tokens", 0) or 0,
+            cache_creation_input_tokens=run_info.get("cache_creation_input_tokens", 0)
+            or 0,
             cache_read_input_tokens=run_info.get("cache_read_input_tokens", 0) or 0,
         )
         session, events, tracker = self._create_services(run_context)
@@ -170,12 +173,19 @@ class Bootstrap:
             run_id, "session_resumed", {"branch": run_context.branch_name}
         )
         if prompt:
-            await db.log_audit(run_id, "prompt_injected", {
-                "prompt": prompt, "delivery": "resume",
-            })
+            await db.log_audit(
+                run_id,
+                "prompt_injected",
+                {
+                    "prompt": prompt,
+                    "delivery": "resume",
+                },
+            )
 
+        await self._create_phase_dirs()
+        await self._restore_phase_files(run_id)
         operator_messages = await db.get_operator_messages(run_id)
-        await self._restore_operator_messages(operator_messages, exec_timeout)
+        await self._restore_operator_messages(operator_messages)
         initial = self._build_resume_prompt(run_info, prompt, operator_messages)
         return run_context, session_options, session, events, tracker, initial
 
@@ -193,19 +203,50 @@ class Bootstrap:
         )
         return branch_name
 
+    async def _create_phase_dirs(self) -> None:
+        """Create /tmp/<phase>/ directories for subagent output files."""
+        dirs = [f"/tmp/{d}" for d in PHASE_DIRS]
+        await self._sandbox.exec(ExecRequest(
+            args=["mkdir", "-p", *dirs],
+            cwd="/tmp",
+            timeout=5,
+            env={},
+        ))
+
+    async def _restore_phase_files(self, run_id: str) -> None:
+        """Restore /tmp/<phase>/ files from persistent storage on resume."""
+        state_dir = f"{RUN_STATE_BASE}/{run_id}"
+        src_dirs = " ".join(f"{state_dir}/{d}" for d in PHASE_DIRS)
+        try:
+            await self._sandbox.exec(ExecRequest(
+                args=["sh", "-c", (
+                    f"test -d {state_dir}"
+                    f" && cp -r {src_dirs} /tmp/ 2>/dev/null;"
+                    f" cp {state_dir}/operator-messages.md {OPERATOR_MESSAGES_PATH} 2>/dev/null;"
+                    " true"
+                )],
+                cwd="/tmp",
+                timeout=10,
+                env={},
+            ))
+            log.info("[%s] Phase files restored from %s", run_id[:8], state_dir)
+        except Exception as exc:
+            log.warning("[%s] Failed to restore phase files: %s", run_id[:8], exc)
+
     async def _restore_operator_messages(
-        self, messages: list[dict], exec_timeout: int,
+        self, messages: list[dict],
     ) -> None:
         """Recreate /tmp/operator-messages.md from DB on resume."""
         if not messages:
             return
-        lines = [f"[{msg['ts']}] {msg['prompt']}" for msg in messages]
-        content = "\n".join(lines) + "\n"
-        escaped = content.replace("'", "'\\''")
+        lines = [_shell_quote(f"[{msg['ts']}] {msg['prompt']}") for msg in messages]
+        # Write first line with >, append rest with >>
+        cmds = [f"echo {lines[0]} > {OPERATOR_MESSAGES_PATH}"]
+        cmds.extend(f"echo {line} >> {OPERATOR_MESSAGES_PATH}" for line in lines[1:])
         await self._sandbox.exec(ExecRequest(
-            args=["sh", "-c", f"mkdir -p /tmp && printf '%s' '{escaped}' > {OPERATOR_MESSAGES_PATH}"],
+            args=["sh", "-c", " && ".join(cmds)],
             cwd="/tmp",
-            timeout=exec_timeout,
+            timeout=5,
             env={},
         ))
         log.info("Restored %d operator messages to %s", len(messages), OPERATOR_MESSAGES_PATH)
@@ -229,7 +270,15 @@ class Bootstrap:
                 "description": "Map codebase structure, find implementations, trace dependencies. Call when you need to understand how code is organized or where something lives. Read-only — writes findings to /tmp/explore/round-N-code-explorer.md.",
                 "prompt": self._prompts.load_subagent_prompt("explore/code-explorer"),
                 "model": "sonnet",
-                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+                "tools": [
+                    "Read",
+                    "Write",
+                    "Glob",
+                    "Grep",
+                    "Bash",
+                    "WebSearch",
+                    "WebFetch",
+                ],
             },
             "debugger": {
                 "description": "Diagnose bugs and failures. Find root causes, read logs, reproduce issues. Call when something is broken and you need to find why. Writes findings to /tmp/explore/round-N-debugger.md.",
@@ -242,7 +291,15 @@ class Bootstrap:
                 "description": "Design the next unit of work. Analyze current state, make structural decisions, write spec to /tmp/plan/round-N-architect.md. Call to plan before building.",
                 "prompt": self._prompts.load_subagent_prompt("plan/architect"),
                 "model": "opus",
-                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+                "tools": [
+                    "Read",
+                    "Write",
+                    "Glob",
+                    "Grep",
+                    "Bash",
+                    "WebSearch",
+                    "WebFetch",
+                ],
             },
             # Build phase
             "backend-dev": {
@@ -261,19 +318,29 @@ class Bootstrap:
             "code-reviewer": {
                 "description": "Review code for correctness, security, and quality. Runs tests, typechecker, linter. Writes verdict to /tmp/review/round-N-code-reviewer.md. Call after every build.",
                 "prompt": self._prompts.load_subagent_prompt("review/code-reviewer"),
-                "model": "opus",
-                "tools": ["Read", "Write", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
+                "model": "sonnet",
+                "tools": [
+                    "Read",
+                    "Write",
+                    "Glob",
+                    "Grep",
+                    "Bash",
+                    "WebSearch",
+                    "WebFetch",
+                ],
             },
             "ui-reviewer": {
                 "description": "Review frontend for visual consistency, spacing, hierarchy, accessibility, and AI slop. Writes to /tmp/review/round-N-ui-reviewer.md. Call alongside code-reviewer when frontend-dev made changes.",
                 "prompt": self._prompts.load_subagent_prompt("review/ui-reviewer"),
-                "model": "opus",
+                "model": "sonnet",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
             "security-reviewer": {
                 "description": "Audit code for security vulnerabilities: injection, auth gaps, leaked secrets, unsafe config. Writes to /tmp/review/round-N-security-reviewer.md. Call when changes touch auth, user input, APIs, or secrets.",
-                "prompt": self._prompts.load_subagent_prompt("review/security-reviewer"),
-                "model": "opus",
+                "prompt": self._prompts.load_subagent_prompt(
+                    "review/security-reviewer"
+                ),
+                "model": "sonnet",
                 "tools": ["Read", "Write", "Glob", "Grep", "Bash"],
             },
         }
@@ -322,7 +389,10 @@ class Bootstrap:
         }
 
     def _build_resume_prompt(
-        self, run_info: dict, operator_prompt: str | None, operator_messages: list[dict],
+        self,
+        run_info: dict,
+        operator_prompt: str | None,
+        operator_messages: list[dict],
     ) -> str:
         """Build a context-rich resume prompt from run history."""
         parts = ["You are resuming a previous session. Here is your context:\n"]
@@ -355,3 +425,8 @@ class Bootstrap:
             parts.append("\nContinue where you left off.")
 
         return "\n".join(parts)
+
+
+def _shell_quote(s: str) -> str:
+    """Shell-escape a string for safe use in echo commands."""
+    return "'" + s.replace("'", "'\\''") + "'"

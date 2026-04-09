@@ -15,6 +15,8 @@ SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
 OPERATOR_MESSAGES_PATH = "/tmp/operator-messages.md"
+RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
+PHASE_DIRS = ("explore", "plan", "build", "review")
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──
