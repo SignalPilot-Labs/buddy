@@ -130,8 +130,12 @@ export function useDashboard(): DashboardState {
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
       setHistoryLoading(false);
-    }).catch(() => {
+    }).catch((err) => {
       setHistoryLoading(false);
+      setHistoryEvents((prev) => [
+        ...prev,
+        { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
+      ]);
     });
   }, []);
 

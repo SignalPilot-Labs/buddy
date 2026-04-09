@@ -62,7 +62,7 @@ export function EventFeed({
   }, [userScrolled, events.length]);
 
   useEffect(() => {
-    if (autoScroll && containerRef.current) {
+    if (autoScroll && containerRef.current?.scrollTo) {
       containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
     }
   }, [grouped, pendingMessages, autoScroll]);
@@ -71,12 +71,12 @@ export function EventFeed({
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
-    setAutoScroll(isAtBottom);
-    setUserScrolled(!isAtBottom);
+    setAutoScroll((prev) => (prev === isAtBottom ? prev : isAtBottom));
+    setUserScrolled((prev) => (prev === !isAtBottom ? prev : !isAtBottom));
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    if (containerRef.current) {
+    if (containerRef.current?.scrollTo) {
       containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
       setAutoScroll(true);
       setUserScrolled(false);

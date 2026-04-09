@@ -104,6 +104,10 @@ export function GroupedEventCard({
     case "divider":
       return <DividerCard label={event.label} />;
     default:
-      return null;
+      return (
+        <div className="text-[9px] text-[#555] px-3 py-1.5 rounded border border-[#1a1a1a] bg-white/[0.01]">
+          Unknown event: {(event as { type: string }).type}
+        </div>
+      );
   }
 }

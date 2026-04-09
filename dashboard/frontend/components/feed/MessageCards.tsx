@@ -187,6 +187,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
     <motion.div
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
       className="flex justify-end px-4 py-1.5"
     >
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>

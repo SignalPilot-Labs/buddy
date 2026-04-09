@@ -222,6 +222,8 @@ export function StartRunModal({
       setEnvError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
+      }).catch(() => {
+        setEnvError("Failed to load environment variables");
       });
     }
   }, [open, activeRepo]);
