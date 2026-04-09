@@ -78,6 +78,21 @@ describe("control signals use /api/runs/{run_id}/* endpoints", () => {
   it("resumeAgent hits /api/runs/{run_id}/resume", async () => {
     await resumeAgent("abc-123");
     expect(fetchCalls[0].url).toContain("/api/runs/abc-123/resume");
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body).toEqual({});
+  });
+
+  it("resumeAgent sends prompt as payload when provided", async () => {
+    await resumeAgent("abc-123", "continue from where you left off");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/resume");
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body.payload).toBe("continue from where you left off");
+  });
+
+  it("resumeAgent sends empty body when prompt is undefined", async () => {
+    await resumeAgent("abc-123", undefined);
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body).toEqual({});
   });
 
   it("unlockAgent hits /api/runs/{run_id}/unlock", async () => {

@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo } from "@/lib/types";
 import {
   fetchAgentHealth,
-  fetchBranches,
   fetchRepos,
   setActiveRepo,
   startRun as apiStartRun,
@@ -341,7 +340,7 @@ export function useDashboard(): DashboardState {
       if (prompt) {
         setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering", isRestart: true });
       }
-      resumeAgent(selectedRunId).catch((e) => {
+      resumeAgent(selectedRunId, prompt).catch((e) => {
         setPendingPrompt(null);
         addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
       });
