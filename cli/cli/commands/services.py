@@ -39,12 +39,16 @@ def _run_script(script_path: str) -> None:
 
 
 def _git_pull() -> None:
-    """Run git pull in AUTOFYN_HOME to update the installation."""
-    console.print(f"[dim]→ git pull in {AUTOFYN_HOME}[/dim]")
-    result = subprocess.run(["git", "pull"], cwd=AUTOFYN_HOME)
-    if result.returncode != 0:
-        console.print(f"[red]git pull exited with code {result.returncode}[/red]")
-        sys.exit(result.returncode)
+    """Fetch latest and reset to origin/main. Safe for install directory."""
+    console.print(f"[dim]→ git fetch + reset in {AUTOFYN_HOME}[/dim]")
+    fetch = subprocess.run(["git", "fetch", "origin", "main"], cwd=AUTOFYN_HOME)
+    if fetch.returncode != 0:
+        console.print(f"[red]git fetch exited with code {fetch.returncode}[/red]")
+        sys.exit(fetch.returncode)
+    reset = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=AUTOFYN_HOME)
+    if reset.returncode != 0:
+        console.print(f"[red]git reset exited with code {reset.returncode}[/red]")
+        sys.exit(reset.returncode)
 
 
 def build_services() -> None:
