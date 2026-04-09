@@ -14,7 +14,6 @@ import {
 } from "@/lib/api";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
 import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
-import { mergeHistoryWithLive } from "@/lib/eventMerge";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -109,21 +108,36 @@ export function useDashboard(): DashboardState {
   } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const { events: liveEvents, connected, clearEvents } = useSSE(selectedRunId, refreshRuns);
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
 
+  const handleSessionResumed = useCallback(() => {
+    const runId = selectedRunIdRef.current;
+    if (!runId) return;
+    sseRef.current.disconnect();
+    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
+      setHistoryEvents(events);
+      sseRef.current.clearEvents();
+      sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
+    }).catch(() => {});
+  }, []);
+
+  const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(refreshRuns, handleSessionResumed);
+  const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
+  sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
+
   const allEvents = useMemo(
-    () => mergeHistoryWithLive(historyEvents, liveEvents),
+    () => [...historyEvents, ...liveEvents],
     [historyEvents, liveEvents],
   );
 
   const pendingClearCount = useMemo(() => {
     if (!pendingPrompt) return 0;
-    return liveEvents.filter(
+    const allEvts = [...historyEvents, ...liveEvents];
+    return allEvts.filter(
       (e) => e._kind === "audit" && e.data.event_type === pendingPrompt.clearOn,
     ).length;
-  }, [liveEvents, pendingPrompt]);
+  }, [historyEvents, liveEvents, pendingPrompt]);
 
   useEffect(() => {
     if (!pendingPrompt) return;
@@ -223,15 +237,16 @@ export function useDashboard(): DashboardState {
       if (repo) localStorage.setItem("sp_improve_active_repo", repo);
       else localStorage.removeItem("sp_improve_active_repo");
     } catch {}
+    sseRef.current.disconnect();
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEvents([]);
-    clearEvents();
+    sseRef.current.clearEvents();
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
     fetchRepos().then(setRepos);
-  }, [clearEvents]);
+  }, []);
 
   useEffect(() => {
     if (selectedRunId) {
@@ -243,20 +258,27 @@ export function useDashboard(): DashboardState {
   const handleSelectRun = useCallback(
     async (id: string) => {
       const gen = ++selectGenRef.current;
+      sseRef.current.disconnect();
       setSelectedRunId(id);
       localStorage.setItem("autofyn_last_run_id", id);
       setHistoryEvents([]);
-      clearEvents();
+      sseRef.current.clearEvents();
+      let lastToolId = 0;
+      let lastAuditId = 0;
       try {
-        const merged = await loadRunHistory(id);
+        const result = await loadRunHistory(id);
         if (gen !== selectGenRef.current) return;
-        setHistoryEvents(merged);
+        setHistoryEvents(result.events);
+        lastToolId = result.lastToolId;
+        lastAuditId = result.lastAuditId;
       } catch (err) {
-        console.warn("Failed to load historical events, SSE will provide live data:", err);
+        console.warn("Failed to load history:", err);
       }
+      if (gen !== selectGenRef.current) return;
+      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
       refreshRuns();
     },
-    [clearEvents, refreshRuns],
+    [refreshRuns],
   );
 
   useEffect(() => {

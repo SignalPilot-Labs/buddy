@@ -103,27 +103,6 @@ export function EventFeed({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
-      {/* Mini toolbar */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]/80 frosted-glass">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Events</span>
-          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{events.length}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-[#888]">Groups</span>
-          <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{grouped.length}</span>
-        </div>
-        {runActive && (
-          <div className="flex items-center gap-1.5 ml-auto">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-60" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88]" />
-            </span>
-            <span className="text-[9px] text-[#00ff88]/70 font-medium">Live</span>
-          </div>
-        )}
-      </div>
-
       {/* Event list */}
       <div
         ref={containerRef}

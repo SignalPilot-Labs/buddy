@@ -14,7 +14,7 @@ class TestCreatePrExplicitRepo:
         """gh pr create must include --repo owner/repo."""
         client = MagicMock()
         client.exec = AsyncMock()
-        ops = RepoOps(client)
+        ops = RepoOps(client, {})
         ops._repo = "acme/widgets"
         ops._initialized = True
 
@@ -34,7 +34,7 @@ class TestCreatePrExplicitRepo:
     async def test_create_pr_fails_without_repo(self):
         """create_pr must raise if _repo is empty."""
         client = MagicMock()
-        ops = RepoOps(client)
+        ops = RepoOps(client, {})
         ops._repo = ""
         ops._initialized = True
 
@@ -45,7 +45,7 @@ class TestCreatePrExplicitRepo:
     async def test_find_existing_pr_passes_repo_flag(self):
         """gh pr view must include --repo."""
         client = MagicMock()
-        ops = RepoOps(client)
+        ops = RepoOps(client, {})
         ops._repo = "acme/widgets"
         ops._initialized = True
 

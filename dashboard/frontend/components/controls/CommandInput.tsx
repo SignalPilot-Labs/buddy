@@ -13,7 +13,7 @@ const PRESETS = [
     text: "Wrap up. Commit your progress with a clear summary of what was done and what remains, then stop.",
   },
   {
-    label: "Focus security",
+    label: "Security audit",
     text: "Focus on security. Do a security-focused review of the changes you've made so far and fix any issues you find.",
   },
   {
@@ -30,12 +30,12 @@ const PLACEHOLDER_BY_STATUS: Record<string, string> = {
   running: "Message the agent...",
   paused: "Send a message to resume...",
   rate_limited: "Message the agent...",
-  completed: "Restart with instructions...",
-  stopped: "Restart with instructions...",
-  error: "Restart with instructions...",
-  crashed: "Restart with instructions...",
-  killed: "Restart with instructions...",
-  completed_no_changes: "Restart with instructions...",
+  completed: "Continue from where you left off...",
+  stopped: "Continue from where you left off...",
+  error: "Continue from where you left off...",
+  crashed: "Continue from where you left off...",
+  killed: "Continue from where you left off...",
+  completed_no_changes: "Continue from where you left off...",
 };
 
 const DEFAULT_PLACEHOLDER = "Select a run to send a message...";

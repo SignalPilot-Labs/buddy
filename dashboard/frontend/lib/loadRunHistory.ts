@@ -70,11 +70,20 @@ function getEventTs(e: FeedEvent): string {
   return e.ts;
 }
 
-export async function loadRunHistory(id: string): Promise<FeedEvent[]> {
+export interface HistoryResult {
+  events: FeedEvent[];
+  lastToolId: number;
+  lastAuditId: number;
+}
+
+export async function loadRunHistory(id: string): Promise<HistoryResult> {
   const [tools, audits] = await Promise.all([
     fetchToolCalls(id, HISTORY_FETCH_LIMIT),
     fetchAuditLog(id, HISTORY_FETCH_LIMIT),
   ]);
+
+  const lastToolId = tools.reduce((max, t) => Math.max(max, t.id ?? 0), 0);
+  const lastAuditId = audits.reduce((max, a) => Math.max(max, a.id ?? 0), 0);
 
   tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
   audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
@@ -85,7 +94,9 @@ export async function loadRunHistory(id: string): Promise<FeedEvent[]> {
   }));
   const auditEvents = buildAuditEvents(audits);
 
-  return [...toolEvents, ...auditEvents].sort(
+  const events = [...toolEvents, ...auditEvents].sort(
     (a, b) => new Date(getEventTs(a)).getTime() - new Date(getEventTs(b)).getTime()
   );
+
+  return { events, lastToolId, lastAuditId };
 }

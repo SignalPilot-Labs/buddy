@@ -74,9 +74,9 @@ export async function injectPrompt(
   return res.json();
 }
 
-export function createSSE(runId: string): EventSource {
+export function createSSE(runId: string, afterTool: number, afterAudit: number): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}`,
+    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
 }
 

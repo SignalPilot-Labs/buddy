@@ -1,7 +1,5 @@
 /**
- * Shared event merge utilities — pre/post tool call pairing.
- *
- * Used by both useSSE (live events) and page.tsx (history+live merge).
+ * Pre/post tool call pairing for live SSE events.
  */
 
 import type { FeedEvent, ToolCall } from "@/lib/types";
@@ -33,68 +31,4 @@ export function mergeToolEvent(prev: FeedEvent[], data: ToolCall): FeedEvent[] {
     }
   }
   return [...prev, { _kind: "tool", data }];
-}
-
-/**
- * Merge live events into a history list.
- * Post tool events that match a pre in history get merged in-place;
- * all other events are appended.
- */
-export function mergeHistoryWithLive(
-  history: FeedEvent[],
-  live: FeedEvent[],
-): FeedEvent[] {
-  if (live.length === 0) return history;
-
-  const preIndex = new Map<string, number>();
-  const seenAuditIds = new Set<number>();
-  const seenToolIds = new Set<number>();
-  const hasHistoryText = history.some((e) => e._kind === "llm_text" || e._kind === "llm_thinking");
-  const merged = [...history];
-
-  for (let i = 0; i < merged.length; i++) {
-    const ev = merged[i];
-    if (ev._kind === "tool") {
-      if (ev.data.phase === "pre" && !ev.data.output_data && ev.data.tool_use_id) {
-        preIndex.set(ev.data.tool_use_id, i);
-      }
-      if (ev.data.id) seenToolIds.add(ev.data.id);
-    } else if (ev._kind === "audit" && ev.data.id) {
-      seenAuditIds.add(ev.data.id);
-    }
-  }
-
-  for (const ev of live) {
-    if (
-      ev._kind === "tool" &&
-      ev.data.phase === "post" &&
-      ev.data.tool_use_id &&
-      preIndex.has(ev.data.tool_use_id)
-    ) {
-      const idx = preIndex.get(ev.data.tool_use_id)!;
-      const pre = merged[idx];
-      if (pre._kind === "tool") {
-        merged[idx] = {
-          _kind: "tool",
-          data: {
-            ...pre.data,
-            output_data: ev.data.output_data,
-            duration_ms: ev.data.duration_ms,
-            phase: "post",
-          },
-        };
-      }
-      preIndex.delete(ev.data.tool_use_id);
-    } else if (ev._kind === "audit" && ev.data.id && seenAuditIds.has(ev.data.id)) {
-      continue;
-    } else if (ev._kind === "tool" && ev.data.id && seenToolIds.has(ev.data.id)) {
-      continue;
-    } else if (hasHistoryText && (ev._kind === "llm_text" || ev._kind === "llm_thinking")) {
-      continue;
-    } else {
-      merged.push(ev);
-    }
-  }
-
-  return merged;
 }

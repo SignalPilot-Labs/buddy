@@ -129,6 +129,17 @@ async def get_run_base_branch(run_id: str) -> str | None:
         return run.base_branch
 
 
+async def get_operator_messages(run_id: str) -> list[dict]:
+    """Get all operator-injected prompts for a run, ordered by time."""
+    async with get_session_factory()() as s:
+        rows = (await s.execute(
+            select(AuditLog.ts, AuditLog.details)
+            .where(AuditLog.run_id == run_id, AuditLog.event_type == "prompt_injected")
+            .order_by(AuditLog.ts)
+        )).all()
+        return [{"ts": r.ts.isoformat(), "prompt": r.details.get("prompt", "")} for r in rows]
+
+
 async def finish_run(
     run_id: str,
     status: str,
