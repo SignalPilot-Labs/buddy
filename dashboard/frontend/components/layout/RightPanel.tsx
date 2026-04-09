@@ -1,8 +1,11 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import type { FeedEvent } from "@/lib/types";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
+
+const TAB_FADE_DURATION = 0.15;
 
 export interface RightPanelProps {
   runId: string | null;
@@ -69,13 +72,22 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
       </div>
 
       {/* Panel content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === "changes" ? (
-          <WorkTree events={events} runId={runId} />
-        ) : (
-          <ContainerLogs runId={runId} />
-        )}
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: TAB_FADE_DURATION }}
+          className="flex-1 min-h-0 overflow-hidden"
+        >
+          {activeTab === "changes" ? (
+            <WorkTree events={events} runId={runId} />
+          ) : (
+            <ContainerLogs runId={runId} />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

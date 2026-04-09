@@ -15,6 +15,7 @@ const FAB_ANIMATE = { opacity: 1, y: 0 };
 const FAB_EXIT = { opacity: 0, y: 8 };
 const FAB_TRANSITION = { duration: 0.15 };
 
+const SCROLL_BEHAVIOR = "smooth" as const;
 const CARD_ENTER_DURATION = 0.2;
 const CARD_ENTER_Y = 6;
 const CARD_ENTER_EASE = "easeOut";
@@ -62,7 +63,7 @@ export function EventFeed({
 
   useEffect(() => {
     if (autoScroll && containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
     }
   }, [grouped, pendingMessages, autoScroll]);
 
@@ -76,7 +77,7 @@ export function EventFeed({
 
   const scrollToBottom = useCallback(() => {
     if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
       setAutoScroll(true);
       setUserScrolled(false);
       setSeenCount(events.length);

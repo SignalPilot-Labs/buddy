@@ -139,7 +139,7 @@ export function LLMMessageCard({
 }
 
 /* ── Control ── */
-export function ControlMessage({ text, ts }: { text: string; ts: string }) {
+export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
     <div className="flex items-center gap-2 px-4 py-2">
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
@@ -157,6 +157,14 @@ export function ControlMessage({ text, ts }: { text: string; ts: string }) {
           <line x1="6" y1="10" x2="9" y2="10" />
         </svg>
         {text}
+        {retryAction && (
+          <button
+            onClick={retryAction}
+            className="text-[#ffaa00] hover:underline ml-1"
+          >
+            Retry
+          </button>
+        )}
         <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />

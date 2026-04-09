@@ -89,7 +89,7 @@ export function GroupedEventCard({
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
     case "control":
-      return <ControlMessage text={event.text} ts={event.ts} />;
+      return <ControlMessage text={event.text} ts={event.ts} retryAction={event.retryAction} />;
     case "user_prompt":
       return <UserPromptCard prompt={event.prompt} ts={event.ts} pending={event.pending} failed={event.failed} />;
     case "milestone":

@@ -11,7 +11,7 @@ export type GroupedEvent =
   | { id: string; type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { id: string; type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
   | { id: string; type: "single_tool"; tool: ToolCall; ts: string }
-  | { id: string; type: "control"; text: string; ts: string }
+  | { id: string; type: "control"; text: string; ts: string; retryAction?: () => void }
   | { id: string; type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
   | { id: string; type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
   | { id: string; type: "divider"; label: string; ts: string };
@@ -230,7 +230,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
 
     // ── Control events ──
     if (ev._kind === "control") {
-      result.push({ id: `ctrl-${ev.ts}-${ev.text.slice(0, 20)}`, type: "control", text: ev.text, ts: ev.ts });
+      result.push({ id: `ctrl-${ev.ts}-${ev.text.slice(0, 20)}`, type: "control", text: ev.text, ts: ev.ts, retryAction: ev.retryAction });
       i++;
       continue;
     }
