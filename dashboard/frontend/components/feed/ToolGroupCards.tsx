@@ -66,8 +66,9 @@ export function BashGroupCard({
       </button>
       {expanded && (
         <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="rounded-b-lg overflow-hidden">
@@ -155,8 +156,9 @@ export function PlaywrightGroupCard({
       </button>
       {expanded && (
         <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="p-3 space-y-2 max-h-[400px] overflow-y-auto">
@@ -305,8 +307,9 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
       </button>
       {expanded && (
         <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="p-3 space-y-2.5">
