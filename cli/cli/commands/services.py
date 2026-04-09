@@ -125,8 +125,7 @@ def _detect_claude_token() -> str | None:
                 console.print(f"[green]✓[/green] Token received ({token[:12]}****)")
                 return token
         except FileNotFoundError:
-            pass
-        console.print("[yellow]claude CLI not found or authentication failed[/yellow]")
+            console.print("[yellow]claude CLI not installed. Install it: npm install -g @anthropic-ai/claude-code[/yellow]")
     console.print("[dim]Paste your token below, or press enter to skip.[/dim]")
     entered = typer.prompt("Claude OAuth token (enter to skip)", default="", hide_input=True)
     return entered if entered.strip() else None
