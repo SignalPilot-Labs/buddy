@@ -50,9 +50,9 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
         body.env = merge_tokens_into_env(body.env, body.claude_token, body.git_token)
 
         run_id = str(uuid.uuid4())
-        if not body.github_repo:
-            raise HTTPException(status_code=422, detail="github_repo is required")
-        github_repo = body.github_repo
+        if not body.github_repo and not body.task_dir:
+            raise HTTPException(status_code=422, detail="github_repo or task_dir is required")
+        github_repo = body.github_repo or ""
         await db.create_run_starting(
             run_id, body.prompt, body.duration_minutes, body.base_branch, github_repo,
         )

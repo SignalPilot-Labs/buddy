@@ -48,19 +48,23 @@ class Bootstrap:
         github_repo: str,
         exec_timeout: int,
         clone_timeout: int,
+        task_dir: str | None,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
         """Bootstrap a new run. run_id is pre-created by the server."""
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
-        git_params = GitSetupParams(
-            base_branch=base_branch,
-            github_repo=github_repo,
-            exec_timeout=exec_timeout,
-            clone_timeout=clone_timeout,
-            custom_prompt=custom_prompt,
-        )
-        branch_name = await self._setup_git(git_params)
+        if task_dir:
+            branch_name = await self._repo_ops.init_task_repo(base_branch, exec_timeout)
+        else:
+            git_params = GitSetupParams(
+                base_branch=base_branch,
+                github_repo=github_repo,
+                exec_timeout=exec_timeout,
+                clone_timeout=clone_timeout,
+                custom_prompt=custom_prompt,
+            )
+            branch_name = await self._setup_git(git_params)
         await db.update_run_branch(run_id, branch_name)
         log.info("Run %s on branch %s", run_id, branch_name)
 

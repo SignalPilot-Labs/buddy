@@ -51,7 +51,11 @@ class SandboxPool:
         return env
 
     async def create(
-        self, run_key: str, health_timeout: int, extra_env: dict[str, str] | None,
+        self,
+        run_key: str,
+        health_timeout: int,
+        extra_env: dict[str, str] | None,
+        task_dir: str | None,
     ) -> SandboxClient:
         """Spin up a sandbox container for a run. Returns a connected SandboxClient."""
         container_name = f"autofyn-sandbox-{run_key}"
@@ -61,9 +65,15 @@ class SandboxPool:
         if extra_env is not None:
             env.update(extra_env)
 
-        volumes: dict[str, dict[str, str]] = {
-            volume_name: {"bind": "/home/agentuser/repo", "mode": "rw"},
-        }
+        volumes: dict[str, dict[str, str]] = {}
+        if task_dir:
+            # Bind-mount the host task directory directly as WORK_DIR (Terminal-Bench mode).
+            # Named volume is skipped — destroy() will handle missing volume gracefully.
+            volumes[task_dir] = {"bind": "/home/agentuser/repo", "mode": "rw"}
+            log.info("Task dir bind-mounted into sandbox %s: %s", container_name, task_dir)
+        else:
+            volumes[volume_name] = {"bind": "/home/agentuser/repo", "mode": "rw"}
+
         if self._allow_docker:
             volumes[DOCKER_SOCKET_PATH] = {"bind": DOCKER_SOCKET_PATH, "mode": "rw"}
             log.warning("Docker socket mounted into sandbox %s (--allow-docker)", container_name)

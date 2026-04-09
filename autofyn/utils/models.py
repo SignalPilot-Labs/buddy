@@ -143,6 +143,7 @@ class StartRequest(BaseModel):
     git_token: str | None = None
     github_repo: str | None = None
     env: dict[str, str] | None = None
+    task_dir: str | None = None  # Mount host path as sandbox WORK_DIR (Terminal-Bench mode)
 
     @field_validator("max_budget_usd")
     @classmethod

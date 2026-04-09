@@ -118,13 +118,14 @@ class AgentServer:
 
     async def _execute_run(self, active: ActiveRun, run_id: str, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → execute → teardown → destroy sandbox."""
-        github_repo = body.github_repo
-        if not github_repo:
-            raise RuntimeError("github_repo is required — configure it in dashboard settings")
+        github_repo = body.github_repo or ""
+        task_dir = body.task_dir
+        if not github_repo and not task_dir:
+            raise RuntimeError("github_repo or task_dir is required — configure it in dashboard settings")
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
         run_env = body.env or {}
-        sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
+        sandbox = await self._pool.create(run_id, self._health_timeout, body.env, task_dir)
         try:
             repo_ops = RepoOps(sandbox, run_env)
             bootstrap = Bootstrap(repo_ops, sandbox)
@@ -135,6 +136,7 @@ class AgentServer:
                 run_id, body.prompt, budget, body.duration_minutes,
                 body.base_branch, github_repo,
                 self._exec_timeout, self._clone_timeout,
+                task_dir,
             )
 
             active.status = "running"
@@ -167,7 +169,7 @@ class AgentServer:
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
         run_env = body.env or {}
-        sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
+        sandbox = await self._pool.create(run_id, self._health_timeout, body.env, None)
         try:
             repo_ops = RepoOps(sandbox, run_env)
             bootstrap = Bootstrap(repo_ops, sandbox)

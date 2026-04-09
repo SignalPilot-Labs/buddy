@@ -274,6 +274,31 @@ class RepoOps:
         output = await self.run_git(["status", "--porcelain"], exec_timeout, WORK_DIR)
         return bool(output.strip())
 
+    # -- Terminal-Bench (local task dir) --
+
+    async def init_task_repo(self, base_branch: str, exec_timeout: int) -> str:
+        """Initialize WORK_DIR as a local git repo from pre-existing task files.
+
+        Used in Terminal-Bench mode where a host directory is bind-mounted as
+        WORK_DIR. Sets up git tracking so the reviewer can use git diff.
+        Returns the generated branch name.
+        """
+        for cmd in [
+            ["git", "init"],
+            ["git", "config", "user.email", "autofyn@local"],
+            ["git", "config", "user.name", "AutoFyn"],
+            ["git", "add", "."],
+            ["git", "commit", "--allow-empty", "-m", "init: task snapshot"],
+        ]:
+            result = await self._exec(cmd, WORK_DIR, exec_timeout, {})
+            if result.exit_code != 0:
+                log.warning("init_task_repo: %s failed: %s", cmd[1], result.stderr)
+
+        branch_name = self.get_branch_name(None)
+        await self._exec(["git", "checkout", "-b", branch_name], WORK_DIR, exec_timeout, {})
+        self._initialized = True
+        return branch_name
+
     # -- Resume --
 
     async def checkout_branch(
