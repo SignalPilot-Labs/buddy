@@ -113,15 +113,21 @@ def _run_token_cmd(cmd: list[str]) -> str | None:
 
 
 def _detect_claude_token() -> str | None:
-    """Try to get Claude OAuth token via `claude setup-token`."""
+    """Get Claude OAuth token via `claude setup-token` (interactive OAuth flow)."""
     console.print("\n[bold]Claude OAuth Token[/bold]")
-    console.print("[dim]Checking claude CLI for an existing token...[/dim]")
-    token = _run_token_cmd(["claude", "setup-token"])
-    if token:
-        masked = token[:12] + "****"
-        if typer.confirm(f"Found token from claude CLI ({masked}). Use it?", default=True):
-            return token
-    console.print("[dim]No token found. Run `claude setup-token` to authenticate, or paste one below.[/dim]")
+    if typer.confirm("Run `claude setup-token` to authenticate via browser?", default=True):
+        try:
+            result = subprocess.run(
+                ["claude", "setup-token"], capture_output=True, text=True,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                token = result.stdout.strip().splitlines()[-1]
+                console.print(f"[green]✓[/green] Token received ({token[:12]}****)")
+                return token
+        except FileNotFoundError:
+            pass
+        console.print("[yellow]claude CLI not found or authentication failed[/yellow]")
+    console.print("[dim]Paste your token below, or press enter to skip.[/dim]")
     entered = typer.prompt("Claude OAuth token (enter to skip)", default="", hide_input=True)
     return entered if entered.strip() else None
 
