@@ -3,6 +3,8 @@
 import os
 from unittest.mock import AsyncMock, patch
 
+import pytest
+
 from sandbox_manager.repo_ops import RepoOps
 
 
@@ -21,18 +23,12 @@ class TestRepoOpsEnv:
         env: dict[str, str] = {}
         ops = RepoOps(client, env)
         with patch.dict(os.environ, {"GIT_TOKEN": "from_os_environ"}):
-            try:
+            with pytest.raises(RuntimeError, match="GIT_TOKEN is not set"):
                 ops._auth_env()
-                assert False, "Should have raised RuntimeError"
-            except RuntimeError as e:
-                assert "GIT_TOKEN is not set" in str(e)
 
     def test_auth_env_raises_without_token(self) -> None:
         client = AsyncMock()
         env: dict[str, str] = {}
         ops = RepoOps(client, env)
-        try:
+        with pytest.raises(RuntimeError, match="GIT_TOKEN is not set"):
             ops._auth_env()
-            assert False, "Should have raised RuntimeError"
-        except RuntimeError as e:
-            assert "GIT_TOKEN is not set" in str(e)
