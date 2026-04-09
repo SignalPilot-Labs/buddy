@@ -62,7 +62,10 @@ def start_services(allow_docker: bool) -> None:
         os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(UP_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
-    _ensure_tokens()
+    try:
+        _ensure_tokens()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[dim]Skipped token setup. Run: autofyn settings set[/dim]")
 
 
 def _ensure_tokens() -> None:
