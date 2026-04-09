@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import type { Run, FeedEvent, RunStatus, PendingMessage } from "@/lib/types";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
@@ -102,44 +103,52 @@ export function MobileLayout({
     <>
       {/* Mobile panel content */}
       <div className="flex-1 flex flex-col min-h-0 pb-14">
-        {mobilePanel === "runs" && (
-          <RunList
-            runs={runs}
-            activeId={selectedRunId}
-            onSelect={(id) => { onSelectRun(id); setMobilePanel("feed"); }}
-            loading={runsLoading}
-            mobile
-          />
-        )}
-        {mobilePanel === "feed" && (
-          <>
-            <EventFeed
-              events={allEvents}
-              pendingMessages={pendingMessages}
-              runActive={runActive(runStatus)}
-              runPaused={runStatus === "paused"}
-              isLoading={historyLoading}
-            />
-            <CommandInput
-              runId={selectedRunId}
-              status={runStatus}
-              run={selectedRun}
-              connected={connected}
-              events={allEvents}
-              busy={busy}
-              onPause={onPause}
-              onResume={onResume}
-              onInject={onInject}
-              onRestart={onRestart}
-            />
-          </>
-        )}
-        {mobilePanel === "changes" && (
-          <WorkTree events={allEvents} runId={selectedRunId} mobile />
-        )}
-        {mobilePanel === "logs" && (
-          <ContainerLogs runId={selectedRunId} />
-        )}
+        <AnimatePresence mode="wait">
+          {mobilePanel === "runs" && (
+            <motion.div key="runs" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <RunList
+                runs={runs}
+                activeId={selectedRunId}
+                onSelect={(id) => { onSelectRun(id); setMobilePanel("feed"); }}
+                loading={runsLoading}
+                mobile
+              />
+            </motion.div>
+          )}
+          {mobilePanel === "feed" && (
+            <motion.div key="feed" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <EventFeed
+                events={allEvents}
+                pendingMessages={pendingMessages}
+                runActive={runActive(runStatus)}
+                runPaused={runStatus === "paused"}
+                isLoading={historyLoading}
+              />
+              <CommandInput
+                runId={selectedRunId}
+                status={runStatus}
+                run={selectedRun}
+                connected={connected}
+                events={allEvents}
+                busy={busy}
+                onPause={onPause}
+                onResume={onResume}
+                onInject={onInject}
+                onRestart={onRestart}
+              />
+            </motion.div>
+          )}
+          {mobilePanel === "changes" && (
+            <motion.div key="changes" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <WorkTree events={allEvents} runId={selectedRunId} mobile />
+            </motion.div>
+          )}
+          {mobilePanel === "logs" && (
+            <motion.div key="logs" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <ContainerLogs runId={selectedRunId} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Mobile bottom tab bar */}

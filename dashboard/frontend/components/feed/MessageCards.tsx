@@ -103,6 +103,7 @@ export function LLMMessageCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
         >
           <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">
@@ -141,7 +142,12 @@ export function LLMMessageCard({
 /* ── Control ── */
 export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-2">
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-center gap-2 px-4 py-2"
+    >
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
       <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/70">
         <svg
@@ -168,7 +174,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
         <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-    </div>
+    </motion.div>
   );
 }
 

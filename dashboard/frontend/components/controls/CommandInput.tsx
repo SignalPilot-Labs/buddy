@@ -163,7 +163,7 @@ export function CommandInput({
           placeholder={placeholder}
           rows={2}
           disabled={!runId}
-          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg px-3 py-3 text-[12px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
+          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg px-3 py-3 text-[12px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6 overflow-hidden"
           style={{ minHeight: "60px" }}
         />
       </div>
