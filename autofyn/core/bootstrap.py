@@ -92,6 +92,8 @@ class Bootstrap:
 
         await self._log_run_started(run_id, branch_name, model, max_budget, duration_minutes, custom_prompt)
         await self._create_phase_dirs()
+        if custom_prompt:
+            await self._write_operator_message(custom_prompt)
 
         initial = custom_prompt if custom_prompt else self._prompts.build_initial_prompt()
         return run_context, session_options, session, events, tracker, initial
@@ -168,6 +170,17 @@ class Bootstrap:
         dirs = [f"/tmp/{d}" for d in PHASE_DIRS]
         await self._sandbox.exec(ExecRequest(
             args=["sh", "-c", f"mkdir -p {' '.join(dirs)} && touch {OPERATOR_MESSAGES_PATH}"],
+            cwd="/tmp",
+            timeout=5,
+            env={},
+        ))
+
+    async def _write_operator_message(self, prompt: str) -> None:
+        """Append a single operator message to /tmp/operator-messages.md."""
+        ts = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())
+        line = shell_quote(f"[{ts}] {prompt}")
+        await self._sandbox.exec(ExecRequest(
+            args=["sh", "-c", f"echo {line} >> {OPERATOR_MESSAGES_PATH}"],
             cwd="/tmp",
             timeout=5,
             env={},
