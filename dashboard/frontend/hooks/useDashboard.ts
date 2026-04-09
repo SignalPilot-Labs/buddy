@@ -157,6 +157,13 @@ export function useDashboard(): DashboardState {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
         handleToggleSidebar();
+        return;
+      }
+      // 'N' to open new run modal (only when not focused in an input)
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+        e.preventDefault();
+        setStartModalOpen(true);
       }
     };
     document.addEventListener("keydown", handler);

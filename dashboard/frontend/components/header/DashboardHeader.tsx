@@ -3,12 +3,11 @@
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import type { RunStatus, RepoInfo } from "@/lib/types";
+import type { Run, RunStatus, RepoInfo } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
-import type { Run } from "@/lib/types";
 
 export interface DashboardHeaderProps {
   repos: RepoInfo[];
