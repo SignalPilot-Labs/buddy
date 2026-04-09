@@ -62,19 +62,13 @@ export function DashboardHeader({
             ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m${atCapacity ? " (full)" : ""}`
             : `Active${atCapacity ? " (full)" : ""}`;
 
-  const newRunLabel = !isConfigured
-    ? "Setup Required"
-    : !agentReachable
-      ? "Offline"
-      : atCapacity
-        ? "At Capacity"
-        : "New Run";
-
   const newRunTitle = !isConfigured
     ? "Configure credentials in Settings first"
-    : atCapacity
-      ? "Agent is at maximum capacity"
-      : undefined;
+    : !agentReachable
+      ? "Agent is offline"
+      : atCapacity
+        ? "Agent is at maximum capacity"
+        : undefined;
 
   const activeStatuses: RunStatus[] = ["running", "paused", "rate_limited"];
   const canControl = activeStatuses.includes(runStatus ?? ("" as RunStatus)) && !busy;
@@ -191,7 +185,7 @@ export function DashboardHeader({
           </svg>
         }
       >
-        {newRunLabel}
+        New Run
       </Button>
 
       <div className="w-px h-4 bg-[#1a1a1a]" />

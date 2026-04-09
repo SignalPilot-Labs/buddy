@@ -105,7 +105,7 @@ export function useDashboard(): DashboardState {
   });
   const [pendingPrompt, setPendingPrompt] = useState<{
     prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
-    status: "delivering" | "failed";
+    status: "delivering" | "failed"; isRestart?: boolean;
   } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -317,7 +317,7 @@ export function useDashboard(): DashboardState {
     (prompt: string) => {
       if (!selectedRunId) return;
       if (prompt) {
-        setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering" });
+        setPendingPrompt({ prompt, ts: new Date().toISOString(), clearOn: "prompt_injected", knownCount: pendingClearCount, status: "delivering", isRestart: true });
       }
       resumeAgent(selectedRunId).catch((e) => {
         setPendingPrompt(null);
@@ -339,6 +339,7 @@ export function useDashboard(): DashboardState {
 
   useEffect(() => {
     if (!pendingPrompt || pendingPrompt.status === "failed") return;
+    if (pendingPrompt.isRestart) return;
     if (runStatus && TERMINAL_STATUSES.has(runStatus)) {
       setPendingPrompt((prev) => prev ? { ...prev, status: "failed" } : null);
     }

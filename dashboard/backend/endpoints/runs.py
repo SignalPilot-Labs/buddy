@@ -121,6 +121,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
     run.status = "running"
+    run.error_message = None
     await s.commit()
     return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
 
