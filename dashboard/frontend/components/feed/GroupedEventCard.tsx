@@ -281,6 +281,15 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
     }
   }
 
+  // Error: tool failed
+  if (tool.output_data?.error) {
+    return (
+      <div className="text-[10px] text-[#ff4444]/80 bg-[#ff4444]/[0.04] rounded border border-[#ff4444]/10 px-2.5 py-2 font-mono whitespace-pre-wrap break-all">
+        {String(tool.output_data.error)}
+      </div>
+    );
+  }
+
   // Fallback: pretty JSON
   if (tool.output_data) {
     return (

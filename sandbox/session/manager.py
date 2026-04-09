@@ -237,6 +237,7 @@ class _Session:
         return {
             "PreToolUse": [HookMatcher(hooks=[self._hook_pre_tool])],
             "PostToolUse": [HookMatcher(hooks=[self._hook_post_tool])],
+            "PostToolUseFailure": [HookMatcher(hooks=[self._hook_post_tool_failure])],
             "SubagentStart": [HookMatcher(hooks=[self._hook_subagent_start])],
             "SubagentStop": [HookMatcher(hooks=[self._hook_subagent_stop])],
             "Stop": [HookMatcher(hooks=[self._hook_stop])],
@@ -295,6 +296,28 @@ class _Session:
         await _log_tool_call(
             self._run_id, "post", tool_name,
             None, out, duration_ms, True, None, role,
+            tid, sid, agent_id,
+        )
+        return SyncHookJSONOutput()
+
+    async def _hook_post_tool_failure(
+        self, hook_input: HookInput, tool_use_id: str | None, context: HookContext,
+    ) -> SyncHookJSONOutput:
+        """Log failed tool to DB with error. Fires instead of PostToolUse on failure."""
+        tool_name = hook_input.get("tool_name", "unknown")
+        error = hook_input.get("error", "unknown error")
+        agent_id = hook_input.get("agent_id")
+        tid = tool_use_id or ""
+        sid = hook_input.get("session_id")
+
+        duration_ms = None
+        if tid in self._pre_tool_times:
+            duration_ms = int((time.time() - self._pre_tool_times.pop(tid)) * 1000)
+
+        role = self._subagent_types.get(agent_id, "worker") if agent_id else "worker"
+        await _log_tool_call(
+            self._run_id, "post", tool_name,
+            None, {"error": error}, duration_ms, True, None, role,
             tid, sid, agent_id,
         )
         return SyncHookJSONOutput()
