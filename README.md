@@ -26,6 +26,8 @@ cd autofyn && ./install.sh             # installs CLI + builds Docker images
 autofyn start                          # auto-detects tokens from claude/gh CLI
 ```
 
+Open [http://localhost:3400](http://localhost:3400) for the dashboard.
+
 On first start, AutoFyn will auto-detect your Claude token (via `claude setup-token`) and GitHub token (via `gh auth token`), and detect the repo from your local git remote. You can also configure manually:
 
 ```bash
