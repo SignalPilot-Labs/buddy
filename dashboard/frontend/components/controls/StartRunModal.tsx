@@ -68,8 +68,15 @@ function BranchPicker({
         </svg>
       </button>
 
+      <AnimatePresence>
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-[#0d0d0d] border border-[#1a1a1a] rounded shadow-xl shadow-black/40 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.15 }}
+          className="absolute z-50 mt-1 w-full bg-[#0d0d0d] border border-[#1a1a1a] rounded shadow-xl shadow-black/40 overflow-hidden"
+        >
           <div className="p-2 border-b border-[#1a1a1a]">
             <input
               ref={inputRef}
@@ -115,8 +122,9 @@ function BranchPicker({
               ))
             )}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
