@@ -18,9 +18,10 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
     setLines(data.lines ?? []);
   }, []);
 
-  // Initial load
+  // Initial load — clear old lines immediately on run switch to avoid showing stale logs
   useEffect(() => {
     if (!runId) { setLines([]); return; }
+    setLines([]);
     setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [runId, refresh]);

@@ -167,7 +167,7 @@ export function EventFeed({
               <line x1="5" y1="2" x2="5" y2="8" />
               <polyline points="3 6 5 8 7 6" />
             </svg>
-            {newEventCount > 0 ? `${newEventCount} new event${newEventCount === 1 ? "" : "s"}` : "New events"}
+            {newEventCount > 0 ? `${newEventCount} new event${newEventCount === 1 ? "" : "s"}` : "Jump to latest"}
           </motion.button>
         )}
       </AnimatePresence>
