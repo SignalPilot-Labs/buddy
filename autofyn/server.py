@@ -123,9 +123,10 @@ class AgentServer:
             raise RuntimeError("github_repo is required — configure it in dashboard settings")
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
+        run_env = body.env or {}
         sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
         try:
-            repo_ops = RepoOps(sandbox)
+            repo_ops = RepoOps(sandbox, run_env)
             bootstrap = Bootstrap(repo_ops, sandbox)
             runner = SessionRunner(sandbox, self._prompts)
             teardown = RunTeardown(repo_ops)
@@ -165,9 +166,10 @@ class AgentServer:
         run_id = body.run_id
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
 
+        run_env = body.env or {}
         sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
         try:
-            repo_ops = RepoOps(sandbox)
+            repo_ops = RepoOps(sandbox, run_env)
             bootstrap = Bootstrap(repo_ops, sandbox)
             runner = SessionRunner(sandbox, self._prompts)
             teardown = RunTeardown(repo_ops)

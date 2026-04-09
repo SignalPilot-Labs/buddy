@@ -8,11 +8,9 @@ import asyncio
 import base64
 import json
 import logging
-import os
 import re
 import uuid
 from collections.abc import Callable, Coroutine
-from datetime import datetime, timezone
 from typing import Any
 
 from utils.constants import (
@@ -47,8 +45,9 @@ class RepoOps:
         checkout_branch(branch_name, base_branch, exec_timeout) -> None
     """
 
-    def __init__(self, client: SandboxClient) -> None:
+    def __init__(self, client: SandboxClient, env: dict[str, str]) -> None:
         self._client = client
+        self._env = env
         self._initialized = False
         self._repo = ""
         self._cloned_repo = ""
@@ -313,7 +312,7 @@ class RepoOps:
 
     def _auth_env(self) -> dict[str, str]:
         """Return env vars for git and gh CLI auth."""
-        token = os.environ.get("GIT_TOKEN", "")
+        token = self._env.get("GIT_TOKEN", "")
         if not token:
             raise RuntimeError("GIT_TOKEN is not set")
         b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
@@ -329,7 +328,7 @@ class RepoOps:
         async with self._init_lock:
             if self._initialized and self._repo == self._cloned_repo:
                 return
-            token = os.environ.get("GIT_TOKEN", "")
+            token = self._env.get("GIT_TOKEN", "")
             if not token or not self._repo:
                 raise RuntimeError(
                     "GIT_TOKEN and repo must be set (call setup_auth first)"
