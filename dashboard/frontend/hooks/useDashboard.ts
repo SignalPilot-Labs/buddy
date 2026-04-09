@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage } from "@/lib/types";
 import {
   fetchAgentHealth,
   fetchRepos,
@@ -28,6 +28,7 @@ export interface DashboardState {
   selectedRunId: string | null;
   selectedRun: Run | null;
   allEvents: FeedEvent[];
+  pendingMessages: PendingMessage[];
   runStatus: RunStatus | null;
   agentHealth: AgentHealth | null;
   activeRunHealth: HealthRunEntry | undefined;
@@ -100,95 +101,57 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [busy, setBusy] = useState(false);
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
 
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
+  const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
+
+  const handleRunEnded = useCallback(() => {
+    refreshRuns();
+    setPendingMessages((prev) => {
+      if (prev.length === 0) return prev;
+      return prev.map((m) => m.status === "pending" ? { ...m, status: "failed" } : m);
+    });
+  }, [refreshRuns]);
 
   const handleSessionResumed = useCallback(() => {
     const runId = selectedRunIdRef.current;
     if (!runId) return;
     sseRef.current.disconnect();
+    setPendingMessages([]);
     loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
-      setHistoryEvents((prev) => {
-        const pendingSynthetics = prev.filter((e) => e._kind === "audit" && e.data.id < 0 && e.data.details._pending);
-        if (pendingSynthetics.length === 0) return events;
-        // Count real prompt events that arrived AFTER the oldest synthetic was created
-        const oldestSyntheticTs = pendingSynthetics[0]._kind === "audit" ? pendingSynthetics[0].data.ts : "";
-        const confirmedCount = events.filter(
-          (e) => e._kind === "audit"
-            && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted")
-            && e.data.ts >= oldestSyntheticTs,
-        ).length;
-        const stillPending = pendingSynthetics.slice(confirmedCount);
-        return stillPending.length > 0 ? [...events, ...stillPending] : events;
-      });
+      setHistoryEvents(events);
+      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
     }).catch(() => {});
   }, []);
 
-  const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(refreshRuns, handleSessionResumed);
+  const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Track synthetic prompt IDs for dedup — survives historyEvents resets
-  const syntheticIdsRef = useRef<Set<number>>(new Set());
-
-  // When real prompt_injected arrives via SSE, clear _pending on oldest unmatched synthetic
+  // Clear pending messages FIFO when real prompt events arrive via SSE
   useEffect(() => {
     const realCount = liveEvents.filter(
       (e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"),
     ).length;
     if (realCount === 0) return;
-    setHistoryEvents((prev) => {
-      const pendingSynthetics = prev.filter(
-        (e) => e._kind === "audit" && e.data.details._pending && e.data.id < 0,
-      );
-      // Clear _pending on synthetics that have been confirmed (match count-based, FIFO)
-      const toConfirm = Math.min(realCount, pendingSynthetics.length);
-      if (toConfirm === 0) return prev;
-      const confirmIds = new Set(pendingSynthetics.slice(0, toConfirm).map((e) => e._kind === "audit" ? e.data.id : 0));
-      return prev.map((e) => {
-        if (e._kind === "audit" && confirmIds.has(e.data.id)) {
-          return { ...e, data: { ...e.data, details: { ...e.data.details, _pending: false } } };
-        }
-        return e;
+    setPendingMessages((prev) => {
+      const pendingCount = prev.filter((m) => m.status === "pending").length;
+      const toRemove = Math.min(realCount, pendingCount);
+      if (toRemove === 0) return prev;
+      let removed = 0;
+      return prev.filter((m) => {
+        if (m.status !== "pending") return true;
+        if (removed < toRemove) { removed++; return false; }
+        return true;
       });
     });
   }, [liveEvents]);
 
-  // Merge history + live, filtering out live prompt events that duplicate a synthetic
-  const allEvents = useMemo(() => {
-    const syntheticIds = syntheticIdsRef.current;
-    if (syntheticIds.size === 0) return [...historyEvents, ...liveEvents];
-    // Count synthetics still in history (confirmed or pending)
-    const syntheticsInHistory = historyEvents.filter(
-      (e) => e._kind === "audit" && e.data.id < 0 && syntheticIds.has(e.data.id),
-    ).length;
-    if (syntheticsInHistory === 0) {
-      syntheticIdsRef.current = new Set();
-      return [...historyEvents, ...liveEvents];
-    }
-    // Filter out that many real prompt events from live to avoid duplicates
-    let skipRemaining = syntheticsInHistory;
-    const filtered = liveEvents.filter((e) => {
-      if (skipRemaining <= 0) return true;
-      if (e._kind !== "audit") return true;
-      if (e.data.event_type !== "prompt_injected" && e.data.event_type !== "prompt_submitted") return true;
-      skipRemaining--;
-      return false;
-    });
-    const merged = [...historyEvents, ...filtered];
-    // Synthetics are appended to historyEvents and may be out of order — sort by timestamp
-    if (syntheticIds.size > 0) {
-      merged.sort((a, b) => {
-        const tsA = a._kind === "tool" || a._kind === "audit" || a._kind === "usage" ? a.data.ts : a.ts;
-        const tsB = b._kind === "tool" || b._kind === "audit" || b._kind === "usage" ? b.data.ts : b.ts;
-        return tsA < tsB ? -1 : tsA > tsB ? 1 : 0;
-      });
-    }
-    return merged;
-  }, [historyEvents, liveEvents]);
+  const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
@@ -285,6 +248,7 @@ export function useDashboard(): DashboardState {
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEvents([]);
+    setPendingMessages([]);
     sseRef.current.clearEvents();
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
@@ -304,6 +268,7 @@ export function useDashboard(): DashboardState {
       const gen = ++selectGenRef.current;
       sseRef.current.disconnect();
       setSelectedRunId(id);
+      setPendingMessages([]);
       localStorage.setItem("autofyn_last_run_id", id);
       setHistoryEvents([]);
       sseRef.current.clearEvents();
@@ -319,6 +284,7 @@ export function useDashboard(): DashboardState {
         console.warn("Failed to load history:", err);
       }
       if (gen !== selectGenRef.current) return;
+      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
       refreshRuns();
     },
@@ -367,30 +333,18 @@ export function useDashboard(): DashboardState {
 
   const runStatus: RunStatus | null = (selectedRun?.status as RunStatus) || null;
 
-  const addSyntheticPrompt = useCallback(
+  const addPendingMessage = useCallback(
     (prompt: string): number => {
-      const syntheticId = -Date.now();
-      const ts = new Date().toISOString();
-      const synthetic: FeedEvent = {
-        _kind: "audit",
-        data: { id: syntheticId, run_id: selectedRunId ?? "", ts, event_type: "prompt_submitted", details: { prompt, _pending: true } },
-      };
-      syntheticIdsRef.current.add(syntheticId);
-      setHistoryEvents((prev) => [...prev, synthetic]);
-      return syntheticId;
+      const id = -Date.now();
+      setPendingMessages((prev) => [...prev, { id, prompt, ts: new Date().toISOString(), status: "pending" }]);
+      return id;
     },
-    [selectedRunId],
+    [],
   );
 
-  const markSyntheticFailed = useCallback(
-    (syntheticId: number) => {
-      setHistoryEvents((prev) =>
-        prev.map((e) =>
-          e._kind === "audit" && e.data.id === syntheticId
-            ? { ...e, data: { ...e.data, details: { ...e.data.details, _pending: false, _failed: true } } }
-            : e,
-        ),
-      );
+  const markPendingFailed = useCallback(
+    (id: number) => {
+      setPendingMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: "failed" } : m));
     },
     [],
   );
@@ -398,25 +352,35 @@ export function useDashboard(): DashboardState {
   const handleInject = useCallback(
     (prompt: string) => {
       if (!selectedRunId) return;
-      const sid = addSyntheticPrompt(prompt);
+      const pid = addPendingMessage(prompt);
       apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-        markSyntheticFailed(sid);
+        markPendingFailed(pid);
         addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
       });
     },
-    [selectedRunId, addSyntheticPrompt, markSyntheticFailed, addEvent],
+    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
   );
 
   const handleRestart = useCallback(
     (prompt: string) => {
       if (!selectedRunId) return;
-      const sid = prompt ? addSyntheticPrompt(prompt) : 0;
-      resumeAgent(selectedRunId, prompt).catch((e) => {
-        if (sid) markSyntheticFailed(sid);
-        addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
-      });
+      const pid = prompt ? addPendingMessage(prompt) : 0;
+      resumeAgent(selectedRunId, prompt)
+        .then(() => {
+          // Run was terminal → SSE was disconnected. Reconnect so new events arrive.
+          const runId = selectedRunIdRef.current;
+          if (runId) {
+            sseRef.current.disconnect();
+            sseRef.current.clearEvents();
+            sseRef.current.connect(runId, cursorsRef.current);
+          }
+        })
+        .catch((e) => {
+          if (pid) markPendingFailed(pid);
+          addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
+        });
     },
-    [selectedRunId, addSyntheticPrompt, markSyntheticFailed, addEvent],
+    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
   );
 
   const handleHeaderKill = useCallback(() => {
@@ -442,6 +406,7 @@ export function useDashboard(): DashboardState {
     selectedRunId,
     selectedRun,
     allEvents,
+    pendingMessages,
     runStatus,
     agentHealth,
     activeRunHealth,

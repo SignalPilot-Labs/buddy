@@ -29,6 +29,7 @@ export default function MonitorPage() {
     selectedRunId,
     selectedRun,
     allEvents,
+    pendingMessages,
     runStatus,
     agentHealth,
     activeRunHealth,
@@ -196,6 +197,7 @@ export default function MonitorPage() {
           <main className="flex-1 flex flex-col min-h-0 min-w-0">
             <EventFeed
               events={allEvents}
+              pendingMessages={pendingMessages}
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
             />
@@ -234,6 +236,7 @@ export default function MonitorPage() {
           selectedRunId={selectedRunId}
           runsLoading={runsLoading}
           allEvents={allEvents}
+          pendingMessages={pendingMessages}
           runStatus={runStatus}
           selectedRun={selectedRun}
           connected={connected}

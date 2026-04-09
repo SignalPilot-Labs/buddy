@@ -1,6 +1,6 @@
 "use client";
 
-import type { Run, FeedEvent, RunStatus } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, PendingMessage } from "@/lib/types";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { CommandInput } from "@/components/controls/CommandInput";
@@ -15,6 +15,7 @@ export interface MobileLayoutProps {
   selectedRunId: string | null;
   runsLoading: boolean;
   allEvents: FeedEvent[];
+  pendingMessages: PendingMessage[];
   runStatus: RunStatus | null;
   selectedRun: Run | null;
   connected: boolean;
@@ -82,6 +83,7 @@ export function MobileLayout({
   selectedRunId,
   runsLoading,
   allEvents,
+  pendingMessages,
   runStatus,
   selectedRun,
   connected,
@@ -111,6 +113,7 @@ export function MobileLayout({
           <>
             <EventFeed
               events={allEvents}
+              pendingMessages={pendingMessages}
               runActive={runActive(runStatus)}
               runPaused={runStatus === "paused"}
             />

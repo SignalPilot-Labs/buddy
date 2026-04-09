@@ -3,9 +3,10 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import type { FeedEvent } from "@/lib/types";
+import type { FeedEvent, PendingMessage } from "@/lib/types";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
+import { UserPromptCard } from "./MessageCards";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
@@ -16,10 +17,12 @@ const FAB_TRANSITION = { duration: 0.15 };
 
 export function EventFeed({
   events,
+  pendingMessages = [],
   runActive = false,
   runPaused = false,
 }: {
   events: FeedEvent[];
+  pendingMessages?: PendingMessage[];
   runActive?: boolean;
   runPaused?: boolean;
 }) {
@@ -81,24 +84,35 @@ export function EventFeed({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-2 space-y-2"
       >
-        {events.length === 0 ? (
+        {events.length === 0 && pendingMessages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <EmptyEvents />
           </div>
         ) : (
-          grouped.map((gev, i) => (
-            <ErrorBoundary
-              key={`g-${i}`}
-              fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
-            >
-              <GroupedEventCard
-                event={gev}
-                isLast={i === grouped.length - 1}
-                runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
-                runPaused={runPaused}
+          <>
+            {grouped.map((gev, i) => (
+              <ErrorBoundary
+                key={`g-${i}`}
+                fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+              >
+                <GroupedEventCard
+                  event={gev}
+                  isLast={i === grouped.length - 1 && pendingMessages.length === 0}
+                  runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                  runPaused={runPaused}
+                />
+              </ErrorBoundary>
+            ))}
+            {pendingMessages.map((msg) => (
+              <UserPromptCard
+                key={`pending-${msg.id}`}
+                prompt={msg.prompt}
+                ts={msg.ts}
+                pending={msg.status === "pending"}
+                failed={msg.status === "failed"}
               />
-            </ErrorBoundary>
-          ))
+            ))}
+          </>
         )}
       </div>
 
