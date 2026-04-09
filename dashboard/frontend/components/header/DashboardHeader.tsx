@@ -230,7 +230,7 @@ export function DashboardHeader({
             </svg>
           }
         >
-          Kill
+          {showKillConfirm ? "Confirm?" : "Kill"}
         </Button>
       </div>
     </header>

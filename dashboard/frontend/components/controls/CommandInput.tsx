@@ -166,11 +166,6 @@ export function CommandInput({
           className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg px-3 py-3 text-[12px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
           style={{ minHeight: "60px" }}
         />
-        {hasText && (
-          <div className="text-right mt-0.5">
-            <span className="text-[9px] text-[#444]">Enter to send · Shift+Enter for newline</span>
-          </div>
-        )}
       </div>
 
       {/* Stats row + action button */}
