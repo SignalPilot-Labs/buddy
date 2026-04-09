@@ -109,6 +109,7 @@ export function useDashboard(): DashboardState {
 
   const handleRunEnded = useCallback(() => {
     refreshRuns();
+    setBusy(false);
     setPendingMessages((prev) => {
       if (prev.length === 0) return prev;
       return prev.map((m) => m.status === "pending" ? { ...m, status: "failed" } : m);
@@ -408,6 +409,7 @@ export function useDashboard(): DashboardState {
       setTimeout(() => setShowKillConfirm(false), 3000);
       return;
     }
+    setBusy(true);
     controlAction("Kill", killAgent);
     setShowKillConfirm(false);
   }, [showKillConfirm, controlAction]);
