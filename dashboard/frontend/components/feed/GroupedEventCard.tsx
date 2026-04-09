@@ -281,16 +281,21 @@ function StyledToolOutput({ tool }: { tool: ToolCall }) {
     }
   }
 
-  // Fallback: pretty JSON
-  if (tool.output_data) {
+  // No-response sentinel or null output: tool completed without output
+  if (!tool.output_data || tool.output_data._no_response) {
     return (
-      <pre className="text-[10px] text-[#666] bg-black/20 rounded border border-[#1a1a1a] p-2.5 whitespace-pre-wrap break-all max-h-[300px] overflow-y-auto font-mono leading-relaxed">
-        {JSON.stringify(tool.output_data, null, 2)}
-      </pre>
+      <div className="text-[10px] text-[#666] italic py-1">
+        Tool completed — no output
+      </div>
     );
   }
 
-  return null;
+  // Fallback: pretty JSON
+  return (
+    <pre className="text-[10px] text-[#666] bg-black/20 rounded border border-[#1a1a1a] p-2.5 whitespace-pre-wrap break-all max-h-[300px] overflow-y-auto font-mono leading-relaxed">
+      {JSON.stringify(tool.output_data, null, 2)}
+    </pre>
+  );
 }
 
 /* ═══════════════════════════════════════════════
