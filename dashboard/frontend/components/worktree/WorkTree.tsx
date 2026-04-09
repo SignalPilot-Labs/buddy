@@ -100,8 +100,8 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
 
         {(totalAdded > 0 || totalRemoved > 0) && (
           <span className="flex items-center gap-1 shrink-0">
-            {totalAdded > 0 && <span className="text-[9px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
-            {totalRemoved > 0 && <span className="text-[9px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
+            {totalAdded > 0 && <span className="text-[10px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
+            {totalRemoved > 0 && <span className="text-[10px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
           </span>
         )}
 

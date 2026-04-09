@@ -72,7 +72,7 @@ function ExtendedContextSetting() {
         </span>
         Always Enable Extended Context (1M)
       </label>
-      <p className="mt-1.5 text-[9px] text-[#999] leading-relaxed ml-5">
+      <p className="mt-1.5 text-[10px] text-[#999] leading-relaxed ml-5">
         When enabled, all new runs will use extended 1M context by default.
         This uses more of your daily quota but supports larger context windows.
         You can override this per-run in the launch modal.
@@ -236,7 +236,7 @@ export default function SettingsPage() {
           </div>
           {status && (
             <div className={clsx(
-              "flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-medium",
+              "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium",
               status.configured ? "bg-[#00ff88]/[0.06] text-[#00ff88]" : "bg-[#ffaa00]/[0.06] text-[#ffaa00]"
             )}>
               <div className={clsx("w-1.5 h-1.5 rounded-full", status.configured ? "bg-[#00ff88]" : "bg-[#ffaa00]")} />

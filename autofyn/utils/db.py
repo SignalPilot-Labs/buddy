@@ -111,6 +111,7 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "custom_prompt": run.custom_prompt,
             "duration_minutes": run.duration_minutes,
             "base_branch": run.base_branch,
+            "github_repo": run.github_repo,
             "total_cost_usd": run.total_cost_usd,
             "total_input_tokens": run.total_input_tokens,
             "total_output_tokens": run.total_output_tokens,
@@ -126,6 +127,17 @@ async def get_run_base_branch(run_id: str) -> str | None:
         if not run:
             return None
         return run.base_branch
+
+
+async def get_operator_messages(run_id: str) -> list[dict]:
+    """Get all operator-injected prompts for a run, ordered by time."""
+    async with get_session_factory()() as s:
+        rows = (await s.execute(
+            select(AuditLog.ts, AuditLog.details)
+            .where(AuditLog.run_id == run_id, AuditLog.event_type == "prompt_injected")
+            .order_by(AuditLog.ts)
+        )).all()
+        return [{"ts": r.ts.isoformat(), "prompt": r.details.get("prompt", "")} for r in rows]
 
 
 async def finish_run(

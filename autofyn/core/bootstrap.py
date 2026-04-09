@@ -122,12 +122,14 @@ class Bootstrap:
         run_info = await db.get_run_for_resume(run_id)
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
+        if not run_info.get("github_repo"):
+            raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
         model = os.environ.get("AGENT_MODEL", "opus")
         fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
 
         await self._repo_ops.setup_auth(
-            run_info.get("github_repo", ""),
+            run_info["github_repo"],
             exec_timeout,
             clone_timeout,
         )
@@ -143,7 +145,7 @@ class Bootstrap:
             branch_name=run_info["branch_name"],
             base_branch=run_info.get("base_branch", "main"),
             duration_minutes=run_info.get("duration_minutes", 0),
-            github_repo=run_info.get("github_repo", ""),
+            github_repo=run_info["github_repo"],
             total_cost=run_info.get("total_cost_usd", 0) or 0,
             total_input_tokens=run_info.get("total_input_tokens", 0) or 0,
             total_output_tokens=run_info.get("total_output_tokens", 0) or 0,
@@ -167,8 +169,13 @@ class Bootstrap:
         await db.log_audit(
             run_id, "session_resumed", {"branch": run_context.branch_name}
         )
+        if prompt:
+            await db.log_audit(run_id, "prompt_injected", {
+                "prompt": prompt, "delivery": "resume",
+            })
 
-        initial = self._build_resume_prompt(run_info, prompt)
+        operator_messages = await db.get_operator_messages(run_id)
+        initial = self._build_resume_prompt(run_info, prompt, operator_messages)
         return run_context, session_options, session, events, tracker, initial
 
     # -- Git --
@@ -280,7 +287,9 @@ class Bootstrap:
             },
         }
 
-    def _build_resume_prompt(self, run_info: dict, operator_prompt: str | None) -> str:
+    def _build_resume_prompt(
+        self, run_info: dict, operator_prompt: str | None, operator_messages: list[dict],
+    ) -> str:
         """Build a context-rich resume prompt from run history."""
         parts = ["You are resuming a previous session. Here is your context:\n"]
 
@@ -298,6 +307,11 @@ class Bootstrap:
         cost = run_info.get("total_cost_usd") or 0
         if cost > 0:
             parts.append(f"- **Cost so far:** ${cost:.2f}")
+
+        if operator_messages:
+            parts.append("\n**Previous operator messages (oldest first):**")
+            for msg in operator_messages:
+                parts.append(f"- {msg['prompt']}")
 
         parts.append("\nCheck your recent commits with `git log --oneline -5`.")
 

@@ -64,7 +64,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
             className="absolute top-full left-0 mt-1 z-50 w-[260px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-xl shadow-black/50 overflow-hidden"
           >
             <div className="px-3 py-2 border-b border-[#1a1a1a]">
-              <span className="text-[9px] uppercase tracking-[0.1em] text-[#666] font-semibold">
+              <span className="text-[10px] uppercase tracking-[0.1em] text-[#666] font-semibold">
                 Repositories
               </span>
             </div>
@@ -96,7 +96,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
                     <div className="text-[10px] font-medium text-[#ccc] truncate">
                       {r.repo}
                     </div>
-                    <div className="text-[9px] text-[#666]">
+                    <div className="text-[10px] text-[#666]">
                       {r.run_count} run{r.run_count !== 1 ? "s" : ""}
                     </div>
                   </div>

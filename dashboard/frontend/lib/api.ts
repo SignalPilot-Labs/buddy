@@ -74,9 +74,9 @@ export async function injectPrompt(
   return res.json();
 }
 
-export function createSSE(runId: string): EventSource {
+export function createSSE(runId: string, afterTool: number, afterAudit: number): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}`,
+    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
 }
 
@@ -212,11 +212,11 @@ export async function unlockAgent(runId: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function resumeAgent(runId: string): Promise<{ ok: boolean }> {
+export async function resumeAgent(runId: string, prompt?: string): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(prompt ? { payload: prompt } : {}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));

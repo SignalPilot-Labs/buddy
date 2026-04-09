@@ -1,9 +1,11 @@
 """Tests for PostToolUseFailure hook logging errors as post events."""
 
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from claude_agent_sdk.types import HookContext, PostToolUseFailureHookInput
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.pool import SandboxPool
 
@@ -37,9 +39,8 @@ class TestPostToolUseFailureHook:
         }
 
         with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock) as mock_log:
-            from claude_agent_sdk.types import SyncHookJSONOutput, HookContext
-            ctx = HookContext(cwd="/tmp", session_id="sess-1", transcript_path="")
-            result = await session._hook_post_tool_failure(hook_input, "tu-abc", ctx)
+            ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
+            result = await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             mock_log.assert_awaited_once()
             args = mock_log.call_args[0]
@@ -78,9 +79,8 @@ class TestPostToolUseFailureHook:
         }
 
         with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock) as mock_log:
-            from claude_agent_sdk.types import HookContext
-            ctx = HookContext(cwd="/tmp", session_id="sess-1", transcript_path="")
-            await session._hook_post_tool_failure(hook_input, "tu-abc", ctx)
+            ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
+            await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             args = mock_log.call_args[0]
             duration_ms = args[5]

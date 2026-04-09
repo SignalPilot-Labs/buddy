@@ -106,11 +106,18 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
 
 
 @router.get("/stream/{run_id}")
-async def stream_events(run_id: str = RunId) -> StreamingResponse:
+async def stream_events(
+    run_id: str = RunId,
+    after_tool: int = Query(default=-1),
+    after_audit: int = Query(default=-1),
+) -> StreamingResponse:
     """SSE endpoint — polls Postgres for new tool calls and audit events."""
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        last_tool_id, last_audit_id = await _init_cursors(run_id)
+        if after_tool >= 0 and after_audit >= 0:
+            last_tool_id, last_audit_id = after_tool, after_audit
+        else:
+            last_tool_id, last_audit_id = await _init_cursors(run_id)
         yield f"event: connected\ndata: {json.dumps({'run_id': run_id})}\n\n"
 
         while True:

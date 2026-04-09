@@ -107,6 +107,7 @@ class SessionRunner:
         should_stop = False
         pause_requested = False
         final_status: str | None = None
+        session_dead = False
 
         stream_iter: AsyncIterator[dict] = self._sandbox.stream_events(session_id).__aiter__()
         control_task = asyncio.create_task(events.wait_for_event())
@@ -163,7 +164,13 @@ class SessionRunner:
                     await db.log_audit(run_context.run_id, "idle_nudge", {
                         "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
                     })
-                    await self._sandbox.send_message(session_id, self._prompts.build_idle_nudge(SESSION_IDLE_TIMEOUT_SEC))
+                    try:
+                        await self._sandbox.send_message(session_id, self._prompts.build_idle_nudge(SESSION_IDLE_TIMEOUT_SEC))
+                    except Exception:
+                        log.warning("[%s] Idle nudge failed — session dead after stream break", run_context.run_id[:8])
+                        await db.log_audit(run_context.run_id, "session_dead_after_stream_break", {})
+                        session_dead = True
+                        break
                     idle_task = asyncio.create_task(asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC))
 
         finally:
@@ -174,7 +181,7 @@ class SessionRunner:
         return StreamResult(
             should_stop=should_stop,
             final_status=final_status,
-            session_ended=session.has_ended(),
+            session_ended=session.has_ended() or session_dead,
             result_message=result_msg,
             pause=pause_requested,
         )

@@ -13,7 +13,7 @@ export type GroupedEvent =
   | { type: "single_tool"; tool: ToolCall; ts: string }
   | { type: "control"; text: string; ts: string }
   | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
-  | { type: "user_prompt"; prompt: string; ts: string }
+  | { type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
   | { type: "divider"; label: string; ts: string };
 
 /* ── Grouping Logic ── */
@@ -73,7 +73,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "stop_requested":
       return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
     case "pause_requested":
-      return { type: "milestone", label: "Paused", detail: "", color: "#ffaa00", ts, event };
+      return { type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
     case "resumed":
       return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
     case "rate_limit_paused": {
@@ -93,9 +93,9 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     }
     case "prompt_injected":
     case "prompt_submitted":
-      return { type: "user_prompt", prompt: String(d.prompt || ""), ts };
+      return { type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
     case "session_resumed":
-      return { type: "milestone", label: "Session Resumed", detail: `branch ${String(d.branch || "").slice(0, 40)}`, color: "#00ff88", ts, event };
+      return { type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
     case "auto_commit":
       return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
     case "push_failed":

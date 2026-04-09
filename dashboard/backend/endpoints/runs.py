@@ -121,6 +121,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
     run.status = "running"
+    run.error_message = None
     await s.commit()
     return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
 
@@ -133,8 +134,12 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status == "paused":
+            prompt = (body.payload or "").strip() or None
+            if prompt:
+                return await send_control_signal(run_id, "inject", {"paused"}, prompt)
             return await send_control_signal(run_id, "resume", {"paused"}, None)
-        if run.status in ("completed", "stopped", "error"):
+        restartable = ("completed", "completed_no_changes", "stopped", "error", "crashed", "killed")
+        if run.status in restartable:
             return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)
         raise HTTPException(status_code=409, detail=f"Cannot resume run with status '{run.status}'")
 
