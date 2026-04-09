@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Run, FeedEvent, RunStatus } from "@/lib/types";
+import { TERMINAL_STATUSES } from "@/lib/constants";
 import { getButtonState } from "@/lib/commandState";
 import { SmartButton } from "@/components/controls/SmartButton";
 import { StatsRow } from "@/components/stats/StatsBar";
@@ -28,7 +29,7 @@ const PRESETS = [
 
 const PLACEHOLDER_BY_STATUS: Record<string, string> = {
   running: "Message the agent...",
-  paused: "Resume with a message...",
+  paused: "Send a message to resume...",
   rate_limited: "Message the agent...",
   completed: "Restart with instructions...",
   stopped: "Restart with instructions...",
@@ -96,22 +97,18 @@ export function CommandInput({
       onPause();
       return;
     }
-    if (buttonState.icon === "play") {
-      onResume();
-      return;
+    // "send" covers inject, resume, and restart depending on run status
+    if (!hasText) return;
+    const trimmed = text.trim();
+    if (status === "paused") {
+      onInject(trimmed);
+    } else if (status != null && TERMINAL_STATUSES.has(status)) {
+      onRestart(trimmed);
+    } else {
+      onInject(trimmed);
     }
-    if (buttonState.icon === "send") {
-      if (!hasText) return;
-      onInject(text.trim());
-      setText("");
-      return;
-    }
-    if (buttonState.icon === "restart") {
-      onRestart(text.trim());
-      setText("");
-      return;
-    }
-  }, [buttonState, busy, hasText, text, onPause, onResume, onInject, onRestart]);
+    setText("");
+  }, [buttonState, busy, hasText, text, status, onPause, onInject, onRestart]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

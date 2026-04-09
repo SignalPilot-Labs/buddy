@@ -2,7 +2,7 @@ import type { RunStatus } from "@/lib/types";
 import { TERMINAL_STATUSES } from "@/lib/constants";
 
 export type ButtonVariant = "ghost" | "primary" | "success" | "warning" | "danger";
-export type ButtonIcon = "pause" | "play" | "send" | "restart";
+export type ButtonIcon = "pause" | "send";
 
 export interface ButtonState {
   label: string;
@@ -27,10 +27,7 @@ export function getButtonState(
   }
 
   if (status === "paused") {
-    if (hasText) {
-      return { label: "Send", variant: "primary", disabled: false, icon: "send" };
-    }
-    return { label: "Resume", variant: "success", disabled: false, icon: "play" };
+    return { label: "Send", variant: "primary", disabled: !hasText, icon: "send" };
   }
 
   if (status === "rate_limited") {
@@ -41,10 +38,7 @@ export function getButtonState(
   }
 
   if (TERMINAL_STATUSES.has(status)) {
-    if (hasText) {
-      return { label: "Send & Restart", variant: "success", disabled: false, icon: "restart" };
-    }
-    return { label: "Restart", variant: "success", disabled: false, icon: "restart" };
+    return { label: "Send", variant: "success", disabled: !hasText, icon: "send" };
   }
 
   return { label: "Send", variant: "ghost", disabled: true, icon: "send" };

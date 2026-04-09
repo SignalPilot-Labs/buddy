@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import type { Run, FeedEvent, RunStatus, ToolCall, SettingsStatus, RepoInfo } from "@/lib/types";
@@ -22,13 +21,13 @@ import { StartRunModal } from "@/components/controls/StartRunModal";
 import { RateLimitBanner } from "@/components/controls/RateLimitBanner";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { StatusBadge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { RepoSelector } from "@/components/ui/RepoSelector";
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { MobileTab } from "@/components/mobile/MobileTab";
 import { MobileControlSheet } from "@/components/mobile/MobileControlSheet";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
+import { DashboardHeader } from "@/components/header/DashboardHeader";
+import { RightPanel } from "@/components/layout/RightPanel";
 
 
 export default function MonitorPage() {
@@ -52,6 +51,9 @@ export default function MonitorPage() {
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
   const [controlsOpen, setControlsOpen] = useState(false);
   const [rightPanel, setRightPanel] = useState<"changes" | "logs">("changes");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
+  });
   const [pendingPrompt, setPendingPrompt] = useState<{
     prompt: string; ts: string; clearOn: "prompt_injected"; knownCount: number;
     status: "delivering" | "failed";
@@ -91,6 +93,26 @@ export default function MonitorPage() {
       );
     }
   }, [selectedRunId, addEvent]);
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("autofyn_sidebar_collapsed", String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut: Cmd+B / Ctrl+B to toggle sidebar
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
+        e.preventDefault();
+        handleToggleSidebar();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [handleToggleSidebar]);
 
   const [busy, setBusy] = useState(false);
 
@@ -438,188 +460,25 @@ export default function MonitorPage() {
       </header>
 
       {/* ── Desktop Header ── */}
-      <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center justify-center h-7 w-7">
-            <svg width="28" height="28" viewBox="0 0 28 28" className="absolute">
-              <circle
-                cx="14" cy="14" r="12"
-                fill="none"
-                stroke={runStatus === "running" ? "rgba(0,255,136,0.2)" : "rgba(255,255,255,0.06)"}
-                strokeWidth="1"
-                strokeDasharray="4 3"
-                style={runStatus === "running" ? { animation: "spin 8s linear infinite" } : undefined}
-              />
-            </svg>
-            <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
-          </div>
-          <div>
-            <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">
-              AutoFyn
-            </h1>
-            <p className="text-[9px] text-[#777] tracking-[0.1em] uppercase -mt-0.5">
-              Monitor
-            </p>
-          </div>
-        </div>
+      <DashboardHeader
+        repos={repos}
+        activeRepo={activeRepoFilter}
+        onRepoSwitch={handleRepoSwitch}
+        selectedRun={selectedRun}
+        runStatus={runStatus}
+        agentHealth={agentHealth}
+        activeRunHealth={activeRunHealth}
+        isConfigured={isConfigured}
+        atCapacity={atCapacity}
+        busy={busy}
+        showKillConfirm={showKillConfirm}
+        onStop={() => controlAction("Stop", stopAgentInstant)}
+        onKill={handleHeaderKill}
+        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={handleToggleSidebar}
+      />
 
-        {/* Repo Selector */}
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-        <RepoSelector
-          repos={repos}
-          activeRepo={activeRepoFilter}
-          onSelect={handleRepoSwitch}
-        />
-
-        {selectedRun && (
-          <motion.div
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-2.5 ml-1"
-          >
-            <div className="w-px h-4 bg-[#1a1a1a]" />
-            <StatusBadge
-              status={selectedRun.status as RunStatus}
-              size="md"
-            />
-            <span className="text-[10px] text-[#888] font-medium">
-              {selectedRun.branch_name.replace("autofyn/", "")}
-            </span>
-          </motion.div>
-        )}
-
-        <div className="flex-1" />
-
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-
-        {/* Agent health indicator */}
-        <div className="flex items-center gap-1.5 mr-2">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              agentReachable
-                ? agentBootstrapping
-                  ? "bg-[#ffaa00] animate-pulse"
-                  : agentIdle
-                    ? "bg-[#00ff88]/60"
-                    : "bg-[#00ff88]"
-                : "bg-[#ff4444]/60"
-            }`}
-            style={!agentIdle && !agentBootstrapping && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
-          />
-          <span className="text-[10px] text-[#888]">
-            {!agentReachable
-              ? "Offline"
-              : agentBootstrapping
-                ? "Starting..."
-                : agentIdle
-                  ? "Idle"
-                  : agentHealth?.active_runs && agentHealth.active_runs > 1
-                    ? `${agentHealth.active_runs} runs active${atCapacity ? " (full)" : ""}`
-                    : activeRunHealth?.elapsed_minutes != null
-                      ? `Active · ${Math.round(activeRunHealth.elapsed_minutes)}m${atCapacity ? " (full)" : ""}`
-                      : `Active${atCapacity ? " (full)" : ""}`}
-          </span>
-        </div>
-
-        {/* Settings link */}
-        <Link
-          href="/settings"
-          className="p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
-          title="Settings"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </Link>
-
-        {/* Start Run button */}
-        <Button
-          variant="success"
-          size="md"
-          onClick={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
-          disabled={!agentReachable || !isConfigured || atCapacity}
-          title={!isConfigured ? "Configure credentials in Settings first" : atCapacity ? "Agent is at maximum capacity" : undefined}
-          icon={
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <polygon points="3 2 8 5 3 8" />
-            </svg>
-          }
-        >
-          {!isConfigured
-            ? "Setup Required"
-            : !agentReachable
-              ? "Offline"
-              : atCapacity
-                ? "At Capacity"
-                : "New Run"}
-        </Button>
-
-        <div className="w-px h-4 bg-[#1a1a1a]" />
-
-        {/* Stop / Kill icon-only buttons */}
-        <div className="flex items-center gap-1">
-          {activeRunHealth?.session_unlocked === false && activeRunHealth?.time_remaining && (
-            <span className="text-[10px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#ffaa00" strokeWidth="1" opacity="0.5">
-                <rect x="1.5" y="4" width="5" height="3" rx="0.5" />
-                <path d="M2.5 4V3a1.5 1.5 0 013 0v1" />
-              </svg>
-              {activeRunHealth.time_remaining}
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={!["running", "paused", "rate_limited"].includes(runStatus ?? "") || busy}
-            onClick={() => controlAction("Stop", stopAgentInstant)}
-            title="Stop run"
-            className="p-1"
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="2" y="2" width="6" height="6" rx="0.5" />
-            </svg>
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            disabled={!["running", "paused", "rate_limited"].includes(runStatus ?? "") || busy}
-            onClick={handleHeaderKill}
-            title={showKillConfirm ? "Click again to confirm kill" : "Kill run"}
-            className={`p-1 ${showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}`}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="5" cy="5" r="4" />
-              <line x1="3" y1="3" x2="7" y2="7" />
-              <line x1="7" y1="3" x2="3" y2="7" />
-            </svg>
-          </Button>
-        </div>
-      </header>
-
-      {/* Mobile Top Bar */}
-      <header className="mobile-top-bar items-center justify-between px-3 py-2 border-b border-[#1a1a1a] bg-[#0a0a0a]">
-        <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
-          <span className="text-[11px] font-bold text-[#e8e8e8]">AutoFyn</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              agentReachable
-                ? agentIdle ? "bg-[#00ff88]/60" : "bg-[#00ff88]"
-                : "bg-[#ff4444]/60"
-            }`}
-          />
-          <Link href="/settings" className="p-1.5 rounded hover:bg-white/[0.04] text-[#888]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </Link>
-        </div>
-      </header>
 
       {/* Start Run Modal */}
       <StartRunModal
@@ -668,12 +527,13 @@ export default function MonitorPage() {
       {!isMobile && (
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar - Run list */}
-          <div className="desktop-sidebar">
+          <div className={`desktop-sidebar overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
             <RunList
               runs={runs}
               activeId={selectedRunId}
               onSelect={(id) => { handleSelectRun(id); }}
               loading={runsLoading}
+              collapsed={sidebarCollapsed}
             />
           </div>
 
@@ -696,37 +556,12 @@ export default function MonitorPage() {
 
           {/* Right sidebar - Changes / Logs */}
           {selectedRunId && (
-            <div className="flex flex-col border-l border-[#1a1a1a] w-[280px] min-h-0">
-              <div className="flex border-b border-[#1a1a1a] bg-[#0a0a0a] shrink-0">
-                <button
-                  onClick={() => setRightPanel("changes")}
-                  className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-center border-b-2 transition-colors ${
-                    rightPanel === "changes"
-                      ? "border-[#00ff88] text-[#00ff88]"
-                      : "border-transparent text-[#666] hover:text-[#999]"
-                  }`}
-                >
-                  Changes
-                </button>
-                <button
-                  onClick={() => setRightPanel("logs")}
-                  className={`flex-1 py-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-center border-b-2 transition-colors ${
-                    rightPanel === "logs"
-                      ? "border-[#00ff88] text-[#00ff88]"
-                      : "border-transparent text-[#666] hover:text-[#999]"
-                  }`}
-                >
-                  Logs
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-hidden">
-                {rightPanel === "changes" ? (
-                  <WorkTree events={allEvents} runId={selectedRunId} mobile />
-                ) : (
-                  <ContainerLogs runId={selectedRunId} />
-                )}
-              </div>
-            </div>
+            <RightPanel
+              runId={selectedRunId}
+              events={allEvents}
+              activeTab={rightPanel}
+              onTabChange={setRightPanel}
+            />
           )}
         </div>
       )}

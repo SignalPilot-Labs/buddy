@@ -12,25 +12,11 @@ function ButtonIconSvg({ icon }: { icon: ButtonIcon }): React.ReactElement {
       </svg>
     );
   }
-  if (icon === "play") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 10 10" fill="currentColor">
-        <polygon points="3 2 8 5 3 8" />
-      </svg>
-    );
-  }
-  if (icon === "restart") {
-    return (
-      <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-        <path d="M1.5 5a3.5 3.5 0 1 0 .7-2.1" />
-        <path d="M1.5 1.5v2h2" />
-      </svg>
-    );
-  }
   // "send"
   return (
     <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-      <path d="M1 5h7M6 2l3 3-3 3" />
+      <path d="M1 9L5 5 1 1" />
+      <path d="M5 9L9 5 5 1" />
     </svg>
   );
 }
