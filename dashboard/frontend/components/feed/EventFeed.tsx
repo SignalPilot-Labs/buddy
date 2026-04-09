@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent } from "@/lib/types";
 import { groupEvents } from "@/lib/groupEvents";
@@ -9,6 +9,11 @@ import { GroupedEventCard } from "./GroupedEventCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
+
+const FAB_INITIAL = { opacity: 0, y: 8 };
+const FAB_ANIMATE = { opacity: 1, y: 0 };
+const FAB_EXIT = { opacity: 0, y: 8 };
+const FAB_TRANSITION = { duration: 0.15 };
 
 function PendingInjectBubble({ prompt, ts, status }: { prompt: string; ts: string; status: "delivering" | "failed" }) {
   const time = new Date(ts).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -35,10 +40,21 @@ function PendingInjectBubble({ prompt, ts, status }: { prompt: string; ts: strin
   );
 }
 
-export function EventFeed({ events, runActive = false, runPaused = false, pendingPrompt = null }: { events: FeedEvent[]; runActive?: boolean; runPaused?: boolean; pendingPrompt?: { prompt: string; ts: string; status: "delivering" | "failed" } | null }) {
+export function EventFeed({
+  events,
+  runActive = false,
+  runPaused = false,
+  pendingPrompt = null,
+}: {
+  events: FeedEvent[];
+  runActive?: boolean;
+  runPaused?: boolean;
+  pendingPrompt?: { prompt: string; ts: string; status: "delivering" | "failed" } | null;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
+  const [seenCount, setSeenCount] = useState(0);
 
   const grouped = useMemo(() => groupEvents(events), [events]);
 
@@ -52,6 +68,13 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
     }
     return null;
   }, [grouped]);
+
+  // Track how many events were seen when user scrolled away
+  useEffect(() => {
+    if (!userScrolled) {
+      setSeenCount(events.length);
+    }
+  }, [userScrolled, events.length]);
 
   useEffect(() => {
     if (autoScroll && containerRef.current) {
@@ -72,8 +95,11 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
       setAutoScroll(true);
       setUserScrolled(false);
+      setSeenCount(events.length);
     }
-  }, []);
+  }, [events.length]);
+
+  const newEventCount = Math.max(0, events.length - seenCount);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
@@ -87,6 +113,15 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
           <span className="text-[10px] text-[#888]">Groups</span>
           <span className="text-[11px] text-[#e8e8e8] font-semibold tabular-nums">{grouped.length}</span>
         </div>
+        {runActive && (
+          <div className="flex items-center gap-1.5 ml-auto">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-60" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00ff88]" />
+            </span>
+            <span className="text-[9px] text-[#00ff88]/70 font-medium">Live</span>
+          </div>
+        )}
       </div>
 
       {/* Event list */}
@@ -105,34 +140,49 @@ export function EventFeed({ events, runActive = false, runPaused = false, pendin
               key={`g-${i}`}
               fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
             >
-              <GroupedEventCard event={gev} isLast={i === grouped.length - 1 && !pendingPrompt} runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)} runPaused={runPaused} />
+              <GroupedEventCard
+                event={gev}
+                isLast={i === grouped.length - 1 && !pendingPrompt}
+                runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                runPaused={runPaused}
+              />
             </ErrorBoundary>
           ))
         )}
         {pendingPrompt && (
-          <PendingInjectBubble prompt={pendingPrompt.prompt} ts={pendingPrompt.ts} status={pendingPrompt.status} />
+          <PendingInjectBubble
+            prompt={pendingPrompt.prompt}
+            ts={pendingPrompt.ts}
+            status={pendingPrompt.status}
+          />
         )}
       </div>
 
-      {/* Scroll-to-bottom FAB */}
-      {userScrolled && (
-        <button
-          onClick={scrollToBottom}
-          className={clsx(
-            "absolute bottom-4 right-4 z-10",
-            "flex items-center gap-1.5 px-3 py-1.5 rounded",
-            "bg-[#00ff88]/10 text-[#00ff88] text-[9px] font-medium",
-            "border border-[#00ff88]/20 frosted-glass",
-            "hover:bg-[#00ff88]/20 transition-all"
-          )}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <line x1="5" y1="2" x2="5" y2="8" />
-            <polyline points="3 6 5 8 7 6" />
-          </svg>
-          New events
-        </button>
-      )}
+      {/* Scroll-to-bottom FAB — centered, animated */}
+      <AnimatePresence>
+        {userScrolled && (
+          <motion.button
+            initial={FAB_INITIAL}
+            animate={FAB_ANIMATE}
+            exit={FAB_EXIT}
+            transition={FAB_TRANSITION}
+            onClick={scrollToBottom}
+            className={clsx(
+              "absolute bottom-4 left-1/2 -translate-x-1/2 z-10",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded",
+              "bg-[#00ff88]/10 text-[#00ff88] text-[9px] font-medium",
+              "border border-[#00ff88]/20 frosted-glass",
+              "hover:bg-[#00ff88]/20 transition-colors"
+            )}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <line x1="5" y1="2" x2="5" y2="8" />
+              <polyline points="3 6 5 8 7 6" />
+            </svg>
+            {newEventCount > 0 ? `${newEventCount} new event${newEventCount === 1 ? "" : "s"}` : "New events"}
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
