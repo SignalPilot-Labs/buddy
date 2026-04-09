@@ -11,6 +11,7 @@ import time
 from utils import db
 from utils.constants import OPERATOR_MESSAGES_PATH, PHASE_DIRS, PROMPT_SUMMARY_LIMIT, RUN_STATE_BASE
 from utils.models import ExecRequest, GitSetupParams, RunContext
+from utils.shell import shell_quote
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.repo_ops import RepoOps
@@ -222,7 +223,6 @@ class Bootstrap:
                 args=["sh", "-c", (
                     f"test -d {state_dir}"
                     f" && cp -r {src_dirs} /tmp/ 2>/dev/null;"
-                    f" cp {state_dir}/operator-messages.md {OPERATOR_MESSAGES_PATH} 2>/dev/null;"
                     " true"
                 )],
                 cwd="/tmp",
@@ -239,7 +239,7 @@ class Bootstrap:
         """Recreate /tmp/operator-messages.md from DB on resume."""
         if not messages:
             return
-        lines = [_shell_quote(f"[{msg['ts']}] {msg['prompt']}") for msg in messages]
+        lines = [shell_quote(f"[{msg['ts']}] {msg['prompt']}") for msg in messages]
         # Write first line with >, append rest with >>
         cmds = [f"echo {lines[0]} > {OPERATOR_MESSAGES_PATH}"]
         cmds.extend(f"echo {line} >> {OPERATOR_MESSAGES_PATH}" for line in lines[1:])
@@ -425,8 +425,3 @@ class Bootstrap:
             parts.append("\nContinue where you left off.")
 
         return "\n".join(parts)
-
-
-def _shell_quote(s: str) -> str:
-    """Shell-escape a string for safe use in echo commands."""
-    return "'" + s.replace("'", "'\\''") + "'"

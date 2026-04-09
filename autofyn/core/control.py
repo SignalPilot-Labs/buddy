@@ -19,6 +19,7 @@ from utils.constants import (
     RATE_LIMIT_SLEEP_BUFFER_SEC,
 )
 from utils.models import ControlAction, ExecRequest, RunContext
+from utils.shell import shell_quote
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from core.event_bus import EventBus
@@ -177,7 +178,7 @@ class ControlHandler:
         line = f"[{ts}] {prompt}"
         try:
             await self._sandbox.exec(ExecRequest(
-                args=["sh", "-c", f"mkdir -p /tmp && echo {_shell_quote(line)} >> {OPERATOR_MESSAGES_PATH}"],
+                args=["sh", "-c", f"mkdir -p /tmp && echo {shell_quote(line)} >> {OPERATOR_MESSAGES_PATH}"],
                 cwd="/tmp",
                 timeout=5,
                 env={},
@@ -303,9 +304,4 @@ class ControlHandler:
         await db.update_run_status(run_id, "running")
         log.info("[%s] Rate limit reset, resuming", self._rid)
         return ControlAction.no_action()
-
-
-def _shell_quote(s: str) -> str:
-    """Shell-escape a string for safe use in echo commands."""
-    return "'" + s.replace("'", "'\\''") + "'"
 
