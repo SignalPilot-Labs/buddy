@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import getpass
 import os
+import re
 import subprocess
 import sys
 
 import typer
 
+from pathlib import Path
+
+from cli.client import get_client
 from cli.constants import AUTOFYN_HOME, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.git import detect_local_repo
 from cli.output import console
 
 
@@ -70,13 +76,13 @@ def start_services(allow_docker: bool) -> None:
 
 def _ensure_tokens() -> None:
     """Check for missing tokens and offer to auto-detect from CLI tools."""
-    from cli.client import get_client
-
     client = get_client()
     try:
         status = client.get("/api/settings/status")
     except SystemExit:
-        console.print("[yellow]Dashboard not reachable yet — set tokens manually via: autofyn settings set[/yellow]")
+        console.print(
+            "[yellow]Dashboard not reachable yet — set tokens manually via: autofyn settings set[/yellow]"
+        )
         return
 
     if status["configured"]:
@@ -101,7 +107,16 @@ def _ensure_tokens() -> None:
                 f"[green]✓[/green] Saved {', '.join(updates.keys())} to settings"
             )
         except SystemExit:
-            console.print("[yellow]Failed to save tokens — set them manually via settings[/yellow]")
+            console.print(
+                "[yellow]Failed to save tokens — set them manually via settings[/yellow]"
+            )
+
+    if not status["has_github_repo"]:
+        _detect_repo(client)
+
+    console.print(
+        "[green]✓[/green] Setup complete. Open [bold]http://localhost:3400[/bold] or run [bold]autofyn run new[/bold]"
+    )
 
 
 def _run_token_cmd(cmd: list[str]) -> str | None:
@@ -115,23 +130,44 @@ def _run_token_cmd(cmd: list[str]) -> str | None:
     return None
 
 
+def _ask_yes_no(prompt: str) -> bool:
+    """Ask a yes/no question. Returns True for yes (default)."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    answer = input(f"{prompt} [Y/n]: ").strip().lower()
+    return answer in ("", "y", "yes")
+
+
+def _ask_token(prompt: str) -> str | None:
+    """Ask user to paste a token. Enter to skip."""
+    sys.stdout.flush()
+    sys.stderr.flush()
+    token = getpass.getpass(f"{prompt} (enter to skip): ").strip()
+    return token if token else None
+
+
 def _detect_claude_token() -> str | None:
     """Get Claude OAuth token via `claude setup-token` (interactive OAuth flow)."""
     console.print("\n[bold]Claude OAuth Token[/bold]")
-    if typer.confirm("Run `claude setup-token` to authenticate via browser?", default=True):
+    if _ask_yes_no("Run `claude setup-token` to authenticate via browser?"):
         try:
             result = subprocess.run(
-                ["claude", "setup-token"], stdout=subprocess.PIPE, text=True,
+                ["claude", "setup-token"],
+                stdout=subprocess.PIPE,
+                text=True,
             )
-            if result.returncode == 0 and result.stdout.strip():
-                token = result.stdout.strip().splitlines()[-1]
-                console.print(f"[green]✓[/green] Token received ({token[:12]}****)")
-                return token
+            if result.returncode == 0 and result.stdout:
+                match = re.search(r"(sk-ant-\S+)", result.stdout)
+                if match:
+                    token = match.group(1)
+                    print(f"✓ Token received ({token[:12]}****)")
+                    return token
         except FileNotFoundError:
-            console.print("[yellow]claude CLI not installed. Install it: npm install -g @anthropic-ai/claude-code[/yellow]")
+            console.print(
+                "[yellow]claude CLI not installed. Install it: npm install -g @anthropic-ai/claude-code[/yellow]"
+            )
     console.print("[dim]Paste your token below, or press enter to skip.[/dim]")
-    entered = typer.prompt("Claude OAuth token (enter to skip)", default="", hide_input=True)
-    return entered if entered.strip() else None
+    return _ask_token("Claude OAuth token")
 
 
 def _detect_git_token() -> str | None:
@@ -141,11 +177,35 @@ def _detect_git_token() -> str | None:
     token = _run_token_cmd(["gh", "auth", "token"])
     if token:
         masked = token[:7] + "****"
-        if typer.confirm(f"Found token from gh CLI ({masked}). Use it?", default=True):
+        if _ask_yes_no(f"Found token from gh CLI ({masked}). Use it?"):
             return token
-    console.print("[dim]No token found. Run `gh auth login` to authenticate, or paste one below.[/dim]")
-    entered = typer.prompt("GitHub token (enter to skip)", default="", hide_input=True)
-    return entered if entered.strip() else None
+    console.print(
+        "[dim]No token found. Run `gh auth login` to authenticate, or paste one below.[/dim]"
+    )
+    return _ask_token("GitHub token")
+
+
+def _detect_repo(client) -> None:
+    """Auto-detect local git repo and save as active repo."""
+    console.print("\n[bold]GitHub Repository[/bold]")
+    slug = detect_local_repo(Path.cwd())
+    if slug:
+        if _ask_yes_no(f"Detected repo: {slug}. Use it?"):
+            client.put("/api/settings", json={"github_repo": slug})
+            client.put("/api/repos/active", json={"repo": slug})
+            console.print(f"[green]✓[/green] Active repo set to {slug}")
+            console.print(
+                "[dim]Add more repos with: autofyn repos set-active owner/repo[/dim]"
+            )
+            return
+    repo = input("GitHub repo (owner/repo, enter to skip): ").strip()
+    if repo:
+        client.put("/api/settings", json={"github_repo": repo})
+        client.put("/api/repos/active", json={"repo": repo})
+        console.print(f"[green]✓[/green] Active repo set to {repo}")
+        console.print(
+            "[dim]Add more repos with: autofyn repos set-active owner/repo[/dim]"
+        )
 
 
 def update_services() -> None:
