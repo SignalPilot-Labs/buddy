@@ -43,9 +43,9 @@ describe("getButtonState", () => {
     expect(state.disabled).toBe(false);
   });
 
-  it("returns disabled Waiting when rate limited with no text", () => {
+  it("returns disabled Rate limited when rate limited with no text", () => {
     const state = getButtonState("rate_limited", false);
-    expect(state.label).toBe("Waiting...");
+    expect(state.label).toBe("Rate limited");
     expect(state.disabled).toBe(true);
   });
 

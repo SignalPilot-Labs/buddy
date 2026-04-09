@@ -86,7 +86,7 @@ export function FileContentPreview({
           <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
-        <span className="text-[9px] text-[#666] flex-1 truncate">
+        <span className="text-[9px] text-[#666] flex-1 truncate" title={filePath}>
           {shortPath(filePath)}
         </span>
         <span className="text-[9px] text-[#777] tabular-nums">
@@ -191,13 +191,17 @@ export function GrepResults({ tool }: { tool: ToolCall }) {
       (output as Record<string, unknown>).output ||
       JSON.stringify(output)
   );
-  const lines = content.split("\n").filter(Boolean).slice(0, 30);
+  const allLines = content.split("\n").filter(Boolean);
+  const lines = allLines.slice(0, 30);
+  const truncated = allLines.length > 30;
 
   return (
     <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
         <span className="text-[9px] text-[#88ffcc]">/{pattern}/</span>
-        <span className="text-[9px] text-[#777]">{lines.length} matches</span>
+        <span className="text-[9px] text-[#777]">
+          {truncated ? `${lines.length} of ${allLines.length}` : lines.length} matches
+        </span>
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[200px] overflow-y-auto px-3 py-1.5">
         {lines.map((line, i) => (
@@ -205,6 +209,11 @@ export function GrepResults({ tool }: { tool: ToolCall }) {
             {line}
           </div>
         ))}
+        {truncated && (
+          <div className="text-[9px] text-[#777] text-center py-1">
+            … {allLines.length - 30} more matches
+          </div>
+        )}
       </div>
     </div>
   );
@@ -241,8 +250,8 @@ export function GlobResults({ tool }: { tool: ToolCall }) {
           <span className="text-[#888]">{p}</span>
         </div>
       ))}
-      {paths.length > 20 && (
-        <div className="text-[9px] text-[#777]">+{paths.length - 20} more</div>
+      {paths.length > 20 && paths.length - 20 > 0 && (
+        <div className="text-[9px] text-[#777]">… {paths.length - 20} more files</div>
       )}
     </div>
   );
