@@ -70,7 +70,7 @@ export function EventFeed({
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
     setAutoScroll((prev) => (prev === isAtBottom ? prev : isAtBottom));
     setUserScrolled((prev) => (prev === !isAtBottom ? prev : !isAtBottom));
   }, []);

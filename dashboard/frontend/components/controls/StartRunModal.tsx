@@ -232,11 +232,12 @@ export function StartRunModal({
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
   }, [open]);
 
-  // Lock body scroll when open
+  // Lock body scroll when open — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
 

@@ -49,6 +49,8 @@ export function RunItem({
             statusMeta.dot,
             statusMeta.pulse && "animate-pulse"
           )}
+          role="status"
+          aria-label={`Run status: ${statusMeta.label}`}
         />
       </motion.button>
     );
