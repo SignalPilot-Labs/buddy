@@ -96,8 +96,13 @@ class ControlHandler:
         return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
     async def _handle_pause(self) -> ControlAction:
-        """Interrupt session and signal the runner to enter pause mode."""
+        """Interrupt session. If pending injects exist, deliver them instead of pausing."""
         await self._sandbox.interrupt_session(self._session_id)
+
+        if self._pending_injects:
+            await self._deliver_pending_injects()
+            return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
+
         await db.log_audit(self._run_id, "pause_requested", {})
         return ControlAction(stop=False, break_stream=True, final_status=None, pause=True)
 
@@ -158,6 +163,19 @@ class ControlHandler:
         await self._sandbox.send_message(self._session_id, recovery)
         return ControlAction(stop=False, break_stream=True, final_status=None, pause=False)
 
+    # ── Inject Delivery ──
+
+    async def _deliver_pending_injects(self) -> None:
+        """Flush all pending injects into the session immediately."""
+        for prompt in self._pending_injects:
+            await db.log_audit(self._run_id, "prompt_injected", {
+                "prompt": prompt, "delivery": "immediate",
+            })
+            await self._sandbox.send_message(
+                self._session_id, f"Operator message: {prompt}",
+            )
+        self._pending_injects.clear()
+
     # ── Subagent Boundary ──
 
     async def on_subagent_complete(self, run_context: RunContext) -> None:
@@ -173,7 +191,7 @@ class ControlHandler:
 
         for prompt in self._pending_injects:
             await db.log_audit(run_context.run_id, "prompt_injected", {
-                "prompt": prompt, "delivery": "immediate",
+                "prompt": prompt, "delivery": "subagent_boundary",
             })
             parts.append(f"Operator message: {prompt}")
         self._pending_injects.clear()
