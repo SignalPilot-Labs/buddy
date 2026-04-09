@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
@@ -87,6 +87,7 @@ export default function SettingsPage() {
   const [edits, setEdits] = useState<Partial<Record<StringSettingsKey, string>>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
@@ -126,7 +127,8 @@ export default function SettingsPage() {
       setSettings(cfg);
       setEdits({});
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
