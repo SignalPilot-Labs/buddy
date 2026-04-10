@@ -116,18 +116,27 @@ class Bootstrap:
         exec_timeout: int,
         clone_timeout: int,
         prompt: str | None,
-        model: str,
+        model_override: str | None,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
-        """Bootstrap a resumed run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
+        """Bootstrap a resumed run.
+
+        Model resolution order (fail-fast — no env-var fallback):
+            1. `model_override` from the operator (lets the user retry with a different model).
+            2. `run_info["model_name"]` persisted on the original run.
+            3. Raise — refusing to silently pick a default would mask a real bug.
+        """
         run_info = await db.get_run_for_resume(run_id)
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
         if not run_info.get("github_repo"):
             raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
-        # Preserve the original run's model. Fall back to the caller's default
-        # only for legacy rows without model_name persisted.
-        model = run_info.get("model_name") or model
+        model = model_override or run_info.get("model_name")
+        if not model:
+            raise RuntimeError(
+                f"Run {run_id} has no model_name persisted and no override was supplied — "
+                "cannot resume safely",
+            )
         fallback_model = get_fallback_model(model)
 
         await self._repo_ops.setup_auth(

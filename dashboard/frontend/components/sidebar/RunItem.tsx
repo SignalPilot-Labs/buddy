@@ -6,7 +6,8 @@ import type { Run, RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { timeAgo, formatCost, formatTokens } from "@/lib/format";
-import { PROMPT_LABEL_MAX_LEN, MODEL_BADGE_LABEL, MODEL_BADGE_COLOR, resolveModelId } from "@/lib/constants";
+import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 
 export function RunItem({
   run,
@@ -24,10 +25,6 @@ export function RunItem({
     : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   const statusMeta = STATUS_META[run.status as RunStatus] || STATUS_META.error;
-
-  const modelId = resolveModelId(run.model_name);
-  const modelBadgeLabel = modelId ? MODEL_BADGE_LABEL[modelId] : null;
-  const modelBadgeColor = modelId ? MODEL_BADGE_COLOR[modelId] : null;
 
   const durationLabel =
     run.duration_minutes > 0 ? `${run.duration_minutes}m` : null;
@@ -98,17 +95,7 @@ export function RunItem({
       {/* Line 2: StatusBadge + model badge + tool count + cost */}
       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
         <StatusBadge status={run.status as RunStatus} />
-        {modelBadgeLabel && modelBadgeColor && (
-          <span
-            className={clsx(
-              "inline-flex items-center px-1 py-0 rounded text-[9px] font-medium leading-tight",
-              modelBadgeColor,
-            )}
-            aria-label={`Model: ${modelBadgeLabel}`}
-          >
-            {modelBadgeLabel}
-          </span>
-        )}
+        <ModelBadge modelName={run.model_name} />
         {run.total_tool_calls > 0 && (
           <span className="flex items-center gap-0.5 text-[10px] text-[#888]">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1">

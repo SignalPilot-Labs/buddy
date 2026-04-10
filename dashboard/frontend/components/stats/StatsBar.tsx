@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
-import { MODEL_BADGE_LABEL, MODEL_BADGE_COLOR, resolveModelId } from "@/lib/constants";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
@@ -28,6 +28,41 @@ function formatTokenCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
+}
+
+export const NO_DATA = "—";
+
+/**
+ * Distinct cost states — never collapse them into a single fallback chain.
+ *  - settled: DB has a real number → show `$X.XX` (no tilde)
+ *  - estimated: only in-flight live cost is available → show `~$X.XX`
+ *  - none: no data at all → show `—` so a broken pipeline is visible
+ */
+export function formatCostStat(
+  settled: number | null | undefined,
+  liveCost: number,
+): { value: string; accent: string } {
+  if (settled !== null && settled !== undefined) {
+    return { value: `$${settled.toFixed(2)}`, accent: "text-[#00ff88]" };
+  }
+  if (liveCost > 0) {
+    return { value: `~$${liveCost.toFixed(2)}`, accent: "text-[#00ff88]/70" };
+  }
+  return { value: NO_DATA, accent: "text-[#666]" };
+}
+
+export function formatToolStat(settled: number | null | undefined, liveCount: number): string {
+  if (settled !== null && settled !== undefined) return String(settled);
+  if (liveCount > 0) return String(liveCount);
+  return NO_DATA;
+}
+
+export function formatContextStat(liveTokens: number, settledTokens: number | null | undefined): string {
+  if (liveTokens > 0) return formatTokenCount(liveTokens);
+  if (settledTokens !== null && settledTokens !== undefined && settledTokens > 0) {
+    return formatTokenCount(settledTokens);
+  }
+  return NO_DATA;
 }
 
 function Stat({
@@ -64,9 +99,9 @@ export function StatsRow({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
-  const modelId = run ? resolveModelId(run.model_name) : null;
-  const modelBadgeLabel = modelId ? MODEL_BADGE_LABEL[modelId] : null;
-  const modelBadgeColor = modelId ? MODEL_BADGE_COLOR[modelId] : null;
+  const cost = formatCostStat(run?.total_cost_usd, live.costUsd);
+  const toolValue = run ? formatToolStat(run.total_tool_calls, live.toolCount) : NO_DATA;
+  const contextValue = run ? formatContextStat(live.contextTokens, run.context_tokens) : NO_DATA;
 
   if (!run) {
     return (
@@ -100,7 +135,7 @@ export function StatsRow({
           </svg>
         }
         label="Tools"
-        value={String(run.total_tool_calls || live.toolCount || 0)}
+        value={toolValue}
       />
       <Stat
         icon={
@@ -110,8 +145,8 @@ export function StatsRow({
           </svg>
         }
         label="Cost"
-        value={`~$${(run.total_cost_usd ?? live.costUsd ?? 0).toFixed(2)}`}
-        accent="text-[#00ff88]"
+        value={cost.value}
+        accent={cost.accent}
       />
       <Stat
         icon={
@@ -121,27 +156,10 @@ export function StatsRow({
           </svg>
         }
         label="Context"
-        value={
-          live.contextTokens > 0
-            ? formatTokenCount(live.contextTokens)
-            : (run.context_tokens ?? 0) > 0
-              ? formatTokenCount(run.context_tokens)
-              : "—"
-        }
+        value={contextValue}
         accent="text-[#88ccff]"
       />
-      {modelBadgeLabel && modelBadgeColor && (
-        <span
-          className={`inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium leading-tight ${modelBadgeColor}`}
-          aria-label={`Model: ${modelBadgeLabel}`}
-        >
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2">
-            <circle cx="4" cy="4" r="3" />
-            <path d="M2.5 4h3M4 2.5v3" />
-          </svg>
-          {modelBadgeLabel}
-        </span>
-      )}
+      <ModelBadge modelName={run.model_name} showIcon />
       {run.pr_url && (
         <a
           href={run.pr_url}

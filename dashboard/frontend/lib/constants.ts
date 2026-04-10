@@ -38,25 +38,54 @@ export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
 // Sidebar
 export const PROMPT_LABEL_MAX_LEN = 40;
 
-// Model selector
+// Branches pinned to the top of the branch picker, in display order.
+export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
+
+// Model selector — one record per model, all presentation data in one place.
 export type ModelId = "opus" | "sonnet" | "haiku";
 
-// localStorage keys
 export const LOCALSTORAGE_MODEL_KEY = "autofyn_model";
 export const DEFAULT_MODEL: ModelId = "opus";
 
-export interface ModelOption {
-  id: ModelId;
+export interface ModelSpec {
+  /** Full product label shown in the picker. */
   label: string;
+  /** Short badge label for run cards and stats bar. */
+  badge: string;
+  /** One-line description for the picker. */
   description: string;
+  /** Context window size blurb. */
   context: string;
+  /** Tailwind class tokens for the badge (text + bg). */
+  color: string;
 }
 
-export const MODEL_OPTIONS: ModelOption[] = [
-  { id: "opus",   label: "Claude Opus 4.6",   description: "Most capable, best for agents", context: "1M context" },
-  { id: "sonnet", label: "Claude Sonnet 4.6", description: "Fast and capable",               context: "1M context" },
-  { id: "haiku",  label: "Claude Haiku 4.5",  description: "Fastest, lowest cost",           context: "200K context" },
-];
+export const MODELS: Record<ModelId, ModelSpec> = {
+  opus: {
+    label: "Claude Opus 4.6",
+    badge: "Opus",
+    description: "Most capable, best for agents",
+    context: "1M context",
+    color: "text-[#cc88ff] bg-[#cc88ff]/10",
+  },
+  sonnet: {
+    label: "Claude Sonnet 4.6",
+    badge: "Sonnet",
+    description: "Fast and capable",
+    context: "1M context",
+    color: "text-[#88ccff] bg-[#88ccff]/10",
+  },
+  haiku: {
+    label: "Claude Haiku 4.5",
+    badge: "Haiku",
+    description: "Fastest, lowest cost",
+    context: "200K context",
+    color: "text-[#00ff88] bg-[#00ff88]/10",
+  },
+};
+
+/** Ordered list for rendering the picker; derived from MODELS to avoid drift. */
+export const MODEL_IDS: ReadonlyArray<ModelId> = ["opus", "sonnet", "haiku"];
 
 /** Normalise a raw model_name (e.g. "claude-opus-4-6-20250514") to a ModelId. */
 export function resolveModelId(modelName: string | null | undefined): ModelId | null {
@@ -68,19 +97,23 @@ export function resolveModelId(modelName: string | null | undefined): ModelId | 
   return null;
 }
 
-/** Maps raw model_name strings (or ModelId keys) to a short badge label. */
-export const MODEL_BADGE_LABEL: Record<string, string> = {
-  opus:   "Opus",
-  sonnet: "Sonnet",
-  haiku:  "Haiku",
-};
+/** Parse a localStorage string into a valid ModelId, or null if missing/invalid. */
+export function parseStoredModel(raw: string | null): ModelId | null {
+  if (raw === "opus" || raw === "sonnet" || raw === "haiku") return raw;
+  return null;
+}
 
-/** Color tokens for model badges. */
-export const MODEL_BADGE_COLOR: Record<string, string> = {
-  opus:   "text-[#cc88ff] bg-[#cc88ff]/10",
-  sonnet: "text-[#88ccff] bg-[#88ccff]/10",
-  haiku:  "text-[#00ff88] bg-[#00ff88]/10",
-};
+/** Read the user's preferred model from localStorage, falling back to DEFAULT_MODEL. */
+export function loadStoredModel(): ModelId {
+  if (typeof window === "undefined") return DEFAULT_MODEL;
+  return parseStoredModel(localStorage.getItem(LOCALSTORAGE_MODEL_KEY)) ?? DEFAULT_MODEL;
+}
+
+/** Persist the user's preferred model to localStorage. */
+export function saveStoredModel(id: ModelId): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LOCALSTORAGE_MODEL_KEY, id);
+}
 
 // Run status sets for control bar enabling logic.
 // Must match backend's accepted statuses in resume_run and inject_prompt endpoints.

@@ -53,6 +53,14 @@ These rules are mandatory. All AI agents (planner, builder, reviewer, etc.) must
 - No `hasattr()`, `isinstance()` checks for duck typing, `getattr()` with defaults, or `try/except` for control flow.
 - Trust your types. If the type system says it's there, it's there. If it might not be, fix the type.
 
+## Fail Fast
+
+- Never mask a failure with a fallback. If a required value is missing, raise/reject — do not substitute a default and keep going.
+- No layered `value ?? fallback1 ?? fallback2 ?? default` chains that hide which layer is broken. One source of truth, one failure surface.
+- Dead fallback parameters lie about the contract. If a parameter is only used when the real source is null, drop it.
+- Silent error swallowing (empty `catch`, `try/except: pass`, fallback to stale state) is worse than a crash. Surface the error and let the caller decide.
+- Distinct failure modes must render/report distinctly. `$0.00` shown for "no data yet", "really zero", and "pipeline broken" hides bugs; render `—` for missing and `$0.00` only when confirmed.
+
 ## Architecture
 
 - OOP with clear separation of concerns. One class, one responsibility. One function, one task.

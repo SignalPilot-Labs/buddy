@@ -8,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
 from backend.constants import (
+    ACTIVE_STATUSES,
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
     DEFAULT_STOP_REASON,
+    INJECTABLE_TERMINAL_STATUSES,
     LOG_TAIL_DEFAULT,
     LOG_TAIL_MAX,
     QUERY_DEFAULT_LIMIT,
     QUERY_MAX_LIMIT,
+    RESTARTABLE_STATUSES,
     RUNS_PAGE_SIZE,
 )
 from backend.models import (
@@ -138,8 +141,7 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
             if prompt:
                 return await send_control_signal(run_id, "inject", {"paused"}, prompt)
             return await send_control_signal(run_id, "resume", {"paused"}, None)
-        restartable = ("completed", "completed_no_changes", "stopped", "error", "crashed", "killed")
-        if run.status in restartable:
+        if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)
         raise HTTPException(status_code=409, detail=f"Cannot resume run with status '{run.status}'")
 
@@ -155,9 +157,9 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status in ("running", "paused", "rate_limited"):
-            return await send_control_signal(run_id, "inject", {"running", "paused", "rate_limited"}, prompt)
-        if run.status in ("completed", "stopped", "error"):
+        if run.status in ACTIVE_STATUSES:
+            return await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt)
+        if run.status in INJECTABLE_TERMINAL_STATUSES:
             return await _resume_completed_run(run, run_id, prompt, s)
         raise HTTPException(status_code=409, detail=f"Cannot inject into run with status '{run.status}'")
 
@@ -166,19 +168,19 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
 async def stop_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -> dict:
     """Stop a running agent."""
     reason = (body.payload or "").strip() or DEFAULT_STOP_REASON
-    return await send_control_signal(run_id, "stop", {"running", "paused", "rate_limited"}, reason)
+    return await send_control_signal(run_id, "stop", set(ACTIVE_STATUSES), reason)
 
 
 @router.post("/runs/{run_id}/unlock")
 async def unlock_run(run_id: str = RunId) -> dict:
     """Unlock a session time gate."""
-    return await send_control_signal(run_id, "unlock", {"running", "paused", "rate_limited"}, None)
+    return await send_control_signal(run_id, "unlock", set(ACTIVE_STATUSES), None)
 
 
 @router.post("/runs/{run_id}/kill")
 async def kill_run(run_id: str = RunId) -> dict:
     """Kill a run immediately (cancels the task)."""
-    return await send_control_signal(run_id, "kill", {"running", "paused", "rate_limited"}, None)
+    return await send_control_signal(run_id, "kill", set(ACTIVE_STATUSES), None)
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +266,7 @@ async def get_run_diff(run_id: str = RunId) -> dict:
         diff_stats = run.diff_stats
         branch_name = run.branch_name
         base_branch = run.base_branch or DEFAULT_BASE_BRANCH
-        is_active = run.status in ("running", "paused", "rate_limited")
+        is_active = run.status in ACTIVE_STATUSES
 
     if diff_stats:
         return _build_stored_diff(diff_stats)

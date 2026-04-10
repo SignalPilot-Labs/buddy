@@ -26,7 +26,7 @@ from utils.constants import (
     SERVER_PORT,
 )
 from utils.prompts import PromptLoader
-from utils.models import ActiveRun, DEFAULT_MODEL, ResumeRequest, StartRequest
+from utils.models import ActiveRun, ResumeRequest, StartRequest
 from utils.run_helpers import (
     CapacityError,
     RunLookupError,
@@ -166,7 +166,6 @@ class AgentServer:
         """Spin up sandbox → bootstrap resume → execute → teardown → destroy sandbox."""
         run_id = body.run_id
         budget = body.max_budget_usd or float(os.environ.get("MAX_BUDGET_USD", "0"))
-        resume_model = os.environ.get("AGENT_MODEL", DEFAULT_MODEL)
 
         run_env = body.env or {}
         sandbox = await self._pool.create(run_id, self._health_timeout, body.env)
@@ -178,7 +177,7 @@ class AgentServer:
 
             ctx, options, session, events, tracker, initial = await bootstrap.setup_resume(
                 run_id, budget, self._exec_timeout, self._clone_timeout, body.prompt,
-                resume_model,
+                body.model,
             )
 
             active.status = "running"

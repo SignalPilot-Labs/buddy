@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { clsx } from "clsx";
-import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
+import { PINNED_BRANCHES, loadStoredModel } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
@@ -30,9 +30,8 @@ function BranchPicker({
     : branches;
 
   const sorted = [...filtered].sort((a, b) => {
-    const pinned = ["main", "staging"];
-    const aPin = pinned.indexOf(a);
-    const bPin = pinned.indexOf(b);
+    const aPin = PINNED_BRANCHES.indexOf(a);
+    const bPin = PINNED_BRANCHES.indexOf(b);
     if (aPin !== -1 && bPin !== -1) return aPin - bPin;
     if (aPin !== -1) return -1;
     if (bPin !== -1) return 1;
@@ -205,13 +204,7 @@ export function StartRunModal({
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
-  const [model, setModel] = useState<ModelId>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(LOCALSTORAGE_MODEL_KEY);
-      if (stored === "opus" || stored === "sonnet" || stored === "haiku") return stored;
-    }
-    return DEFAULT_MODEL;
-  });
+  const [model, setModel] = useState<ModelId>(loadStoredModel);
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

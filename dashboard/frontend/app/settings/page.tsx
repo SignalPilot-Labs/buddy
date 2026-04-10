@@ -7,7 +7,7 @@ import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
-import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
+import { loadStoredModel, saveStoredModel } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
@@ -41,18 +41,13 @@ const FIELDS: CredentialFieldConfig[] = [
 ];
 
 function DefaultModelSetting(): React.ReactElement {
-  const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(LOCALSTORAGE_MODEL_KEY);
-      if (stored === "opus" || stored === "sonnet" || stored === "haiku") return stored;
-    }
-    return DEFAULT_MODEL;
-  });
+  const [selectedModel, setSelectedModel] = useState<ModelId>(loadStoredModel);
   const [modelSaveError, setModelSaveError] = useState<string | null>(null);
 
   const handleSelect = async (id: ModelId): Promise<void> => {
     setSelectedModel(id);
     setModelSaveError(null);
+    saveStoredModel(id);
     try {
       await updateSettings({ default_model: id });
     } catch (e) {
@@ -96,16 +91,31 @@ export default function SettingsPage() {
   const [addingToken, setAddingToken] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     Promise.all([fetchSettingsStatus(), fetchSettings(), fetchRepos(), fetchPoolTokens()]).then(
       ([s, cfg, r, t]) => {
+        if (cancelled) return;
         setStatus(s);
         setSettings(cfg);
         setRepos(r);
         setTokens(t);
+        setLoading(false);
       }
-    ).catch((e) => { console.error("Settings load failed:", e); setError("Failed to load settings"); });
-  }, []);
+    ).catch((e) => {
+      if (cancelled) return;
+      console.error("Settings load failed:", e);
+      setLoadError(e instanceof Error ? e.message : "Failed to load settings");
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [loadAttempt]);
 
   const handleSave = async () => {
     const updates: Partial<Record<StringSettingsKey, string>> = {};
@@ -246,62 +256,84 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <SecurityBanner />
-
-          <TokenPoolSection
-            tokens={tokens}
-            newToken={newToken}
-            addingToken={addingToken}
-            tokenError={tokenError}
-            onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
-            onAddToken={handleAddToken}
-            onRemoveToken={handleRemoveToken}
-          />
-
-          <DefaultModelSetting />
-
-          <RepoListSection
-            repos={repos}
-            activeRepo={activeRepo}
-            newRepo={newRepo}
-            addingRepo={addingRepo}
-            repoError={repoError}
-            onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
-            onAddRepo={handleAddRepo}
-            onRemoveRepo={handleRemoveRepo}
-            onSetActive={handleSetActive}
-          />
-
-          {FIELDS.map((field) => (
-            <CredentialField
-              key={field.key}
-              field={field}
-              currentValue={settings[field.key] || ""}
-              editValue={edits[field.key]}
-              isSet={field.statusKey ? !!(status?.[field.statusKey]) : false}
-              show={showSecrets[field.key] || false}
-              onStartEdit={() => setEdits({ ...edits, [field.key]: "" })}
-              onCancelEdit={() => { const next = { ...edits }; delete next[field.key]; setEdits(next); }}
-              onEditChange={(v) => setEdits({ ...edits, [field.key]: v })}
-              onToggleShow={() => setShowSecrets({ ...showSecrets, [field.key]: !showSecrets[field.key] })}
-            />
-          ))}
-
-          <div className="flex items-center justify-between pt-2">
-            <div>
-              {error && <p className="text-[10px] text-[#ff4444]">{error}</p>}
-              {saved && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#00ff88]">
-                  Settings saved and encrypted
-                </motion.p>
-              )}
+        {loading && (
+          <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
+            <div className="flex items-center gap-2 text-[11px] text-[#888]">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
+                <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
+              </svg>
+              Loading settings…
             </div>
-            <Button variant="success" size="md" onClick={handleSave} disabled={saving || !hasEdits}>
-              {saving ? "Saving..." : "Save Changes"}
+          </div>
+        )}
+
+        {!loading && loadError && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3" role="alert">
+            <p className="text-[11px] text-[#ff4444]">{loadError}</p>
+            <Button variant="success" size="md" onClick={() => setLoadAttempt((n) => n + 1)}>
+              Retry
             </Button>
           </div>
-        </motion.div>
+        )}
+
+        {!loading && !loadError && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <SecurityBanner />
+
+            <TokenPoolSection
+              tokens={tokens}
+              newToken={newToken}
+              addingToken={addingToken}
+              tokenError={tokenError}
+              onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
+              onAddToken={handleAddToken}
+              onRemoveToken={handleRemoveToken}
+            />
+
+            <DefaultModelSetting />
+
+            <RepoListSection
+              repos={repos}
+              activeRepo={activeRepo}
+              newRepo={newRepo}
+              addingRepo={addingRepo}
+              repoError={repoError}
+              onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
+              onAddRepo={handleAddRepo}
+              onRemoveRepo={handleRemoveRepo}
+              onSetActive={handleSetActive}
+            />
+
+            {FIELDS.map((field) => (
+              <CredentialField
+                key={field.key}
+                field={field}
+                currentValue={settings[field.key] || ""}
+                editValue={edits[field.key]}
+                isSet={field.statusKey ? !!(status?.[field.statusKey]) : false}
+                show={showSecrets[field.key] || false}
+                onStartEdit={() => setEdits({ ...edits, [field.key]: "" })}
+                onCancelEdit={() => { const next = { ...edits }; delete next[field.key]; setEdits(next); }}
+                onEditChange={(v) => setEdits({ ...edits, [field.key]: v })}
+                onToggleShow={() => setShowSecrets({ ...showSecrets, [field.key]: !showSecrets[field.key] })}
+              />
+            ))}
+
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                {error && <p className="text-[10px] text-[#ff4444]">{error}</p>}
+                {saved && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#00ff88]">
+                    Settings saved and encrypted
+                  </motion.p>
+                )}
+              </div>
+              <Button variant="success" size="md" onClick={handleSave} disabled={saving || !hasEdits}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

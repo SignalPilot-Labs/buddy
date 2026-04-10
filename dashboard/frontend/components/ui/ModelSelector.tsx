@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { clsx } from "clsx";
-import { MODEL_OPTIONS, LOCALSTORAGE_MODEL_KEY } from "@/lib/constants";
+import { MODELS, MODEL_IDS, saveStoredModel } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 
 export interface ModelSelectorProps {
@@ -15,39 +15,36 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
 
   const selectById = (id: ModelId): void => {
     onChange(id);
-    try {
-      localStorage.setItem(LOCALSTORAGE_MODEL_KEY, id);
-    } catch {
-      // localStorage may be unavailable in some environments
-    }
+    saveStoredModel(id);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number): void => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft" && e.key !== "Home" && e.key !== "End") return;
     e.preventDefault();
-    const last = MODEL_OPTIONS.length - 1;
+    const last = MODEL_IDS.length - 1;
     let next = idx;
     if (e.key === "ArrowRight") next = idx === last ? 0 : idx + 1;
     else if (e.key === "ArrowLeft") next = idx === 0 ? last : idx - 1;
     else if (e.key === "Home") next = 0;
     else if (e.key === "End") next = last;
-    selectById(MODEL_OPTIONS[next].id);
+    selectById(MODEL_IDS[next]);
     buttonsRef.current[next]?.focus();
   };
 
   return (
     <div role="radiogroup" aria-label="Model" className="grid grid-cols-3 gap-2">
-      {MODEL_OPTIONS.map((opt, idx) => {
-        const selected = value === opt.id;
+      {MODEL_IDS.map((id, idx) => {
+        const spec = MODELS[id];
+        const selected = value === id;
         return (
           <button
-            key={opt.id}
+            key={id}
             ref={(el) => { buttonsRef.current[idx] = el; }}
             type="button"
             role="radio"
             aria-checked={selected}
             tabIndex={selected ? 0 : -1}
-            onClick={() => selectById(opt.id)}
+            onClick={() => selectById(id)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
             className={clsx(
               "text-left p-3 rounded border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/60",
@@ -62,10 +59,10 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
                 selected ? "text-[#e8e8e8]" : "text-[#ccc]"
               )}
             >
-              {opt.label}
+              {spec.label}
             </div>
             <div className="text-[9px] text-[#999] mt-0.5 leading-tight">
-              {opt.description}
+              {spec.description}
             </div>
             <div
               className={clsx(
@@ -73,7 +70,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
                 selected ? "text-[#00ff88]/70" : "text-[#555]"
               )}
             >
-              {opt.context}
+              {spec.context}
             </div>
           </button>
         );

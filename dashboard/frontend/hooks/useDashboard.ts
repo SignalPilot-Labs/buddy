@@ -12,7 +12,7 @@ import {
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, loadStoredModel } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -366,7 +366,7 @@ export function useDashboard(): DashboardState {
       baseBranch: string,
       model?: string,
     ) => {
-      const resolvedModel = model ?? (typeof window !== "undefined" ? (localStorage.getItem(LOCALSTORAGE_MODEL_KEY) ?? DEFAULT_MODEL) : DEFAULT_MODEL);
+      const resolvedModel = model ?? loadStoredModel();
       setStartModalOpen(false);
       setBusy(true);
       try {
