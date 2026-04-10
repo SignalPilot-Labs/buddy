@@ -171,9 +171,9 @@ export function EventFeed({
             className={clsx(
               "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
               "flex items-center gap-1.5 px-3 py-1.5 rounded",
-              "bg-[#00ff88]/10 text-[#00ff88] text-[9px] font-medium",
-              "border border-[#00ff88]/20 frosted-glass",
-              "hover:bg-[#00ff88]/20 transition-colors",
+              "bg-[var(--color-success)]/10 text-[var(--color-success)] text-[9px] font-medium",
+              "border border-[var(--color-success)]/20 frosted-glass",
+              "hover:bg-[var(--color-success)]/20 transition-colors",
               "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
             )}
           >
@@ -183,7 +183,7 @@ export function EventFeed({
             </svg>
             {newEventCount > 0 ? (
               <span className="flex items-center gap-1">
-                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[8px] font-bold tabular-nums animate-pulse">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] text-[8px] font-bold tabular-nums animate-pulse">
                   {newEventCount}
                 </span>
                 <span>new event{newEventCount === 1 ? "" : "s"}</span>

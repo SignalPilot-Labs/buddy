@@ -8,6 +8,7 @@ import {
   setActiveRepo,
   startRun as apiStartRun,
   killAgent,
+  pauseAgent,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
@@ -52,8 +53,12 @@ export interface DashboardState {
   controlsOpen: boolean;
   rightPanel: "changes" | "logs";
 
+  // UI state (continued)
+  showShortcuts: boolean;
+  setShowShortcuts: (v: boolean) => void;
+
   // Actions
-  controlAction: (label: string, fn: (id: string) => Promise<unknown>) => void;
+  controlAction: (label: string, fn: (id: string) => Promise<unknown>) => Promise<void>;
   handleToggleSidebar: () => void;
   handleRepoSwitch: (repo: string) => Promise<void>;
   handleSelectRun: (id: string) => Promise<FeedEvent[]>;
@@ -104,6 +109,7 @@ export function useDashboard(): DashboardState {
   const [busy, setBusy] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
@@ -173,18 +179,18 @@ export function useDashboard(): DashboardState {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
-  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
-    if (selectedRunId) {
-      fn(selectedRunId).catch((e) => {
-        const retry = () => controlAction(label, fn);
-        addEvent({
-          _kind: "control",
-          text: `${label} failed: ${e}`,
-          ts: new Date().toISOString(),
-          retryAction: retry,
-        });
+  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
+    if (!selectedRunId) return Promise.resolve();
+    return fn(selectedRunId).then(() => undefined).catch((e: unknown) => {
+      const retry = () => controlAction(label, fn);
+      addEvent({
+        _kind: "control",
+        text: `${label} failed: ${e}`,
+        ts: new Date().toISOString(),
+        retryAction: retry,
       });
-    }
+      return Promise.reject(e);
+    });
   }, [selectedRunId, addEvent]);
 
   const handleToggleSidebar = useCallback(() => {
@@ -195,6 +201,19 @@ export function useDashboard(): DashboardState {
     });
   }, []);
 
+  const runStatusRef = useRef<RunStatus | null>(null);
+  useEffect(() => { runStatusRef.current = (selectedRun?.status as RunStatus) || null; }, [selectedRun]);
+
+  const busyRef = useRef(false);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+
+  const canControlRef = useRef(false);
+
+  useEffect(() => {
+    const activeStatuses: RunStatus[] = ["running", "paused", "rate_limited"];
+    canControlRef.current = activeStatuses.includes(runStatusRef.current ?? ("" as RunStatus)) && !busyRef.current;
+  });
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
@@ -202,16 +221,39 @@ export function useDashboard(): DashboardState {
         handleToggleSidebar();
         return;
       }
-      // 'N' to open new run modal (only when not focused in an input)
+
       const tag = (e.target as HTMLElement)?.tagName;
-      if (e.key === "n" && !e.metaKey && !e.ctrlKey && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (e.target as HTMLElement)?.isContentEditable;
+
+      if (isInput) return;
+
+      if (e.key === "n" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setStartModalOpen(true);
+        return;
+      }
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcuts((prev) => !prev);
+        return;
+      }
+
+      if (e.key === " " && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        const status = runStatusRef.current;
+        if (!canControlRef.current) return;
+        if (status === "running") {
+          void controlAction("Pause", pauseAgent);
+        } else if (status === "paused") {
+          void controlAction("Resume", resumeAgent);
+        }
+        return;
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [handleToggleSidebar]);
+  }, [handleToggleSidebar, controlAction]);
 
   useEffect(() => {
     const check = async () => {
@@ -431,7 +473,7 @@ export function useDashboard(): DashboardState {
       return;
     }
     setBusy(true);
-    controlAction("Kill", killAgent);
+    void controlAction("Kill", killAgent);
     setShowKillConfirm(false);
   }, [showKillConfirm, controlAction]);
 
@@ -468,6 +510,8 @@ export function useDashboard(): DashboardState {
     mobilePanel,
     controlsOpen,
     rightPanel,
+    showShortcuts,
+    setShowShortcuts,
     controlAction,
     handleToggleSidebar,
     handleRepoSwitch,

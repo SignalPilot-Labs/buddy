@@ -24,6 +24,7 @@
   --color-success: #00ff88;
   --color-warning: #ffaa00;
   --color-error: #ff4444;
+  --color-info: #88ccff;
 
   --color-glow: rgba(255, 255, 255, 0.03);
 
@@ -596,4 +597,14 @@ input[type="number"]::-webkit-outer-spin-button {
 @keyframes agent-ring {
   0%   { opacity: 0.6; transform: scale(1); }
   100% { opacity: 0;   transform: scale(1.4); }
+}
+
+/* ── Run status flash animation ── */
+@keyframes status-flash {
+  0%   { background-color: var(--flash-color); }
+  100% { background-color: transparent; }
+}
+
+.status-flash {
+  animation: status-flash 500ms ease-out forwards;
 }
