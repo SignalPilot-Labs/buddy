@@ -50,9 +50,9 @@ async def create_run_starting(
     duration_minutes: float,
     base_branch: str,
     github_repo: str | None,
+    model_name: str | None,
 ) -> None:
     """Create a run record with status 'starting'. Called at /start time."""
-    repo = github_repo
     async with get_session_factory()() as s:
         s.add(Run(
             id=run_id,
@@ -61,7 +61,8 @@ async def create_run_starting(
             custom_prompt=custom_prompt,
             duration_minutes=duration_minutes,
             base_branch=base_branch,
-            github_repo=repo,
+            github_repo=github_repo,
+            model_name=model_name,
         ))
         await s.commit()
 

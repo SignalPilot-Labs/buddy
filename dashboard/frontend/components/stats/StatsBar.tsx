@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
+import { MODEL_BADGE_LABEL, MODEL_BADGE_COLOR, resolveModelId } from "@/lib/constants";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
@@ -63,6 +64,9 @@ export function StatsRow({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
+  const modelId = run ? resolveModelId(run.model_name) : null;
+  const modelBadgeLabel = modelId ? MODEL_BADGE_LABEL[modelId] : null;
+  const modelBadgeColor = modelId ? MODEL_BADGE_COLOR[modelId] : null;
 
   if (!run) {
     return (
@@ -126,6 +130,18 @@ export function StatsRow({
         }
         accent="text-[#88ccff]"
       />
+      {modelBadgeLabel && modelBadgeColor && (
+        <span
+          className={`inline-flex items-center gap-1 px-1.5 py-0 rounded text-[9px] font-medium leading-tight ${modelBadgeColor}`}
+          aria-label={`Model: ${modelBadgeLabel}`}
+        >
+          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <circle cx="4" cy="4" r="3" />
+            <path d="M2.5 4h3M4 2.5v3" />
+          </svg>
+          {modelBadgeLabel}
+        </span>
+      )}
       {run.pr_url && (
         <a
           href={run.pr_url}

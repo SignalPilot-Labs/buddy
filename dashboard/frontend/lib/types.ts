@@ -18,6 +18,7 @@ export interface Run {
   custom_prompt: string | null;
   duration_minutes: number;
   context_tokens: number;
+  model_name?: string | null;
 }
 
 export interface RepoInfo {

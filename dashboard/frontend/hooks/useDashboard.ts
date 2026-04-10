@@ -12,7 +12,7 @@ import {
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -62,7 +62,7 @@ export interface DashboardState {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
-    model?: string,
+    model?: string | undefined,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt: string) => void;
@@ -272,6 +272,7 @@ export function useDashboard(): DashboardState {
     setHistoryEvents([]);
     setPendingMessages([]);
     sseRef.current.clearEvents();
+    setBranches([]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
@@ -363,12 +364,13 @@ export function useDashboard(): DashboardState {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
-      model: string = "opus",
+      model?: string,
     ) => {
+      const resolvedModel = model ?? (typeof window !== "undefined" ? (localStorage.getItem(LOCALSTORAGE_MODEL_KEY) ?? DEFAULT_MODEL) : DEFAULT_MODEL);
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, model, activeRepoFilter);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
         refreshRuns();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);

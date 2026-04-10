@@ -176,16 +176,18 @@ export default function SettingsPage() {
   };
 
   const handleRemoveRepo = async (slug: string) => {
+    setRepoError(null);
     try {
       const res = await apiFetch(`/api/repos/${encodeURIComponent(slug)}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setRepos(await fetchRepos());
     } catch (err) {
-      console.error("Failed to remove repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Failed to remove repo");
     }
   };
 
   const handleSetActive = async (slug: string) => {
+    setRepoError(null);
     try {
       const res = await apiFetch(`/api/repos/active`, {
         method: "PUT",
@@ -197,7 +199,7 @@ export default function SettingsPage() {
       setStatus(s);
       setSettings(cfg);
     } catch (err) {
-      console.error("Failed to set active repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Failed to set active repo");
     }
   };
 

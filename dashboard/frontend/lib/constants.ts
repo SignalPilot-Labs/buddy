@@ -58,6 +58,30 @@ export const MODEL_OPTIONS: ModelOption[] = [
   { id: "haiku",  label: "Claude Haiku 4.5",  description: "Fastest, lowest cost",           context: "200K context" },
 ];
 
+/** Normalise a raw model_name (e.g. "claude-opus-4-6-20250514") to a ModelId. */
+export function resolveModelId(modelName: string | null | undefined): ModelId | null {
+  if (!modelName) return null;
+  const lower = modelName.toLowerCase();
+  if (lower.includes("opus")) return "opus";
+  if (lower.includes("haiku")) return "haiku";
+  if (lower.includes("sonnet")) return "sonnet";
+  return null;
+}
+
+/** Maps raw model_name strings (or ModelId keys) to a short badge label. */
+export const MODEL_BADGE_LABEL: Record<string, string> = {
+  opus:   "Opus",
+  sonnet: "Sonnet",
+  haiku:  "Haiku",
+};
+
+/** Color tokens for model badges. */
+export const MODEL_BADGE_COLOR: Record<string, string> = {
+  opus:   "text-[#cc88ff] bg-[#cc88ff]/10",
+  sonnet: "text-[#88ccff] bg-[#88ccff]/10",
+  haiku:  "text-[#00ff88] bg-[#00ff88]/10",
+};
+
 // Run status sets for control bar enabling logic.
 // Must match backend's accepted statuses in resume_run and inject_prompt endpoints.
 import type { RunStatus } from "./types";
