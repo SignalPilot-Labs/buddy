@@ -135,6 +135,8 @@ export default function MonitorPage() {
         onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
+        onUnlock={() => controlAction("Unlock", unlockAgent)}
+        sessionLocked={activeRunHealth?.session_unlocked === false}
       />
 
       {/* Start Run Modal */}

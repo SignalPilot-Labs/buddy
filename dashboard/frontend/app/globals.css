@@ -549,6 +549,44 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* ── Sidebar scrollbar override ── */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) rgba(255, 255, 255, 0.02);
+  /* Fade edges top + bottom via CSS mask */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-active);
+}
+
 /* ── AgentRunCard animations ── */
 @keyframes agent-shimmer {
   0%   { transform: translateX(-50%); }

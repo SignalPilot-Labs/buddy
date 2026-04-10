@@ -23,6 +23,7 @@ const SKELETON_COUNT = 3;
 const SKELETON_HEIGHT = "h-12";
 const LOADING_OPACITY = 0.4;
 const LOADING_OPACITY_TRANSITION = "opacity 0.2s";
+const SCROLL_BOTTOM_THRESHOLD = 20;
 
 export function EventFeed({
   events,
@@ -70,7 +71,7 @@ export function EventFeed({
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 20;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < SCROLL_BOTTOM_THRESHOLD;
     setAutoScroll((prev) => (prev === isAtBottom ? prev : isAtBottom));
     setUserScrolled((prev) => (prev === !isAtBottom ? prev : !isAtBottom));
   }, []);
@@ -83,6 +84,18 @@ export function EventFeed({
       setSeenCount(events.length);
     }
   }, [events.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.key === "End") {
+        scrollToBottom();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [scrollToBottom]);
 
   const newEventCount = Math.max(0, events.length - seenCount);
 
@@ -156,18 +169,28 @@ export function EventFeed({
             transition={FAB_TRANSITION}
             onClick={scrollToBottom}
             className={clsx(
-              "absolute bottom-4 left-1/2 -translate-x-1/2 z-10",
+              "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
               "flex items-center gap-1.5 px-3 py-1.5 rounded",
               "bg-[#00ff88]/10 text-[#00ff88] text-[9px] font-medium",
               "border border-[#00ff88]/20 frosted-glass",
-              "hover:bg-[#00ff88]/20 transition-colors"
+              "hover:bg-[#00ff88]/20 transition-colors",
+              "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
             )}
           >
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               <line x1="5" y1="2" x2="5" y2="8" />
               <polyline points="3 6 5 8 7 6" />
             </svg>
-            {newEventCount > 0 ? `${newEventCount} new event${newEventCount === 1 ? "" : "s"}` : "Jump to latest"}
+            {newEventCount > 0 ? (
+              <span className="flex items-center gap-1">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[8px] font-bold tabular-nums animate-pulse">
+                  {newEventCount}
+                </span>
+                <span>new event{newEventCount === 1 ? "" : "s"}</span>
+              </span>
+            ) : (
+              "Jump to latest"
+            )}
           </motion.button>
         )}
       </AnimatePresence>
