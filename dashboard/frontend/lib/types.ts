@@ -18,6 +18,7 @@ export interface Run {
   custom_prompt: string | null;
   duration_minutes: number;
   context_tokens: number;
+  model_name?: string | null;
 }
 
 export interface RepoInfo {
@@ -79,7 +80,7 @@ export type FeedEvent =
   | { _kind: "audit"; data: AuditEvent }
   | { _kind: "llm_text"; text: string; ts: string; agent_role?: string }
   | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: string }
-  | { _kind: "control"; text: string; ts: string }
+  | { _kind: "control"; text: string; ts: string; retryAction?: () => void }
   | { _kind: "usage"; data: UsageEvent };
 
 export const STATUS_META: Record<
@@ -363,6 +364,7 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
+  default_model?: string;
 }
 
 export interface PoolToken {

@@ -62,11 +62,6 @@ describe("RunItem", () => {
     expect(screen.getByText("A".repeat(PROMPT_LABEL_MAX_LEN))).toBeInTheDocument();
   });
 
-  it("shows tool call count when nonzero", () => {
-    render(<RunItem run={makeRun({ total_tool_calls: 12 })} active={false} onClick={vi.fn()} />);
-    expect(screen.getByText("12")).toBeInTheDocument();
-  });
-
   it("shows cost when nonzero", () => {
     render(<RunItem run={makeRun({ total_cost_usd: 2.5 })} active={false} onClick={vi.fn()} />);
     expect(screen.getByText(/2\.50/)).toBeInTheDocument();

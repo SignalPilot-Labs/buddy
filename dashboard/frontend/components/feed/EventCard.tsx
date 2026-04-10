@@ -11,7 +11,9 @@ import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
 
 function formatTs(ts: string): string {
   try {
-    return new Date(ts).toLocaleTimeString("en-US", {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleTimeString("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",

@@ -12,7 +12,7 @@ import {
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, loadStoredModel } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -39,6 +39,7 @@ export interface DashboardState {
   isConfigured: boolean;
   atCapacity: boolean;
   busy: boolean;
+  historyLoading: boolean;
 
   // UI state
   activeRepoFilter: string | null;
@@ -61,7 +62,7 @@ export interface DashboardState {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
-    extendedContext?: boolean,
+    model?: string | undefined,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt: string) => void;
@@ -101,6 +102,7 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [busy, setBusy] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
 
   const selectedRunIdRef = useRef<string | null>(null);
@@ -121,43 +123,48 @@ export function useDashboard(): DashboardState {
     if (!runId) return;
     sseRef.current.disconnect();
     setPendingMessages([]);
+    setHistoryLoading(true);
     loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
       setHistoryEvents(events);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
-    }).catch(() => {});
+      setHistoryLoading(false);
+    }).catch((err) => {
+      setHistoryLoading(false);
+      setHistoryEvents((prev) => [
+        ...prev,
+        { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
+      ]);
+    });
   }, []);
 
   const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Clear pending messages FIFO when NEW prompt events arrive via SSE
-  const confirmedCountRef = useRef(0);
+  // Clear pending messages by prompt text matching when prompt events arrive via SSE
+  const confirmedPromptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const realCount = liveEvents.filter(
-      (e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"),
-    ).length;
-    // Reset ref when liveEvents is cleared (run switch, session resumed, etc.)
-    if (realCount < confirmedCountRef.current) {
-      confirmedCountRef.current = realCount;
+    // Reset when liveEvents is cleared (run switch, session resumed, etc.)
+    if (liveEvents.length === 0) {
+      confirmedPromptsRef.current = new Set();
       return;
     }
-    const newArrivals = realCount - confirmedCountRef.current;
-    confirmedCountRef.current = realCount;
-    if (newArrivals <= 0) return;
-    setPendingMessages((prev) => {
-      const pendingCount = prev.filter((m) => m.status === "pending").length;
-      const toRemove = Math.min(newArrivals, pendingCount);
-      if (toRemove === 0) return prev;
-      let removed = 0;
-      return prev.filter((m) => {
-        if (m.status !== "pending") return true;
-        if (removed < toRemove) { removed++; return false; }
-        return true;
-      });
-    });
+    const confirmedTexts = liveEvents
+      .filter((e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"))
+      .map((e) => {
+        if (e._kind !== "audit") return "";
+        return String(e.data.details.prompt || "");
+      })
+      .filter((t) => t.length > 0);
+    const newConfirmed = confirmedTexts.filter((t) => !confirmedPromptsRef.current.has(t));
+    if (newConfirmed.length === 0) return;
+    for (const t of newConfirmed) confirmedPromptsRef.current.add(t);
+    const confirmedSet = new Set(newConfirmed);
+    setPendingMessages((prev) =>
+      prev.filter((m) => m.status !== "pending" || !confirmedSet.has(m.prompt)),
+    );
   }, [liveEvents]);
 
   const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
@@ -168,9 +175,15 @@ export function useDashboard(): DashboardState {
 
   const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
     if (selectedRunId) {
-      fn(selectedRunId).catch((e) =>
-        addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
-      );
+      fn(selectedRunId).catch((e) => {
+        const retry = () => controlAction(label, fn);
+        addEvent({
+          _kind: "control",
+          text: `${label} failed: ${e}`,
+          ts: new Date().toISOString(),
+          retryAction: retry,
+        });
+      });
     }
   }, [selectedRunId, addEvent]);
 
@@ -259,6 +272,7 @@ export function useDashboard(): DashboardState {
     setHistoryEvents([]);
     setPendingMessages([]);
     sseRef.current.clearEvents();
+    setBranches([]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
@@ -282,7 +296,7 @@ export function useDashboard(): DashboardState {
       setSelectedRunId(id);
       setPendingMessages([]);
       localStorage.setItem("autofyn_last_run_id", id);
-      setHistoryEvents([]);
+      setHistoryLoading(true);
       sseRef.current.clearEvents();
       let lastToolId = 0;
       let lastAuditId = 0;
@@ -296,6 +310,9 @@ export function useDashboard(): DashboardState {
         lastAuditId = result.lastAuditId;
       } catch (err) {
         console.warn("Failed to load history:", err);
+        if (gen === selectGenRef.current) setHistoryEvents([]);
+      } finally {
+        if (gen === selectGenRef.current) setHistoryLoading(false);
       }
       if (gen !== selectGenRef.current) return loadedEvents;
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
@@ -347,12 +364,13 @@ export function useDashboard(): DashboardState {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
-      extendedContext: boolean = false,
+      model?: string,
     ) => {
+      const resolvedModel = model ?? loadStoredModel();
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
         refreshRuns();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);
@@ -440,6 +458,7 @@ export function useDashboard(): DashboardState {
     isConfigured,
     atCapacity,
     busy,
+    historyLoading,
     activeRepoFilter,
     startModalOpen,
     showKillConfirm,

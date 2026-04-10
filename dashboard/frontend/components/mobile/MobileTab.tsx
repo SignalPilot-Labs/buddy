@@ -27,7 +27,10 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
       <div className="relative">
         {icon}
         {badge != null && badge > 0 && (
-          <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[8px] font-bold px-0.5">
+          <span
+            className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[8px] font-bold px-0.5"
+            aria-label={`${badge > 99 ? "99+" : badge} new items`}
+          >
             {badge > 99 ? "99+" : badge}
           </span>
         )}

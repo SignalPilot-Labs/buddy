@@ -39,6 +39,7 @@ export default function MonitorPage() {
     isConfigured,
     atCapacity,
     busy,
+    historyLoading,
     activeRepoFilter,
     startModalOpen,
     showKillConfirm,
@@ -173,6 +174,7 @@ export default function MonitorPage() {
               0,
               selectedRun.duration_minutes || 0,
               selectedRun.base_branch || "main",
+              selectedRun.model_name || undefined,
             );
           }}
           busy={busy}
@@ -200,6 +202,7 @@ export default function MonitorPage() {
               pendingMessages={pendingMessages}
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
+              isLoading={historyLoading}
             />
             <CommandInput
               runId={selectedRunId}
@@ -241,6 +244,7 @@ export default function MonitorPage() {
           selectedRun={selectedRun}
           connected={connected}
           busy={busy}
+          historyLoading={historyLoading}
           controlsOpen={controlsOpen}
           setControlsOpen={setControlsOpen}
           onSelectRun={handleSelectRun}

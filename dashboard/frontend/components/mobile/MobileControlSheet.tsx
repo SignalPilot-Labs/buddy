@@ -52,13 +52,24 @@ export function MobileControlSheet({
   const canInject = INJECTABLE_STATUSES.includes(s);
   const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
-  // Lock body scroll when open
+  // Lock body scroll when open — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
+
+  // Close on ESC key
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>

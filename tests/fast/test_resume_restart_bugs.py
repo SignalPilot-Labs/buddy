@@ -1,20 +1,21 @@
 """Tests for restart flow bugs: missing github_repo, cost zeroing, restartable statuses.
 
 Covers:
-- get_run_for_resume must include github_repo
+- get_run_for_resume must include github_repo and model_name
 - setup_resume must fail early if github_repo is missing
+- setup_resume must preserve the original run's model (no env-var fallback)
+- setup_resume must fail loudly if both override and persisted model are missing
 - _on_task_done must not overwrite cost when run_context is None
 - All terminal statuses must be restartable
 - handle_pause must update DB status on stop
 """
 
 import asyncio
-from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from utils.models import ActiveRun, RunContext
+from utils.models import ActiveRun, DEFAULT_MODEL, RunContext
 
 
 # ── get_run_for_resume must include github_repo ──
@@ -40,6 +41,7 @@ class TestGetRunForResume:
         mock_run.total_output_tokens = 500
         mock_run.cache_creation_input_tokens = 200
         mock_run.cache_read_input_tokens = 100
+        mock_run.model_name = "opus-4-5"
 
         mock_session = AsyncMock()
         mock_session.get = AsyncMock(return_value=mock_run)
@@ -54,6 +56,7 @@ class TestGetRunForResume:
         assert result is not None
         assert "github_repo" in result
         assert result["github_repo"] == "owner/repo"
+        assert result["model_name"] == "opus-4-5"
 
 
 # ── setup_resume must fail early without github_repo ──
@@ -76,7 +79,7 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="has no github_repo"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
 
     @pytest.mark.asyncio
     async def test_empty_github_repo_raises(self) -> None:
@@ -92,7 +95,7 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="has no github_repo"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
 
     @pytest.mark.asyncio
     async def test_run_not_found_raises(self) -> None:
@@ -101,7 +104,69 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="not found"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
+
+
+# ── setup_resume must preserve the original run's model ──
+
+
+class TestSetupResumeModelPreservation:
+    """Resume must use the persisted model — not silently fall back to a default."""
+
+    BASE_RUN_INFO = {
+        "id": "run-1",
+        "branch_name": "autofyn/test",
+        "status": "completed",
+        "github_repo": "owner/repo",
+        "base_branch": "main",
+        "duration_minutes": 30,
+        "total_cost_usd": 1.0,
+        "total_input_tokens": 100,
+        "total_output_tokens": 50,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "sdk_session_id": "sess-1",
+        "custom_prompt": None,
+    }
+
+    async def _run_setup(self, run_info: dict, model_override: str | None) -> tuple[object, dict]:
+        from core.bootstrap import Bootstrap
+        bootstrap = Bootstrap(MagicMock(), MagicMock())
+        # Stub repo ops + service creation so setup_resume only exercises the model logic
+        bootstrap._repo_ops.setup_auth = AsyncMock()
+        bootstrap._repo_ops.checkout_branch = AsyncMock()
+        bootstrap._create_services = MagicMock(return_value=(MagicMock(), MagicMock(), MagicMock()))
+        with (
+            patch("utils.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info),
+            patch("utils.db.update_run_status", new_callable=AsyncMock),
+            patch("utils.db.log_audit", new_callable=AsyncMock),
+            patch("utils.db.get_operator_messages", new_callable=AsyncMock, return_value=[]),
+        ):
+            ctx, options, *_ = await bootstrap.setup_resume(
+                "run-1", 5.0, 300, 120, None, model_override,
+            )
+        return ctx, options
+
+    @pytest.mark.asyncio
+    async def test_persisted_model_is_used_when_no_override(self) -> None:
+        """If model_override is None, the original run's model_name wins."""
+        run_info = {**self.BASE_RUN_INFO, "model_name": "opus-4-5"}
+        _, options = await self._run_setup(run_info, model_override=None)
+        assert options["model"] == "opus-4-5"
+
+    @pytest.mark.asyncio
+    async def test_override_takes_precedence_over_persisted(self) -> None:
+        """Operator can intentionally retry with a different model."""
+        run_info = {**self.BASE_RUN_INFO, "model_name": "sonnet"}
+        _, options = await self._run_setup(run_info, model_override="opus")
+        assert options["model"] == "opus"
+
+    @pytest.mark.asyncio
+    async def test_missing_model_raises_no_default_fallback(self) -> None:
+        """Fail-fast: if neither override nor persisted model is set, raise."""
+        run_info = {**self.BASE_RUN_INFO, "model_name": None}
+        with pytest.raises(RuntimeError, match="no model_name persisted"):
+            await self._run_setup(run_info, model_override=None)
 
 
 # ── _on_task_done must not zero cost when run_context is None ──
@@ -186,16 +251,14 @@ class TestRestartableStatuses:
     }
 
     def test_all_terminal_statuses_are_restartable(self) -> None:
-        """Every terminal status must be in the restartable tuple."""
-        # Inline the tuple from runs.py to catch regressions
-        restartable = ("completed", "completed_no_changes", "stopped", "error", "crashed", "killed")
-        restartable_set = set(restartable)
-        assert restartable_set == self.EXPECTED_RESTARTABLE
+        """Every terminal status must be in the shared RESTARTABLE_STATUSES set."""
+        from backend.constants import RESTARTABLE_STATUSES
+        assert set(RESTARTABLE_STATUSES) == self.EXPECTED_RESTARTABLE
 
     def test_running_not_restartable(self) -> None:
-        restartable = {"completed", "completed_no_changes", "stopped", "error", "crashed", "killed"}
-        assert "running" not in restartable
-        assert "paused" not in restartable
+        from backend.constants import RESTARTABLE_STATUSES
+        assert "running" not in RESTARTABLE_STATUSES
+        assert "paused" not in RESTARTABLE_STATUSES
 
 
 # ── handle_pause must update DB on stop ──

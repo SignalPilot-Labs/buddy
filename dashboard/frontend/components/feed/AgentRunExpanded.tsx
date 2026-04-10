@@ -39,8 +39,9 @@ export function AgentRunExpanded({
 }) {
   return (
     <motion.div
-      initial={{ height: 0 }}
-      animate={{ height: "auto" }}
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: "auto", opacity: 1 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="border-t border-white/[0.04] overflow-hidden"
     >
       {childTools.length > 0 && (

@@ -34,7 +34,7 @@ export function getButtonState(
     if (hasText) {
       return { label: "Send", variant: "primary", disabled: false, icon: "send" };
     }
-    return { label: "Waiting...", variant: "warning", disabled: true, icon: "send" };
+    return { label: "Rate limited", variant: "warning", disabled: true, icon: "send" };
   }
 
   if (TERMINAL_STATUSES.has(status)) {

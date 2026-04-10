@@ -5,12 +5,11 @@ It produces a RunContext and session options dict, then hands off to SessionRunn
 """
 
 import logging
-import os
 import time
 
 from utils import db
 from utils.constants import PROMPT_SUMMARY_LIMIT
-from utils.models import GitSetupParams, RunContext
+from utils.models import GitSetupParams, RunContext, get_fallback_model
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.repo_ops import RepoOps
@@ -48,10 +47,10 @@ class Bootstrap:
         github_repo: str,
         exec_timeout: int,
         clone_timeout: int,
+        model: str,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
         """Bootstrap a new run. run_id is pre-created by the server."""
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        fallback_model = get_fallback_model(model)
 
         git_params = GitSetupParams(
             base_branch=base_branch,
@@ -117,16 +116,28 @@ class Bootstrap:
         exec_timeout: int,
         clone_timeout: int,
         prompt: str | None,
+        model_override: str | None,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
-        """Bootstrap a resumed run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
+        """Bootstrap a resumed run.
+
+        Model resolution order (fail-fast — no env-var fallback):
+            1. `model_override` from the operator (lets the user retry with a different model).
+            2. `run_info["model_name"]` persisted on the original run.
+            3. Raise — refusing to silently pick a default would mask a real bug.
+        """
         run_info = await db.get_run_for_resume(run_id)
         if not run_info:
             raise RuntimeError(f"Run {run_id} not found")
         if not run_info.get("github_repo"):
             raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        model = model_override or run_info.get("model_name")
+        if not model:
+            raise RuntimeError(
+                f"Run {run_id} has no model_name persisted and no override was supplied — "
+                "cannot resume safely",
+            )
+        fallback_model = get_fallback_model(model)
 
         await self._repo_ops.setup_auth(
             run_info["github_repo"],

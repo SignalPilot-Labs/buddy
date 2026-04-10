@@ -73,6 +73,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runIdRef = useRef<string | null>(null);
+  const genRef = useRef(0);
   const onRunEndedRef = useRef(onRunEnded);
   const onSessionResumedRef = useRef(onSessionResumed);
   onRunEndedRef.current = onRunEnded;
@@ -81,6 +82,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const clearEvents = useCallback(() => setEvents([]), []);
 
   const disconnect = useCallback(() => {
+    genRef.current++;
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -103,6 +105,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
 
+    const gen = ++genRef.current;
     runIdRef.current = runId;
     setEvents([]);
     setConnected(false);
@@ -116,8 +119,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       if (pollingRef.current) return;
       setConnected(true);
       pollingRef.current = setInterval(async () => {
+        if (gen !== genRef.current) return;
         try {
           const result = await pollEvents(runId, afterTool, afterAudit);
+          if (gen !== genRef.current) return;
           if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
             let runEnded = false;
             setEvents((prev) => {
@@ -158,18 +163,24 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     esRef.current = es;
 
     timeoutRef.current = setTimeout(() => {
+      if (gen !== genRef.current) return;
       if (!sseGotMessage) switchToPolling();
     }, SSE_FALLBACK_TIMEOUT_MS);
 
     es.addEventListener("connected", () => {
+      if (gen !== genRef.current) return;
       sseGotMessage = true;
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       setConnected(true);
     });
 
-    es.addEventListener("ping", () => { sseGotMessage = true; });
+    es.addEventListener("ping", () => {
+      if (gen !== genRef.current) return;
+      sseGotMessage = true;
+    });
 
     es.addEventListener("tool_call", (e) => {
+      if (gen !== genRef.current) return;
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
@@ -180,6 +191,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     });
 
     es.addEventListener("audit", (e) => {
+      if (gen !== genRef.current) return;
       sseGotMessage = true;
       try {
         const raw: AuditEvent = JSON.parse(e.data);
@@ -191,6 +203,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     });
 
     es.addEventListener("run_ended", (e) => {
+      if (gen !== genRef.current) return;
       sseGotMessage = true;
       try {
         const data = JSON.parse(e.data);
@@ -208,6 +221,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     });
 
     es.onerror = () => {
+      if (gen !== genRef.current) return;
       setConnected(false);
       if (!sseGotMessage) switchToPolling();
     };
