@@ -85,3 +85,7 @@ pyright
 ruff check
 ```
 Both must pass clean.
+
+## Pull Requests
+
+- **Always open PRs against `main`.** The repo default branch is `production`, but that is the release branch — day-to-day work merges into `main`. Pass `--base main` explicitly to `gh pr create` (or edit the base after creation) so PRs don't land on `production` by accident.
