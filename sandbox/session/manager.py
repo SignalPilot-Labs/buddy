@@ -14,7 +14,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 from claude_agent_sdk.types import AgentDefinition
@@ -35,6 +35,8 @@ from claude_agent_sdk.types import (
     PermissionResultDeny,
     RateLimitEvent,
     StreamEvent,
+    SubagentStartHookInput,
+    SubagentStopHookInput,
     SyncHookJSONOutput,
     ToolPermissionContext,
 )
@@ -328,16 +330,24 @@ class _Session:
     async def _hook_subagent_start(
         self, hook_input: HookInput, tool_use_id: str | None, context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Track subagent, log to DB, emit event for agent stuck detection."""
-        agent_id = hook_input.get("agent_id", "")
-        agent_type = hook_input.get("agent_type", "")
+        """Track subagent, log to DB, emit event for agent stuck detection.
+
+        Persists the parent Task tool_use_id alongside the agent_id so the
+        dashboard can deterministically attribute subagent tools to the
+        correct Agent card (see groupEvents.ts).
+        """
+        if tool_use_id is None:
+            raise RuntimeError("SubagentStart hook invoked without tool_use_id")
+        payload = cast(SubagentStartHookInput, hook_input)
+        agent_id = payload["agent_id"]
+        agent_type = payload["agent_type"]
         self._subagent_start_times[agent_id] = time.time()
         self._subagent_types[agent_id] = agent_type
         await _log_audit(self._run_id, "subagent_start", {
-            "agent_id": agent_id, "agent_type": agent_type,
+            "agent_id": agent_id, "agent_type": agent_type, "tool_use_id": tool_use_id,
         })
         self._emit({"event": "subagent_start", "data": {
-            "agent_id": agent_id, "agent_type": agent_type,
+            "agent_id": agent_id, "agent_type": agent_type, "tool_use_id": tool_use_id,
         }})
         return SyncHookJSONOutput()
 
@@ -345,12 +355,19 @@ class _Session:
         self, hook_input: HookInput, tool_use_id: str | None, context: HookContext,
     ) -> SyncHookJSONOutput:
         """Clean up tracking, log to DB, emit event."""
-        agent_id = hook_input.get("agent_id", "")
+        if tool_use_id is None:
+            raise RuntimeError("SubagentStop hook invoked without tool_use_id")
+        payload = cast(SubagentStopHookInput, hook_input)
+        agent_id = payload["agent_id"]
         self._subagent_start_times.pop(agent_id, None)
         self._subagent_last_tool.pop(agent_id, None)
         self._subagent_types.pop(agent_id, None)
-        await _log_audit(self._run_id, "subagent_complete", {"agent_id": agent_id})
-        self._emit({"event": "subagent_stop", "data": {"agent_id": agent_id}})
+        await _log_audit(self._run_id, "subagent_complete", {
+            "agent_id": agent_id, "tool_use_id": tool_use_id,
+        })
+        self._emit({"event": "subagent_stop", "data": {
+            "agent_id": agent_id, "tool_use_id": tool_use_id,
+        }})
         return SyncHookJSONOutput()
 
     async def _hook_stop(

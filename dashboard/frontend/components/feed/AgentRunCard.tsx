@@ -36,10 +36,14 @@ export function AgentRunCard({
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
   const [now, setNow] = useState(Date.now());
+  // No fallbacks: description and subagent_type come from the Task tool
+  // input; agentType comes from the subagent_start audit event. A missing
+  // value here is a bug upstream (orphan post, missing audit), not something
+  // to paper over with a "general" / "Sub-agent task" placeholder.
   const input = tool.input_data || {};
-  const description = (input.description as string) || "Sub-agent task";
+  const description = (input.description as string) || "";
   const prompt = (input.prompt as string) || "";
-  const subType = agentType || (input.subagent_type as string) || "general";
+  const subType = agentType || (input.subagent_type as string) || "";
   const isPending =
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
 

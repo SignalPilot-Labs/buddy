@@ -131,51 +131,36 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     }
   }
 
-  // ── Pass 2: Match Agent tool calls to their subagent children via temporal matching ──
-  const agentCallToChildren = new Map<string, ToolCall[]>();
-  const agentCalls: { toolUseId: string; ts: number }[] = [];
-  for (const ev of events) {
-    if (ev._kind === "tool" && getToolCategory(ev.data.tool_name) === AGENT_CATEGORY && ev.data.tool_use_id) {
-      agentCalls.push({ toolUseId: ev.data.tool_use_id, ts: new Date(ev.data.ts).getTime() });
-    }
-  }
-  agentCalls.sort((a, b) => a.ts - b.ts);
-  const claimedAgentIds = new Set<string>();
-  for (const ac of agentCalls) {
-    let bestAid: string | null = null;
-    let bestDelta = Infinity;
-    for (const [aid, tools] of subagentTools) {
-      if (claimedAgentIds.has(aid)) continue;
-      const firstToolTs = new Date(tools[0].ts).getTime();
-      const delta = firstToolTs - ac.ts;
-      if (delta >= -2000 && delta < bestDelta) {
-        bestDelta = delta;
-        bestAid = aid;
-      }
-    }
-    if (bestAid) {
-      agentCallToChildren.set(ac.toolUseId, subagentTools.get(bestAid)!);
-      claimedAgentIds.add(bestAid);
-    }
-  }
-
-  // ── Pass 3: Collect subagent_complete audit events for final text ──
+  // ── Pass 2: Build deterministic agent_id → tool_use_id map from subagent_start audits ──
+  // The backend SubagentStart hook persists both agent_id and the parent Task tool_use_id,
+  // giving us an authoritative link. We also collect the subagent's type and final text
+  // keyed by the parent tool_use_id for rendering inside the Agent card.
+  const agentIdToToolUseId = new Map<string, string>();
+  const subagentTypes = new Map<string, string>();
   const subagentFinalTexts = new Map<string, string>();
   for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_complete") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const text = ev.data.details?.final_text as string;
+    if (ev._kind !== "audit") continue;
+    const details = ev.data.details;
+    if (!details) continue;
+    if (ev.data.event_type === "subagent_start") {
+      const tuid = details.tool_use_id as string;
+      const agentId = details.agent_id as string;
+      const agentType = details.agent_type as string;
+      if (tuid && agentId) agentIdToToolUseId.set(agentId, tuid);
+      if (tuid && agentType) subagentTypes.set(tuid, agentType);
+    } else if (ev.data.event_type === "subagent_complete") {
+      const tuid = details.tool_use_id as string;
+      const text = details.final_text as string;
       if (tuid && text) subagentFinalTexts.set(tuid, text);
     }
   }
 
-  const subagentTypes = new Map<string, string>();
-  for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_start") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const agentType = ev.data.details?.agent_type as string;
-      if (tuid && agentType) subagentTypes.set(tuid, agentType);
-    }
+  // ── Pass 3: Attribute subagent tool groups to their parent Agent tool call ──
+  // Keyed by the Task tool_use_id, populated from the authoritative audit link above.
+  const agentCallToChildren = new Map<string, ToolCall[]>();
+  for (const [agentId, tools] of subagentTools) {
+    const tuid = agentIdToToolUseId.get(agentId);
+    if (tuid) agentCallToChildren.set(tuid, tools);
   }
 
   const result: GroupedEvent[] = [];
@@ -249,8 +234,16 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       const cat = getToolCategory(tc.tool_name);
       const tsMs = getTs(ev);
 
-      // Agent calls: attach their subagent's child tools and final text
+      // Agent calls: attach their subagent's child tools and final text.
+      // An orphan post (phase="post" with no input_data) is a PostToolUseFailure
+      // or merge-failure artifact — not a real Task invocation. Skip it to avoid
+      // rendering a phantom "Sub-agent task" card. A legitimate merged Agent
+      // event retains its pre-phase input_data even after phase becomes "post".
       if (cat === AGENT_CATEGORY) {
+        if (tc.phase === "post" && !tc.input_data) {
+          i++;
+          continue;
+        }
         const children = (tc.tool_use_id && agentCallToChildren.get(tc.tool_use_id)) || [];
         const finalText = (tc.tool_use_id && subagentFinalTexts.get(tc.tool_use_id)) || "";
         const agentType = (tc.tool_use_id && subagentTypes.get(tc.tool_use_id)) || "";
