@@ -14,7 +14,8 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, Callable, cast
+from collections import deque
+from typing import Any, Callable
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 from claude_agent_sdk.types import AgentDefinition
@@ -35,8 +36,6 @@ from claude_agent_sdk.types import (
     PermissionResultDeny,
     RateLimitEvent,
     StreamEvent,
-    SubagentStartHookInput,
-    SubagentStopHookInput,
     SyncHookJSONOutput,
     ToolPermissionContext,
 )
@@ -47,6 +46,7 @@ from constants import (
     MAX_CONCURRENT_SESSIONS,
     SESSION_EVENT_QUEUE_SIZE,
     SUBAGENT_TIMEOUT_SEC,
+    TASK_TOOL_NAME,
 )
 from db.connection import get_session_factory
 from db.constants import resolve_sdk_model
@@ -139,6 +139,16 @@ class _Session:
         self._subagent_start_times: dict[str, float] = {}
         self._subagent_last_tool: dict[str, float] = {}
         self._subagent_types: dict[str, str] = {}
+        # Parent Task tool_use_id tracking for subagent attribution. The
+        # SubagentStart hook payload has no way to identify which Agent/Task
+        # call spawned it, but the SDK fires each Agent PreToolUse
+        # immediately before its corresponding SubagentStart (verified for
+        # parallel Task calls). We queue Agent pre-tool tool_use_ids here
+        # and pop them in FIFO order at SubagentStart. The resulting
+        # agent_id -> parent_tool_use_id map lets SubagentStop emit the
+        # same link so the dashboard can attribute final text as well.
+        self._pending_task_tool_use_ids: deque[str] = deque()
+        self._subagent_parent_tuids: dict[str, str] = {}
 
     @property
     def _run_id(self) -> str:
@@ -279,6 +289,16 @@ class _Session:
             _summarize(tool_input), None, None, True, None, role,
             tid, sid, agent_id,
         )
+        # Queue parent Task tool_use_id for the SubagentStart that will
+        # fire next. The SDK has no direct payload link between Agent
+        # PreToolUse and SubagentStart, but it serializes them 1:1 even
+        # for parallel Task calls (verified empirically).
+        if tool_name == TASK_TOOL_NAME:
+            if tool_use_id is None:
+                raise RuntimeError(
+                    f"PreToolUse for {TASK_TOOL_NAME} fired without tool_use_id"
+                )
+            self._pending_task_tool_use_ids.append(tool_use_id)
         self._emit({"event": "tool_use", "data": {"agent_id": agent_id}})
         return SyncHookJSONOutput()
 
@@ -332,41 +352,74 @@ class _Session:
     ) -> SyncHookJSONOutput:
         """Track subagent, log to DB, emit event for agent stuck detection.
 
-        Persists the parent Task tool_use_id alongside the agent_id so the
-        dashboard can deterministically attribute subagent tools to the
+        The SubagentStart hook payload has no parent Task tool_use_id field,
+        and the SDK callback's tool_use_id parameter is an unrelated
+        per-hook UUID. The parent link is recovered from the FIFO queue
+        populated in _hook_pre_tool when it saw the Agent PreToolUse that
+        spawned this subagent. Persisting parent_tool_use_id here lets
+        the dashboard deterministically attribute subagent tools to the
         correct Agent card (see groupEvents.ts).
         """
-        if tool_use_id is None:
-            raise RuntimeError("SubagentStart hook invoked without tool_use_id")
-        payload = cast(SubagentStartHookInput, hook_input)
-        agent_id = payload["agent_id"]
-        agent_type = payload["agent_type"]
+        agent_id = hook_input.get("agent_id", "")
+        agent_type = hook_input.get("agent_type", "")
+        if not agent_id or not agent_type:
+            raise RuntimeError(
+                f"SubagentStart missing agent_id/agent_type: "
+                f"agent_id={agent_id!r} agent_type={agent_type!r}"
+            )
+        if not self._pending_task_tool_use_ids:
+            raise RuntimeError(
+                f"SubagentStart for {agent_id} with no pending Agent "
+                f"PreToolUse — parent link lost"
+            )
+        parent_tuid = self._pending_task_tool_use_ids.popleft()
+        self._subagent_parent_tuids[agent_id] = parent_tuid
         self._subagent_start_times[agent_id] = time.time()
         self._subagent_types[agent_id] = agent_type
         await _log_audit(self._run_id, "subagent_start", {
-            "agent_id": agent_id, "agent_type": agent_type, "tool_use_id": tool_use_id,
+            "agent_id": agent_id,
+            "agent_type": agent_type,
+            "parent_tool_use_id": parent_tuid,
         })
         self._emit({"event": "subagent_start", "data": {
-            "agent_id": agent_id, "agent_type": agent_type, "tool_use_id": tool_use_id,
+            "agent_id": agent_id,
+            "agent_type": agent_type,
+            "parent_tool_use_id": parent_tuid,
         }})
         return SyncHookJSONOutput()
 
     async def _hook_subagent_stop(
         self, hook_input: HookInput, tool_use_id: str | None, context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Clean up tracking, log to DB, emit event."""
-        if tool_use_id is None:
-            raise RuntimeError("SubagentStop hook invoked without tool_use_id")
-        payload = cast(SubagentStopHookInput, hook_input)
-        agent_id = payload["agent_id"]
+        """Clean up tracking, log final text + parent link to DB, emit event.
+
+        last_assistant_message is the subagent's final textual response
+        and is the real source for the dashboard's finalText rendering.
+        parent_tool_use_id comes from the agent_id -> parent_tuid map
+        populated at SubagentStart, not from the hook's tool_use_id
+        param (which is an unrelated UUID).
+        """
+        agent_id = hook_input.get("agent_id", "")
+        if not agent_id:
+            raise RuntimeError("SubagentStop missing agent_id")
+        parent_tuid = self._subagent_parent_tuids.pop(agent_id, None)
+        if parent_tuid is None:
+            raise RuntimeError(
+                f"SubagentStop for {agent_id} with no recorded parent "
+                f"tool_use_id — subagent_start never fired for it"
+            )
+        final_text = hook_input.get("last_assistant_message", "")
         self._subagent_start_times.pop(agent_id, None)
         self._subagent_last_tool.pop(agent_id, None)
         self._subagent_types.pop(agent_id, None)
         await _log_audit(self._run_id, "subagent_complete", {
-            "agent_id": agent_id, "tool_use_id": tool_use_id,
+            "agent_id": agent_id,
+            "parent_tool_use_id": parent_tuid,
+            "final_text": final_text,
         })
         self._emit({"event": "subagent_stop", "data": {
-            "agent_id": agent_id, "tool_use_id": tool_use_id,
+            "agent_id": agent_id,
+            "parent_tool_use_id": parent_tuid,
         }})
         return SyncHookJSONOutput()
 

@@ -131,11 +131,13 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     }
   }
 
-  // ── Pass 2: Build deterministic agent_id → tool_use_id map from subagent_start audits ──
-  // The backend SubagentStart hook persists both agent_id and the parent Task tool_use_id,
-  // giving us an authoritative link. We also collect the subagent's type and final text
+  // ── Pass 2: Build deterministic agent_id → parent_tool_use_id map from audits ──
+  // The backend tracks Agent PreToolUse → SubagentStart 1:1 via a FIFO queue
+  // and persists parent_tool_use_id in the subagent_start / subagent_complete
+  // audit events, giving us an authoritative link. We also collect the
+  // subagent's type (from start) and last_assistant_message (from complete)
   // keyed by the parent tool_use_id for rendering inside the Agent card.
-  const agentIdToToolUseId = new Map<string, string>();
+  const agentIdToParentTuid = new Map<string, string>();
   const subagentTypes = new Map<string, string>();
   const subagentFinalTexts = new Map<string, string>();
   for (const ev of events) {
@@ -143,15 +145,15 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     const details = ev.data.details;
     if (!details) continue;
     if (ev.data.event_type === "subagent_start") {
-      const tuid = details.tool_use_id as string;
+      const parentTuid = details.parent_tool_use_id as string;
       const agentId = details.agent_id as string;
       const agentType = details.agent_type as string;
-      if (tuid && agentId) agentIdToToolUseId.set(agentId, tuid);
-      if (tuid && agentType) subagentTypes.set(tuid, agentType);
+      if (parentTuid && agentId) agentIdToParentTuid.set(agentId, parentTuid);
+      if (parentTuid && agentType) subagentTypes.set(parentTuid, agentType);
     } else if (ev.data.event_type === "subagent_complete") {
-      const tuid = details.tool_use_id as string;
+      const parentTuid = details.parent_tool_use_id as string;
       const text = details.final_text as string;
-      if (tuid && text) subagentFinalTexts.set(tuid, text);
+      if (parentTuid && text) subagentFinalTexts.set(parentTuid, text);
     }
   }
 
@@ -159,8 +161,8 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
   // Keyed by the Task tool_use_id, populated from the authoritative audit link above.
   const agentCallToChildren = new Map<string, ToolCall[]>();
   for (const [agentId, tools] of subagentTools) {
-    const tuid = agentIdToToolUseId.get(agentId);
-    if (tuid) agentCallToChildren.set(tuid, tools);
+    const parentTuid = agentIdToParentTuid.get(agentId);
+    if (parentTuid) agentCallToChildren.set(parentTuid, tools);
   }
 
   const result: GroupedEvent[] = [];
