@@ -55,19 +55,19 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
           >
             <div
               className={clsx(
-                "text-[12px] font-semibold leading-snug",
+                "text-[10px] font-medium leading-tight",
                 selected ? "text-[#e8e8e8]" : "text-[#ccc]"
               )}
             >
               {spec.label}
             </div>
-            <div className="text-[11px] text-[#aaa] mt-1 leading-snug">
+            <div className="text-[9px] text-[#999] mt-0.5 leading-tight">
               {spec.description}
             </div>
             <div
               className={clsx(
-                "text-[10px] mt-2 font-mono",
-                selected ? "text-[#00ff88]/80" : "text-[#888]"
+                "text-[8px] mt-1.5 font-mono",
+                selected ? "text-[#00ff88]/70" : "text-[#555]"
               )}
             >
               {spec.context}
