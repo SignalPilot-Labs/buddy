@@ -55,6 +55,7 @@ def register_routes(app: FastAPI, server: AgentServer) -> None:
         github_repo = body.github_repo
         await db.create_run_starting(
             run_id, body.prompt, body.duration_minutes, body.base_branch, github_repo,
+            body.model,
         )
 
         active = ActiveRun(run_id=run_id)

@@ -18,6 +18,7 @@ export interface Run {
   custom_prompt: string | null;
   duration_minutes: number;
   context_tokens: number;
+  model_name?: string | null;
 }
 
 export interface RepoInfo {
@@ -79,12 +80,12 @@ export type FeedEvent =
   | { _kind: "audit"; data: AuditEvent }
   | { _kind: "llm_text"; text: string; ts: string; agent_role?: string }
   | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: string }
-  | { _kind: "control"; text: string; ts: string }
+  | { _kind: "control"; text: string; ts: string; retryAction?: () => void }
   | { _kind: "usage"; data: UsageEvent };
 
 export const STATUS_META: Record<
   RunStatus,
-  { label: string; color: string; bg: string; dot: string; pulse: boolean }
+  { label: string; color: string; bg: string; dot: string; pulse: boolean; flashColor: string }
 > = {
   starting: {
     label: "Starting",
@@ -92,6 +93,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
   running: {
     label: "Running",
@@ -99,6 +101,7 @@ export const STATUS_META: Record<
     bg: "bg-[#00ff88]/10",
     dot: "bg-[#00ff88]",
     pulse: true,
+    flashColor: "#00ff88",
   },
   paused: {
     label: "Paused",
@@ -106,6 +109,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: false,
+    flashColor: "#ffaa00",
   },
   stopped: {
     label: "Stopped",
@@ -113,6 +117,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   completed: {
     label: "Completed",
@@ -120,6 +125,7 @@ export const STATUS_META: Record<
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
     pulse: false,
+    flashColor: "#88ccff",
   },
   completed_no_changes: {
     label: "No Changes",
@@ -127,6 +133,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   error: {
     label: "Error",
@@ -134,6 +141,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   crashed: {
     label: "Crashed",
@@ -141,6 +149,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff8844]/10",
     dot: "bg-[#ff8844]",
     pulse: false,
+    flashColor: "#ff8844",
   },
   killed: {
     label: "Killed",
@@ -148,6 +157,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   rate_limited: {
     label: "Rate Limited",
@@ -155,6 +165,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
 };
 
@@ -363,6 +374,7 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
+  default_model?: string;
 }
 
 export interface PoolToken {

@@ -7,8 +7,9 @@ standard logging module, never silently swallowed.
 
 import functools
 import logging
-
+from collections.abc import Callable, Coroutine
 from datetime import datetime, timezone
+from typing import Any, TypeVar
 
 from sqlalchemy import func, select, update
 
@@ -17,15 +18,21 @@ from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("agent.db")
 
+T = TypeVar("T")
 
-def swallow_errors(fn):
+
+def swallow_errors(
+    fn: Callable[..., Coroutine[Any, Any, T]],
+) -> Callable[..., Coroutine[Any, Any, T | None]]:
     """Decorator: catch and log exceptions instead of raising them.
 
     Use this on non-critical DB operations (audit logging, tool call logging)
-    where a failure should not crash the agent.
+    where a failure should not crash the agent. The exception is logged with
+    a full traceback so it never disappears silently. Returns a coroutine
+    (not just an awaitable) so callers can pass it to `asyncio.create_task`.
     """
     @functools.wraps(fn)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> T | None:
         try:
             return await fn(*args, **kwargs)
         except Exception:
@@ -50,9 +57,9 @@ async def create_run_starting(
     duration_minutes: float,
     base_branch: str,
     github_repo: str | None,
+    model_name: str | None,
 ) -> None:
     """Create a run record with status 'starting'. Called at /start time."""
-    repo = github_repo
     async with get_session_factory()() as s:
         s.add(Run(
             id=run_id,
@@ -61,7 +68,8 @@ async def create_run_starting(
             custom_prompt=custom_prompt,
             duration_minutes=duration_minutes,
             base_branch=base_branch,
-            github_repo=repo,
+            github_repo=github_repo,
+            model_name=model_name,
         ))
         await s.commit()
 
@@ -117,6 +125,7 @@ async def get_run_for_resume(run_id: str) -> dict | None:
             "total_output_tokens": run.total_output_tokens,
             "cache_creation_input_tokens": run.cache_creation_input_tokens,
             "cache_read_input_tokens": run.cache_read_input_tokens,
+            "model_name": run.model_name,
         }
 
 

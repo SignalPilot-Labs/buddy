@@ -4,17 +4,17 @@ import { getToolCategory, type ToolCategory } from "./types";
 /* ── Grouped Event Types ── */
 
 export type GroupedEvent =
-  | { type: "llm_message"; role: string; text: string; thinking: string; ts: string }
-  | { type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string }
-  | { type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "single_tool"; tool: ToolCall; ts: string }
-  | { type: "control"; text: string; ts: string }
-  | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
-  | { type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
-  | { type: "divider"; label: string; ts: string };
+  | { id: string; type: "llm_message"; role: string; text: string; thinking: string; ts: string }
+  | { id: string; type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { id: string; type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string }
+  | { id: string; type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { id: string; type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { id: string; type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
+  | { id: string; type: "single_tool"; tool: ToolCall; ts: string }
+  | { id: string; type: "control"; text: string; ts: string; retryAction?: () => void }
+  | { id: string; type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
+  | { id: string; type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
+  | { id: string; type: "divider"; label: string; ts: string };
 
 /* ── Grouping Logic ── */
 
@@ -51,31 +51,31 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
 
   switch (event.data.event_type) {
     case "run_started":
-      return { type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
+      return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
     case "round_complete":
       return null; // Rounds are detected from git commit tool calls, not this audit event
     case "pr_created":
-      return { type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
+      return { id: `ms-${ts}-PR Created`, type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":
-      return { type: "milestone", label: "PR Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ms-${ts}-PR Failed`, type: "milestone", label: "PR Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
     case "session_ended":
-      return { type: "milestone", label: "Session Ended", detail: `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
+      return { id: `ms-${ts}-Session Ended`, type: "milestone", label: "Session Ended", detail: `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
     case "killed":
-      return { type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
+      return { id: `ms-${ts}-Killed`, type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":
-      return { type: "milestone", label: "Fatal Error", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ms-${ts}-Fatal Error`, type: "milestone", label: "Fatal Error", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
     case "planner_invoked":
-      return { type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
+      return { id: `ms-${ts}-Planner Invoked`, type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
-      return { type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
+      return { id: `ms-${ts}-Session Denied`, type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
-      return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
+      return { id: `ms-${ts}-Session Unlocked`, type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
-      return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
+      return { id: `ms-${ts}-Stop Requested`, type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
     case "pause_requested":
-      return { type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
+      return { id: `ms-${ts}-Pause Requested`, type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
     case "resumed":
-      return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
+      return { id: `ms-${ts}-Resumed`, type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
     case "rate_limit_paused": {
       const resetEpoch = d.resets_at as number | undefined;
       const resetDetail = resetEpoch
@@ -89,21 +89,21 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
             return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
           })()
         : (d.reason as string) || "out of credits";
-      return { type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
+      return { id: `ms-${ts}-Rate Limited`, type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
     }
     case "prompt_injected":
     case "prompt_submitted":
-      return { type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
+      return { id: `up-${event.data.id}-${ts}`, type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
     case "session_resumed":
-      return { type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
+      return { id: `ms-${ts}-Session Resumed`, type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
     case "auto_commit":
-      return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
+      return { id: `ms-${ts}-Auto Commit`, type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
     case "push_failed":
-      return { type: "milestone", label: "Push Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ms-${ts}-Push Failed`, type: "milestone", label: "Push Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
     case "permission_denied":
-      return { type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
+      return { id: `ms-${ts}-Permission Denied`, type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
     case "run_ended":
-      return { type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
+      return { id: `ms-${ts}-Run Ended`, type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
     case "permission_allowed":
     case "subagent_stuck":
     case "subagent_timeout":
@@ -131,51 +131,38 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     }
   }
 
-  // ── Pass 2: Match Agent tool calls to their subagent children via temporal matching ──
-  const agentCallToChildren = new Map<string, ToolCall[]>();
-  const agentCalls: { toolUseId: string; ts: number }[] = [];
-  for (const ev of events) {
-    if (ev._kind === "tool" && getToolCategory(ev.data.tool_name) === AGENT_CATEGORY && ev.data.tool_use_id) {
-      agentCalls.push({ toolUseId: ev.data.tool_use_id, ts: new Date(ev.data.ts).getTime() });
-    }
-  }
-  agentCalls.sort((a, b) => a.ts - b.ts);
-  const claimedAgentIds = new Set<string>();
-  for (const ac of agentCalls) {
-    let bestAid: string | null = null;
-    let bestDelta = Infinity;
-    for (const [aid, tools] of subagentTools) {
-      if (claimedAgentIds.has(aid)) continue;
-      const firstToolTs = new Date(tools[0].ts).getTime();
-      const delta = firstToolTs - ac.ts;
-      if (delta >= -2000 && delta < bestDelta) {
-        bestDelta = delta;
-        bestAid = aid;
-      }
-    }
-    if (bestAid) {
-      agentCallToChildren.set(ac.toolUseId, subagentTools.get(bestAid)!);
-      claimedAgentIds.add(bestAid);
-    }
-  }
-
-  // ── Pass 3: Collect subagent_complete audit events for final text ──
+  // ── Pass 2: Build deterministic agent_id → parent_tool_use_id map from audits ──
+  // The backend tracks Agent PreToolUse → SubagentStart 1:1 via a FIFO queue
+  // and persists parent_tool_use_id in the subagent_start / subagent_complete
+  // audit events, giving us an authoritative link. We also collect the
+  // subagent's type (from start) and last_assistant_message (from complete)
+  // keyed by the parent tool_use_id for rendering inside the Agent card.
+  const agentIdToParentTuid = new Map<string, string>();
+  const subagentTypes = new Map<string, string>();
   const subagentFinalTexts = new Map<string, string>();
   for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_complete") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const text = ev.data.details?.final_text as string;
-      if (tuid && text) subagentFinalTexts.set(tuid, text);
+    if (ev._kind !== "audit") continue;
+    const details = ev.data.details;
+    if (!details) continue;
+    if (ev.data.event_type === "subagent_start") {
+      const parentTuid = details.parent_tool_use_id as string;
+      const agentId = details.agent_id as string;
+      const agentType = details.agent_type as string;
+      if (parentTuid && agentId) agentIdToParentTuid.set(agentId, parentTuid);
+      if (parentTuid && agentType) subagentTypes.set(parentTuid, agentType);
+    } else if (ev.data.event_type === "subagent_complete") {
+      const parentTuid = details.parent_tool_use_id as string;
+      const text = details.final_text as string;
+      if (parentTuid && text) subagentFinalTexts.set(parentTuid, text);
     }
   }
 
-  const subagentTypes = new Map<string, string>();
-  for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_start") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const agentType = ev.data.details?.agent_type as string;
-      if (tuid && agentType) subagentTypes.set(tuid, agentType);
-    }
+  // ── Pass 3: Attribute subagent tool groups to their parent Agent tool call ──
+  // Keyed by the Task tool_use_id, populated from the authoritative audit link above.
+  const agentCallToChildren = new Map<string, ToolCall[]>();
+  for (const [agentId, tools] of subagentTools) {
+    const parentTuid = agentIdToParentTuid.get(agentId);
+    if (parentTuid) agentCallToChildren.set(parentTuid, tools);
   }
 
   const result: GroupedEvent[] = [];
@@ -217,7 +204,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       }
 
       if (text || thinking) {
-        result.push({ type: "llm_message", role, text, thinking, ts });
+        result.push({ id: `llm-${ts}-${role}`, type: "llm_message", role, text, thinking, ts });
       }
       continue;
     }
@@ -230,7 +217,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
 
     // ── Control events ──
     if (ev._kind === "control") {
-      result.push({ type: "control", text: ev.text, ts: ev.ts });
+      result.push({ id: `ctrl-${ev.ts}-${ev.text.slice(0, 20)}`, type: "control", text: ev.text, ts: ev.ts, retryAction: ev.retryAction });
       i++;
       continue;
     }
@@ -249,19 +236,27 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       const cat = getToolCategory(tc.tool_name);
       const tsMs = getTs(ev);
 
-      // Agent calls: attach their subagent's child tools and final text
+      // Agent calls: attach their subagent's child tools and final text.
+      // An orphan post (phase="post" with no input_data) is a PostToolUseFailure
+      // or merge-failure artifact — not a real Task invocation. Skip it to avoid
+      // rendering a phantom "Sub-agent task" card. A legitimate merged Agent
+      // event retains its pre-phase input_data even after phase becomes "post".
       if (cat === AGENT_CATEGORY) {
+        if (tc.phase === "post" && !tc.input_data) {
+          i++;
+          continue;
+        }
         const children = (tc.tool_use_id && agentCallToChildren.get(tc.tool_use_id)) || [];
         const finalText = (tc.tool_use_id && subagentFinalTexts.get(tc.tool_use_id)) || "";
         const agentType = (tc.tool_use_id && subagentTypes.get(tc.tool_use_id)) || "";
-        result.push({ type: "agent_run", tool: tc, childTools: children, finalText, agentType, ts: tc.ts });
+        result.push({ id: `agent-${tc.id}`, type: "agent_run", tool: tc, childTools: children, finalText, agentType, ts: tc.ts });
         i++;
         continue;
       }
 
       // Session gate is a milestone
       if (cat === "session_gate") {
-        result.push({ type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
+        result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
         i++;
         continue;
       }
@@ -283,7 +278,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const label = cat === "read"
             ? `Read ${batch.length} files`
@@ -293,7 +288,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
                 ? `Grep ${batch.length} searches`
                 : `${batch.length} ${cat} calls`;
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `tg-${batch[0].id}`, type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -311,10 +306,10 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `eg-${batch[0].id}`, type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -331,10 +326,10 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `bg-${batch[0].id}`, type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -351,16 +346,16 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `pg-${batch[0].id}`, type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
 
       // Everything else: single tool
-      result.push({ type: "single_tool", tool: tc, ts: tc.ts });
+      result.push({ id: `st-${tc.id}`, type: "single_tool", tool: tc, ts: tc.ts });
       continue;
     }
 
@@ -381,7 +376,8 @@ function _insertCommitDividers(groups: GroupedEvent[]): GroupedEvent[] {
     const commitRound = _detectGitCommit(gev);
     if (commitRound !== null) {
       const roundLabel = commitRound > 0 ? `Round ${commitRound}` : "Round";
-      out.push({ type: "divider", label: `${roundLabel} complete`, ts: gev.ts });
+      const label = `${roundLabel} complete`;
+      out.push({ id: `div-${gev.ts}-${label}`, type: "divider", label, ts: gev.ts });
     }
   }
   return out;

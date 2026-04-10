@@ -135,6 +135,7 @@ class AgentServer:
                 run_id, body.prompt, budget, body.duration_minutes,
                 body.base_branch, github_repo,
                 self._exec_timeout, self._clone_timeout,
+                body.model,
             )
 
             active.status = "running"
@@ -176,6 +177,7 @@ class AgentServer:
 
             ctx, options, session, events, tracker, initial = await bootstrap.setup_resume(
                 run_id, budget, self._exec_timeout, self._clone_timeout, body.prompt,
+                body.model,
             )
 
             active.status = "running"

@@ -9,7 +9,20 @@ from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
+from db.constants import DEFAULT_MODEL, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
+
+_FALLBACK_MAP: dict[str, str | None] = {
+    "opus": "sonnet",
+    "sonnet": None,
+    "opus-4-5": "sonnet",
+}
+
+
+def get_fallback_model(model: str) -> str | None:
+    """Return the fallback model for rate-limit recovery, or None if no fallback."""
+    return _FALLBACK_MAP.get(model)
+
 
 if TYPE_CHECKING:
     from core.event_bus import EventBus
@@ -17,6 +30,7 @@ if TYPE_CHECKING:
 
 
 # ── Sandbox Communication ──
+
 
 @dataclass
 class ExecRequest:
@@ -39,6 +53,7 @@ class ExecResult:
 
 # ── Git Setup ──
 
+
 @dataclass
 class GitSetupParams:
     """Parameters for git repository setup during bootstrap."""
@@ -51,6 +66,7 @@ class GitSetupParams:
 
 
 # ── Runtime Context ──
+
 
 @dataclass
 class RunContext:
@@ -115,6 +131,7 @@ class ControlAction:
 
 # ── Active Run (in-process tracking for concurrent runs) ──
 
+
 @dataclass
 class ActiveRun:
     """Tracks one in-progress run in the server's run dict."""
@@ -131,6 +148,7 @@ class ActiveRun:
 
 # ── HTTP Request Schemas ──
 
+
 class StartRequest(BaseModel):
     """POST /start request body."""
 
@@ -138,11 +156,18 @@ class StartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
-    extended_context: bool = False
+    model: str = DEFAULT_MODEL
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
     env: dict[str, str] | None = None
+
+    @field_validator("model")
+    @classmethod
+    def model_valid(cls, v: str) -> str:
+        if v not in VALID_MODELS:
+            raise ValueError(f"model must be one of {VALID_MODELS}")
+        return v
 
     @field_validator("max_budget_usd")
     @classmethod
@@ -176,6 +201,7 @@ class ResumeRequest(BaseModel):
     git_token: str | None = None
     github_repo: str | None = None
     env: dict[str, str] | None = None
+    model: str | None = None  # Override model for the resumed run. None → use original.
 
     @field_validator("max_budget_usd")
     @classmethod
@@ -191,6 +217,13 @@ class ResumeRequest(BaseModel):
             raise ValueError("run_id must not be empty")
         return v.strip()
 
+    @field_validator("model")
+    @classmethod
+    def model_valid(cls, v: str | None) -> str | None:
+        if v is not None and v not in VALID_MODELS:
+            raise ValueError(f"model must be one of {VALID_MODELS}")
+        return v
+
 
 class InjectRequest(BaseModel):
     """POST /inject request body."""
@@ -201,11 +234,14 @@ class InjectRequest(BaseModel):
     @classmethod
     def payload_max_length(cls, v: str | None) -> str | None:
         if v is not None and len(v) > INJECT_PAYLOAD_MAX_LEN:
-            raise ValueError(f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters")
+            raise ValueError(
+                f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters"
+            )
         return v
 
 
 # ── Health Response ──
+
 
 class HealthRunEntry(BaseModel):
     """Per-run details in the health response."""

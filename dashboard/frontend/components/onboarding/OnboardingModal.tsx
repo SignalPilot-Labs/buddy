@@ -94,11 +94,12 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
     if (open) setTimeout(() => inputRef.current?.focus(), 150);
   }, [open, step]);
 
-  // Lock body scroll
+  // Lock body scroll — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
 
@@ -182,7 +183,14 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                 </div>
 
                 {/* Step indicators */}
-                <div className="flex items-center gap-1.5 mt-3">
+                <div
+                  className="flex items-center gap-1.5 mt-3"
+                  role="progressbar"
+                  aria-valuenow={step + 1}
+                  aria-valuemin={1}
+                  aria-valuemax={STEPS.length}
+                  aria-label={`Setup step ${step + 1} of ${STEPS.length}`}
+                >
                   {STEPS.map((s, i) => (
                     <div key={s.key} className="flex items-center gap-1.5">
                       <div
@@ -281,7 +289,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {(initialStatus[currentStep.statusKey] || !currentValue.trim()) && (
+                  {initialStatus[currentStep.statusKey] && (
                     <Button variant="ghost" onClick={handleSkip}>
                       {isLastStep ? "Done" : "Skip"}
                     </Button>

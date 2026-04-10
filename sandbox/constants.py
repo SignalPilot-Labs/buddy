@@ -27,3 +27,9 @@ EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
 # ── Subagent Limits ──
 SUBAGENT_TIMEOUT_SEC: int = 45 * 60
 INPUT_SUMMARY_MAX_LEN: int = 1000
+
+# ── Subagent Attribution ──
+# Tool name the SDK reports for Task subagent invocations. The hook's
+# PreToolUse fires with this name immediately before SubagentStart, and
+# its tool_use_id is the parent link the SubagentStart payload lacks.
+TASK_TOOL_NAME: str = "Agent"

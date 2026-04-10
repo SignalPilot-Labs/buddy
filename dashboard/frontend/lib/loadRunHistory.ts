@@ -5,6 +5,10 @@ import { fetchToolCalls, fetchAuditLog } from "@/lib/api";
 import { HISTORY_FETCH_LIMIT } from "@/lib/constants";
 
 function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
+  // Pair pre/post tool rows strictly by tool_use_id. An unmatched post is
+  // kept as-is so error outputs stay visible. Name-based fallback matching
+  // has been removed — it was dead code (the backend always stores a
+  // tool_use_id) and could mis-pair concurrent Agent calls.
   const merged: ToolCall[] = [];
 
   for (const t of tools) {
@@ -25,18 +29,6 @@ function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
         }
       }
     }
-    if (!matched) {
-      for (let j = merged.length - 1; j >= 0; j--) {
-        const pre = merged[j];
-        if (pre.tool_name === t.tool_name && pre.phase === "pre" && !pre.output_data) {
-          pre.output_data = t.output_data;
-          pre.duration_ms = t.duration_ms;
-          pre.phase = "post";
-          matched = true;
-          break;
-        }
-      }
-    }
     if (!matched) merged.push({ ...t });
   }
 
@@ -46,15 +38,20 @@ function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
 function buildAuditEvents(audits: { id: number; run_id: string; ts: string; event_type: string; details: Record<string, unknown> }[]): FeedEvent[] {
   const events: FeedEvent[] = [];
   for (const a of audits) {
-    const details = typeof a.details === "string" ? JSON.parse(a.details) : a.details || {};
+    let details: Record<string, unknown>;
+    try {
+      details = typeof a.details === "string" ? JSON.parse(a.details) : a.details || {};
+    } catch {
+      details = {};
+    }
     if (a.event_type === "llm_text" || a.event_type === "llm_thinking") {
       const kind = a.event_type === "llm_text" ? "llm_text" as const : "llm_thinking" as const;
-      const role = details.agent_role || "worker";
+      const role = String(details.agent_role || "worker");
       const last = events[events.length - 1];
       if (last && last._kind === kind && last.agent_role === role) {
-        events[events.length - 1] = { ...last, text: last.text + (details.text || "") };
+        events[events.length - 1] = { ...last, text: last.text + String(details.text || "") };
       } else {
-        events.push({ _kind: kind, text: details.text || "", ts: a.ts, agent_role: role });
+        events.push({ _kind: kind, text: String(details.text || ""), ts: a.ts, agent_role: role });
       }
     } else {
       events.push({ _kind: "audit" as const, data: { ...a, details } });

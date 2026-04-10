@@ -11,70 +11,16 @@ import {
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import type { DashboardState } from "@/hooks/dashboardTypes";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, loadStoredModel } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
-
-export interface DashboardState {
-  // Data
-  repos: RepoInfo[];
-  runs: Run[];
-  runsLoading: boolean;
-  selectedRunId: string | null;
-  selectedRun: Run | null;
-  allEvents: FeedEvent[];
-  pendingMessages: PendingMessage[];
-  runStatus: RunStatus | null;
-  agentHealth: AgentHealth | null;
-  activeRunHealth: HealthRunEntry | undefined;
-  connected: boolean;
-  branches: string[];
-  isMobile: boolean;
-  // Derived booleans
-  isConfigured: boolean;
-  atCapacity: boolean;
-  busy: boolean;
-
-  // UI state
-  activeRepoFilter: string | null;
-  startModalOpen: boolean;
-  showKillConfirm: boolean;
-  onboardingOpen: boolean;
-  settingsStatus: SettingsStatus | null;
-  sidebarCollapsed: boolean;
-  mobilePanel: "feed" | "runs" | "changes" | "logs";
-  controlsOpen: boolean;
-  rightPanel: "changes" | "logs";
-
-  // Actions
-  controlAction: (label: string, fn: (id: string) => Promise<unknown>) => void;
-  handleToggleSidebar: () => void;
-  handleRepoSwitch: (repo: string) => Promise<void>;
-  handleSelectRun: (id: string) => Promise<FeedEvent[]>;
-  handleStartRun: (
-    prompt: string | undefined,
-    budget: number,
-    durationMinutes: number,
-    baseBranch: string,
-    extendedContext?: boolean,
-  ) => Promise<void>;
-  handleInject: (prompt: string) => void;
-  handleRestart: (prompt: string) => void;
-  handleHeaderKill: () => void;
-  setStartModalOpen: (v: boolean) => void;
-  setOnboardingOpen: (v: boolean) => void;
-  setMobilePanel: (v: "feed" | "runs" | "changes" | "logs") => void;
-  setControlsOpen: (v: boolean) => void;
-  setRightPanel: (v: "changes" | "logs") => void;
-  setBranches: (v: string[]) => void;
-  setSettingsStatus: (v: SettingsStatus) => void;
-  setRepos: (v: RepoInfo[]) => void;
-}
 
 export function useDashboard(): DashboardState {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -101,7 +47,9 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [busy, setBusy] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
@@ -121,43 +69,48 @@ export function useDashboard(): DashboardState {
     if (!runId) return;
     sseRef.current.disconnect();
     setPendingMessages([]);
+    setHistoryLoading(true);
     loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
       setHistoryEvents(events);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
-    }).catch(() => {});
+      setHistoryLoading(false);
+    }).catch((err) => {
+      setHistoryLoading(false);
+      setHistoryEvents((prev) => [
+        ...prev,
+        { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
+      ]);
+    });
   }, []);
 
   const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Clear pending messages FIFO when NEW prompt events arrive via SSE
-  const confirmedCountRef = useRef(0);
+  // Clear pending messages by prompt text matching when prompt events arrive via SSE
+  const confirmedPromptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const realCount = liveEvents.filter(
-      (e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"),
-    ).length;
-    // Reset ref when liveEvents is cleared (run switch, session resumed, etc.)
-    if (realCount < confirmedCountRef.current) {
-      confirmedCountRef.current = realCount;
+    // Reset when liveEvents is cleared (run switch, session resumed, etc.)
+    if (liveEvents.length === 0) {
+      confirmedPromptsRef.current = new Set();
       return;
     }
-    const newArrivals = realCount - confirmedCountRef.current;
-    confirmedCountRef.current = realCount;
-    if (newArrivals <= 0) return;
-    setPendingMessages((prev) => {
-      const pendingCount = prev.filter((m) => m.status === "pending").length;
-      const toRemove = Math.min(newArrivals, pendingCount);
-      if (toRemove === 0) return prev;
-      let removed = 0;
-      return prev.filter((m) => {
-        if (m.status !== "pending") return true;
-        if (removed < toRemove) { removed++; return false; }
-        return true;
-      });
-    });
+    const confirmedTexts = liveEvents
+      .filter((e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"))
+      .map((e) => {
+        if (e._kind !== "audit") return "";
+        return String(e.data.details.prompt || "");
+      })
+      .filter((t) => t.length > 0);
+    const newConfirmed = confirmedTexts.filter((t) => !confirmedPromptsRef.current.has(t));
+    if (newConfirmed.length === 0) return;
+    for (const t of newConfirmed) confirmedPromptsRef.current.add(t);
+    const confirmedSet = new Set(newConfirmed);
+    setPendingMessages((prev) =>
+      prev.filter((m) => m.status !== "pending" || !confirmedSet.has(m.prompt)),
+    );
   }, [liveEvents]);
 
   const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
@@ -166,12 +119,18 @@ export function useDashboard(): DashboardState {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
-  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>) => {
-    if (selectedRunId) {
-      fn(selectedRunId).catch((e) =>
-        addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString() })
-      );
-    }
+  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
+    if (!selectedRunId) return Promise.resolve();
+    return fn(selectedRunId).then(() => undefined).catch((e: unknown) => {
+      const retry = () => controlAction(label, fn);
+      addEvent({
+        _kind: "control",
+        text: `${label} failed: ${e}`,
+        ts: new Date().toISOString(),
+        retryAction: retry,
+      });
+      return Promise.reject(e);
+    });
   }, [selectedRunId, addEvent]);
 
   const handleToggleSidebar = useCallback(() => {
@@ -182,23 +141,17 @@ export function useDashboard(): DashboardState {
     });
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
-        e.preventDefault();
-        handleToggleSidebar();
-        return;
-      }
-      // 'N' to open new run modal (only when not focused in an input)
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (e.key === "n" && !e.metaKey && !e.ctrlKey && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
-        e.preventDefault();
-        setStartModalOpen(true);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [handleToggleSidebar]);
+  const runStatus: RunStatus | null = (selectedRun?.status as RunStatus) || null;
+
+  useKeyboardShortcuts({
+    handleToggleSidebar,
+    setStartModalOpen,
+    showShortcuts,
+    setShowShortcuts,
+    controlAction,
+    runStatus,
+    busy,
+  });
 
   useEffect(() => {
     const check = async () => {
@@ -259,6 +212,7 @@ export function useDashboard(): DashboardState {
     setHistoryEvents([]);
     setPendingMessages([]);
     sseRef.current.clearEvents();
+    setBranches([]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
@@ -282,7 +236,7 @@ export function useDashboard(): DashboardState {
       setSelectedRunId(id);
       setPendingMessages([]);
       localStorage.setItem("autofyn_last_run_id", id);
-      setHistoryEvents([]);
+      setHistoryLoading(true);
       sseRef.current.clearEvents();
       let lastToolId = 0;
       let lastAuditId = 0;
@@ -296,6 +250,9 @@ export function useDashboard(): DashboardState {
         lastAuditId = result.lastAuditId;
       } catch (err) {
         console.warn("Failed to load history:", err);
+        if (gen === selectGenRef.current) setHistoryEvents([]);
+      } finally {
+        if (gen === selectGenRef.current) setHistoryLoading(false);
       }
       if (gen !== selectGenRef.current) return loadedEvents;
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
@@ -323,8 +280,6 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
-  const runStatus: RunStatus | null = (selectedRun?.status as RunStatus) || null;
-
   const addPendingMessage = useCallback(
     (prompt: string): number => {
       const id = -Date.now();
@@ -347,12 +302,13 @@ export function useDashboard(): DashboardState {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
-      extendedContext: boolean = false,
+      model?: string,
     ) => {
+      const resolvedModel = model ?? loadStoredModel();
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
         refreshRuns();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);
@@ -413,7 +369,7 @@ export function useDashboard(): DashboardState {
       return;
     }
     setBusy(true);
-    controlAction("Kill", killAgent);
+    void controlAction("Kill", killAgent);
     setShowKillConfirm(false);
   }, [showKillConfirm, controlAction]);
 
@@ -440,6 +396,7 @@ export function useDashboard(): DashboardState {
     isConfigured,
     atCapacity,
     busy,
+    historyLoading,
     activeRepoFilter,
     startModalOpen,
     showKillConfirm,
@@ -449,6 +406,8 @@ export function useDashboard(): DashboardState {
     mobilePanel,
     controlsOpen,
     rightPanel,
+    showShortcuts,
+    setShowShortcuts,
     controlAction,
     handleToggleSidebar,
     handleRepoSwitch,

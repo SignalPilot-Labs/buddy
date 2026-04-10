@@ -66,7 +66,7 @@ export function ChildToolRow({
           {tool.tool_name}
         </span>
         {detail && (
-          <span className="text-[#666] truncate flex-1 min-w-0">{detail}</span>
+          <span className="text-[#666] truncate flex-1 min-w-0" title={fp || detail}>{detail}</span>
         )}
         {!detail && <span className="flex-1" />}
         {!!tool.duration_ms && (
@@ -166,8 +166,9 @@ export function ReadGroupCard({
 
       {expanded && (
         <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           {isRead ? (
@@ -294,8 +295,9 @@ export function EditGroupCard({
       </button>
       {expanded && (
         <motion.div
-          initial={{ height: 0 }}
-          animate={{ height: "auto" }}
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="divide-y divide-white/[0.03]">

@@ -1,7 +1,7 @@
 /**
  * StartRunModal component tests.
  *
- * Covers: opening/closing, extended context checkbox, busy state,
+ * Covers: opening/closing, model selector, busy state,
  * and onStart callback wiring.
  */
 
@@ -39,9 +39,10 @@ describe("StartRunModal", () => {
     expect(document.body.textContent).not.toContain("General improvement");
   });
 
-  it("shows extended context checkbox", () => {
+  it("shows model selector with model options", () => {
     renderModal();
-    expect(document.body.textContent).toContain("Extended Context");
+    expect(document.body.textContent).toContain("Model");
+    expect(document.body.textContent).toContain("Claude Opus 4.6");
   });
 
   it("shows branch selector with main", () => {

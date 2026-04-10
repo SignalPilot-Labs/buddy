@@ -5,8 +5,10 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
+import { ModelSelector } from "@/components/ui/ModelSelector";
 import { clsx } from "clsx";
-import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { PINNED_BRANCHES, loadStoredModel } from "@/lib/constants";
+import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
 function BranchPicker({
@@ -28,9 +30,8 @@ function BranchPicker({
     : branches;
 
   const sorted = [...filtered].sort((a, b) => {
-    const pinned = ["main", "staging"];
-    const aPin = pinned.indexOf(a);
-    const bPin = pinned.indexOf(b);
+    const aPin = PINNED_BRANCHES.indexOf(a);
+    const bPin = PINNED_BRANCHES.indexOf(b);
     if (aPin !== -1 && bPin !== -1) return aPin - bPin;
     if (aPin !== -1) return -1;
     if (bPin !== -1) return 1;
@@ -68,8 +69,15 @@ function BranchPicker({
         </svg>
       </button>
 
+      <AnimatePresence>
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-[#0d0d0d] border border-[#1a1a1a] rounded shadow-xl shadow-black/40 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.15 }}
+          className="absolute z-50 mt-1 w-full bg-[#0d0d0d] border border-[#1a1a1a] rounded shadow-xl shadow-black/40 overflow-hidden"
+        >
           <div className="p-2 border-b border-[#1a1a1a]">
             <input
               ref={inputRef}
@@ -115,8 +123,9 @@ function BranchPicker({
               ))
             )}
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -124,11 +133,10 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, extendedContext: boolean) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
-  defaultExtendedContext?: boolean;
 }
 
 function parseEnvText(text: string): Record<string, string> {
@@ -189,7 +197,6 @@ export function StartRunModal({
   busy,
   branches,
   activeRepo,
-  defaultExtendedContext = false,
 }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
@@ -197,13 +204,7 @@ export function StartRunModal({
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
-  const [extendedContext, setExtendedContext] = useState(() => {
-    if (defaultExtendedContext) return true;
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
-    }
-    return false;
-  });
+  const [model, setModel] = useState<ModelId>(loadStoredModel);
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -214,6 +215,8 @@ export function StartRunModal({
       setEnvError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
+      }).catch(() => {
+        setEnvError("Failed to load environment variables");
       });
     }
   }, [open, activeRepo]);
@@ -222,11 +225,12 @@ export function StartRunModal({
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
   }, [open]);
 
-  // Lock body scroll when open
+  // Lock body scroll when open — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
 
@@ -254,7 +258,7 @@ export function StartRunModal({
         return;
       }
     }
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -377,6 +381,16 @@ export function StartRunModal({
                   />
                 </div>
 
+                {/* Model Selector */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    Model
+                  </label>
+                  <div className="mt-2">
+                    <ModelSelector value={model} onChange={setModel} />
+                  </div>
+                </div>
+
                 {/* Duration lock */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
@@ -466,32 +480,6 @@ export function StartRunModal({
                       </span>
                     </div>
                   )}
-                </div>
-                {/* Extended Context */}
-                <div>
-                  <label
-                    className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold flex items-center gap-2 cursor-pointer select-none"
-                    onClick={() => setExtendedContext(!extendedContext)}
-                  >
-                    <span
-                      className={clsx(
-                        "flex items-center justify-center h-3 w-3 rounded border transition-all",
-                        extendedContext
-                          ? "bg-[#00ff88] border-[#00ff88]"
-                          : "border-[#666] bg-transparent"
-                      )}
-                    >
-                      {extendedContext && (
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
-                          <polyline points="1.5 4 3 5.5 6.5 2" />
-                        </svg>
-                      )}
-                    </span>
-                    Extended Context (1M)
-                  </label>
-                  <p className="text-[9px] text-[#666] mt-1 ml-5">
-                    Uses more of your daily quota but allows larger context windows
-                  </p>
                 </div>
               </div>
 

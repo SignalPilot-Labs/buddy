@@ -62,6 +62,7 @@ class Run(Base):
     diff_stats: Mapped[list | None] = mapped_column(JSONB)
     github_repo: Mapped[str | None] = mapped_column(String)
     context_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    model_name: Mapped[str | None] = mapped_column(String, nullable=True)
 
     tool_calls: Mapped[list["ToolCall"]] = relationship(back_populates="run", cascade="all, delete-orphan")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="run", cascade="all, delete-orphan")
