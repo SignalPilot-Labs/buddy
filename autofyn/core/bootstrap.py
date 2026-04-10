@@ -166,11 +166,15 @@ class Bootstrap:
         session, events, tracker = self._create_services(run_context)
 
         session_id = run_info.get("sdk_session_id")
+        # Custom agents must be re-registered on resume — the SDK does not
+        # persist them across sessions. Passing None here silently drops
+        # builder/reviewer/planner/etc., causing the orchestrator to fall
+        # back to the CLI's built-in types (general-purpose, Plan, etc.).
         session_options = self._build_session_options(
             run_context,
             model,
             fallback_model,
-            None,
+            self._build_subagents(),
             session_id,
             max_budget,
             run_info.get("custom_prompt"),
