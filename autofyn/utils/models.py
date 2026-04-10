@@ -1,11 +1,17 @@
-"""All data models for the agent package — runtime context, results, and HTTP request schemas."""
+"""Data models for the agent package.
+
+Per CLAUDE.md, every dataclass and Pydantic schema in the agent lives
+here. Modules keep behavior (classes with I/O, state machines, handlers);
+models.py owns the shapes that flow between them.
+"""
 
 from __future__ import annotations
 
 import asyncio
+import json
 import time
-from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from dataclasses import asdict, dataclass, field
+from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
@@ -25,11 +31,13 @@ def get_fallback_model(model: str) -> str | None:
 
 
 if TYPE_CHECKING:
-    from core.event_bus import EventBus
-    from tools.session import SessionGate
+    from memory.metadata import MetadataStore
+    from memory.report import ReportStore
+    from operator.inbox import OperatorInbox
+    from session.time_lock import TimeLock
 
 
-# ── Sandbox Communication ──
+# ── Sandbox execute request/response ────────────────────────────────
 
 
 @dataclass
@@ -51,26 +59,12 @@ class ExecResult:
     exit_code: int
 
 
-# ── Git Setup ──
-
-
-@dataclass
-class GitSetupParams:
-    """Parameters for git repository setup during bootstrap."""
-
-    base_branch: str
-    github_repo: str
-    exec_timeout: int
-    clone_timeout: int
-    custom_prompt: str | None
-
-
-# ── Runtime Context ──
+# ── Run context ─────────────────────────────────────────────────────
 
 
 @dataclass
 class RunContext:
-    """Shared state for a single agent run. Passed to all services via DI."""
+    """Run-wide mutable state. One instance per run, mutated across rounds."""
 
     run_id: str
     agent_role: str
@@ -85,51 +79,178 @@ class RunContext:
     cache_read_input_tokens: int = 0
 
 
+# ── Round execution ─────────────────────────────────────────────────
+
+
+RoundStatus = Literal[
+    "complete",       # round finished normally (ResultMessage)
+    "ended",          # orchestrator called end_session — stop the whole run
+    "paused",         # operator paused; outer loop will await resume
+    "stopped",        # operator stopped; outer loop will tear down
+    "rate_limited",   # rate limit rejected; outer loop will back off or abort
+    "error",          # exception during round execution
+]
+
+
 @dataclass
-class StreamResult:
-    """Structured return from SessionRunner._process_stream()."""
+class RoundResult:
+    """Outcome of a single round of orchestrator execution."""
 
-    should_stop: bool
-    final_status: str | None
-    session_ended: bool
-    result_message: Any | None
-    pause: bool
+    status: RoundStatus
+    session_id: str | None
+    rate_limit_resets_at: int | None = None
+    error: str | None = None
 
 
 @dataclass
-class DispatchResult:
-    """Result of dispatching a single SSE event.
+class RoundEntry:
+    """One line in rounds.json — a single round's summary."""
 
-    The dispatcher returns flags for actions the session runner must take.
-    This keeps the dispatcher free of control/EventBus dependencies.
-    """
+    n: int
+    summary: str
+    ended_at: str
 
-    result_data: dict | None = None
-    rate_limit_data: dict | None = None
-    subagent_completed: bool = False
+
+@dataclass
+class RoundsMetadata:
+    """Parsed `/tmp/rounds.json`. Mutated in-place by the round loop."""
+
+    pr_title: str = ""
+    pr_description: str = ""
+    rounds: list[RoundEntry] = field(default_factory=list)
 
     @classmethod
-    def ok(cls) -> "DispatchResult":
-        """Event handled, no action needed."""
+    def empty(cls) -> "RoundsMetadata":
+        """Return a fresh empty metadata object."""
         return cls()
 
+    def latest_summary(self) -> str:
+        """One-line summary for the most recent round. Empty if none."""
+        if not self.rounds:
+            return ""
+        return self.rounds[-1].summary
+
+    def has_round(self, n: int) -> bool:
+        """True if an entry for round `n` exists."""
+        return any(r.n == n for r in self.rounds)
+
+    def to_json(self) -> str:
+        """Serialize to a pretty-printed JSON string."""
+        return json.dumps(
+            {
+                "pr_title": self.pr_title,
+                "pr_description": self.pr_description,
+                "rounds": [asdict(r) for r in self.rounds],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
 
 @dataclass
-class ControlAction:
-    """Result of a control event. Tells SessionRunner what to do next."""
+class RoundContext:
+    """Everything the orchestrator prompt builder needs for one round."""
 
-    stop: bool
-    break_stream: bool
-    final_status: str | None
-    pause: bool
+    round_number: int
+    task: str
+    duration_minutes: float
+    time_remaining_minutes: float
+    branch_name: str
+    base_branch: str
+    metadata: RoundsMetadata
+    previous_round_reports: dict[str, list[str]]
+    operator_messages: list[str]
 
-    @classmethod
-    def no_action(cls) -> "ControlAction":
-        """No control action needed."""
-        return cls(stop=False, break_stream=False, final_status=None, pause=False)
+
+# ── Bootstrap ───────────────────────────────────────────────────────
 
 
-# ── Active Run (in-process tracking for concurrent runs) ──
+@dataclass
+class BootstrapResult:
+    """Everything the round loop needs after a successful bootstrap."""
+
+    run: RunContext
+    inbox: OperatorInbox
+    time_lock: TimeLock
+    reports: ReportStore
+    metadata: MetadataStore
+    base_session_options: dict
+    task: str
+    model: str
+    fallback_model: str | None
+    run_start_time: float
+
+
+# ── Operator events ─────────────────────────────────────────────────
+
+
+EventKind = Literal["inject", "pause", "resume", "stop", "unlock"]
+
+
+@dataclass(frozen=True)
+class OperatorEvent:
+    """One operator-sourced signal routed through the inbox."""
+
+    kind: EventKind
+    payload: str
+
+
+OutcomeKind = Literal["continue", "break_pause", "break_stop"]
+
+
+@dataclass(frozen=True)
+class ControlOutcome:
+    """What the session runner should do after an operator event."""
+
+    kind: OutcomeKind
+    reason: str
+
+
+# ── Stream signals ──────────────────────────────────────────────────
+
+
+SignalKind = Literal[
+    "continue",
+    "round_complete",
+    "run_ended",
+    "subagent_boundary",
+    "rate_limited",
+]
+
+
+@dataclass(frozen=True)
+class StreamSignal:
+    """Decision returned after dispatching one SSE event."""
+
+    kind: SignalKind
+    rate_limit_data: dict | None = None
+
+
+# ── Subagent tracking ───────────────────────────────────────────────
+
+
+@dataclass
+class StuckSubagent:
+    """Subagent idle longer than SUBAGENT_IDLE_KILL_SEC."""
+
+    agent_id: str
+    agent_type: str
+    idle_seconds: int
+    total_seconds: int
+
+
+@dataclass(frozen=True)
+class SubagentDef:
+    """Definition of a single subagent (name, phase, model, tools)."""
+
+    name: str
+    phase: str
+    description: str
+    model: str
+    tools: list[str]
+
+
+# ── In-process run registry ─────────────────────────────────────────
 
 
 @dataclass
@@ -141,12 +262,12 @@ class ActiveRun:
     started_at: float = field(default_factory=time.time)
     error_message: str | None = None
     task: asyncio.Task | None = field(default=None, repr=False)
-    events: EventBus | None = field(default=None, repr=False)
-    session: SessionGate | None = field(default=None, repr=False)
+    inbox: OperatorInbox | None = field(default=None, repr=False)
+    time_lock: TimeLock | None = field(default=None, repr=False)
     run_context: RunContext | None = field(default=None, repr=False)
 
 
-# ── HTTP Request Schemas ──
+# ── HTTP request schemas ────────────────────────────────────────────
 
 
 class StartRequest(BaseModel):
@@ -191,40 +312,6 @@ class StartRequest(BaseModel):
         return v.strip()
 
 
-class ResumeRequest(BaseModel):
-    """POST /resume request body."""
-
-    run_id: str
-    prompt: str | None = None
-    max_budget_usd: float = 0
-    claude_token: str | None = None
-    git_token: str | None = None
-    github_repo: str | None = None
-    env: dict[str, str] | None = None
-    model: str | None = None  # Override model for the resumed run. None → use original.
-
-    @field_validator("max_budget_usd")
-    @classmethod
-    def budget_non_negative(cls, v: float) -> float:
-        if v < 0:
-            raise ValueError("max_budget_usd must be non-negative")
-        return v
-
-    @field_validator("run_id")
-    @classmethod
-    def run_id_not_empty(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("run_id must not be empty")
-        return v.strip()
-
-    @field_validator("model")
-    @classmethod
-    def model_valid(cls, v: str | None) -> str | None:
-        if v is not None and v not in VALID_MODELS:
-            raise ValueError(f"model must be one of {VALID_MODELS}")
-        return v
-
-
 class InjectRequest(BaseModel):
     """POST /inject request body."""
 
@@ -238,9 +325,6 @@ class InjectRequest(BaseModel):
                 f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters"
             )
         return v
-
-
-# ── Health Response ──
 
 
 class HealthRunEntry(BaseModel):

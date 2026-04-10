@@ -24,6 +24,9 @@ PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
 OPERATOR_MESSAGES_PATH = "/tmp/operator-messages.md"
 RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
 PHASE_DIRS = ("explore", "plan", "build", "review")
+ORCHESTRATOR_DIR_NAME = "orchestrator"
+PHASE_BASE = "/tmp"
+METADATA_PATH = "/tmp/rounds.json"
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──
@@ -68,6 +71,7 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 # ── Token env keys — passed per-run via extra_env, not os.environ ──
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
+ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"

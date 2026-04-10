@@ -1,7 +1,7 @@
 """Tests for _parse_sse_event from sandbox_manager.client."""
 
 
-from sandbox_manager.client import _parse_sse_event
+from sandbox_client.handlers.session import _parse_sse_event
 
 
 class TestParseSSEEvent:

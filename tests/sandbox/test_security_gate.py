@@ -357,7 +357,7 @@ class TestSecurityGate:
 
     def test_allows_push_u_origin_head(self) -> None:
         gate = _make_gate()
-        result = gate.check_permission("Bash", {"command": f"git push -u origin HEAD"})
+        result = gate.check_permission("Bash", {"command": "git push -u origin HEAD"})
         assert result is None
 
     def test_blocks_push_when_no_branch_configured(self) -> None:

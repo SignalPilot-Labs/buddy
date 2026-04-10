@@ -33,3 +33,8 @@ INPUT_SUMMARY_MAX_LEN: int = 1000
 # PreToolUse fires with this name immediately before SubagentStart, and
 # its tool_use_id is the parent link the SubagentStart payload lacks.
 TASK_TOOL_NAME: str = "Agent"
+
+# ── Filesystem API ──
+# Max file size the /file_system/read endpoint will return. Larger files
+# must be streamed via /exec + tail/head or split before reading.
+FS_READ_MAX_BYTES: int = 2 * 1024 * 1024

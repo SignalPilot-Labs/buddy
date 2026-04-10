@@ -6,8 +6,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from claude_agent_sdk.types import HookContext, PostToolUseFailureHookInput
-from sandbox_manager.client import SandboxClient
-from sandbox_manager.pool import SandboxPool
 
 
 class TestPostToolUseFailureHook:
@@ -40,7 +38,7 @@ class TestPostToolUseFailureHook:
 
         with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock) as mock_log:
             ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
-            result = await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
+            await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             mock_log.assert_awaited_once()
             args = mock_log.call_args[0]
