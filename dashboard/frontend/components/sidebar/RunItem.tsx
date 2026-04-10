@@ -80,14 +80,14 @@ export function RunItem({
       )}
 
       {/* Line 1: label + time ago */}
-      <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex items-center gap-2 mb-1">
         <span className={clsx(
-          "text-[13px] font-semibold truncate flex-1",
-          active ? "text-[#f0f0f0]" : "text-[#e0e0e0]"
+          "text-[12px] font-medium truncate flex-1",
+          active ? "text-[#e8e8e8]" : "text-[#ccc]"
         )}>
           {label}
         </span>
-        <span className="text-[11px] text-[#888] tabular-nums shrink-0">
+        <span className="text-[10px] text-[#666] tabular-nums shrink-0">
           {timeAgo(run.started_at)}
         </span>
       </div>
@@ -97,12 +97,12 @@ export function RunItem({
         <StatusBadge status={run.status as RunStatus} />
         <ModelBadge modelName={run.model_name} />
         {formatCost(run.total_cost_usd) && (
-          <span className="text-[11px] text-[#00ff88]/80 tabular-nums">
+          <span className="text-[10px] text-[#00ff88]/70 tabular-nums">
             {formatCost(run.total_cost_usd)}
           </span>
         )}
         {durationLabel && (
-          <span className="text-[11px] text-[#888] tabular-nums ml-auto">
+          <span className="text-[10px] text-[#555] tabular-nums ml-auto">
             {durationLabel}
           </span>
         )}
@@ -110,7 +110,7 @@ export function RunItem({
 
       {/* Line 3: Error preview */}
       {run.error_message && (
-        <div className="mt-1.5 text-[11px] text-[#ff4444]/90 truncate">
+        <div className="mt-1 text-[10px] text-[#ff4444]/80 truncate">
           {run.error_message.slice(0, 80)}
         </div>
       )}
