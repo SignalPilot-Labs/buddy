@@ -78,7 +78,7 @@ export const MODELS: Record<ModelId, ModelSpec> = {
   "opus-4-5": {
     label: "Claude Opus 4.5",
     badge: "Opus 4.5",
-    description: "Previous Opus generation",
+    description: "Legacy Opus model",
     context: "200K context",
     color: "text-[#ffaa66] bg-[#ffaa66]/10",
   },
