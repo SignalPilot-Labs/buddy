@@ -7,9 +7,10 @@ import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
-import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL, MODEL_OPTIONS } from "@/lib/constants";
+import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
+import { ModelSelector } from "@/components/ui/ModelSelector";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
 import { RepoListSection } from "@/components/settings/RepoListSection";
 import { SecurityBanner } from "@/components/settings/SecurityBanner";
@@ -39,7 +40,7 @@ const FIELDS: CredentialFieldConfig[] = [
   },
 ];
 
-function DefaultModelSetting() {
+function DefaultModelSetting(): React.ReactElement {
   const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(LOCALSTORAGE_MODEL_KEY);
@@ -47,10 +48,16 @@ function DefaultModelSetting() {
     }
     return DEFAULT_MODEL;
   });
+  const [modelSaveError, setModelSaveError] = useState<string | null>(null);
 
-  const handleSelect = (id: ModelId) => {
+  const handleSelect = async (id: ModelId): Promise<void> => {
     setSelectedModel(id);
-    try { localStorage.setItem(LOCALSTORAGE_MODEL_KEY, id); } catch {}
+    setModelSaveError(null);
+    try {
+      await updateSettings({ default_model: id });
+    } catch (e) {
+      setModelSaveError(e instanceof Error ? e.message : "Failed to save model preference");
+    }
   };
 
   return (
@@ -61,34 +68,10 @@ function DefaultModelSetting() {
           Select the Claude model to use for new runs. Saved as your default preference.
         </p>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {MODEL_OPTIONS.map((opt) => (
-          <button
-            key={opt.id}
-            onClick={() => handleSelect(opt.id)}
-            className={clsx(
-              "text-left p-3 rounded border transition-all",
-              selectedModel === opt.id
-                ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
-                : "border-[#1a1a1a] bg-white/[0.01] hover:bg-white/[0.03]"
-            )}
-          >
-            <div className={clsx(
-              "text-[10px] font-medium leading-tight",
-              selectedModel === opt.id ? "text-[#e8e8e8]" : "text-[#ccc]"
-            )}>
-              {opt.label}
-            </div>
-            <div className="text-[9px] text-[#999] mt-0.5 leading-tight">{opt.description}</div>
-            <div className={clsx(
-              "text-[8px] mt-1.5 font-mono",
-              selectedModel === opt.id ? "text-[#00ff88]/70" : "text-[#555]"
-            )}>
-              {opt.context}
-            </div>
-          </button>
-        ))}
-      </div>
+      <ModelSelector value={selectedModel} onChange={handleSelect} />
+      {modelSaveError && (
+        <p className="mt-2 text-[9px] text-[#ff4444]">{modelSaveError}</p>
+      )}
     </div>
   );
 }

@@ -5,8 +5,9 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
+import { ModelSelector } from "@/components/ui/ModelSelector";
 import { clsx } from "clsx";
-import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL, MODEL_OPTIONS } from "@/lib/constants";
+import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
@@ -392,36 +393,8 @@ export function StartRunModal({
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
                     Model
                   </label>
-                  <div className="grid grid-cols-3 gap-1.5 mt-2">
-                    {MODEL_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        onClick={() => {
-                          setModel(opt.id);
-                          try { localStorage.setItem(LOCALSTORAGE_MODEL_KEY, opt.id); } catch {}
-                        }}
-                        className={clsx(
-                          "text-left p-2.5 rounded border transition-all",
-                          model === opt.id
-                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
-                            : "border-[#1a1a1a] bg-white/[0.01] hover:bg-white/[0.03]"
-                        )}
-                      >
-                        <div className={clsx(
-                          "text-[10px] font-medium leading-tight",
-                          model === opt.id ? "text-[#e8e8e8]" : "text-[#ccc]"
-                        )}>
-                          {opt.label}
-                        </div>
-                        <div className="text-[9px] text-[#999] mt-0.5 leading-tight">{opt.description}</div>
-                        <div className={clsx(
-                          "text-[8px] mt-1 font-mono",
-                          model === opt.id ? "text-[#00ff88]/70" : "text-[#555]"
-                        )}>
-                          {opt.context}
-                        </div>
-                      </button>
-                    ))}
+                  <div className="mt-2">
+                    <ModelSelector value={model} onChange={setModel} />
                   </div>
                 </div>
 

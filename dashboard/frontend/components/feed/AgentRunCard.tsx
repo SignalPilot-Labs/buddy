@@ -105,7 +105,6 @@ export function AgentRunCard({
           />
         </div>
       )}
-      <style>{`@keyframes agent-shimmer { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }`}</style>
 
       <button
         onClick={() => setExpanded(!expanded)}
@@ -131,7 +130,6 @@ export function AgentRunCard({
             </>
           )}
         </div>
-        <style>{`@keyframes agent-ring { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(1.4); } }`}</style>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className={clsx("text-[11px] font-medium", isPending ? "text-[#ffaa44]" : "text-[#ff8844]")}>
