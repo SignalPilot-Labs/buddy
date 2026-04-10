@@ -78,9 +78,9 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-      <span className="text-[#888]">{icon}</span>
-      <span className="text-[11px] text-[#888]">{label}</span>
-      <span className={`text-[12px] font-semibold tabular-nums truncate ${accent ?? "text-[#f0f0f0]"}`}>
+      <span className="text-[#777]">{icon}</span>
+      <span className="text-[10px] text-[#777]">{label}</span>
+      <span className={`text-[10px] font-semibold tabular-nums truncate ${accent ?? "text-[#e8e8e8]"}`}>
         {value}
       </span>
     </div>
@@ -105,8 +105,8 @@ export function StatsRow({
 
   if (!run) {
     return (
-      <div className="h-8 flex items-center px-1">
-        <span className="text-[11px] text-[#888]">No run selected</span>
+      <div className="h-7 flex items-center px-1">
+        <span className="text-[10px] text-[#777]">No run selected</span>
       </div>
     );
   }
@@ -115,7 +115,7 @@ export function StatsRow({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-[32px] flex items-center gap-3 sm:gap-5 px-1 overflow-hidden"
+      className="min-h-[28px] flex items-center gap-3 sm:gap-5 px-1 overflow-hidden"
     >
       <div className="flex items-center gap-1.5">
         <span
@@ -124,7 +124,7 @@ export function StatsRow({
           }`}
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
-        <span className="text-[11px] text-[#999]">
+        <span className="text-[10px] text-[#888]">
           {connected ? "Live" : "Disconnected"}
         </span>
       </div>
@@ -165,7 +165,7 @@ export function StatsRow({
           href={run.pr_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[11px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
+          className="flex items-center gap-1 text-[10px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="3" cy="3" r="1.5" />
@@ -187,7 +187,7 @@ export function StatsBar({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   return (
-    <div className="min-h-[40px] sm:min-h-[40px] flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
       <StatsRow run={run} connected={connected} events={events} />
     </div>
   );
