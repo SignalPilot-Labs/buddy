@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import type { Run, RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
-import { timeAgo, formatCost, formatTokens } from "@/lib/format";
+import { timeAgo, formatCost } from "@/lib/format";
 import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
 import { ModelBadge } from "@/components/ui/ModelBadge";
 
@@ -92,26 +92,13 @@ export function RunItem({
         </span>
       </div>
 
-      {/* Line 2: StatusBadge + model badge + tool count + cost */}
+      {/* Line 2: StatusBadge + model badge + cost */}
       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
         <StatusBadge status={run.status as RunStatus} />
         <ModelBadge modelName={run.model_name} />
-        {run.total_tool_calls > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-[#888]">
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1">
-              <path d="M5.5 1L7 2.5 2.5 7H1V5.5L5.5 1z" />
-            </svg>
-            {run.total_tool_calls}
-          </span>
-        )}
         {formatCost(run.total_cost_usd) && (
           <span className="text-[10px] text-[#00ff88]/70 tabular-nums">
             {formatCost(run.total_cost_usd)}
-          </span>
-        )}
-        {(run.total_input_tokens || 0) > 0 && (
-          <span className="text-[10px] text-[#666] tabular-nums">
-            {formatTokens(run.total_input_tokens)}↓
           </span>
         )}
         {durationLabel && (
