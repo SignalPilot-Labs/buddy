@@ -28,12 +28,8 @@ export function ConnectionBanner({ connected, runStatus, showToast }: Connection
     prevConnectedRef.current = connected;
 
     if (connected && wasDisconnected && isActiveRun) {
-      const id = setTimeout(() => {
-        showToast("Reconnected", "success");
-      }, 0);
-      return () => clearTimeout(id);
+      showToast("Reconnected", "success");
     }
-    return undefined;
   }, [connected, isActiveRun, showToast]);
 
   return (

@@ -77,8 +77,10 @@ function MonitorPageInner() {
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
 
+  // On success, show a toast. On failure, controlAction already emits a feed
+  // event with a retry button — no second toast needed (avoids double feedback).
   const toastControlAction = (label: string, fn: (id: string) => Promise<unknown>): Promise<void> =>
-    controlAction(label, fn).then(() => showToast(label, "success")).catch(() => showToast(`${label} failed`, "error"));
+    controlAction(label, fn).then(() => showToast(label, "success")).catch(() => undefined);
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">

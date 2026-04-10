@@ -37,6 +37,14 @@ export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
 
 // Sidebar
 export const PROMPT_LABEL_MAX_LEN = 40;
+export const STATUS_FLASH_DURATION_MS = 500;
+
+// Toast notifications
+export const TOAST_DURATION_MS = 3000;
+export const MAX_VISIBLE_TOASTS = 3;
+
+// Event feed
+export const SCROLL_BOTTOM_THRESHOLD = 20;
 
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];

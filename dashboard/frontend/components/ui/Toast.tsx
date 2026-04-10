@@ -1,14 +1,12 @@
 "use client";
 
-import { createContext, useState, useCallback, useRef } from "react";
+import { createContext, useState, useCallback, useRef, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-
-const TOAST_DURATION_MS = 3000;
-const MAX_VISIBLE_TOASTS = 3;
+import { TOAST_DURATION_MS, MAX_VISIBLE_TOASTS } from "@/lib/constants";
 
 export type ToastVariant = "success" | "error" | "info";
 
-interface ToastItem {
+interface ToastItemData {
   id: number;
   message: string;
   variant: ToastVariant;
@@ -32,7 +30,7 @@ const VARIANT_BG: Record<ToastVariant, string> = {
   info: "bg-[var(--color-info)]/[0.06]",
 };
 
-function ToastItem({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: number) => void }) {
+function ToastRow({ toast, onDismiss }: { toast: ToastItemData; onDismiss: (id: number) => void }) {
   return (
     <motion.div
       layout
@@ -83,10 +81,18 @@ function ToastIcon({ variant }: { variant: ToastVariant }) {
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [toasts, setToasts] = useState<ToastItemData[]>([]);
   const counterRef = useRef(0);
+  const timerRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = timerRef.current;
+    return () => { timers.forEach((id) => clearTimeout(id)); };
+  }, []);
 
   const dismiss = useCallback((id: number) => {
+    clearTimeout(timerRef.current.get(id));
+    timerRef.current.delete(id);
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
@@ -94,9 +100,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     const id = ++counterRef.current;
     setToasts((prev) => {
       const next = [...prev, { id, message, variant }];
-      return next.slice(-MAX_VISIBLE_TOASTS);
+      // Evict oldest if over limit, clearing its timer too.
+      if (next.length > MAX_VISIBLE_TOASTS) {
+        const evicted = next.shift()!;
+        clearTimeout(timerRef.current.get(evicted.id));
+        timerRef.current.delete(evicted.id);
+      }
+      return next;
     });
-    setTimeout(() => dismiss(id), TOAST_DURATION_MS);
+    timerRef.current.set(id, setTimeout(() => dismiss(id), TOAST_DURATION_MS));
   }, [dismiss]);
 
   return (
@@ -109,7 +121,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => (
             <div key={toast.id} className="pointer-events-auto">
-              <ToastItem toast={toast} onDismiss={dismiss} />
+              <ToastRow toast={toast} onDismiss={dismiss} />
             </div>
           ))}
         </AnimatePresence>

@@ -7,10 +7,8 @@ import type { Run, RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { timeAgo, formatCost } from "@/lib/format";
-import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
+import { PROMPT_LABEL_MAX_LEN, STATUS_FLASH_DURATION_MS } from "@/lib/constants";
 import { ModelBadge } from "@/components/ui/ModelBadge";
-
-const STATUS_FLASH_DURATION_MS = 500;
 
 function useStatusFlash(status: string): { flashing: boolean; flashColor: string; onAnimationEnd: () => void } {
   const prevStatusRef = useRef<string>(status);
@@ -21,10 +19,7 @@ function useStatusFlash(status: string): { flashing: boolean; flashColor: string
     if (prevStatusRef.current !== status) {
       prevStatusRef.current = status;
       const meta = STATUS_META[status as RunStatus] || STATUS_META.error;
-      // Extract color value from Tailwind-like class e.g. "bg-[#00ff88]/10" -> "#00ff88"
-      const match = meta.bg.match(/#[0-9a-fA-F]{6}/);
-      const color = match ? `${match[0]}26` : "rgba(255,255,255,0.1)";
-      setFlashColor(color);
+      setFlashColor(`${meta.flashColor}26`);
       setFlashing(true);
       const id = setTimeout(() => setFlashing(false), STATUS_FLASH_DURATION_MS);
       return () => clearTimeout(id);

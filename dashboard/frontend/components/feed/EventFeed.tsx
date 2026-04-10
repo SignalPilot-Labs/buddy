@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, PendingMessage } from "@/lib/types";
+import { SCROLL_BOTTOM_THRESHOLD } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
@@ -23,7 +24,6 @@ const SKELETON_COUNT = 3;
 const SKELETON_HEIGHT = "h-12";
 const LOADING_OPACITY = 0.4;
 const LOADING_OPACITY_TRANSITION = "opacity 0.2s";
-const SCROLL_BOTTOM_THRESHOLD = 20;
 
 export function EventFeed({
   events,

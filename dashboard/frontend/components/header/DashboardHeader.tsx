@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, RunStatus, RepoInfo } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
+import { ACTIVE_STATUSES } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
@@ -75,8 +76,7 @@ export function DashboardHeader({
         ? "Agent is at maximum capacity"
         : undefined;
 
-  const activeStatuses: RunStatus[] = ["running", "paused", "rate_limited"];
-  const canControl = activeStatuses.includes(runStatus ?? ("" as RunStatus)) && !busy;
+  const canControl = runStatus !== null && (ACTIVE_STATUSES as readonly RunStatus[]).includes(runStatus) && !busy;
 
   return (
     <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">

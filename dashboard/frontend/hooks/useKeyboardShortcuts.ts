@@ -56,12 +56,12 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions): void
       }
 
       if (e.key === " " && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault();
         const canControl =
           runStatus !== null &&
           (ACTIVE_STATUSES as readonly RunStatus[]).includes(runStatus) &&
           !busy;
         if (!canControl) return;
+        e.preventDefault();
         if (runStatus === "running") {
           void controlAction("Pause", pauseAgent);
         } else if (runStatus === "paused") {
