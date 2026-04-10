@@ -110,7 +110,7 @@ export function StatsRow({
           </svg>
         }
         label="Cost"
-        value={`~$${(run.total_cost_usd || live.costUsd || 0).toFixed(2)}`}
+        value={`~$${(run.total_cost_usd ?? live.costUsd ?? 0).toFixed(2)}`}
         accent="text-[#00ff88]"
       />
       <Stat

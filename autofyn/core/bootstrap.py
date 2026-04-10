@@ -125,6 +125,9 @@ class Bootstrap:
         if not run_info.get("github_repo"):
             raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
+        # Preserve the original run's model. Fall back to the caller's default
+        # only for legacy rows without model_name persisted.
+        model = run_info.get("model_name") or model
         fallback_model = get_fallback_model(model)
 
         await self._repo_ops.setup_auth(

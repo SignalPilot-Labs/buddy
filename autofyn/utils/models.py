@@ -22,8 +22,8 @@ _FALLBACK_MAP: dict[str, str | None] = {
 
 
 def get_fallback_model(model: str) -> str | None:
-    """Return the fallback model for rate-limit recovery, or None for haiku."""
-    return _FALLBACK_MAP[model]
+    """Return the fallback model for rate-limit recovery, or None for haiku or unknown."""
+    return _FALLBACK_MAP.get(model)
 
 
 if TYPE_CHECKING:
