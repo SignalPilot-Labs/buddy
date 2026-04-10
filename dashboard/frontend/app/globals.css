@@ -17,13 +17,14 @@
 
   --color-text: #e8e8e8;
   --color-text-muted: #999999;
-  --color-text-dim: #666666;
+  --color-text-dim: #808080;
   --color-accent: #ffffff;
   --color-accent-hover: #cccccc;
 
   --color-success: #00ff88;
   --color-warning: #ffaa00;
   --color-error: #ff4444;
+  --color-info: #88ccff;
 
   --color-glow: rgba(255, 255, 255, 0.03);
 
@@ -549,6 +550,44 @@ input[type="number"]::-webkit-outer-spin-button {
   }
 }
 
+/* ── Sidebar scrollbar override ── */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) rgba(255, 255, 255, 0.02);
+  /* Fade edges top + bottom via CSS mask */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-active);
+}
+
 /* ── AgentRunCard animations ── */
 @keyframes agent-shimmer {
   0%   { transform: translateX(-50%); }
@@ -558,4 +597,14 @@ input[type="number"]::-webkit-outer-spin-button {
 @keyframes agent-ring {
   0%   { opacity: 0.6; transform: scale(1); }
   100% { opacity: 0;   transform: scale(1.4); }
+}
+
+/* ── Run status flash animation ── */
+@keyframes status-flash {
+  0%   { background-color: var(--flash-color); }
+  100% { background-color: transparent; }
+}
+
+.status-flash {
+  animation: status-flash 500ms ease-out forwards;
 }

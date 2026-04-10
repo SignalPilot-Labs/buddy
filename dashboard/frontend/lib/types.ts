@@ -85,7 +85,7 @@ export type FeedEvent =
 
 export const STATUS_META: Record<
   RunStatus,
-  { label: string; color: string; bg: string; dot: string; pulse: boolean }
+  { label: string; color: string; bg: string; dot: string; pulse: boolean; flashColor: string }
 > = {
   starting: {
     label: "Starting",
@@ -93,6 +93,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
   running: {
     label: "Running",
@@ -100,6 +101,7 @@ export const STATUS_META: Record<
     bg: "bg-[#00ff88]/10",
     dot: "bg-[#00ff88]",
     pulse: true,
+    flashColor: "#00ff88",
   },
   paused: {
     label: "Paused",
@@ -107,6 +109,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: false,
+    flashColor: "#ffaa00",
   },
   stopped: {
     label: "Stopped",
@@ -114,6 +117,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   completed: {
     label: "Completed",
@@ -121,6 +125,7 @@ export const STATUS_META: Record<
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
     pulse: false,
+    flashColor: "#88ccff",
   },
   completed_no_changes: {
     label: "No Changes",
@@ -128,6 +133,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   error: {
     label: "Error",
@@ -135,6 +141,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   crashed: {
     label: "Crashed",
@@ -142,6 +149,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff8844]/10",
     dot: "bg-[#ff8844]",
     pulse: false,
+    flashColor: "#ff8844",
   },
   killed: {
     label: "Killed",
@@ -149,6 +157,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   rate_limited: {
     label: "Rate Limited",
@@ -156,6 +165,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
 };
 

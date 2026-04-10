@@ -1,13 +1,36 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { motion } from "framer-motion";
 import type { Run, RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
 import { timeAgo, formatCost } from "@/lib/format";
-import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
+import { PROMPT_LABEL_MAX_LEN, STATUS_FLASH_DURATION_MS } from "@/lib/constants";
 import { ModelBadge } from "@/components/ui/ModelBadge";
+
+function useStatusFlash(status: string): { flashing: boolean; flashColor: string; onAnimationEnd: () => void } {
+  const prevStatusRef = useRef<string>(status);
+  const [flashing, setFlashing] = useState(false);
+  const [flashColor, setFlashColor] = useState("");
+
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      prevStatusRef.current = status;
+      const meta = STATUS_META[status as RunStatus] || STATUS_META.error;
+      setFlashColor(`${meta.flashColor}26`);
+      setFlashing(true);
+      const id = setTimeout(() => setFlashing(false), STATUS_FLASH_DURATION_MS);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [status]);
+
+  const onAnimationEnd = () => setFlashing(false);
+
+  return { flashing, flashColor, onAnimationEnd };
+}
 
 export function RunItem({
   run,
@@ -25,6 +48,7 @@ export function RunItem({
     : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   const statusMeta = STATUS_META[run.status as RunStatus] || STATUS_META.error;
+  const { flashing, flashColor, onAnimationEnd } = useStatusFlash(run.status);
 
   const durationLabel =
     run.duration_minutes > 0 ? `${run.duration_minutes}m` : null;
@@ -35,10 +59,13 @@ export function RunItem({
         layout
         onClick={onClick}
         title={label}
+        onAnimationEnd={onAnimationEnd}
         className={clsx(
           "group relative w-full flex items-center justify-center py-3 border-b border-[#1a1a1a]/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
-          active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]"
+          active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]",
+          flashing && "status-flash"
         )}
+        style={flashing ? { "--flash-color": flashColor } as React.CSSProperties : undefined}
       >
         {active && (
           <motion.div
@@ -64,12 +91,13 @@ export function RunItem({
     <motion.button
       layout
       onClick={onClick}
+      onAnimationEnd={onAnimationEnd}
       className={clsx(
         "group relative w-full text-left px-4 py-3 border-b border-[#1a1a1a]/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
-        active
-          ? "bg-white/[0.03]"
-          : "hover:bg-white/[0.04]"
+        active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]",
+        flashing && "status-flash"
       )}
+      style={flashing ? { "--flash-color": flashColor } as React.CSSProperties : undefined}
     >
       {active && (
         <motion.div

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { RunStatus } from "@/lib/types";
 import { fetchBranches, pauseAgent, resumeAgent, stopAgentInstant, killAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
+import { useToast } from "@/hooks/useToast";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { CommandInput } from "@/components/controls/CommandInput";
@@ -17,10 +18,14 @@ import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { DashboardHeader } from "@/components/header/DashboardHeader";
 import { RightPanel } from "@/components/layout/RightPanel";
+import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
+import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
+import { ToastProvider } from "@/components/ui/Toast";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 
-export default function MonitorPage() {
+function MonitorPageInner() {
+  const { showToast } = useToast();
   const dashboard = useDashboard();
   const {
     repos,
@@ -49,6 +54,8 @@ export default function MonitorPage() {
     mobilePanel,
     controlsOpen,
     rightPanel,
+    showShortcuts,
+    setShowShortcuts,
     controlAction,
     handleToggleSidebar,
     handleRepoSwitch,
@@ -69,6 +76,11 @@ export default function MonitorPage() {
 
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
+
+  // On success, show a toast. On failure, controlAction already emits a feed
+  // event with a retry button — no second toast needed (avoids double feedback).
+  const toastControlAction = (label: string, fn: (id: string) => Promise<unknown>): Promise<void> =>
+    controlAction(label, fn).then(() => showToast(label, "success")).catch(() => undefined);
 
   return (
     <div className="h-screen flex flex-col bg-[var(--color-bg)]">
@@ -130,11 +142,13 @@ export default function MonitorPage() {
         atCapacity={atCapacity}
         busy={busy}
         showKillConfirm={showKillConfirm}
-        onStop={() => controlAction("Stop", stopAgentInstant)}
+        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
         onKill={handleHeaderKill}
         onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
+        onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
+        sessionLocked={activeRunHealth?.session_unlocked === false}
       />
 
       {/* Start Run Modal */}
@@ -196,7 +210,12 @@ export default function MonitorPage() {
           </div>
 
           {/* Center — Feed */}
-          <main className="flex-1 flex flex-col min-h-0 min-w-0">
+          <main className="flex-1 flex flex-col min-h-0 min-w-0 relative">
+            <ConnectionBanner
+              connected={connected}
+              runStatus={runStatus}
+              showToast={showToast}
+            />
             <EventFeed
               events={allEvents}
               pendingMessages={pendingMessages}
@@ -211,8 +230,8 @@ export default function MonitorPage() {
               connected={connected}
               events={allEvents}
               busy={busy}
-              onPause={() => controlAction("Pause", pauseAgent)}
-              onResume={() => controlAction("Resume", resumeAgent)}
+              onPause={() => { void toastControlAction("Pause", pauseAgent); }}
+              onResume={() => { void toastControlAction("Resume", resumeAgent); }}
               onInject={handleInject}
               onRestart={handleRestart}
             />
@@ -248,8 +267,8 @@ export default function MonitorPage() {
           controlsOpen={controlsOpen}
           setControlsOpen={setControlsOpen}
           onSelectRun={handleSelectRun}
-          onPause={() => controlAction("Pause", pauseAgent)}
-          onResume={() => controlAction("Resume", resumeAgent)}
+          onPause={() => { void toastControlAction("Pause", pauseAgent); }}
+          onResume={() => { void toastControlAction("Resume", resumeAgent); }}
           onInject={handleInject}
           onRestart={handleRestart}
         />
@@ -260,11 +279,11 @@ export default function MonitorPage() {
         open={controlsOpen}
         onClose={() => setControlsOpen(false)}
         status={runStatus}
-        onPause={() => controlAction("Pause", pauseAgent)}
-        onResume={() => controlAction("Resume", resumeAgent)}
-        onStop={() => controlAction("Stop", stopAgentInstant)}
-        onKill={() => controlAction("Kill", killAgent)}
-        onUnlock={() => controlAction("Unlock", unlockAgent)}
+        onPause={() => { void toastControlAction("Pause", pauseAgent); }}
+        onResume={() => { void toastControlAction("Resume", resumeAgent); }}
+        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
+        onKill={() => { void toastControlAction("Kill", killAgent); }}
+        onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
         onToggleInject={() => setMobilePanel("feed")}
         busy={busy}
         repos={repos}
@@ -273,6 +292,20 @@ export default function MonitorPage() {
         onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
         isConfigured={isConfigured}
       />
+
+      {/* Keyboard Shortcuts Panel */}
+      <KeyboardShortcuts
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
     </div>
+  );
+}
+
+export default function MonitorPage() {
+  return (
+    <ToastProvider>
+      <MonitorPageInner />
+    </ToastProvider>
   );
 }

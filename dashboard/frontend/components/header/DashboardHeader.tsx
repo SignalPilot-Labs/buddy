@@ -5,9 +5,11 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, RunStatus, RepoInfo } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
+import { ACTIVE_STATUSES } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
+import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 
 export interface DashboardHeaderProps {
   repos: RepoInfo[];
@@ -26,6 +28,8 @@ export interface DashboardHeaderProps {
   onNewRun: () => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  onUnlock: () => void;
+  sessionLocked: boolean;
 }
 
 export function DashboardHeader({
@@ -45,6 +49,8 @@ export function DashboardHeader({
   onNewRun,
   sidebarCollapsed,
   onToggleSidebar,
+  onUnlock,
+  sessionLocked,
 }: DashboardHeaderProps) {
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
@@ -70,8 +76,7 @@ export function DashboardHeader({
         ? "Agent is at maximum capacity"
         : undefined;
 
-  const activeStatuses: RunStatus[] = ["running", "paused", "rate_limited"];
-  const canControl = activeStatuses.includes(runStatus ?? ("" as RunStatus)) && !busy;
+  const canControl = runStatus !== null && (ACTIVE_STATUSES as readonly RunStatus[]).includes(runStatus) && !busy;
 
   return (
     <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">
@@ -159,6 +164,9 @@ export function DashboardHeader({
         <span className="text-[10px] text-[#888]">{healthLabel}</span>
       </div>
 
+      {/* Mobile Access QR */}
+      <MobileAccessPopover />
+
       {/* Settings link */}
       <Link
         href="/settings"
@@ -192,7 +200,23 @@ export function DashboardHeader({
 
       {/* Stop / Kill icon buttons */}
       <div className="flex items-center gap-1">
-        {activeRunHealth?.session_unlocked === false && activeRunHealth?.time_remaining && (
+        {sessionLocked && canControl && (
+          <Button
+            variant="warning"
+            size="sm"
+            onClick={onUnlock}
+            title="Unlock session"
+            icon={
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <rect x="1.5" y="4.5" width="7" height="4.5" rx="0.75" />
+                <path d="M3 4.5V3a2 2 0 014 0" />
+              </svg>
+            }
+          >
+            Unlock
+          </Button>
+        )}
+        {sessionLocked && activeRunHealth?.time_remaining && (
           <span className="text-[10px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#ffaa00" strokeWidth="1" opacity="0.5">
               <rect x="1.5" y="4" width="5" height="3" rx="0.5" />
