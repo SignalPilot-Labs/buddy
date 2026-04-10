@@ -116,7 +116,7 @@ class Bootstrap:
         session, events, tracker = self._create_services(run_context)
         session_options = self._build_session_options(
             run_context, model, fallback_model,
-            None, run_info.get("sdk_session_id"), max_budget, run_info.get("custom_prompt"),
+            build_subagent_dicts(self._prompts), run_info.get("sdk_session_id"), max_budget, run_info.get("custom_prompt"),
         )
 
         await self._log_resume(run_id, run_context.branch_name, prompt)
