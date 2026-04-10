@@ -5,6 +5,10 @@ import { fetchToolCalls, fetchAuditLog } from "@/lib/api";
 import { HISTORY_FETCH_LIMIT } from "@/lib/constants";
 
 function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
+  // Pair pre/post tool rows strictly by tool_use_id. An unmatched post is
+  // kept as-is so error outputs stay visible. Name-based fallback matching
+  // has been removed — it was dead code (the backend always stores a
+  // tool_use_id) and could mis-pair concurrent Agent calls.
   const merged: ToolCall[] = [];
 
   for (const t of tools) {
@@ -17,18 +21,6 @@ function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
       for (let j = merged.length - 1; j >= 0; j--) {
         const pre = merged[j];
         if (pre.tool_use_id === t.tool_use_id && pre.phase === "pre") {
-          pre.output_data = t.output_data;
-          pre.duration_ms = t.duration_ms;
-          pre.phase = "post";
-          matched = true;
-          break;
-        }
-      }
-    }
-    if (!matched) {
-      for (let j = merged.length - 1; j >= 0; j--) {
-        const pre = merged[j];
-        if (pre.tool_name === t.tool_name && pre.phase === "pre" && !pre.output_data) {
           pre.output_data = t.output_data;
           pre.duration_ms = t.duration_ms;
           pre.phase = "post";
