@@ -44,12 +44,12 @@ export function ConnectionBanner({ connected, runStatus, showToast }: Connection
           animate={BANNER_ANIMATE}
           exit={BANNER_EXIT}
           transition={BANNER_TRANSITION}
-          className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-4 py-1.5 bg-[#ffaa00]/10 border-b border-[#ffaa00]/20 frosted-glass"
+          className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-4 py-1.5 bg-[var(--color-warning)]/10 border-b border-[var(--color-warning)]/20 frosted-glass"
           role="alert"
           aria-live="assertive"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#ffaa00] animate-pulse shrink-0" />
-          <span className="text-[10px] text-[#ffaa00] font-medium">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-warning)] animate-pulse shrink-0" />
+          <span className="text-[10px] text-[var(--color-warning)] font-medium">
             Connection lost — events may be delayed
           </span>
         </motion.div>

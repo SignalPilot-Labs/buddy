@@ -103,7 +103,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <div
-        className="fixed bottom-4 right-4 z-[9998] flex flex-col gap-2 items-end pointer-events-none"
+        className="fixed bottom-[72px] sm:bottom-4 right-0 left-0 sm:right-4 sm:left-auto z-[9998] flex flex-col gap-2 items-center sm:items-end pointer-events-none"
         aria-label="Notifications"
       >
         <AnimatePresence mode="popLayout">
