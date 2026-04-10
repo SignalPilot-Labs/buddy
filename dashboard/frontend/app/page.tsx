@@ -174,6 +174,7 @@ export default function MonitorPage() {
               0,
               selectedRun.duration_minutes || 0,
               selectedRun.base_branch || "main",
+              selectedRun.model_name || undefined,
             );
           }}
           busy={busy}
