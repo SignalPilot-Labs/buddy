@@ -101,7 +101,7 @@ class Bootstrap:
             await db.log_audit(
                 run_id,
                 "prompt_submitted",
-                {"prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT]},
+                {"prompt": custom_prompt},
             )
 
         initial = (
