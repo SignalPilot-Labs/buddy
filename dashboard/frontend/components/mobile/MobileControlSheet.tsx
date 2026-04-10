@@ -115,6 +115,7 @@ export function MobileControlSheet({
               <Button
                 variant="success"
                 size="md"
+                touch
                 onClick={() => { onNewRun(); onClose(); }}
                 disabled={!isConfigured}
                 className="w-full justify-center"
@@ -137,6 +138,7 @@ export function MobileControlSheet({
                     <Button
                       variant="warning"
                       size="md"
+                touch
                       disabled={!canPause || busy}
                       onClick={() => { onPause(); onClose(); }}
                       className="justify-center"
@@ -152,6 +154,7 @@ export function MobileControlSheet({
                     <Button
                       variant="success"
                       size="md"
+                touch
                       disabled={!canResume || busy}
                       onClick={() => { onResume(); onClose(); }}
                       className="justify-center"
@@ -166,6 +169,7 @@ export function MobileControlSheet({
                     <Button
                       variant="primary"
                       size="md"
+                touch
                       disabled={!canInject || busy}
                       onClick={() => { onToggleInject(); onClose(); }}
                       className="justify-center"
@@ -181,6 +185,7 @@ export function MobileControlSheet({
                     <Button
                       variant="danger"
                       size="md"
+                touch
                       disabled={!isActive || busy}
                       onClick={() => { onStop(); onClose(); }}
                       className="justify-center"
@@ -195,6 +200,7 @@ export function MobileControlSheet({
                     <Button
                       variant="danger"
                       size="md"
+                touch
                       disabled={!isActive || busy}
                       onClick={() => { onKill(); onClose(); }}
                       className="justify-center"
@@ -211,6 +217,7 @@ export function MobileControlSheet({
                     <Button
                       variant="warning"
                       size="md"
+                touch
                       disabled={!isActive || busy}
                       onClick={() => { onUnlock(); onClose(); }}
                       className="justify-center"

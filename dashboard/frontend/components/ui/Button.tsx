@@ -23,18 +23,31 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   icon?: React.ReactNode;
+  /**
+   * When true, enforce a 44px min touch target regardless of size.
+   * Use inside mobile sheets / bottom controls where iOS HIG applies.
+   */
+  touch?: boolean;
 }
 
+const sizeStyles: Record<Size, string> = {
+  sm: "px-2.5 py-1.5 text-[11px] min-h-[28px]",
+  md: "px-3 py-2 text-[12px] min-h-[32px]",
+  pill: "rounded-full px-3 py-1.5 text-[12px] min-h-[28px]",
+  lg: "px-4 py-2.5 text-[13px] min-h-[44px]",
+};
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = "ghost", size = "sm", icon, children, className, ...props }, ref) => (
+  ({ variant = "ghost", size = "sm", icon, touch, children, className, ...props }, ref) => (
     <button
       ref={ref}
       className={clsx(
-        "inline-flex items-center gap-1.5 rounded border font-medium transition-all duration-150 shadow-sm",
+        "inline-flex items-center justify-center gap-1.5 rounded border font-medium transition-all duration-150 shadow-sm",
         "disabled:opacity-30 disabled:pointer-events-none",
         "active:scale-[0.97]",
         variantStyles[variant],
-        size === "sm" ? "px-2 py-1 text-[10px]" : size === "md" ? "px-3 py-1.5 text-[11px]" : size === "pill" ? "rounded-full px-3 py-1 text-[11px]" : "px-4 py-2.5 text-[13px] min-h-[44px]",
+        sizeStyles[size],
+        touch && "min-h-[44px] px-4",
         className
       )}
       {...props}
