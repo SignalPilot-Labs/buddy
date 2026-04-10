@@ -36,10 +36,15 @@ export function AgentRunCard({
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
   const [now, setNow] = useState(Date.now());
+  // description and subagent_type come from the Task tool input_data;
+  // agentType comes from the subagent_start audit event. They should
+  // always be populated for a well-formed Agent card. If any is missing,
+  // render an em-dash so the regression is visible rather than silently
+  // masked with a "general" / "Sub-agent task" placeholder.
   const input = tool.input_data || {};
-  const description = (input.description as string) || "Sub-agent task";
+  const description = (input.description as string) || "—";
   const prompt = (input.prompt as string) || "";
-  const subType = agentType || (input.subagent_type as string) || "general";
+  const subType = agentType || (input.subagent_type as string) || "—";
   const isPending =
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
 

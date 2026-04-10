@@ -314,3 +314,131 @@ describe("groupEvents", () => {
     expect(() => groupEvents(events)).not.toThrow();
   });
 });
+
+/* ── subagent attribution via audit-event link ── */
+
+function makeAuditEvent(id: number, eventType: string, details: Record<string, unknown>, ts: string): FeedEvent {
+  return {
+    _kind: "audit",
+    data: { id, run_id: "r", ts, event_type: eventType, details },
+  };
+}
+
+describe("groupEvents subagent attribution", () => {
+  it("attributes child tools to the correct Agent card via parent_tool_use_id", () => {
+    // Builder call comes first and has 2 child tools; reviewer call comes
+    // later with 1 child tool. The old temporal-matching code would
+    // mis-pair these when the timestamps overlapped; this test pins the
+    // new deterministic audit-event path.
+    const t0 = new Date("2026-04-10T13:18:45Z").toISOString();
+    const t1 = new Date("2026-04-10T13:18:50Z").toISOString();
+    const t2 = new Date("2026-04-10T13:18:55Z").toISOString();
+    const t3 = new Date("2026-04-10T13:21:33Z").toISOString();
+    const t4 = new Date("2026-04-10T13:21:40Z").toISOString();
+
+    const events: FeedEvent[] = [
+      // Orchestrator invokes builder
+      makeToolEvent({
+        id: 1, tool_name: "Agent", ts: t0, tool_use_id: "toolu_builder",
+        input_data: { description: "Round 3 frontend build", subagent_type: "frontend-builder", prompt: "build" },
+      }),
+      makeAuditEvent(10, "subagent_start", {
+        agent_id: "aBuilder", agent_type: "frontend-builder", parent_tool_use_id: "toolu_builder",
+      }, t0),
+      // Builder's 2 child tools
+      makeToolEvent({ id: 2, tool_name: "Read", ts: t1, agent_id: "aBuilder" }),
+      makeToolEvent({ id: 3, tool_name: "Edit", ts: t2, agent_id: "aBuilder" }),
+      // Orchestrator invokes reviewer AFTER builder finishes
+      makeToolEvent({
+        id: 4, tool_name: "Agent", ts: t3, tool_use_id: "toolu_reviewer",
+        input_data: { description: "Round 3 code review", subagent_type: "reviewer", prompt: "review" },
+      }),
+      makeAuditEvent(11, "subagent_start", {
+        agent_id: "aReviewer", agent_type: "reviewer", parent_tool_use_id: "toolu_reviewer",
+      }, t3),
+      // Reviewer's 1 child tool
+      makeToolEvent({ id: 5, tool_name: "Grep", ts: t4, agent_id: "aReviewer" }),
+    ];
+
+    const result = groupEvents(events);
+    const agentRuns = result.filter((g) => g.type === "agent_run");
+    expect(agentRuns).toHaveLength(2);
+
+    const [builder, reviewer] = agentRuns;
+    if (builder.type !== "agent_run" || reviewer.type !== "agent_run") throw new Error("type");
+
+    expect(builder.agentType).toBe("frontend-builder");
+    expect(builder.childTools).toHaveLength(2);
+    expect(builder.childTools.map((t) => t.tool_name)).toEqual(["Read", "Edit"]);
+
+    expect(reviewer.agentType).toBe("reviewer");
+    expect(reviewer.childTools).toHaveLength(1);
+    expect(reviewer.childTools[0].tool_name).toBe("Grep");
+  });
+
+  it("renders final_text from subagent_complete audit keyed by parent_tool_use_id", () => {
+    const ts = new Date().toISOString();
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 1, tool_name: "Agent", ts, tool_use_id: "toolu_x",
+        input_data: { description: "Task X", subagent_type: "general-purpose", prompt: "do x" },
+      }),
+      makeAuditEvent(20, "subagent_start", {
+        agent_id: "aX", agent_type: "general-purpose", parent_tool_use_id: "toolu_x",
+      }, ts),
+      makeAuditEvent(21, "subagent_complete", {
+        agent_id: "aX", parent_tool_use_id: "toolu_x", final_text: "done.",
+      }, ts),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.finalText).toBe("done.");
+    }
+  });
+
+  it("does NOT attribute child tools to an Agent call whose subagent_start audit is missing", () => {
+    // Without a subagent_start audit event, there is no authoritative link
+    // from agent_id to parent_tool_use_id. The Agent card should render
+    // with zero children rather than guessing via timestamps.
+    const ts = new Date().toISOString();
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 1, tool_name: "Agent", ts, tool_use_id: "toolu_y",
+        input_data: { description: "Task Y", subagent_type: "general-purpose", prompt: "do y" },
+      }),
+      // Subagent tools with an agent_id, but no subagent_start audit.
+      makeToolEvent({ id: 2, tool_name: "Read", ts, agent_id: "aOrphan" }),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.childTools).toHaveLength(0);
+    }
+  });
+
+  it("skips orphan Agent post events (phantom GENERAL card)", () => {
+    // A post-phase Agent row with null input_data is an orphan from a
+    // merge miss or PostToolUseFailure — not a real Task invocation.
+    // It must not render as a second phantom card.
+    const ts = new Date().toISOString();
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 1, tool_name: "Agent", ts, tool_use_id: "toolu_legit", phase: "post",
+        input_data: { description: "Real Task", subagent_type: "reviewer", prompt: "p" },
+      }),
+      makeToolEvent({
+        id: 2, tool_name: "Agent", ts, tool_use_id: "toolu_orphan", phase: "post",
+        input_data: null,
+      }),
+    ];
+    const result = groupEvents(events);
+    const agentRuns = result.filter((g) => g.type === "agent_run");
+    expect(agentRuns).toHaveLength(1);
+    if (agentRuns[0].type === "agent_run") {
+      expect(agentRuns[0].tool.tool_use_id).toBe("toolu_legit");
+    }
+  });
+});

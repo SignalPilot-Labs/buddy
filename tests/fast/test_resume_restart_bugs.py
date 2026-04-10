@@ -168,6 +168,31 @@ class TestSetupResumeModelPreservation:
         with pytest.raises(RuntimeError, match="no model_name persisted"):
             await self._run_setup(run_info, model_override=None)
 
+    @pytest.mark.asyncio
+    async def test_resume_reregisters_custom_subagents(self) -> None:
+        """Resume must re-register custom subagents — the SDK does not persist
+        them across sessions. Passing None silently drops builder/reviewer/
+        planner/etc. and the orchestrator falls back to the CLI's built-in
+        types (general-purpose, Plan, etc.). See PR #107.
+        """
+        run_info = {**self.BASE_RUN_INFO, "model_name": "sonnet"}
+        _, options = await self._run_setup(run_info, model_override=None)
+        agents = options["agents"]
+        assert agents is not None, (
+            "setup_resume dropped custom agents — will cause orchestrator to "
+            "fall back to CLI built-ins (general-purpose, Plan, etc.)"
+        )
+        # Must match _build_subagents() output keys exactly
+        assert set(agents.keys()) == {
+            "builder", "frontend-builder", "reviewer",
+            "explorer", "planner", "design-reviewer",
+        }
+        # Sanity check: each entry has the fields _parse_agents expects
+        for name, defn in agents.items():
+            assert "description" in defn, f"{name} missing description"
+            assert "prompt" in defn, f"{name} missing prompt"
+            assert defn["prompt"], f"{name} prompt is empty"
+
 
 # ── _on_task_done must not zero cost when run_context is None ──
 
