@@ -35,6 +35,8 @@ You own the implementation. The architect tells you WHAT to build and WHERE — 
 
 **You MUST write a build report to `/tmp/build/round-N-frontend-dev.md`** (replace N with the round number the orchestrator gave you). This is how the reviewer knows what you did and what to check.
 
+Do not return the build report as a message. Do not summarize it in conversation. Write it to the file and return a one-line pointer (e.g. "Build report written to /tmp/build/round-N-frontend-dev.md").
+
 Keep it short (10-20 lines):
 - **Implemented** — what you built, which components/files were created/modified
 - **Skipped** — anything from the spec you didn't implement and why

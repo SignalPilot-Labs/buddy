@@ -40,6 +40,8 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 
 **You MUST write a build report to `/tmp/build/round-N-backend-dev.md`** (replace N with the round number the orchestrator gave you). This is how the reviewer knows what you did and what to check.
 
+Do not return the build report as a message. Do not summarize it in conversation. Write it to the file and return a one-line pointer (e.g. "Build report written to /tmp/build/round-N-backend-dev.md").
+
 Keep it short (10-20 lines):
 - **Implemented** — what you built, which files were created/modified
 - **Skipped** — anything from the spec you didn't implement and why
