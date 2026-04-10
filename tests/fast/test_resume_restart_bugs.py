@@ -9,12 +9,11 @@ Covers:
 """
 
 import asyncio
-from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from utils.models import ActiveRun, RunContext
+from utils.models import ActiveRun, DEFAULT_MODEL, RunContext
 
 
 # ── get_run_for_resume must include github_repo ──
@@ -76,7 +75,7 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="has no github_repo"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
 
     @pytest.mark.asyncio
     async def test_empty_github_repo_raises(self) -> None:
@@ -92,7 +91,7 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="has no github_repo"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
 
     @pytest.mark.asyncio
     async def test_run_not_found_raises(self) -> None:
@@ -101,7 +100,7 @@ class TestSetupResumeValidation:
             from core.bootstrap import Bootstrap
             bootstrap = Bootstrap(MagicMock(), MagicMock())
             with pytest.raises(RuntimeError, match="not found"):
-                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None)
+                await bootstrap.setup_resume("run-1", 5.0, 300, 120, None, DEFAULT_MODEL)
 
 
 # ── _on_task_done must not zero cost when run_context is None ──

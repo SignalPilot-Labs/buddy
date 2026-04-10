@@ -11,6 +11,21 @@ from pydantic import BaseModel, field_validator
 
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
+DEFAULT_MODEL = "opus"
+VALID_MODELS = ("opus", "sonnet", "haiku")
+
+_FALLBACK_MAP: dict[str, str | None] = {
+    "opus": "sonnet",
+    "sonnet": "haiku",
+    "haiku": None,
+}
+
+
+def get_fallback_model(model: str) -> str | None:
+    """Return the fallback model for rate-limit recovery, or None for haiku."""
+    return _FALLBACK_MAP[model]
+
+
 if TYPE_CHECKING:
     from core.event_bus import EventBus
     from tools.session import SessionGate
@@ -138,11 +153,18 @@ class StartRequest(BaseModel):
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
-    extended_context: bool = False
+    model: str = DEFAULT_MODEL
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
     env: dict[str, str] | None = None
+
+    @field_validator("model")
+    @classmethod
+    def model_valid(cls, v: str) -> str:
+        if v not in VALID_MODELS:
+            raise ValueError(f"model must be one of {VALID_MODELS}")
+        return v
 
     @field_validator("max_budget_usd")
     @classmethod

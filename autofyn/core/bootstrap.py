@@ -5,12 +5,11 @@ It produces a RunContext and session options dict, then hands off to SessionRunn
 """
 
 import logging
-import os
 import time
 
 from utils import db
 from utils.constants import PROMPT_SUMMARY_LIMIT
-from utils.models import GitSetupParams, RunContext
+from utils.models import GitSetupParams, RunContext, get_fallback_model
 from utils.prompts import PromptLoader
 from sandbox_manager.client import SandboxClient
 from sandbox_manager.repo_ops import RepoOps
@@ -48,10 +47,10 @@ class Bootstrap:
         github_repo: str,
         exec_timeout: int,
         clone_timeout: int,
+        model: str,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
         """Bootstrap a new run. run_id is pre-created by the server."""
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        fallback_model = get_fallback_model(model)
 
         git_params = GitSetupParams(
             base_branch=base_branch,
@@ -117,6 +116,7 @@ class Bootstrap:
         exec_timeout: int,
         clone_timeout: int,
         prompt: str | None,
+        model: str,
     ) -> tuple[RunContext, dict, SessionGate, EventBus, SubagentTracker, str]:
         """Bootstrap a resumed run. Returns (run_context, session_options, session, events, tracker, initial_prompt)."""
         run_info = await db.get_run_for_resume(run_id)
@@ -125,8 +125,7 @@ class Bootstrap:
         if not run_info.get("github_repo"):
             raise RuntimeError(f"Run {run_id} has no github_repo — cannot resume")
 
-        model = os.environ.get("AGENT_MODEL", "opus")
-        fallback_model = os.environ.get("AGENT_FALLBACK_MODEL", "sonnet")
+        fallback_model = get_fallback_model(model)
 
         await self._repo_ops.setup_auth(
             run_info["github_repo"],

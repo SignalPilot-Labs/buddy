@@ -20,7 +20,7 @@ class StartRunRequest(BaseModel):
     max_budget_usd: float = Field(default=0, ge=0, description="Max spend in USD. 0 = unlimited.")
     duration_minutes: float = Field(default=0, ge=0, description="Session duration in minutes. 0 = unlimited.")
     base_branch: str = Field(default="main", min_length=1, max_length=256, description="Branch to base the work on.")
-    extended_context: bool = Field(default=False, description="Enable 1M extended context.")
+    model: str = Field(default="opus", pattern=r"^(opus|sonnet|haiku)$", description="Claude model to use.")
     repo: str | None = Field(None, description="Active repo slug for per-repo env vars lookup.")
 
 
@@ -32,6 +32,7 @@ class UpdateSettingsRequest(BaseModel):
     github_repo: str | None = Field(None, min_length=1, max_length=256, pattern=r"^[\w\-\.]+/[\w\-\.]+$")
     max_budget_usd: str | None = Field(None, min_length=1, max_length=20)
     dashboard_api_key: str | None = Field(None, min_length=20, max_length=256)
+    model: str | None = Field(None, pattern=r"^(opus|sonnet|haiku)$", description="Default Claude model.")
 
 
 class SetActiveRepoRequest(BaseModel):

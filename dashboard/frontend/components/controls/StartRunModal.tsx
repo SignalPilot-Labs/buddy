@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { clsx } from "clsx";
-import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL, MODEL_OPTIONS } from "@/lib/constants";
+import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
 
 function BranchPicker({
@@ -132,11 +133,10 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, extendedContext: boolean) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
-  defaultExtendedContext?: boolean;
 }
 
 function parseEnvText(text: string): Record<string, string> {
@@ -197,7 +197,6 @@ export function StartRunModal({
   busy,
   branches,
   activeRepo,
-  defaultExtendedContext = false,
 }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
@@ -205,12 +204,12 @@ export function StartRunModal({
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
-  const [extendedContext, setExtendedContext] = useState(() => {
-    if (defaultExtendedContext) return true;
+  const [model, setModel] = useState<ModelId>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
+      const stored = localStorage.getItem(LOCALSTORAGE_MODEL_KEY);
+      if (stored === "opus" || stored === "sonnet" || stored === "haiku") return stored;
     }
-    return false;
+    return DEFAULT_MODEL;
   });
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
@@ -265,7 +264,7 @@ export function StartRunModal({
         return;
       }
     }
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, extendedContext);
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -388,6 +387,44 @@ export function StartRunModal({
                   />
                 </div>
 
+                {/* Model Selector */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    Model
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 mt-2">
+                    {MODEL_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => {
+                          setModel(opt.id);
+                          try { localStorage.setItem(LOCALSTORAGE_MODEL_KEY, opt.id); } catch {}
+                        }}
+                        className={clsx(
+                          "text-left p-2.5 rounded border transition-all",
+                          model === opt.id
+                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
+                            : "border-[#1a1a1a] bg-white/[0.01] hover:bg-white/[0.03]"
+                        )}
+                      >
+                        <div className={clsx(
+                          "text-[10px] font-medium leading-tight",
+                          model === opt.id ? "text-[#e8e8e8]" : "text-[#ccc]"
+                        )}>
+                          {opt.label}
+                        </div>
+                        <div className="text-[9px] text-[#999] mt-0.5 leading-tight">{opt.description}</div>
+                        <div className={clsx(
+                          "text-[8px] mt-1 font-mono",
+                          model === opt.id ? "text-[#00ff88]/70" : "text-[#555]"
+                        )}>
+                          {opt.context}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Duration lock */}
                 <div>
                   <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
@@ -477,32 +514,6 @@ export function StartRunModal({
                       </span>
                     </div>
                   )}
-                </div>
-                {/* Extended Context */}
-                <div>
-                  <label
-                    className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold flex items-center gap-2 cursor-pointer select-none"
-                    onClick={() => setExtendedContext(!extendedContext)}
-                  >
-                    <span
-                      className={clsx(
-                        "flex items-center justify-center h-3 w-3 rounded border transition-all",
-                        extendedContext
-                          ? "bg-[#00ff88] border-[#00ff88]"
-                          : "border-[#666] bg-transparent"
-                      )}
-                    >
-                      {extendedContext && (
-                        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
-                          <polyline points="1.5 4 3 5.5 6.5 2" />
-                        </svg>
-                      )}
-                    </span>
-                    Extended Context (1M)
-                  </label>
-                  <p className="text-[9px] text-[#666] mt-1 ml-5">
-                    Uses more of your daily quota but allows larger context windows
-                  </p>
                 </div>
               </div>
 

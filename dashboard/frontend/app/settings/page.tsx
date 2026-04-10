@@ -7,7 +7,8 @@ import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
-import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { LOCALSTORAGE_MODEL_KEY, DEFAULT_MODEL, MODEL_OPTIONS } from "@/lib/constants";
+import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
 import { RepoListSection } from "@/components/settings/RepoListSection";
@@ -38,45 +39,56 @@ const FIELDS: CredentialFieldConfig[] = [
   },
 ];
 
-function ExtendedContextSetting() {
-  const [enabled, setEnabled] = useState(() => {
+function DefaultModelSetting() {
+  const [selectedModel, setSelectedModel] = useState<ModelId>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
+      const stored = localStorage.getItem(LOCALSTORAGE_MODEL_KEY);
+      if (stored === "opus" || stored === "sonnet" || stored === "haiku") return stored;
     }
-    return false;
+    return DEFAULT_MODEL;
   });
 
-  const toggle = () => {
-    const next = !enabled;
-    setEnabled(next);
-    localStorage.setItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY, next ? "1" : "0");
+  const handleSelect = (id: ModelId) => {
+    setSelectedModel(id);
+    try { localStorage.setItem(LOCALSTORAGE_MODEL_KEY, id); } catch {}
   };
 
   return (
     <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
-      <label
-        className="text-[10px] font-semibold text-[#ccc] flex items-center gap-2 cursor-pointer select-none"
-        onClick={toggle}
-      >
-        <span
-          className={clsx(
-            "flex items-center justify-center h-3.5 w-3.5 rounded border transition-all",
-            enabled ? "bg-[#00ff88] border-[#00ff88]" : "border-[#666] bg-transparent"
-          )}
-        >
-          {enabled && (
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
-              <polyline points="1.5 4 3 5.5 6.5 2" />
-            </svg>
-          )}
-        </span>
-        Always Enable Extended Context (1M)
-      </label>
-      <p className="mt-1.5 text-[10px] text-[#999] leading-relaxed ml-5">
-        When enabled, all new runs will use extended 1M context by default.
-        This uses more of your daily quota but supports larger context windows.
-        You can override this per-run in the launch modal.
-      </p>
+      <div className="mb-3">
+        <h3 className="text-[10px] font-semibold text-[#ccc] uppercase tracking-[0.12em]">Default Model</h3>
+        <p className="mt-1 text-[10px] text-[#999] leading-relaxed">
+          Select the Claude model to use for new runs. Saved as your default preference.
+        </p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {MODEL_OPTIONS.map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => handleSelect(opt.id)}
+            className={clsx(
+              "text-left p-3 rounded border transition-all",
+              selectedModel === opt.id
+                ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
+                : "border-[#1a1a1a] bg-white/[0.01] hover:bg-white/[0.03]"
+            )}
+          >
+            <div className={clsx(
+              "text-[10px] font-medium leading-tight",
+              selectedModel === opt.id ? "text-[#e8e8e8]" : "text-[#ccc]"
+            )}>
+              {opt.label}
+            </div>
+            <div className="text-[9px] text-[#999] mt-0.5 leading-tight">{opt.description}</div>
+            <div className={clsx(
+              "text-[8px] mt-1.5 font-mono",
+              selectedModel === opt.id ? "text-[#00ff88]/70" : "text-[#555]"
+            )}>
+              {opt.context}
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -262,7 +274,7 @@ export default function SettingsPage() {
             onRemoveToken={handleRemoveToken}
           />
 
-          <ExtendedContextSetting />
+          <DefaultModelSetting />
 
           <RepoListSection
             repos={repos}

@@ -38,8 +38,25 @@ export const CONTAINER_LOGS_DEFAULT_TAIL = 500;
 // Sidebar
 export const PROMPT_LABEL_MAX_LEN = 40;
 
+// Model selector
+export type ModelId = "opus" | "sonnet" | "haiku";
+
 // localStorage keys
-export const LOCALSTORAGE_EXTENDED_CONTEXT_KEY = "autofyn_extended_context";
+export const LOCALSTORAGE_MODEL_KEY = "autofyn_model";
+export const DEFAULT_MODEL: ModelId = "opus";
+
+export interface ModelOption {
+  id: ModelId;
+  label: string;
+  description: string;
+  context: string;
+}
+
+export const MODEL_OPTIONS: ModelOption[] = [
+  { id: "opus",   label: "Claude Opus 4.6",   description: "Most capable, best for agents", context: "1M context" },
+  { id: "sonnet", label: "Claude Sonnet 4.6", description: "Fast and capable",               context: "1M context" },
+  { id: "haiku",  label: "Claude Haiku 4.5",  description: "Fastest, lowest cost",           context: "200K context" },
+];
 
 // Run status sets for control bar enabling logic.
 // Must match backend's accepted statuses in resume_run and inject_prompt endpoints.

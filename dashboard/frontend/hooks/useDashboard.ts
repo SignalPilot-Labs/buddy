@@ -62,7 +62,7 @@ export interface DashboardState {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
-    extendedContext?: boolean,
+    model?: string,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt: string) => void;
@@ -363,12 +363,12 @@ export function useDashboard(): DashboardState {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
-      extendedContext: boolean = false,
+      model: string = "opus",
     ) => {
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, extendedContext, activeRepoFilter);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, model, activeRepoFilter);
         refreshRuns();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);

@@ -363,6 +363,7 @@ export interface Settings {
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
+  default_model?: string;
 }
 
 export interface PoolToken {
