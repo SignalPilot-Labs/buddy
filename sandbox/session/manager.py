@@ -47,6 +47,7 @@ from constants import (
     SUBAGENT_TIMEOUT_SEC,
 )
 from db.connection import get_session_factory
+from db.constants import resolve_sdk_model
 from db.models import AuditLog, ToolCall
 from session.security import SecurityGate
 
@@ -195,8 +196,12 @@ class _Session:
         agents = _parse_agents(agents_raw) if agents_raw else None
 
         return ClaudeAgentOptions(
-            model=opts["model"],
-            fallback_model=opts.get("fallback_model"),
+            model=resolve_sdk_model(opts["model"]),
+            fallback_model=(
+                resolve_sdk_model(opts["fallback_model"])
+                if opts.get("fallback_model")
+                else None
+            ),
             effort=opts["effort"],
             system_prompt=opts["system_prompt"],
             permission_mode="bypassPermissions",

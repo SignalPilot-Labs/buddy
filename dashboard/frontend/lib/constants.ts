@@ -42,7 +42,7 @@ export const PROMPT_LABEL_MAX_LEN = 40;
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
 
 // Model selector — one record per model, all presentation data in one place.
-export type ModelId = "opus" | "sonnet" | "haiku";
+export type ModelId = "opus" | "sonnet" | "opus-4-5";
 
 export const LOCALSTORAGE_MODEL_KEY = "autofyn_model";
 export const DEFAULT_MODEL: ModelId = "opus";
@@ -75,31 +75,32 @@ export const MODELS: Record<ModelId, ModelSpec> = {
     context: "1M context",
     color: "text-[#88ccff] bg-[#88ccff]/10",
   },
-  haiku: {
-    label: "Claude Haiku 4.5",
-    badge: "Haiku",
-    description: "Fastest, lowest cost",
+  "opus-4-5": {
+    label: "Claude Opus 4.5",
+    badge: "Opus 4.5",
+    description: "Previous Opus generation",
     context: "200K context",
-    color: "text-[#00ff88] bg-[#00ff88]/10",
+    color: "text-[#ffaa66] bg-[#ffaa66]/10",
   },
 };
 
 /** Ordered list for rendering the picker; derived from MODELS to avoid drift. */
-export const MODEL_IDS: ReadonlyArray<ModelId> = ["opus", "sonnet", "haiku"];
+export const MODEL_IDS: ReadonlyArray<ModelId> = ["opus", "sonnet", "opus-4-5"];
 
 /** Normalise a raw model_name (e.g. "claude-opus-4-6-20250514") to a ModelId. */
 export function resolveModelId(modelName: string | null | undefined): ModelId | null {
   if (!modelName) return null;
   const lower = modelName.toLowerCase();
+  // Check specific opus versions before the generic "opus" alias.
+  if (lower.includes("opus-4-5") || lower.includes("opus-4.5")) return "opus-4-5";
   if (lower.includes("opus")) return "opus";
-  if (lower.includes("haiku")) return "haiku";
   if (lower.includes("sonnet")) return "sonnet";
   return null;
 }
 
 /** Parse a localStorage string into a valid ModelId, or null if missing/invalid. */
 export function parseStoredModel(raw: string | null): ModelId | null {
-  if (raw === "opus" || raw === "sonnet" || raw === "haiku") return raw;
+  if (raw === "opus" || raw === "sonnet" || raw === "opus-4-5") return raw;
   return null;
 }
 

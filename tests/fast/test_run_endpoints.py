@@ -17,9 +17,9 @@ class TestStartRequestModel:
         req = StartRequest(model="sonnet")
         assert req.model == "sonnet"
 
-    def test_can_be_set_to_haiku(self) -> None:
-        req = StartRequest(model="haiku")
-        assert req.model == "haiku"
+    def test_can_be_set_to_opus_4_5(self) -> None:
+        req = StartRequest(model="opus-4-5")
+        assert req.model == "opus-4-5"
 
     def test_rejects_invalid_model(self) -> None:
         with pytest.raises(ValueError, match="must be one of"):

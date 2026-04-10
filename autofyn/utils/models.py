@@ -14,13 +14,13 @@ from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 _FALLBACK_MAP: dict[str, str | None] = {
     "opus": "sonnet",
-    "sonnet": "haiku",
-    "haiku": None,
+    "sonnet": None,
+    "opus-4-5": "sonnet",
 }
 
 
 def get_fallback_model(model: str) -> str | None:
-    """Return the fallback model for rate-limit recovery, or None for haiku or unknown."""
+    """Return the fallback model for rate-limit recovery, or None if no fallback."""
     return _FALLBACK_MAP.get(model)
 
 

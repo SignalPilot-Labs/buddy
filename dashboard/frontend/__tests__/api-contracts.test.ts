@@ -53,7 +53,7 @@ describe("startRun", () => {
   });
 
   it("sends null prompt when undefined", async () => {
-    await startRun(undefined, 0, 0, "main", "haiku", null);
+    await startRun(undefined, 0, 0, "main", "opus-4-5", null);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBeNull();
   });

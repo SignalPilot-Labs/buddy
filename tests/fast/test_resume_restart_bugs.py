@@ -41,7 +41,7 @@ class TestGetRunForResume:
         mock_run.total_output_tokens = 500
         mock_run.cache_creation_input_tokens = 200
         mock_run.cache_read_input_tokens = 100
-        mock_run.model_name = "haiku"
+        mock_run.model_name = "opus-4-5"
 
         mock_session = AsyncMock()
         mock_session.get = AsyncMock(return_value=mock_run)
@@ -56,7 +56,7 @@ class TestGetRunForResume:
         assert result is not None
         assert "github_repo" in result
         assert result["github_repo"] == "owner/repo"
-        assert result["model_name"] == "haiku"
+        assert result["model_name"] == "opus-4-5"
 
 
 # ── setup_resume must fail early without github_repo ──
@@ -150,9 +150,9 @@ class TestSetupResumeModelPreservation:
     @pytest.mark.asyncio
     async def test_persisted_model_is_used_when_no_override(self) -> None:
         """If model_override is None, the original run's model_name wins."""
-        run_info = {**self.BASE_RUN_INFO, "model_name": "haiku"}
+        run_info = {**self.BASE_RUN_INFO, "model_name": "opus-4-5"}
         _, options = await self._run_setup(run_info, model_override=None)
-        assert options["model"] == "haiku"
+        assert options["model"] == "opus-4-5"
 
     @pytest.mark.asyncio
     async def test_override_takes_precedence_over_persisted(self) -> None:
