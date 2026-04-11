@@ -7,6 +7,7 @@ import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
 import { shortPath } from "@/components/feed/eventCardHelpers";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 /* ── Helpers ── */
 
@@ -268,9 +269,9 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className={clsx(
         "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
         borderColor,
@@ -360,7 +361,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="overflow-hidden"
         >
           <div className="mt-2 space-y-2 border-t border-white/[0.04] pt-2">
@@ -458,9 +459,9 @@ function AuditCard({ event }: { event: AuditEvent }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className={clsx(
         "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
         `border-l-[${meta.iconColor}]`,
@@ -505,7 +506,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2 }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="overflow-hidden"
         >
           <div className="mt-2 border-t border-white/[0.04] pt-2">
@@ -556,9 +557,9 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 2 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="border-l-[3px] border-l-[#44ccdd]/30 bg-[#44ccdd]/[0.015] rounded-r px-3 py-1"
     >
       <div className="flex items-center gap-3 flex-wrap">
@@ -591,8 +592,9 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
 function ControlCard({ text, ts }: { text: string; ts: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="border-l-[3px] border-l-[#ffaa00] bg-[#ffaa00]/[0.03] rounded-r px-3 py-1.5"
     >
       <div className="flex items-center gap-2">

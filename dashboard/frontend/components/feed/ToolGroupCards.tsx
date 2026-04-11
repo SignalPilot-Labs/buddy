@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import { extractBashCommands } from "@/lib/groupEvents";
 import {
@@ -33,8 +34,9 @@ export function BashGroupCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="rounded-lg border border-[#00ff88]/8 bg-[#00ff88]/[0.02] overflow-hidden"
     >
       <button
@@ -68,7 +70,7 @@ export function BashGroupCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="rounded-b-lg overflow-hidden">
@@ -121,8 +123,9 @@ export function PlaywrightGroupCard({
   const [expanded, setExpanded] = useState(false);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="rounded-lg border border-[#66bbff]/8 bg-[#66bbff]/[0.02] overflow-hidden"
     >
       <button
@@ -158,7 +161,7 @@ export function PlaywrightGroupCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="p-3 space-y-2 max-h-[400px] overflow-y-auto">
@@ -258,8 +261,9 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className={clsx(
         "rounded-lg border overflow-hidden",
         denied
@@ -309,7 +313,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="p-3 space-y-2.5">

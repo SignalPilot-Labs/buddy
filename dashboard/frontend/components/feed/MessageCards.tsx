@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { fmtTime } from "@/components/feed/eventCardHelpers";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 /* ── LLM Message ── */
 export function LLMMessageCard({
@@ -29,7 +30,7 @@ export function LLMMessageCard({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className={clsx(
         "rounded-lg p-4",
         isPlanner
@@ -105,7 +106,7 @@ export function LLMMessageCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
         >
           <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">
@@ -147,7 +148,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
@@ -190,6 +191,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="flex justify-end px-4 py-1.5"
     >
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
@@ -231,6 +233,7 @@ export function MilestoneCard({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />

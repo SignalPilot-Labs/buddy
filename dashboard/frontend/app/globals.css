@@ -548,6 +548,51 @@ input[type="number"]::-webkit-outer-spin-button {
   .mobile-tab-btn:active {
     transform: none;
   }
+
+  /* Blink cursor stays solid — no flashing */
+  @keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+  }
+
+  /* CSS keyframe animations: remove motion, keep opacity transitions */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-in-left {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-in-right {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scale-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes float {
+    0%, 50%, 100% { transform: none; }
+  }
+
+  @keyframes count-up {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Collapse animation durations for any remaining CSS animations/transitions
+     not covered by Framer Motion's reducedMotion="user" context.
+     Use 0.01ms (not "none") to preserve end-state without breaking animate-pulse
+     loading skeletons (they stay visible as static elements). */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ── Sidebar scrollbar override ── */

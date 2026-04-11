@@ -16,6 +16,7 @@ import {
   IDLE_WARN_MS,
 } from "@/components/feed/eventCardHelpers";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 export function AgentRunCard({
   tool,
@@ -90,8 +91,9 @@ export function AgentRunCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="rounded-lg border overflow-hidden relative"
       style={
         isIdle

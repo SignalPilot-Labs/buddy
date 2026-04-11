@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, PendingMessage } from "@/lib/types";
-import { SCROLL_BOTTOM_THRESHOLD, SCROLL_BATCH_THRESHOLD } from "@/lib/constants";
+import { SCROLL_BOTTOM_THRESHOLD, SCROLL_BATCH_THRESHOLD, CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
@@ -16,8 +16,6 @@ const FAB_ANIMATE = { opacity: 1, y: 0 };
 const FAB_EXIT = { opacity: 0, y: 8 };
 const FAB_TRANSITION = { duration: 0.15 };
 
-const CARD_ENTER_DURATION = 0.2;
-const CARD_ENTER_EASE = "easeOut";
 const SKELETON_COUNT = 3;
 const SKELETON_HEIGHT = "h-12";
 const LOADING_OPACITY = 0.4;
@@ -133,7 +131,7 @@ export function EventFeed({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: CARD_ENTER_DURATION, ease: CARD_ENTER_EASE }}
+                  transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
                 >
                   <ErrorBoundary
                     fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}

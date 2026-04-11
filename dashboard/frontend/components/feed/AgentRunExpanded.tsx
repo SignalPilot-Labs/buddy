@@ -11,6 +11,7 @@ import {
   fmtDuration,
   extractResultText,
 } from "@/components/feed/eventCardHelpers";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 export function AgentRunExpanded({
   tool,
@@ -41,7 +42,7 @@ export function AgentRunExpanded({
     <motion.div
       initial={{ height: 0, opacity: 0 }}
       animate={{ height: "auto", opacity: 1 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="border-t border-white/[0.04] overflow-hidden"
     >
       {childTools.length > 0 && (

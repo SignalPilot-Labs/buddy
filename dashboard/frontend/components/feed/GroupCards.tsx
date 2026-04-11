@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
+import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import {
   extractReadPaths,
@@ -125,8 +126,9 @@ export function ReadGroupCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="rounded-lg border overflow-hidden"
       style={{
         borderColor: `${iconColor}14`,
@@ -168,7 +170,7 @@ export function ReadGroupCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           {isRead ? (
@@ -254,8 +256,9 @@ export function EditGroupCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden"
     >
       <button
@@ -297,7 +300,7 @@ export function EditGroupCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
+          transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="divide-y divide-white/[0.03]">

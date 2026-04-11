@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { MotionConfig } from "framer-motion";
 import type { RunStatus } from "@/lib/types";
 import { fetchBranches, pauseAgent, resumeAgent, stopAgentInstant, killAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
@@ -322,8 +323,10 @@ function MonitorPageInner() {
 
 export default function MonitorPage() {
   return (
-    <ToastProvider>
-      <MonitorPageInner />
-    </ToastProvider>
+    <MotionConfig reducedMotion="user">
+      <ToastProvider>
+        <MonitorPageInner />
+      </ToastProvider>
+    </MotionConfig>
   );
 }

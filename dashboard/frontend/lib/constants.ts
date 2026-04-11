@@ -48,6 +48,10 @@ export const SCROLL_BOTTOM_THRESHOLD = 20;
 export const SCROLL_BATCH_THRESHOLD = 1;
 export const DEFAULT_AGENT_ROLE = "worker";
 
+// Card enter animations — shared across all feed card components.
+export const CARD_FADE_DURATION = 0.2;
+export const CARD_FADE_EASE = "easeOut";
+
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
 
