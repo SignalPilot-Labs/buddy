@@ -3,9 +3,9 @@
 import type { ReactElement } from "react";
 import {
   MagnifyingGlassIcon,
-  ClipboardDocumentListIcon,
+  PencilSquareIcon,
   WrenchScrewdriverIcon,
-  EyeIcon,
+  DocumentMagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import type { SubagentPhase } from "@/lib/phaseColors";
 import { AgentIcon } from "@/components/ui/ToolIcons";
@@ -14,10 +14,13 @@ import { AgentIcon } from "@/components/ui/ToolIcons";
 // dynamic phase color via `color` so the icons inherit it through
 // currentColor. Semantically:
 //   explore → magnifying glass (searching the codebase)
-//   plan    → clipboard with list (drafting steps)
+//   plan    → pencil on a page (drafting the spec — architect/debugger both
+//             emit specs, so authoring is the right metaphor)
 //   build   → wrench & screwdriver (making changes)
-//   review  → eye (inspecting) — deliberately NOT a checkmark, which reads
-//             as "done/success" and collides with card status semantics.
+//   review  → document with magnifying glass (inspecting a written artifact).
+//             Deliberately NOT a checkmark or shield — those read as
+//             "done/approved" and collide with card status semantics. Also
+//             distinct from plain MagnifyingGlass (explore) by the doc behind.
 
 const ICON_CLASS = "h-[14px] w-[14px]";
 
@@ -43,7 +46,7 @@ export function ExploreIcon({ color }: { color?: string }): ReactElement {
 }
 
 export function PlanIcon({ color }: { color?: string }): ReactElement {
-  return <PhaseIconWrapper Icon={ClipboardDocumentListIcon} color={color} />;
+  return <PhaseIconWrapper Icon={PencilSquareIcon} color={color} />;
 }
 
 export function BuildIcon({ color }: { color?: string }): ReactElement {
@@ -51,7 +54,7 @@ export function BuildIcon({ color }: { color?: string }): ReactElement {
 }
 
 export function ReviewIcon({ color }: { color?: string }): ReactElement {
-  return <PhaseIconWrapper Icon={EyeIcon} color={color} />;
+  return <PhaseIconWrapper Icon={DocumentMagnifyingGlassIcon} color={color} />;
 }
 
 export function getPhaseIcon(

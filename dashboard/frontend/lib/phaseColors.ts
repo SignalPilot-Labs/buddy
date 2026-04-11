@@ -18,8 +18,9 @@ export interface PhaseMeta {
 
 export const SUBAGENT_PHASE_MAP: Record<string, SubagentPhase> = {
   "code-explorer": "explore",
-  "debugger": "explore",
+  "debugger": "plan",
   "architect": "plan",
+  "spec-reviewer": "review",
   "backend-dev": "build",
   "frontend-dev": "build",
   "code-reviewer": "review",

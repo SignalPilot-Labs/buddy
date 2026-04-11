@@ -8,16 +8,15 @@ import {
 } from "@/lib/phaseColors";
 
 describe("resolvePhase", () => {
-  it("maps code-explorer and debugger to the explore phase", () => {
+  it("maps code-explorer to the explore phase", () => {
     expect(resolvePhase("code-explorer").phase).toBe("explore");
-    expect(resolvePhase("debugger").phase).toBe("explore");
     expect(resolvePhase("code-explorer").meta).toBe(PHASE_META.explore);
   });
 
-  it("maps architect to the plan phase", () => {
-    const result = resolvePhase("architect");
-    expect(result.phase).toBe("plan");
-    expect(result.meta.color).toBe("#cc88ff");
+  it("maps architect and debugger to the plan phase", () => {
+    expect(resolvePhase("architect").phase).toBe("plan");
+    expect(resolvePhase("architect").meta.color).toBe("#cc88ff");
+    expect(resolvePhase("debugger").phase).toBe("plan");
   });
 
   it("maps backend-dev and frontend-dev to the build phase", () => {
@@ -25,7 +24,8 @@ describe("resolvePhase", () => {
     expect(resolvePhase("frontend-dev").phase).toBe("build");
   });
 
-  it("maps code-reviewer, ui-reviewer, and security-reviewer to the review phase", () => {
+  it("maps spec-reviewer, code-reviewer, ui-reviewer, and security-reviewer to the review phase", () => {
+    expect(resolvePhase("spec-reviewer").phase).toBe("review");
     expect(resolvePhase("code-reviewer").phase).toBe("review");
     expect(resolvePhase("ui-reviewer").phase).toBe("review");
     expect(resolvePhase("security-reviewer").phase).toBe("review");
@@ -63,11 +63,12 @@ describe("SUBAGENT_PHASE_MAP coverage", () => {
   // If a new subagent is added there without a corresponding map entry,
   // this test won't catch it automatically — but it at least locks the
   // existing set so a silent removal gets flagged.
-  it("includes all eight expected subagents", () => {
+  it("includes all nine expected subagents", () => {
     const expected = [
       "code-explorer",
       "debugger",
       "architect",
+      "spec-reviewer",
       "backend-dev",
       "frontend-dev",
       "code-reviewer",
