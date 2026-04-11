@@ -4,7 +4,7 @@ Responsibilities:
 
     1. Clone the repo in the sandbox and create the working branch.
     2. Persist the branch name to the runs table.
-    3. Build the RunContext, OperatorInbox, TimeLock, ReportStore, MetadataStore.
+    3. Build the RunContext, UserInbox, TimeLock, ReportStore, MetadataStore.
     4. Seed /tmp/rounds.json with the empty schema.
     5. Build the (mostly static) SDK session options dict. The orchestrator
        system prompt is rebuilt per round; this dict holds everything else.
@@ -19,7 +19,7 @@ import uuid
 
 from memory.metadata import MetadataStore
 from memory.report import ReportStore
-from operator.inbox import OperatorInbox
+from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
 from session.time_lock import TimeLock
 from utils import db
@@ -64,7 +64,10 @@ async def bootstrap_run(
     branch_name = _make_branch_name(custom_prompt)
     log.info("Run %s cloning %s", run_id, github_repo)
     await sandbox.repo.clone(
-        github_repo, git_token, base_branch, clone_timeout,
+        github_repo,
+        git_token,
+        base_branch,
+        clone_timeout,
     )
     await sandbox.repo.ensure_base_branch(base_branch, clone_timeout)
     await sandbox.repo.create_branch(branch_name, base_branch, clone_timeout)
@@ -79,7 +82,7 @@ async def bootstrap_run(
         duration_minutes=duration_minutes,
         github_repo=github_repo,
     )
-    inbox = OperatorInbox()
+    inbox = UserInbox()
     time_lock = TimeLock(duration_minutes)
     reports = ReportStore(sandbox)
     metadata = MetadataStore(sandbox)
@@ -99,8 +102,12 @@ async def bootstrap_run(
     )
 
     await _log_run_started(
-        run_id, branch_name, model, max_budget_usd,
-        duration_minutes, custom_prompt,
+        run_id,
+        branch_name,
+        model,
+        max_budget_usd,
+        duration_minutes,
+        custom_prompt,
     )
 
     return BootstrapResult(
@@ -187,13 +194,21 @@ async def _log_run_started(
     custom_prompt: str,
 ) -> None:
     """Emit run_started and prompt_submitted audit events."""
-    await db.log_audit(run_id, "run_started", {
-        "branch": branch,
-        "model": model,
-        "max_budget_usd": budget,
-        "duration_minutes": duration,
-        "custom_prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
-    })
-    await db.log_audit(run_id, "prompt_submitted", {
-        "prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
-    })
+    await db.log_audit(
+        run_id,
+        "run_started",
+        {
+            "branch": branch,
+            "model": model,
+            "max_budget_usd": budget,
+            "duration_minutes": duration,
+            "custom_prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
+        },
+    )
+    await db.log_audit(
+        run_id,
+        "prompt_submitted",
+        {
+            "prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
+        },
+    )

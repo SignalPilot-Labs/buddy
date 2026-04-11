@@ -4,7 +4,7 @@ Replaces the old `tools.session.SessionGate`. Pure in-process timing
 state; the sandbox-side session manager owns the actual `end_session`
 MCP tool and its early-exit logic. This class exists so the health
 endpoint and round loop can see how much time is left and whether the
-run has been force-unlocked by the operator.
+run has been force-unlocked by the user.
 """
 
 import time
@@ -28,11 +28,11 @@ class TimeLock:
         self._force_unlocked = False
 
     def force_unlock(self) -> None:
-        """Mark the time lock as manually unlocked by the operator."""
+        """Mark the time lock as manually unlocked by the user."""
         self._force_unlocked = True
 
     def is_force_unlocked(self) -> bool:
-        """True if the operator force-unlocked this session."""
+        """True if the user force-unlocked this session."""
         return self._force_unlocked
 
     def elapsed_minutes(self) -> float:

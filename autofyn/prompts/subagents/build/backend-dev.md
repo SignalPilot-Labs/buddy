@@ -16,6 +16,7 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 - **No magic values.** All constants in a dedicated constants file.
 - **No default parameter values** unless the language idiom requires it.
 - **Proper error handling.** No bare excepts. No swallowed errors. Fail early. Validate input at system boundaries, trust the type system internally.
+- **Fail fast — no layered fallbacks.** Never write `value ?? fallback1 ?? fallback2 ?? default` chains or `try: X except: try: Y except: default`. If a required value can be missing, raise/reject at the boundary — do NOT substitute a default and keep going. Layered fallbacks hide which layer is broken and turn one bug into three indistinguishable ones. Silent error swallowing (empty `except`, fallback to stale state) is worse than a crash.
 - **Types everywhere.** No `any` unless unavoidable.
 - **Async consistency.** Don't mix sync and async DB/IO calls. Use `asyncio.gather` for independent parallel work.
 - **Use `pathlib.Path`** over string concatenation for file paths.

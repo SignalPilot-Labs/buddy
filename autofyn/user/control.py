@@ -1,7 +1,7 @@
-"""OperatorControl — apply operator events to a running round.
+"""UserControl — apply user events to a running round.
 
-The round's session runner races operator events against the SSE stream.
-When an event arrives, it calls `OperatorControl.handle()` to decide what
+The round's session runner races user events against the SSE stream.
+When an event arrives, it calls `UserControl.handle()` to decide what
 to do with the in-flight session.
 
 Inject messages arriving mid-subagent are buffered on the inbox and
@@ -10,15 +10,15 @@ flushed at the next subagent boundary via `flush_pending()`.
 
 import logging
 
-from operator.inbox import OperatorInbox
 from sandbox_client.client import SandboxClient
-from utils.models import ControlOutcome, OperatorEvent
+from user.inbox import UserInbox
+from utils.models import ControlOutcome, UserEvent
 
-log = logging.getLogger("operator.control")
+log = logging.getLogger("user.control")
 
 
-class OperatorControl:
-    """Applies operator events to a running round's session.
+class UserControl:
+    """Applies user events to a running round's session.
 
     Public API:
         handle(event)           -> ControlOutcome
@@ -30,7 +30,7 @@ class OperatorControl:
         self,
         sandbox: SandboxClient,
         session_id: str,
-        inbox: OperatorInbox,
+        inbox: UserInbox,
     ) -> None:
         self._sandbox = sandbox
         self._session_id = session_id
@@ -38,15 +38,15 @@ class OperatorControl:
 
     # ── Event dispatch ─────────────────────────────────────────────────
 
-    async def handle(self, event: OperatorEvent) -> ControlOutcome:
-        """Route an operator event and apply it to the running session."""
+    async def handle(self, event: UserEvent) -> ControlOutcome:
+        """Route an user event and apply it to the running session."""
         if event.kind == "stop":
             return await self._handle_stop(event.payload)
         if event.kind == "pause":
             return await self._handle_pause()
         if event.kind == "inject":
             self._inbox.queue_message(event.payload)
-            log.info("Queued operator inject (%d chars)", len(event.payload))
+            log.info("Queued user inject (%d chars)", len(event.payload))
             return ControlOutcome(kind="continue", reason="queued inject")
         if event.kind == "unlock":
             log.info("Unlock requested — forwarded to session gate")
@@ -65,13 +65,14 @@ class OperatorControl:
             return
         for msg in messages:
             await self._sandbox.session.send_message(
-                self._session_id, f"Operator message: {msg}",
+                self._session_id,
+                f"User message: {msg}",
             )
 
     # ── Pause blocking ─────────────────────────────────────────────────
 
     async def await_resume(self) -> bool:
-        """Block until the operator resumes or stops. Returns True on resume."""
+        """Block until the user resumes or stops. Returns True on resume."""
         event = await self._inbox.wait_for_resume_or_stop()
         return event.kind == "resume"
 
@@ -79,16 +80,16 @@ class OperatorControl:
 
     async def _handle_stop(self, reason: str) -> ControlOutcome:
         """Interrupt the session and signal the runner to tear down."""
-        log.info("STOP requested: %s", reason or "operator stop")
+        log.info("STOP requested: %s", reason or "user stop")
         await self._sandbox.session.interrupt(self._session_id)
         self._inbox.mark_stopped()
         return ControlOutcome(
             kind="break_stop",
-            reason=reason or "operator stop",
+            reason=reason or "user stop",
         )
 
     async def _handle_pause(self) -> ControlOutcome:
         """Interrupt the session and signal the runner to await resume."""
         log.info("PAUSE requested")
         await self._sandbox.session.interrupt(self._session_id)
-        return ControlOutcome(kind="break_pause", reason="operator pause")
+        return ControlOutcome(kind="break_pause", reason="user pause")

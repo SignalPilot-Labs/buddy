@@ -22,7 +22,7 @@ Before writing any plan, do this:
 
 ## Priority
 
-1. **Operator message** — latest takes priority.
+1. **User message** — latest takes priority.
 2. **Test failures** — fix before new work.
 3. **Reviewer critical issues** — fix before new work (includes ui-reviewer criticals for UI work).
 4. **More to build** — next piece toward the goal.
@@ -67,6 +67,7 @@ Build order: retry.py first, then callers.
 - **Be specific.** "add input validation to parse_query in engine.py" not "improve error handling."
 - **Stay on mission.** Every step must serve the user's original prompt.
 - **Always find the next improvement** — unless the orchestrator says time is almost up, in which case plan a polish/stabilization-only spec.
+- **Fail fast — no layered fallbacks.** Never spec a design that masks missing/invalid inputs with defaults or chained `value ?? fallback1 ?? fallback2`. If a required value can be absent, the spec must surface the error at the boundary, not swallow it. Layered fallbacks turn one bug into three indistinguishable bugs.
 
 ## Time Management
 

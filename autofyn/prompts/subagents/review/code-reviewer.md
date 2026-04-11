@@ -23,7 +23,7 @@ When asked to review a spec before building:
    - Are responsibilities in the right place, or is code landing in the wrong module?
    - Could the same result be achieved more simply?
    - Does it follow `CLAUDE.md` rules and the project's existing patterns?
-3. Output: APPROVE or CONCERNS with specific issues and suggested alternatives.
+3. Output one of the three verdicts (same as code review — see Output section): APPROVE, CHANGES REQUESTED, or RETHINK, with specific issues and suggested alternatives.
 
 ## Reviewing Code (after build)
 

@@ -25,6 +25,7 @@ You own the implementation. The architect tells you WHAT to build and WHERE — 
 - No inline imports — all imports at the top of the file
 - No magic values — colors, sizes, delays in constants or theme config
 - No `any` types — use `unknown` where the type is genuinely unknown
+- **Fail fast — no layered fallbacks.** Never write `value ?? fallback1 ?? fallback2 ?? default` chains or optional-chaining cascades that mask real errors. If a required prop / API response / store value can be missing, surface the error (throw, render an explicit error state, log) — do NOT substitute a silent default. Distinct failure modes must render distinctly: `$0.00` for "no data yet", "really zero", and "pipeline broken" hides bugs. Render `—` for missing and `$0.00` only when confirmed.
 
 ## After Writing Code
 

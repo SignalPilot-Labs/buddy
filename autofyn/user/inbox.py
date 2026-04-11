@@ -1,7 +1,7 @@
-"""OperatorInbox — run-scoped queue of operator events and pending messages.
+"""UserInbox — run-scoped queue of user/user events and pending messages.
 
-One OperatorInbox per run. Lives longer than any single round: if the
-operator injects a message mid-round-3 and the round ends before it can
+One UserInbox per run. Lives longer than any single round: if the
+user injects a message mid-round-3 and the round ends before it can
 be delivered, the inbox carries it into round 4's initial prompt.
 
 The HTTP endpoints push events; the round loop drains them. Events are
@@ -11,13 +11,13 @@ dataclasses defined in `utils.models` — this module is behavior only.
 import asyncio
 import logging
 
-from utils.models import EventKind, OperatorEvent
+from utils.models import EventKind, UserEvent
 
-log = logging.getLogger("operator.inbox")
+log = logging.getLogger("user.inbox")
 
 
-class OperatorInbox:
-    """Run-scoped queue of operator events + undelivered inject messages.
+class UserInbox:
+    """Run-scoped queue of user events + undelivered inject messages.
 
     Public API:
         push(kind, payload)           — called from HTTP handlers
@@ -32,30 +32,30 @@ class OperatorInbox:
     """
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[OperatorEvent] = asyncio.Queue()
+        self._queue: asyncio.Queue[UserEvent] = asyncio.Queue()
         self._pending_messages: list[str] = []
         self._stop_requested: bool = False
 
     # ── Ingress (HTTP handlers) ────────────────────────────────────────
 
     def push(self, kind: EventKind, payload: str) -> None:
-        """Enqueue an operator event. Non-blocking."""
-        self._queue.put_nowait(OperatorEvent(kind=kind, payload=payload))
+        """Enqueue an user event. Non-blocking."""
+        self._queue.put_nowait(UserEvent(kind=kind, payload=payload))
 
     # ── Egress (round loop + session runner) ───────────────────────────
 
-    async def next_event(self) -> OperatorEvent:
-        """Block until the next operator event arrives."""
+    async def next_event(self) -> UserEvent:
+        """Block until the next user event arrives."""
         return await self._queue.get()
 
-    def try_next_event(self) -> OperatorEvent | None:
+    def try_next_event(self) -> UserEvent | None:
         """Return the next event without blocking, or None if the queue is empty."""
         try:
             return self._queue.get_nowait()
         except asyncio.QueueEmpty:
             return None
 
-    async def wait_for_resume_or_stop(self) -> OperatorEvent:
+    async def wait_for_resume_or_stop(self) -> UserEvent:
         """Block until a resume or stop event arrives (discarding other events).
 
         Inject events received during a pause are queued as pending messages

@@ -9,8 +9,8 @@ Round terminal states and what the loop does with them:
 
     complete      : read metadata, commit, push, loop again
     ended         : orchestrator called end_session — commit, push, stop
-    paused        : await resume/stop on the operator inbox
-    stopped       : operator stopped — tear down
+    paused        : await resume/stop on the user inbox
+    stopped       : user stopped — tear down
     rate_limited  : back off (if fallback missing and wait < 10m), then loop
     error         : log and tear down
 """
@@ -21,7 +21,7 @@ import time
 
 from lifecycle.bootstrap import BootstrapResult
 from memory.metadata import MetadataStore
-from operator.inbox import OperatorInbox
+from user.inbox import UserInbox
 from prompts.orchestrator import RoundContext, build_round_system_prompt
 from prompts.subagent import build_agent_defs
 from sandbox_client.client import SandboxClient
@@ -39,7 +39,7 @@ async def run_rounds(
     bootstrap: BootstrapResult,
     exec_timeout: int,
 ) -> str:
-    """Run rounds until the orchestrator or operator says stop.
+    """Run rounds until the orchestrator or user says stop.
 
     Returns the terminal run status: "completed", "stopped", "rate_limited",
     or "error".
@@ -63,25 +63,26 @@ async def run_rounds(
 
         prior_metadata = await metadata_store.load()
         prior_reports = (
-            await reports.list_round(round_number - 1)
-            if round_number > 1 else []
+            await reports.list_round(round_number - 1) if round_number > 1 else []
         )
-        operator_messages = inbox.take_pending_messages()
+        user_messages = inbox.take_pending_messages()
 
         round_ctx = RoundContext(
             round_number=round_number,
             duration_minutes=run.duration_minutes,
             time_remaining_minutes=time_lock.remaining_minutes(),
-            branch_name=run.branch_name,
-            base_branch=run.base_branch,
             metadata=prior_metadata,
             previous_round_reports=prior_reports,
-            operator_messages=operator_messages,
+            user_messages=user_messages,
         )
         system_prompt = build_round_system_prompt(round_ctx)
 
         options = dict(bootstrap.base_session_options)
-        options["agents"] = build_agent_defs(round_number)
+        options["agents"] = build_agent_defs(
+            round_number=round_number,
+            duration_minutes=run.duration_minutes,
+            time_remaining_minutes=time_lock.remaining_minutes(),
+        )
         options["system_prompt"] = {
             "type": system_prompt["type"],
             "preset": system_prompt["preset"],
@@ -113,7 +114,7 @@ async def _handle_round_outcome(
     round_number: int,
     sandbox: SandboxClient,
     run: RunContext,
-    inbox: OperatorInbox,
+    inbox: UserInbox,
     time_lock: TimeLock,
     metadata_store: MetadataStore,
     exec_timeout: int,
@@ -126,16 +127,22 @@ async def _handle_round_outcome(
         return "error"
 
     if result.status == "stopped":
-        log.info("[%s] Round %d stopped by operator", rid, round_number)
+        log.info("[%s] Round %d stopped by user", rid, round_number)
         await _commit_and_push_round(
-            sandbox, run, round_number, metadata_store,
-            result.round_summary, exec_timeout,
+            sandbox,
+            run,
+            round_number,
+            metadata_store,
+            result.round_summary,
+            exec_timeout,
         )
         return "stopped"
 
     if result.status == "rate_limited":
         backed_off = await _handle_rate_limit(
-            rid, result, inbox,
+            rid,
+            result,
+            inbox,
         )
         if not backed_off:
             return "rate_limited"
@@ -143,9 +150,13 @@ async def _handle_round_outcome(
 
     if result.status == "paused":
         log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
-        await db.log_audit(run.run_id, "pause_requested", {
-            "round_number": round_number,
-        })
+        await db.log_audit(
+            run.run_id,
+            "pause_requested",
+            {
+                "round_number": round_number,
+            },
+        )
         await db.update_run_status(run.run_id, "paused")
         resumed = await _await_resume(inbox)
         if not resumed:
@@ -157,18 +168,20 @@ async def _handle_round_outcome(
 
     # status in ("complete", "ended")
     await _commit_and_push_round(
-        sandbox, run, round_number, metadata_store,
-        result.round_summary, exec_timeout,
+        sandbox,
+        run,
+        round_number,
+        metadata_store,
+        result.round_summary,
+        exec_timeout,
     )
 
     if result.status == "ended":
-        log.info("[%s] Orchestrator ended the run after round %d",
-                 rid, round_number)
+        log.info("[%s] Orchestrator ended the run after round %d", rid, round_number)
         return "completed"
 
     if time_lock.is_expired():
-        log.info("[%s] Time lock expired after round %d — finishing",
-                 rid, round_number)
+        log.info("[%s] Time lock expired after round %d — finishing", rid, round_number)
         return "completed"
 
     if inbox.has_stop():
@@ -195,7 +208,8 @@ async def _commit_and_push_round(
     else:
         metadata = await metadata_store.load()
         entry = next(
-            (r for r in metadata.rounds if r.n == round_number), None,
+            (r for r in metadata.rounds if r.n == round_number),
+            None,
         )
         summary = entry.summary if entry else "(no summary)"
     message = f"[Round {round_number}] {summary}"
@@ -211,15 +225,24 @@ async def _commit_and_push_round(
         await sandbox.repo.push(exec_timeout)
     except Exception as exc:
         log.warning("Round %d push failed: %s", round_number, exc)
-        await db.log_audit(run.run_id, "push_failed", {
-            "round_number": round_number, "error": str(exc),
-        })
+        await db.log_audit(
+            run.run_id,
+            "push_failed",
+            {
+                "round_number": round_number,
+                "error": str(exc),
+            },
+        )
         return
 
-    await db.log_audit(run.run_id, "round_committed", {
-        "round_number": round_number,
-        "message": message,
-    })
+    await db.log_audit(
+        run.run_id,
+        "round_committed",
+        {
+            "round_number": round_number,
+            "message": message,
+        },
+    )
 
 
 # ── Rate limit + pause helpers ───────────────────────────────────────
@@ -228,7 +251,7 @@ async def _commit_and_push_round(
 async def _handle_rate_limit(
     rid: str,
     result: RoundResult,
-    inbox: OperatorInbox,
+    inbox: UserInbox,
 ) -> bool:
     """Block until the rate limit resets. Returns True if the loop should retry."""
     resets_at = result.rate_limit_resets_at
@@ -264,7 +287,7 @@ async def _handle_rate_limit(
     return True
 
 
-async def _await_resume(inbox: OperatorInbox) -> bool:
+async def _await_resume(inbox: UserInbox) -> bool:
     """Block until resume or stop arrives. Returns True on resume."""
     event = await inbox.wait_for_resume_or_stop()
     return event.kind == "resume"

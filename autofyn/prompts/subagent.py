@@ -8,7 +8,7 @@ The orchestrator calls these subagents by name via the SDK's Agent tool.
 SubagentDef itself is defined in `utils.models`.
 """
 
-from prompts.loader import load_markdown
+from prompts.loader import load_markdown, render_time_status
 from utils.constants import MODEL_OPUS, MODEL_SONNET
 from utils.models import SubagentDef
 
@@ -46,10 +46,9 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="code-explorer",
         phase="explore",
         description=(
-            "Map codebase structure, find implementations, trace dependencies."
+            "Maps codebase structure, traces dependencies, finds implementations."
             " Call when you need to understand how code is organized or where"
-            " something lives. Read-only — writes findings to"
-            " /tmp/explore/round-N-code-explorer.md."
+            " something lives. Be targeted — tell it what to look for."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_RESEARCH,
@@ -58,9 +57,8 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="debugger",
         phase="explore",
         description=(
-            "Diagnose bugs and failures. Find root causes, read logs, reproduce"
-            " issues. Call when something is broken and you need to find why."
-            " Writes findings to /tmp/explore/round-N-debugger.md."
+            "Diagnoses bugs and failures. Finds root causes, reads logs,"
+            " reproduces issues. Call when something is broken."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_REVIEW,
@@ -70,9 +68,9 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="architect",
         phase="plan",
         description=(
-            "Design the next unit of work. Analyze current state, make structural"
-            " decisions, write spec to /tmp/plan/round-N-architect.md."
-            " Call to plan before building."
+            "Designs the next unit of work. Analyzes current state, makes"
+            " structural decisions, writes the round's spec. Call at the start"
+            " of each round, and again to re-plan on RETHINK."
         ),
         model=MODEL_OPUS,
         tools=TOOLS_RESEARCH,
@@ -82,10 +80,8 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="backend-dev",
         phase="build",
         description=(
-            "Implement Python, APIs, database, infrastructure code. Reads spec"
-            " from /tmp/plan/round-N-architect.md, writes build report to"
-            " /tmp/build/round-N-backend-dev.md."
-            " Never use for React/Next.js/CSS/UI work."
+            "Implements Python, APIs, database, and infrastructure code from"
+            " the architect's spec. Never use for React/Next.js/CSS/UI work."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_BUILD,
@@ -94,10 +90,8 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="frontend-dev",
         phase="build",
         description=(
-            "Implement React, Next.js, TypeScript UI, CSS, styling. Reads spec"
-            " from /tmp/plan/round-N-architect.md, writes build report to"
-            " /tmp/build/round-N-frontend-dev.md."
-            " Never use for Python/backend work."
+            "Implements React, Next.js, TypeScript UI, CSS, and styling from"
+            " the architect's spec. Never use for Python/backend work."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_BUILD,
@@ -107,9 +101,9 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="code-reviewer",
         phase="review",
         description=(
-            "Review code for correctness, security, and quality. Runs tests,"
-            " typechecker, linter. Writes verdict to"
-            " /tmp/review/round-N-code-reviewer.md. Call after every build."
+            "Reviews code and specs for correctness, design, spec compliance,"
+            " and quality. Runs tests, linter, typechecker. Call after every"
+            " build, and on any spec that creates new modules or touches 5+ files."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_REVIEW_FULL,
@@ -118,10 +112,9 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="ui-reviewer",
         phase="review",
         description=(
-            "Review frontend for visual consistency, spacing, hierarchy,"
-            " accessibility, and AI slop. Writes to"
-            " /tmp/review/round-N-ui-reviewer.md."
-            " Call alongside code-reviewer when frontend-dev made changes."
+            "Reviews frontend for visual consistency, spacing, hierarchy,"
+            " accessibility, and AI slop. Call alongside code-reviewer whenever"
+            " frontend-dev made changes."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_REVIEW,
@@ -130,10 +123,9 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         name="security-reviewer",
         phase="review",
         description=(
-            "Audit code for security vulnerabilities: injection, auth gaps,"
-            " leaked secrets, unsafe config. Writes to"
-            " /tmp/review/round-N-security-reviewer.md."
-            " Call when changes touch auth, user input, APIs, or secrets."
+            "Audits code for security vulnerabilities: injection, auth gaps,"
+            " leaked secrets, unsafe config. Call when changes touch auth,"
+            " user input, APIs, or secrets."
         ),
         model=MODEL_SONNET,
         tools=TOOLS_REVIEW,
@@ -141,13 +133,22 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
 )
 
 
-def build_agent_defs(round_number: int) -> dict[str, dict]:
+def build_agent_defs(
+    round_number: int,
+    duration_minutes: float,
+    time_remaining_minutes: float,
+) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
-    `{ROUND_NUMBER}` and `{PRIOR_ROUND_NUMBER}` placeholders in subagent
-    markdown are substituted with the live values so each round's session
-    sees concrete file paths. The prior-round-context query is appended
-    (only for rounds > 1) to agents listed in `AGENTS_WITH_PRIOR_CONTEXT`.
+    Placeholders (`{ROUND_NUMBER}`, `{PRIOR_ROUND_NUMBER}`) in subagent
+    markdown are substituted with the live values. Conditional queries
+    are appended depending on run state:
+
+    - `query/prior-round-context`: appended for rounds > 1 to agents in
+      `AGENTS_WITH_PRIOR_CONTEXT` so they can read the previous round.
+    - `query/time-status`: appended to ALL subagents whenever the run is
+      time-locked (`duration_minutes > 0`). Each agent decides whether
+      to act on it based on its own time-management rules.
     """
     prior_round_number = max(round_number - 1, 0)
     git_rules = load_markdown("query/git-rules")
@@ -159,6 +160,11 @@ def build_agent_defs(round_number: int) -> dict[str, dict]:
             prior_round_number,
         )
         if round_number > 1
+        else None
+    )
+    time_status = (
+        render_time_status(duration_minutes, time_remaining_minutes)
+        if duration_minutes > 0
         else None
     )
 
@@ -175,6 +181,8 @@ def build_agent_defs(round_number: int) -> dict[str, dict]:
             prompt_parts.append(verification_rules)
         if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:
             prompt_parts.append(prior_context)
+        if time_status:
+            prompt_parts.append(time_status)
         result[defn.name] = {
             "description": defn.description,
             "prompt": "\n\n".join(prompt_parts),

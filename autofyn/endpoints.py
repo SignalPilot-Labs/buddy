@@ -1,7 +1,7 @@
 """HTTP route handlers for the agent server.
 
 Thin routing. `/start` wires up an ActiveRun + background task; the
-control endpoints push events into the run's OperatorInbox; health
+control endpoints push events into the run's UserInbox; health
 reads the TimeLock for per-run time info.
 """
 
@@ -58,7 +58,9 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             if not r.run_id:
                 continue
             entry = HealthRunEntry(
-                run_id=r.run_id, status=r.status, started_at=r.started_at,
+                run_id=r.run_id,
+                status=r.status,
+                started_at=r.started_at,
             )
             if r.time_lock:
                 entry.elapsed_minutes = round(r.time_lock.elapsed_minutes(), 1)
@@ -78,12 +80,15 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         server.ensure_capacity()
 
         body.env = _merge_tokens_into_env(
-            body.env, body.claude_token, body.git_token,
+            body.env,
+            body.claude_token,
+            body.git_token,
         )
 
         if not body.github_repo:
             raise HTTPException(
-                status_code=422, detail="github_repo is required",
+                status_code=422,
+                detail="github_repo is required",
             )
         if not body.prompt:
             raise HTTPException(
@@ -116,7 +121,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         r = server.get_run_or_first(run_id)
         if not r.inbox:
             raise HTTPException(status_code=409, detail="Run not accepting signals")
-        r.inbox.push("stop", "Operator stop via API")
+        r.inbox.push("stop", "User stop via API")
         return {"ok": True, "event": "stop", "run_id": r.run_id}
 
     @app.post("/pause")
@@ -164,12 +169,15 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
     @app.post("/cleanup")
     async def cleanup():
         terminal = {
-            "completed", "completed_no_changes", "stopped", "error",
-            "crashed", "killed", "rate_limited",
+            "completed",
+            "completed_no_changes",
+            "stopped",
+            "error",
+            "crashed",
+            "killed",
+            "rate_limited",
         }
-        to_remove = [
-            rid for rid, r in server.runs().items() if r.status in terminal
-        ]
+        to_remove = [rid for rid, r in server.runs().items() if r.status in terminal]
         for rid in to_remove:
             del server.runs()[rid]
         return {"ok": True, "cleaned": len(to_remove)}

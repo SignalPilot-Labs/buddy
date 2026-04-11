@@ -76,7 +76,7 @@ class TestControlSignals:
         _, inbox = self._make_running(mock_server)
         resp = client.post("/stop?run_id=run-1")
         assert resp.status_code == 200
-        inbox.push.assert_called_once_with("stop", "Operator stop via API")
+        inbox.push.assert_called_once_with("stop", "User stop via API")
 
     def test_pause_with_run_id(self, client, mock_server) -> None:
         _, inbox = self._make_running(mock_server)
@@ -114,6 +114,7 @@ class TestControlSignals:
 
     def test_stop_without_inbox_returns_409(self, client, mock_server) -> None:
         from fastapi import HTTPException
+
         mock_server.get_run_or_first = MagicMock(
             side_effect=HTTPException(status_code=409, detail="No run in progress"),
         )

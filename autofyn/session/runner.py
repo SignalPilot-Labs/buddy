@@ -8,10 +8,10 @@ the round loop decides whether to start another.
 The runner races three async sources:
 
     1. Sandbox SSE stream — assistant messages, tool calls, results
-    2. Operator inbox    — pause/stop/inject/unlock
+    2. User inbox    — pause/stop/inject/unlock
     3. Idle timeout      — 2 min no-progress nudge
 
-Event precedence: operator events interrupt mid-stream; rate limits end
+Event precedence: user events interrupt mid-stream; rate limits end
 the round immediately so the outer loop can back off; ResultMessage
 ends the round cleanly; stuck subagents are killed by a background
 pulse task that pushes a synthetic stop event.
@@ -22,9 +22,9 @@ import json
 import logging
 from collections.abc import AsyncIterator
 
-from operator.control import OperatorControl
-from operator.inbox import OperatorInbox
 from sandbox_client.client import SandboxClient
+from user.control import UserControl
+from user.inbox import UserInbox
 from session.stream import StreamDispatcher, StreamSignal
 from session.time_lock import TimeLock
 from session.tracker import SubagentTracker
@@ -49,7 +49,7 @@ class RoundRunner:
         self,
         sandbox: SandboxClient,
         run: RunContext,
-        inbox: OperatorInbox,
+        inbox: UserInbox,
         time_lock: TimeLock,
     ) -> None:
         self._sandbox = sandbox
@@ -74,31 +74,52 @@ class RoundRunner:
             session_id = await self._sandbox.session.start(options)
             log.info(
                 "[%s] Round %d started (session %s)",
-                self._rid, round_number, session_id,
+                self._rid,
+                round_number,
+                session_id,
             )
-            control = OperatorControl(self._sandbox, session_id, self._inbox)
+            control = UserControl(self._sandbox, session_id, self._inbox)
             pulse = asyncio.create_task(
                 self._pulse_loop(tracker),
             )
             try:
                 return await self._drive_stream(
-                    session_id, dispatcher, control, round_number,
+                    session_id,
+                    dispatcher,
+                    control,
+                    round_number,
                 )
             finally:
                 pulse.cancel()
         except asyncio.CancelledError:
-            await db.log_audit(self._run.run_id, "killed", {
-                "elapsed_minutes": round(self._time_lock.elapsed_minutes(), 1),
-            })
+            await db.log_audit(
+                self._run.run_id,
+                "killed",
+                {
+                    "elapsed_minutes": round(self._time_lock.elapsed_minutes(), 1),
+                },
+            )
             return RoundResult(status="stopped", session_id=session_id)
         except Exception as exc:
-            log.error("[%s] Round %d fatal error: %s",
-                      self._rid, round_number, exc, exc_info=True)
-            await db.log_audit(self._run.run_id, "fatal_error", {
-                "round_number": round_number, "error": str(exc),
-            })
+            log.error(
+                "[%s] Round %d fatal error: %s",
+                self._rid,
+                round_number,
+                exc,
+                exc_info=True,
+            )
+            await db.log_audit(
+                self._run.run_id,
+                "fatal_error",
+                {
+                    "round_number": round_number,
+                    "error": str(exc),
+                },
+            )
             return RoundResult(
-                status="error", session_id=session_id, error=str(exc),
+                status="error",
+                session_id=session_id,
+                error=str(exc),
             )
         finally:
             if session_id:
@@ -110,10 +131,10 @@ class RoundRunner:
         self,
         session_id: str,
         dispatcher: StreamDispatcher,
-        control: OperatorControl,
+        control: UserControl,
         round_number: int,
     ) -> RoundResult:
-        """Race SSE stream vs operator inbox vs idle timeout until the round ends."""
+        """Race SSE stream vs user inbox vs idle timeout until the round ends."""
         stream_iter: AsyncIterator[dict] = self._sandbox.session.stream_events(
             session_id,
         ).__aiter__()
@@ -137,18 +158,21 @@ class RoundRunner:
                     outcome = await control.handle(event)
                     if outcome.kind == "break_stop":
                         return RoundResult(
-                            status="stopped", session_id=session_id,
+                            status="stopped",
+                            session_id=session_id,
                         )
                     if outcome.kind == "break_pause":
                         return RoundResult(
-                            status="paused", session_id=session_id,
+                            status="paused",
+                            session_id=session_id,
                         )
 
                 if sse_task in done:
                     sse_event = sse_task.result()
                     if sse_event is None:
                         return RoundResult(
-                            status="complete", session_id=session_id,
+                            status="complete",
+                            session_id=session_id,
                         )
                     sse_task = asyncio.create_task(_next_event(stream_iter))
                     idle_task.cancel()
@@ -157,7 +181,10 @@ class RoundRunner:
                     )
                     signal = await dispatcher.dispatch(sse_event)
                     terminal = await self._apply_signal(
-                        signal, session_id, control, round_number,
+                        signal,
+                        session_id,
+                        control,
+                        round_number,
                     )
                     if terminal is not None:
                         return terminal
@@ -165,14 +192,21 @@ class RoundRunner:
                 if idle_task in done:
                     log.info(
                         "[%s] Round %d idle %ds — ending round",
-                        self._rid, round_number, SESSION_IDLE_TIMEOUT_SEC,
+                        self._rid,
+                        round_number,
+                        SESSION_IDLE_TIMEOUT_SEC,
                     )
-                    await db.log_audit(self._run.run_id, "idle_timeout", {
-                        "round_number": round_number,
-                        "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
-                    })
+                    await db.log_audit(
+                        self._run.run_id,
+                        "idle_timeout",
+                        {
+                            "round_number": round_number,
+                            "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
+                        },
+                    )
                     return RoundResult(
-                        status="complete", session_id=session_id,
+                        status="complete",
+                        session_id=session_id,
                     )
         finally:
             sse_task.cancel()
@@ -183,7 +217,7 @@ class RoundRunner:
         self,
         signal: StreamSignal,
         session_id: str,
-        control: OperatorControl,
+        control: UserControl,
         round_number: int,
     ) -> RoundResult | None:
         """Apply a stream signal. Returns a RoundResult if the round should end."""
@@ -207,12 +241,16 @@ class RoundRunner:
         if signal.kind == "rate_limited":
             data = signal.rate_limit_data or {}
             resets_at = data.get("resets_at")
-            await db.log_audit(self._run.run_id, "rate_limit", {
-                "round_number": round_number,
-                "status": data.get("status"),
-                "resets_at": resets_at,
-                "utilization": data.get("utilization"),
-            })
+            await db.log_audit(
+                self._run.run_id,
+                "rate_limit",
+                {
+                    "round_number": round_number,
+                    "status": data.get("status"),
+                    "resets_at": resets_at,
+                    "utilization": data.get("utilization"),
+                },
+            )
             return RoundResult(
                 status="rate_limited",
                 session_id=session_id,
@@ -229,22 +267,29 @@ class RoundRunner:
             stuck = tracker.stuck_subagents()
             if not stuck:
                 continue
-            payload = json.dumps([
-                {
-                    "agent_id": s.agent_id,
-                    "agent_type": s.agent_type,
-                    "idle_seconds": s.idle_seconds,
-                    "total_seconds": s.total_seconds,
-                }
-                for s in stuck
-            ])
+            payload = json.dumps(
+                [
+                    {
+                        "agent_id": s.agent_id,
+                        "agent_type": s.agent_type,
+                        "idle_seconds": s.idle_seconds,
+                        "total_seconds": s.total_seconds,
+                    }
+                    for s in stuck
+                ]
+            )
             log.warning(
                 "[%s] Stuck subagent(s) detected — stopping round: %s",
-                self._rid, payload,
+                self._rid,
+                payload,
             )
-            await db.log_audit(self._run.run_id, "stuck_recovery", {
-                "stuck": payload,
-            })
+            await db.log_audit(
+                self._run.run_id,
+                "stuck_recovery",
+                {
+                    "stuck": payload,
+                },
+            )
             self._inbox.push("stop", f"stuck subagents: {payload}")
             return
 

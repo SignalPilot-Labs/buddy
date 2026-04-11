@@ -33,7 +33,7 @@ def get_fallback_model(model: str) -> str | None:
 if TYPE_CHECKING:
     from memory.metadata import MetadataStore
     from memory.report import ReportStore
-    from operator.inbox import OperatorInbox
+    from user.inbox import UserInbox
     from session.time_lock import TimeLock
 
 
@@ -83,12 +83,12 @@ class RunContext:
 
 
 RoundStatus = Literal[
-    "complete",       # round finished normally (ResultMessage)
-    "ended",          # orchestrator called end_session — stop the whole run
-    "paused",         # operator paused; outer loop will await resume
-    "stopped",        # operator stopped; outer loop will tear down
-    "rate_limited",   # rate limit rejected; outer loop will back off or abort
-    "error",          # exception during round execution
+    "complete",  # round finished normally (ResultMessage)
+    "ended",  # orchestrator called end_session — stop the whole run
+    "paused",  # user paused; outer loop will await resume
+    "stopped",  # user stopped; outer loop will tear down
+    "rate_limited",  # rate limit rejected; outer loop will back off or abort
+    "error",  # exception during round execution
 ]
 
 
@@ -155,11 +155,9 @@ class RoundContext:
     round_number: int
     duration_minutes: float
     time_remaining_minutes: float
-    branch_name: str
-    base_branch: str
     metadata: RoundsMetadata
     previous_round_reports: list[str]
-    operator_messages: list[str]
+    user_messages: list[str]
 
 
 # ── Bootstrap ───────────────────────────────────────────────────────
@@ -170,7 +168,7 @@ class BootstrapResult:
     """Everything the round loop needs after a successful bootstrap."""
 
     run: RunContext
-    inbox: OperatorInbox
+    inbox: UserInbox
     time_lock: TimeLock
     reports: ReportStore
     metadata: MetadataStore
@@ -181,15 +179,15 @@ class BootstrapResult:
     run_start_time: float
 
 
-# ── Operator events ─────────────────────────────────────────────────
+# ── User events ─────────────────────────────────────────────────
 
 
 EventKind = Literal["inject", "pause", "resume", "stop", "unlock"]
 
 
 @dataclass(frozen=True)
-class OperatorEvent:
-    """One operator-sourced signal routed through the inbox."""
+class UserEvent:
+    """One user-sourced signal routed through the inbox."""
 
     kind: EventKind
     payload: str
@@ -200,7 +198,7 @@ OutcomeKind = Literal["continue", "break_pause", "break_stop"]
 
 @dataclass(frozen=True)
 class ControlOutcome:
-    """What the session runner should do after an operator event."""
+    """What the session runner should do after an user event."""
 
     kind: OutcomeKind
     reason: str
@@ -263,7 +261,7 @@ class ActiveRun:
     started_at: float = field(default_factory=time.time)
     error_message: str | None = None
     task: asyncio.Task | None = field(default=None, repr=False)
-    inbox: OperatorInbox | None = field(default=None, repr=False)
+    inbox: UserInbox | None = field(default=None, repr=False)
     time_lock: TimeLock | None = field(default=None, repr=False)
     run_context: RunContext | None = field(default=None, repr=False)
 
