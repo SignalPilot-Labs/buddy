@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
+import { shortPath } from "@/components/feed/eventCardHelpers";
 
 /* ── Helpers ── */
 
@@ -72,8 +73,7 @@ function extractToolSummary(tc: ToolCall): string {
     case "grep": {
       const pat = (input.pattern as string) || "";
       const path = (input.path as string) || "";
-      const shortPath = path.split("/").slice(-2).join("/");
-      return `/${pat}/ in ${shortPath}`;
+      return `/${pat}/ in ${shortPath(path)}`;
     }
     case "agent": return (input.description as string) || "";
     case "web_search": return (input.query as string) || "";
@@ -428,7 +428,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
       case "round_complete":
         return `Round ${d.round} · ${d.turns} turns · $${(d.cost_usd as number)?.toFixed(3) || "?"} · ${(d.elapsed_minutes as number)?.toFixed(1)}min`;
       case "run_started":
-        return `${d.model || "claude"} · ${d.branch || "?"}${d.custom_prompt ? " · custom prompt" : ""}`;
+        return `${d.model || "claude"} · ${d.branch || "?"}${d.has_custom_prompt ? " · custom prompt" : ""}`;
       case "pr_created":
         return (d.url as string) || "";
       case "pr_failed":

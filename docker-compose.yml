@@ -30,7 +30,7 @@ services:
     container_name: autofyn-dashboard
     restart: unless-stopped
     environment:
-      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-autofyn-dev-secret}
       HOST_IP: ${HOST_IP:-}
     ports:
       - "3400:3400"
@@ -50,7 +50,7 @@ services:
     environment:
       GIT_TERMINAL_PROMPT: "0"
       AF_SANDBOX_URL: http://sandbox:8080
-      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-autofyn-dev-secret}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
@@ -77,7 +77,7 @@ services:
     restart: unless-stopped
     environment:
       GIT_TERMINAL_PROMPT: "0"
-      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-}
+      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-autofyn-dev-secret}
     depends_on:
       dashboard:
         condition: service_started

@@ -1,48 +1,39 @@
-"""Tests for SessionGate time lock logic."""
+"""Tests for TimeLock — per-run time budget tracker."""
 
-from tools.session import SessionGate
-from utils.models import RunContext
+from session.time_lock import TimeLock
 
 
-class TestSessionGate:
-    """Tests for SessionGate time lock logic."""
+class TestTimeLock:
+    """Tests for the TimeLock time-budget helper."""
 
-    def _make_gate(self, duration_minutes: float) -> SessionGate:
-        ctx = RunContext(
-            run_id="test-run", agent_role="worker",
-            branch_name="test-branch", base_branch="main",
-            duration_minutes=duration_minutes, github_repo="owner/repo",
-        )
-        return SessionGate(ctx)
+    def test_not_expired_initially(self) -> None:
+        lock = TimeLock(30)
+        assert not lock.is_expired()
 
-    def test_locked_initially(self):
-        gate = self._make_gate(30)
-        assert not gate.is_unlocked()
+    def test_zero_duration_not_expired(self) -> None:
+        lock = TimeLock(0)
+        assert not lock.is_expired()
 
-    def test_unlocked_with_zero_duration(self):
-        gate = self._make_gate(0)
-        assert gate.is_unlocked()
+    def test_force_unlock_flag(self) -> None:
+        lock = TimeLock(30)
+        assert not lock.is_force_unlocked()
+        lock.force_unlock()
+        assert lock.is_force_unlocked()
 
-    def test_force_unlock(self):
-        gate = self._make_gate(30)
-        assert not gate.is_unlocked()
-        gate.force_unlock()
-        assert gate.is_unlocked()
-
-    def test_elapsed_minutes(self):
-        gate = self._make_gate(30)
-        elapsed = gate.elapsed_minutes()
+    def test_elapsed_minutes_starts_near_zero(self) -> None:
+        lock = TimeLock(30)
+        elapsed = lock.elapsed_minutes()
         assert 0 <= elapsed < 1
 
-    def test_time_remaining_str_format(self):
-        gate = self._make_gate(30)
-        remaining = gate.time_remaining_str()
-        assert "m" in remaining
+    def test_remaining_minutes_positive(self) -> None:
+        lock = TimeLock(30)
+        remaining = lock.remaining_minutes()
+        assert 29 <= remaining <= 30
 
-    def test_time_remaining_zero_duration(self):
-        gate = self._make_gate(0)
-        assert gate.time_remaining_str() == "0m"
+    def test_time_remaining_str_has_minute_suffix(self) -> None:
+        lock = TimeLock(30)
+        assert "m" in lock.time_remaining_str()
 
-    def test_has_ended_initially_false(self):
-        gate = self._make_gate(30)
-        assert not gate.has_ended()
+    def test_time_remaining_str_empty_for_zero_duration(self) -> None:
+        lock = TimeLock(0)
+        assert lock.time_remaining_str() == ""

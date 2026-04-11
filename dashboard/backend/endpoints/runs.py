@@ -213,9 +213,19 @@ async def start_agent_run(body: StartRunRequest) -> dict:
 
 
 @router.get("/agent/branches")
-async def list_branches() -> list:
-    """List git branches from agent."""
-    return await agent_request("GET", "/branches", AGENT_TIMEOUT_LONG, None, None, ["main"])
+async def list_branches(repo: str = Query(...)) -> list:
+    """List git branches for a repo via the agent (GitHub API proxy)."""
+    creds = await read_credentials(repo)
+    token = creds.get("git_token")
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No git_token configured for {repo} — set one in Settings",
+        )
+    return await agent_request(
+        "GET", "/branches", AGENT_TIMEOUT_LONG,
+        None, {"repo": repo, "token": token}, None,
+    )
 
 
 @router.get("/agent/logs")

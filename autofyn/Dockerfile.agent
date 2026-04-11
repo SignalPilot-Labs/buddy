@@ -38,16 +38,9 @@ COPY --chown=agentuser:agentuser autofyn/pyproject.toml /app/pyproject.toml
 RUN uv pip install --system --no-cache "/app/[dev]"
 
 # Source code (changes here don't bust dep install cache)
-COPY --chown=agentuser:agentuser autofyn/core/ /app/core/
-COPY --chown=agentuser:agentuser autofyn/tools/ /app/tools/
-COPY --chown=agentuser:agentuser autofyn/utils/ /app/utils/
-COPY --chown=agentuser:agentuser autofyn/sandbox_manager/ /app/sandbox_manager/
-COPY --chown=agentuser:agentuser autofyn/prompts/ /app/prompts/
-COPY --chown=agentuser:agentuser autofyn/skills/ /app/skills/
-COPY --chown=agentuser:agentuser autofyn/endpoints.py /app/endpoints.py
-COPY --chown=agentuser:agentuser autofyn/server.py /app/server.py
+COPY --chown=agentuser:agentuser autofyn/ /app/
 
-# Entrypoint
+# Entrypoint (re-copy as root to override agentuser ownership from above)
 COPY --chown=root:root autofyn/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 

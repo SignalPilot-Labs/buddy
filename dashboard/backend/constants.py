@@ -34,7 +34,7 @@ ENV_VARS_MASK_CHAR = "****"
 
 # Default values
 DEFAULT_BASE_BRANCH = "main"
-DEFAULT_STOP_REASON = "Operator requested stop"
+DEFAULT_STOP_REASON = "User requested stop"
 
 
 # Network / ports
@@ -61,11 +61,20 @@ SIGNAL_AGENT_PATHS: dict[str, str] = {
 
 # Run status sets — single source of truth for the runs endpoints. Add a new
 # status here, not inline in runs.py.
-RESTARTABLE_STATUSES: frozenset[str] = frozenset({
-    "completed", "completed_no_changes", "stopped", "error", "crashed", "killed",
-})
+RESTARTABLE_STATUSES: frozenset[str] = frozenset(
+    {
+        "completed",
+        "completed_no_changes",
+        "stopped",
+        "error",
+        "crashed",
+        "killed",
+    }
+)
 
 ACTIVE_STATUSES: frozenset[str] = frozenset({"running", "paused", "rate_limited"})
 
 # Statuses that allow injecting into a stopped run by spawning a fresh resume.
-INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset({"completed", "stopped", "error"})
+INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset(
+    {"completed", "stopped", "error"}
+)

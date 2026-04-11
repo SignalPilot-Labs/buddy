@@ -12,8 +12,19 @@ RATE_LIMIT_MAX_WAIT_SEC = (
 )
 SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
 
+# ── Agent Models ──
+MODEL_OPUS = "opus"
+MODEL_SONNET = "sonnet"
+DEFAULT_AGENT_ROLE = "worker"
+SESSION_EFFORT = "medium"
+SESSION_PERMISSION_MODE = "bypassPermissions"
+
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
+RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
+ROUND_DIR_PREFIX = "/tmp/round-"
+ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
+METADATA_PATH = "/tmp/rounds.json"
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──
@@ -58,6 +69,7 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 # ── Token env keys — passed per-run via extra_env, not os.environ ──
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
+ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"
