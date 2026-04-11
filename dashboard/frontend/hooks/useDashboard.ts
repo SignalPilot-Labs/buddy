@@ -10,6 +10,7 @@ import {
   killAgent,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
+  pollEvents,
 } from "@/lib/api";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
@@ -19,6 +20,7 @@ import { getFeedEventTs } from "@/lib/groupEvents";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
+import { mergeToolEvent } from "@/lib/eventMerge";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
@@ -56,6 +58,33 @@ export function useDashboard(): DashboardState {
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
   const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
 
+  const applyCatchUpEvents = useCallback((runId: string, afterTool: number, afterAudit: number): void => {
+    pollEvents(runId, afterTool, afterAudit).then((result) => {
+      if (result.tool_calls.length === 0 && result.audit_events.length === 0) return;
+      let newAfterTool = afterTool;
+      let newAfterAudit = afterAudit;
+      setHistoryEvents((prev) => {
+        let next = prev;
+        for (const tc of result.tool_calls) {
+          newAfterTool = Math.max(newAfterTool, tc.id ?? 0);
+          next = mergeToolEvent(next, tc);
+        }
+        for (const ae of result.audit_events) {
+          newAfterAudit = Math.max(newAfterAudit, ae.id ?? 0);
+          const details = typeof ae.details === "string" ? JSON.parse(ae.details) : ae.details || {};
+          next = [...next, { _kind: "audit", data: { ...ae, details } }];
+          if (ae.event_type === "session_resumed") {
+            // session_resumed during catch-up means we need a full reload — handled by SSE event
+          }
+        }
+        return next;
+      });
+      cursorsRef.current = { afterTool: newAfterTool, afterAudit: newAfterAudit };
+    }).catch((err) => {
+      console.warn("Catch-up poll failed:", err);
+    });
+  }, []);
+
   const handleRunEnded = useCallback(() => {
     refreshRuns();
     setBusy(false);
@@ -75,7 +104,9 @@ export function useDashboard(): DashboardState {
       setHistoryEvents(events);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
-      sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
+      sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId }, () => {
+        applyCatchUpEvents(runId, lastToolId, lastAuditId);
+      });
       setHistoryLoading(false);
     }).catch((err) => {
       setHistoryLoading(false);
@@ -84,7 +115,7 @@ export function useDashboard(): DashboardState {
         { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
       ]);
     });
-  }, []);
+  }, [applyCatchUpEvents]);
 
   const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
@@ -260,11 +291,13 @@ export function useDashboard(): DashboardState {
       }
       if (gen !== selectGenRef.current) return loadedEvents;
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
-      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
+      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId }, () => {
+        applyCatchUpEvents(id, lastToolId, lastAuditId);
+      });
       refreshRuns();
       return loadedEvents;
     },
-    [refreshRuns],
+    [refreshRuns, applyCatchUpEvents],
   );
 
   useEffect(() => {
@@ -353,9 +386,12 @@ export function useDashboard(): DashboardState {
           // Run was terminal → SSE was disconnected. Reconnect so new events arrive.
           const runId = selectedRunIdRef.current;
           if (runId) {
+            const { afterTool, afterAudit } = cursorsRef.current;
             sseRef.current.disconnect();
             sseRef.current.clearEvents();
-            sseRef.current.connect(runId, cursorsRef.current);
+            sseRef.current.connect(runId, cursorsRef.current, () => {
+              applyCatchUpEvents(runId, afterTool, afterAudit);
+            });
           }
         })
         .catch((e) => {
@@ -363,7 +399,7 @@ export function useDashboard(): DashboardState {
           addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
         });
     },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
+    [selectedRunId, addPendingMessage, markPendingFailed, addEvent, applyCatchUpEvents],
   );
 
   const handleHeaderKill = useCallback(() => {

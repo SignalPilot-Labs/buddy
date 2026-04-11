@@ -87,7 +87,7 @@ export function AgentRunCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden relative"
+      className="rounded-lg border overflow-hidden relative shadow-md shadow-black/10"
       style={
         isIdle
           ? {

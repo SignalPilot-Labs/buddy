@@ -6,7 +6,7 @@ import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
-import { extractBashCommands } from "@/lib/groupEvents";
+import { extractBashCommands } from "@/lib/groupEventHelpers";
 import {
   Chevron,
   TerminalOutput,
@@ -35,11 +35,11 @@ export function BashGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#00ff88]/8 bg-[#00ff88]/[0.02] overflow-hidden"
+      className="rounded-lg border border-[#00ff88]/8 bg-[#00ff88]/[0.02] overflow-hidden shadow-sm shadow-black/5"
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors duration-150 text-left"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#00ff88]/8 shrink-0">
           {getToolIcon("bash", "#00ff88")}
@@ -123,11 +123,11 @@ export function PlaywrightGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#66bbff]/8 bg-[#66bbff]/[0.02] overflow-hidden"
+      className="rounded-lg border border-[#66bbff]/8 bg-[#66bbff]/[0.02] overflow-hidden shadow-sm shadow-black/5"
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors duration-150 text-left"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#66bbff]/8 shrink-0">
           {getToolIcon("playwright_navigate", "#66bbff")}

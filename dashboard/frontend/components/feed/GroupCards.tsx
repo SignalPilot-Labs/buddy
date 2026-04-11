@@ -8,7 +8,7 @@ import { getToolIcon } from "@/components/ui/ToolIcons";
 import {
   extractReadPaths,
   extractEditSummary,
-} from "@/lib/groupEvents";
+} from "@/lib/groupEventHelpers";
 import {
   Chevron,
   FileContentPreview,
@@ -127,7 +127,7 @@ export function ReadGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden"
+      className="rounded-lg border overflow-hidden shadow-sm shadow-black/5"
       style={{
         borderColor: `${iconColor}14`,
         backgroundColor: `${iconColor}05`,
@@ -135,7 +135,7 @@ export function ReadGroupCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors duration-150 text-left"
       >
         <div
           className="flex items-center justify-center h-8 w-8 rounded-md shrink-0"
@@ -256,11 +256,11 @@ export function EditGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden"
+      className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden shadow-sm shadow-black/5"
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors duration-150 text-left"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#ffcc44]/8 shrink-0">
           {getToolIcon("edit", "#ffcc44")}

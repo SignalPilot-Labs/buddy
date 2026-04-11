@@ -109,7 +109,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     runIdRef.current = null;
   }, []);
 
-  const connect = useCallback((runId: string, cursor: SSECursor) => {
+  const connect = useCallback((runId: string, cursor: SSECursor, onConnected?: () => void) => {
     // Clean up any existing connection
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
@@ -215,6 +215,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       setConnected(true);
+      onConnected?.();
     });
 
     es.addEventListener("ping", () => {
