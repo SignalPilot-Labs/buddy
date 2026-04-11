@@ -460,9 +460,8 @@ class _Session:
         )
         async def end_round_tool(args: dict[str, Any]) -> dict[str, Any]:
             summary = args["summary"]
-            await _log_audit(run_id, "round_ended", {
-                "summary": summary,
-            })
+            # The Python round loop logs `round_ended` with the round number
+            # after it commits, so the sandbox doesn't duplicate that here.
             session._ended = True
             emit({"event": "end_round", "data": {"summary": summary}})
             return {"content": [{"type": "text", "text": "Round ended."}]}

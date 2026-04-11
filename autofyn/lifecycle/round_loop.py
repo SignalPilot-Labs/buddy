@@ -236,9 +236,10 @@ async def _commit_and_push_round(
 
     await db.log_audit(
         run.run_id,
-        "round_committed",
+        "round_ended",
         {
             "round_number": round_number,
+            "summary": summary,
             "message": message,
         },
     )

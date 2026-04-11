@@ -53,7 +53,16 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "run_started":
       return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
     case "round_complete":
-      return null; // Rounds are detected from git commit tool calls, not this audit event
+      return null; // Legacy — superseded by round_ended below
+    case "round_ended": {
+      // Python round loop emits this after committing a round. Becomes the
+      // "Round N complete" divider in the feed. Replaces the old main-branch
+      // behavior where the divider was inferred from the agent's `git commit`
+      // bash call (now gone since Python owns commits).
+      const roundNum = d.round_number as number | undefined;
+      const label = roundNum ? `Round ${roundNum} complete` : "Round complete";
+      return { id: `div-${ts}-${label}`, type: "divider", label, ts };
+    }
     case "pr_created":
       return { id: `ms-${ts}-PR Created`, type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":

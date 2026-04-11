@@ -268,6 +268,7 @@ export type AuditEventType =
   | "llm_text"
   | "llm_thinking"
   | "round_complete"
+  | "round_ended"
   | "rate_limit"
   | "run_started"
   | "sdk_config"
