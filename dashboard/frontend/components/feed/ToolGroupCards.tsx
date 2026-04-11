@@ -261,7 +261,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className={clsx(
-        "rounded-lg border overflow-hidden",
+        "rounded-lg border overflow-hidden shadow-sm shadow-black/5",
         denied
           ? "border-[#ff4444]/10 bg-[#ff4444]/[0.02]"
           : "border-white/[0.04] bg-white/[0.01]"

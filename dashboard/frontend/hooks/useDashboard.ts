@@ -10,7 +10,6 @@ import {
   killAgent,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
-  pollEvents,
 } from "@/lib/api";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
@@ -20,10 +19,10 @@ import { getFeedEventTs } from "@/lib/groupEvents";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
-import { mergeToolEvent } from "@/lib/eventMerge";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
+import { applyCatchUpEvents, reconnectAfterResume } from "@/lib/catchUpPoll";
 
 export function useDashboard(): DashboardState {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -58,31 +57,8 @@ export function useDashboard(): DashboardState {
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
   const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
 
-  const applyCatchUpEvents = useCallback((runId: string, afterTool: number, afterAudit: number): void => {
-    pollEvents(runId, afterTool, afterAudit).then((result) => {
-      if (result.tool_calls.length === 0 && result.audit_events.length === 0) return;
-      let newAfterTool = afterTool;
-      let newAfterAudit = afterAudit;
-      setHistoryEvents((prev) => {
-        let next = prev;
-        for (const tc of result.tool_calls) {
-          newAfterTool = Math.max(newAfterTool, tc.id ?? 0);
-          next = mergeToolEvent(next, tc);
-        }
-        for (const ae of result.audit_events) {
-          newAfterAudit = Math.max(newAfterAudit, ae.id ?? 0);
-          const details = typeof ae.details === "string" ? JSON.parse(ae.details) : ae.details || {};
-          next = [...next, { _kind: "audit", data: { ...ae, details } }];
-          if (ae.event_type === "session_resumed") {
-            // session_resumed during catch-up means we need a full reload — handled by SSE event
-          }
-        }
-        return next;
-      });
-      cursorsRef.current = { afterTool: newAfterTool, afterAudit: newAfterAudit };
-    }).catch((err) => {
-      console.warn("Catch-up poll failed:", err);
-    });
+  const doCatchUpEvents = useCallback((runId: string, afterTool: number, afterAudit: number): void => {
+    applyCatchUpEvents(runId, afterTool, afterAudit, setHistoryEvents, cursorsRef);
   }, []);
 
   const handleRunEnded = useCallback(() => {
@@ -97,34 +73,15 @@ export function useDashboard(): DashboardState {
   const handleSessionResumed = useCallback(() => {
     const runId = selectedRunIdRef.current;
     if (!runId) return;
-    sseRef.current.disconnect();
-    setPendingMessages([]);
-    setHistoryLoading(true);
-    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
-      setHistoryEvents(events);
-      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
-      sseRef.current.clearEvents();
-      sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId }, () => {
-        applyCatchUpEvents(runId, lastToolId, lastAuditId);
-      });
-      setHistoryLoading(false);
-    }).catch((err) => {
-      setHistoryLoading(false);
-      setHistoryEvents((prev) => [
-        ...prev,
-        { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
-      ]);
-    });
-  }, [applyCatchUpEvents]);
+    reconnectAfterResume(runId, sseRef, cursorsRef, setHistoryEvents, setHistoryLoading, setPendingMessages);
+  }, []);
 
   const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Clear pending messages by prompt text matching when prompt events arrive via SSE
   const confirmedPromptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    // Reset when liveEvents is cleared (run switch, session resumed, etc.)
     if (liveEvents.length === 0) {
       confirmedPromptsRef.current = new Set();
       return;
@@ -150,20 +107,13 @@ export function useDashboard(): DashboardState {
     [historyEvents, liveEvents],
   );
 
-  const addEvent = useCallback((event: FeedEvent) => {
-    setHistoryEvents((prev) => [...prev, event]);
-  }, []);
+  const addEvent = useCallback((event: FeedEvent) => { setHistoryEvents((prev) => [...prev, event]); }, []);
 
   const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
     if (!selectedRunId) return Promise.resolve();
     return fn(selectedRunId).then(() => undefined).catch((e: unknown) => {
       const retry = () => controlAction(label, fn);
-      addEvent({
-        _kind: "control",
-        text: `${label} failed: ${e}`,
-        ts: new Date().toISOString(),
-        retryAction: retry,
-      });
+      addEvent({ _kind: "control", text: `${label} failed: ${e}`, ts: new Date().toISOString(), retryAction: retry });
       return Promise.reject(e);
     });
   }, [selectedRunId, addEvent]);
@@ -264,41 +214,38 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId]);
 
-  const handleSelectRun = useCallback(
-    async (id: string): Promise<FeedEvent[]> => {
-      const gen = ++selectGenRef.current;
-      sseRef.current.disconnect();
-      setSelectedRunId(id);
-      setPendingMessages([]);
-      localStorage.setItem("autofyn_last_run_id", id);
-      setHistoryLoading(true);
-      sseRef.current.clearEvents();
-      let lastToolId = 0;
-      let lastAuditId = 0;
-      let loadedEvents: FeedEvent[] = [];
-      try {
-        const result = await loadRunHistory(id);
-        if (gen !== selectGenRef.current) return loadedEvents;
-        setHistoryEvents(result.events);
-        loadedEvents = result.events;
-        lastToolId = result.lastToolId;
-        lastAuditId = result.lastAuditId;
-      } catch (err) {
-        console.warn("Failed to load history:", err);
-        if (gen === selectGenRef.current) setHistoryEvents([]);
-      } finally {
-        if (gen === selectGenRef.current) setHistoryLoading(false);
-      }
+  const handleSelectRun = useCallback(async (id: string): Promise<FeedEvent[]> => {
+    const gen = ++selectGenRef.current;
+    sseRef.current.disconnect();
+    setSelectedRunId(id);
+    setPendingMessages([]);
+    localStorage.setItem("autofyn_last_run_id", id);
+    setHistoryLoading(true);
+    sseRef.current.clearEvents();
+    let lastToolId = 0;
+    let lastAuditId = 0;
+    let loadedEvents: FeedEvent[] = [];
+    try {
+      const result = await loadRunHistory(id);
       if (gen !== selectGenRef.current) return loadedEvents;
-      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
-      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId }, () => {
-        applyCatchUpEvents(id, lastToolId, lastAuditId);
-      });
-      refreshRuns();
-      return loadedEvents;
-    },
-    [refreshRuns, applyCatchUpEvents],
-  );
+      setHistoryEvents(result.events);
+      loadedEvents = result.events;
+      lastToolId = result.lastToolId;
+      lastAuditId = result.lastAuditId;
+    } catch (err) {
+      console.warn("Failed to load history:", err);
+      if (gen === selectGenRef.current) setHistoryEvents([]);
+    } finally {
+      if (gen === selectGenRef.current) setHistoryLoading(false);
+    }
+    if (gen !== selectGenRef.current) return loadedEvents;
+    cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
+    sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId }, () => {
+      doCatchUpEvents(id, lastToolId, lastAuditId);
+    });
+    refreshRuns();
+    return loadedEvents;
+  }, [refreshRuns, doCatchUpEvents]);
 
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
@@ -317,90 +264,69 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
-  const addPendingMessage = useCallback(
-    (prompt: string): number => {
-      const id = -Date.now();
-      setPendingMessages((prev) => [...prev, { id, prompt, ts: new Date().toISOString(), status: "pending" }]);
-      return id;
-    },
-    [],
-  );
+  const addPendingMessage = useCallback((prompt: string): number => {
+    const id = -Date.now();
+    setPendingMessages((prev) => [...prev, { id, prompt, ts: new Date().toISOString(), status: "pending" }]);
+    return id;
+  }, []);
 
   const markPendingFailed = useCallback(
-    (id: number) => {
-      setPendingMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: "failed" } : m));
-    },
+    (id: number) => { setPendingMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: "failed" } : m)); },
     [],
   );
 
-  const handleStartRun = useCallback(
-    async (
-      prompt: string | undefined,
-      budget: number,
-      durationMinutes: number,
-      baseBranch: string,
-      model?: string,
-    ) => {
-      const resolvedModel = model ?? loadStoredModel();
-      setStartModalOpen(false);
-      setBusy(true);
-      try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
-        refreshRuns();
-        if (result.run_id) {
-          const events = await handleSelectRun(result.run_id);
-          if (prompt) {
-            const hasPrompt = events.some((e) =>
-              e._kind === "audit" && (e.data.event_type === "prompt_submitted" || e.data.event_type === "prompt_injected"),
-            );
-            if (!hasPrompt) addPendingMessage(prompt);
-          }
+  const handleStartRun = useCallback(async (
+    prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model?: string,
+  ) => {
+    const resolvedModel = model ?? loadStoredModel();
+    setStartModalOpen(false);
+    setBusy(true);
+    try {
+      const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
+      refreshRuns();
+      if (result.run_id) {
+        const events = await handleSelectRun(result.run_id);
+        if (prompt) {
+          const hasPrompt = events.some((e) =>
+            e._kind === "audit" && (e.data.event_type === "prompt_submitted" || e.data.event_type === "prompt_injected"),
+          );
+          if (!hasPrompt) addPendingMessage(prompt);
         }
-      } catch (err) {
-        addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
-      } finally {
-        setBusy(false);
       }
-    },
-    [addEvent, addPendingMessage, handleSelectRun, refreshRuns, activeRepoFilter],
-  );
+    } catch (err) {
+      addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
+    } finally {
+      setBusy(false);
+    }
+  }, [addEvent, addPendingMessage, handleSelectRun, refreshRuns, activeRepoFilter]);
 
-  const handleInject = useCallback(
-    (prompt: string) => {
-      if (!selectedRunId) return;
-      const pid = addPendingMessage(prompt);
-      apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-        markPendingFailed(pid);
-        addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
+  const handleInject = useCallback((prompt: string) => {
+    if (!selectedRunId) return;
+    const pid = addPendingMessage(prompt);
+    apiInjectPrompt(selectedRunId, prompt).catch((e) => {
+      markPendingFailed(pid);
+      addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
+    });
+  }, [selectedRunId, addPendingMessage, markPendingFailed, addEvent]);
+
+  const handleRestart = useCallback((prompt: string) => {
+    if (!selectedRunId) return;
+    const pid = prompt ? addPendingMessage(prompt) : 0;
+    resumeAgent(selectedRunId, prompt)
+      .then(() => {
+        const runId = selectedRunIdRef.current;
+        if (runId) {
+          const { afterTool, afterAudit } = cursorsRef.current;
+          sseRef.current.disconnect();
+          sseRef.current.clearEvents();
+          sseRef.current.connect(runId, cursorsRef.current, () => { doCatchUpEvents(runId, afterTool, afterAudit); });
+        }
+      })
+      .catch((e) => {
+        if (pid) markPendingFailed(pid);
+        addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
       });
-    },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
-  );
-
-  const handleRestart = useCallback(
-    (prompt: string) => {
-      if (!selectedRunId) return;
-      const pid = prompt ? addPendingMessage(prompt) : 0;
-      resumeAgent(selectedRunId, prompt)
-        .then(() => {
-          // Run was terminal → SSE was disconnected. Reconnect so new events arrive.
-          const runId = selectedRunIdRef.current;
-          if (runId) {
-            const { afterTool, afterAudit } = cursorsRef.current;
-            sseRef.current.disconnect();
-            sseRef.current.clearEvents();
-            sseRef.current.connect(runId, cursorsRef.current, () => {
-              applyCatchUpEvents(runId, afterTool, afterAudit);
-            });
-          }
-        })
-        .catch((e) => {
-          if (pid) markPendingFailed(pid);
-          addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
-        });
-    },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent, applyCatchUpEvents],
-  );
+  }, [selectedRunId, addPendingMessage, markPendingFailed, addEvent, doCatchUpEvents]);
 
   const handleHeaderKill = useCallback(() => {
     if (!showKillConfirm) {

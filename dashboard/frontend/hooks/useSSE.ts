@@ -16,8 +16,8 @@ export interface SSECursor {
 function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
   const details =
     typeof raw.details === "string"
-      ? JSON.parse(raw.details)
-      : raw.details || {};
+      ? (JSON.parse(raw.details) as Record<string, unknown>)
+      : raw.details;
 
   if (raw.event_type === "usage") {
     return [
@@ -26,38 +26,40 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
     ];
   }
   if (raw.event_type === "llm_text") {
-    const role = details.agent_role || "worker";
+    const role = typeof details.agent_role === "string" ? details.agent_role : "worker";
+    const text = typeof details.text === "string" ? details.text : "";
     const last = prev[prev.length - 1];
     if (last && last._kind === "llm_text" && last.agent_role === role) {
       return [
         ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
+        { ...last, text: last.text + text },
       ];
     }
     return [
       ...prev,
       {
         _kind: "llm_text",
-        text: details.text || "",
+        text,
         ts: raw.ts,
         agent_role: role,
       },
     ];
   }
   if (raw.event_type === "llm_thinking") {
-    const role = details.agent_role || "worker";
+    const role = typeof details.agent_role === "string" ? details.agent_role : "worker";
+    const text = typeof details.text === "string" ? details.text : "";
     const last = prev[prev.length - 1];
     if (last && last._kind === "llm_thinking" && last.agent_role === role) {
       return [
         ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
+        { ...last, text: last.text + text },
       ];
     }
     return [
       ...prev,
       {
         _kind: "llm_thinking",
-        text: details.text || "",
+        text,
         ts: raw.ts,
         agent_role: role,
       },
@@ -137,11 +139,11 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
             setEvents((prev) => {
               let next = prev;
               for (const tc of result.tool_calls) {
-                afterTool = Math.max(afterTool, tc.id ?? 0);
+                afterTool = Math.max(afterTool, tc.id);
                 next = mergeToolEvent(next, tc);
               }
               for (const ae of result.audit_events) {
-                afterAudit = Math.max(afterAudit, ae.id ?? 0);
+                afterAudit = Math.max(afterAudit, ae.id);
                 next = processAudit(next, ae);
                 if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
               }
