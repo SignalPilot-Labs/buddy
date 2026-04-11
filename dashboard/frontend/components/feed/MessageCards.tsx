@@ -13,12 +13,14 @@ export function LLMMessageCard({
   thinking,
   ts,
   isLast,
+  runActive,
 }: {
   role: string;
   text: string;
   thinking: string;
   ts: string;
   isLast: boolean;
+  runActive: boolean;
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const isPlanner = role === "planner";
@@ -29,7 +31,7 @@ export function LLMMessageCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={clsx(
-        "rounded-lg p-4",
+        "rounded-lg px-5 py-4 shadow-sm shadow-black/5",
         isPlanner
           ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10"
           : "bg-white/[0.02] border border-white/[0.04]"
@@ -120,11 +122,11 @@ export function LLMMessageCard({
           <MarkdownContent
             content={text}
             className={clsx(
-              "text-[11px]",
+              "text-[11px] leading-relaxed",
               isPlanner ? "text-[#cc9966]" : "text-[#bbb]"
             )}
           />
-          {isLast && (
+          {isLast && runActive && (
             <span
               className={clsx(
                 "inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]",
@@ -190,7 +192,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
       exit={{ opacity: 0, x: 10 }}
       className="flex justify-end px-4 py-1.5"
     >
-      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
+      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5 shadow-sm shadow-black/5`}>
         <div className="flex items-center justify-between gap-4 mb-1">
           <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">
             You

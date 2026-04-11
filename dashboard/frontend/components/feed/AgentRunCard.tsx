@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
@@ -16,6 +16,7 @@ import {
   IDLE_WARN_MS,
 } from "@/components/feed/eventCardHelpers";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
+import { useGlobalClock } from "@/hooks/useGlobalClock";
 
 export function AgentRunCard({
   tool,
@@ -37,7 +38,7 @@ export function AgentRunCard({
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const now = useGlobalClock();
   // description and subagent_type come from the Task tool input_data;
   // agentType comes from the subagent_start audit event. They should
   // always be populated for a well-formed Agent card. If any is missing,
@@ -61,12 +62,6 @@ export function AgentRunCard({
   const idleSec = Math.floor(idleMs / 1000);
   const isFinalizing =
     isPending && childTools.length > 0 && idleMs > 3000 && !isIdle;
-
-  useEffect(() => {
-    if (!isPending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [isPending]);
 
   const childSummary = useMemo(() => {
     const counts = new Map<ToolCategory, number>();
@@ -92,7 +87,7 @@ export function AgentRunCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden relative"
+      className="rounded-lg border overflow-hidden relative shadow-md shadow-black/10"
       style={
         isIdle
           ? {

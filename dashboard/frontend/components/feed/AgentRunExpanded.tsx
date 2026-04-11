@@ -72,7 +72,7 @@ export function AgentRunExpanded({
         <div className="max-h-[400px] overflow-y-auto">
           {childTools.map((ct, idx) => (
             <ChildToolRow
-              key={idx}
+              key={ct.id}
               tool={ct}
               isLast={idx === childTools.length - 1}
             />
