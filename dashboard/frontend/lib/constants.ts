@@ -64,6 +64,9 @@ export const DEFAULT_AGENT_ROLE = "worker";
 export const CARD_FADE_DURATION = 0.2;
 export const CARD_FADE_EASE = "easeOut";
 
+// Chevron icon default size (px) — used at call sites that omit an explicit size.
+export const CHEVRON_DEFAULT_SIZE = 10;
+
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
 

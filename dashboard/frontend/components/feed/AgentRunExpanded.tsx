@@ -10,7 +10,7 @@ import { ChildToolRow } from "@/components/feed/GroupCards";
 import {
   fmtDuration,
   extractResultText,
-} from "@/components/feed/eventCardHelpers";
+} from "@/lib/eventCardHelpers";
 import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 export function AgentRunExpanded({

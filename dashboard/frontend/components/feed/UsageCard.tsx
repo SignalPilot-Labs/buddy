@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { UsageEvent } from "@/lib/types";
-import { fmtTime } from "@/components/feed/eventCardHelpers";
+import { fmtTime } from "@/lib/eventCardHelpers";
 import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 /* ── Usage Card ── */

@@ -6,7 +6,7 @@ import { clsx } from "clsx";
 import type { AuditEvent } from "@/lib/types";
 import { AUDIT_EVENT_META } from "@/lib/types";
 import { getAuditIcon } from "@/components/ui/ToolIcons";
-import { fmtTime, UNKNOWN_TIME_LABEL, formatHoursMinutes } from "@/components/feed/eventCardHelpers";
+import { fmtTime, UNKNOWN_TIME_LABEL, formatHoursMinutes } from "@/lib/eventCardHelpers";
 import { CARD_FADE_DURATION, CARD_FADE_EASE, MS_PER_SECOND } from "@/lib/constants";
 
 /* ── Helpers ── */

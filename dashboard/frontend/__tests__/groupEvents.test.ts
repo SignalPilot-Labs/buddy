@@ -5,8 +5,8 @@ import {
   extractReadPaths,
   extractEditSummary,
   extractBashCommands,
-  groupEvents,
-} from "@/lib/groupEvents";
+} from "@/lib/groupEventHelpers";
+import { groupEvents } from "@/lib/groupEvents";
 import type { ToolCall, FeedEvent } from "@/lib/types";
 
 /* ── Test Data Factory ── */

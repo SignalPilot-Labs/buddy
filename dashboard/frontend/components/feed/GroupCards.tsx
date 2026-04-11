@@ -4,12 +4,12 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
-import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
+import { CARD_FADE_DURATION, CARD_FADE_EASE, CHEVRON_DEFAULT_SIZE } from "@/lib/constants";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import {
   extractReadPaths,
   extractEditSummary,
-} from "@/lib/groupEvents";
+} from "@/lib/groupEventHelpers";
 import {
   Chevron,
   FileContentPreview,
@@ -20,7 +20,7 @@ import {
   fmtTime,
   fmtDuration,
   shortPath,
-} from "@/components/feed/eventCardHelpers";
+} from "@/lib/eventCardHelpers";
 
 /* ── Child Tool Row (expandable) ── */
 export function ChildToolRow({
@@ -163,7 +163,7 @@ export function ReadGroupCard({
             {fmtDuration(totalDuration)}
           </span>
         )}
-        <Chevron open={expanded} />
+        <Chevron open={expanded} size={CHEVRON_DEFAULT_SIZE} />
       </button>
 
       {expanded && (
@@ -294,7 +294,7 @@ export function EditGroupCard({
             {fmtDuration(totalDuration)}
           </span>
         )}
-        <Chevron open={expanded} />
+        <Chevron open={expanded} size={CHEVRON_DEFAULT_SIZE} />
       </button>
       {expanded && (
         <motion.div

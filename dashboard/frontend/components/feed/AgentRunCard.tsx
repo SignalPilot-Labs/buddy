@@ -14,9 +14,9 @@ import {
   fmtDuration,
   shortPath,
   IDLE_WARN_MS,
-} from "@/components/feed/eventCardHelpers";
+} from "@/lib/eventCardHelpers";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
-import { CARD_FADE_DURATION, CARD_FADE_EASE, MS_PER_SECOND, FINALIZING_IDLE_MS } from "@/lib/constants";
+import { CARD_FADE_DURATION, CARD_FADE_EASE, MS_PER_SECOND, FINALIZING_IDLE_MS, SECONDS_PER_MINUTE, CHEVRON_DEFAULT_SIZE } from "@/lib/constants";
 
 export function AgentRunCard({
   tool,
@@ -311,7 +311,7 @@ export function AgentRunCard({
               stuck
             </span>
           )}
-          <Chevron open={expanded} />
+          <Chevron open={expanded} size={CHEVRON_DEFAULT_SIZE} />
         </div>
       </button>
 
@@ -345,8 +345,8 @@ export function AgentRunCard({
             <span className="text-[10px] text-[#ff4444]">
               Agent idle for{" "}
               <span className="font-semibold tabular-nums">
-                {idleSec >= 60
-                  ? `${Math.floor(idleSec / 60)}m ${idleSec % 60}s`
+                {idleSec >= SECONDS_PER_MINUTE
+                  ? `${Math.floor(idleSec / SECONDS_PER_MINUTE)}m ${idleSec % SECONDS_PER_MINUTE}s`
                   : `${idleSec}s`}
               </span>{" "}
               &mdash; auto-recovery at 10m

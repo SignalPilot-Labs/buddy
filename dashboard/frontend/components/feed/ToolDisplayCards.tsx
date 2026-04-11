@@ -2,10 +2,10 @@
 
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
-import { shortPath } from "@/components/feed/eventCardHelpers";
+import { shortPath } from "@/lib/eventCardHelpers";
 
 /* ── Chevron ── */
-export function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
+export function Chevron({ open, size }: { open: boolean; size: number }) {
   return (
     <svg
       width={size}
@@ -15,6 +15,8 @@ export function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
       stroke="#888"
       strokeWidth="1.5"
       strokeLinecap="round"
+      role="img"
+      aria-label={open ? "Collapse" : "Expand"}
       className={clsx(
         "shrink-0 transition-transform duration-150",
         open && "rotate-90"

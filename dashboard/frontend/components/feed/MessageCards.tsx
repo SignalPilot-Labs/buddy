@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
-import { fmtTime } from "@/components/feed/eventCardHelpers";
+import { fmtTime } from "@/lib/eventCardHelpers";
 import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 /* ── LLM Message ── */

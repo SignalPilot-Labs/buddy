@@ -5,9 +5,9 @@ import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
-import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
+import { CARD_FADE_DURATION, CARD_FADE_EASE, CHEVRON_DEFAULT_SIZE } from "@/lib/constants";
 import { getToolIcon } from "@/components/ui/ToolIcons";
-import { extractBashCommands } from "@/lib/groupEvents";
+import { extractBashCommands } from "@/lib/groupEventHelpers";
 import {
   Chevron,
   TerminalOutput,
@@ -17,7 +17,7 @@ import {
   fmtTime,
   fmtDuration,
   shortPath,
-} from "@/components/feed/eventCardHelpers";
+} from "@/lib/eventCardHelpers";
 
 /* ── Bash Group ── */
 export function BashGroupCard({
@@ -64,7 +64,7 @@ export function BashGroupCard({
             {fmtDuration(totalDuration)}
           </span>
         )}
-        <Chevron open={expanded} />
+        <Chevron open={expanded} size={CHEVRON_DEFAULT_SIZE} />
       </button>
       {expanded && (
         <motion.div
@@ -155,7 +155,7 @@ export function PlaywrightGroupCard({
             {fmtDuration(totalDuration)}
           </span>
         )}
-        <Chevron open={expanded} />
+        <Chevron open={expanded} size={CHEVRON_DEFAULT_SIZE} />
       </button>
       {expanded && (
         <motion.div

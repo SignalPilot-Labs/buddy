@@ -11,7 +11,7 @@ import {
   fmtDuration,
   extractToolSummary,
   extractOutputSummary,
-} from "@/components/feed/eventCardHelpers";
+} from "@/lib/eventCardHelpers";
 import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
 
 /* ── Tool Call Parts ── */

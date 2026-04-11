@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { FeedEvent } from "@/lib/types";
-import { fmtTime } from "@/components/feed/eventCardHelpers";
+import { fmtTime } from "@/lib/eventCardHelpers";
 import { ToolCallCard } from "@/components/feed/ToolCallCard";
 import { AuditCard } from "@/components/feed/AuditCard";
 import { UsageCard } from "@/components/feed/UsageCard";
