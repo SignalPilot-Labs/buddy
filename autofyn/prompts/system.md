@@ -43,16 +43,19 @@ Every round is one iteration of plan → spec-review (conditional) → build →
 
 ## Subagents
 
-- **Planner**
-  - `architect` — design new features, refactors, tests.
-  - `debugger` — diagnose failures, reproduce bugs, propose a fix.
-  - `code-explorer` — maps code, traces dependencies, finds implementations.
-- **Pre-build reviewer**
+The `subagent_type` you pass to the Task tool MUST be one of these exact names.
+
+- **Explore**
+  - `code-explorer` — explores code, traces dependencies, finds implementations.
+- **Plan**
+  - `architect` — designs new features, refactors, tests.
+  - `debugger` — diagnoses failures, reproduces bugs, proposes a fix.
+- **Pre-build review**
   - `spec-reviewer` — reviews specs. Design quality, coupling, simplicity, CLAUDE.md compliance.
-- **Builder**
+- **Build**
   - `backend-dev` — Python / APIs / DB / infra.
   - `frontend-dev` — React / Next.js / TypeScript / CSS.
-- **Post-build reviewer**
+- **Post-build review**
   - `code-reviewer` — reviews code; runs tests, linter, typechecker.
   - `ui-reviewer` — frontend visual quality, accessibility, AI slop.
   - `security-reviewer` — auth, user input, APIs, secrets.
