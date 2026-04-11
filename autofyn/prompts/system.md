@@ -101,7 +101,7 @@ Before your final response you MUST:
    - **Passed** — what shipped and is verified green (tests pass, reviewers approved).
    - **Failed** — what broke, was skipped, or is still blocked, with *why*. Next round doesn't retry blindly.
    - **Subagents** — one bullet per subagent report this round produced with a one-line summary (e.g. `architect.md → spec for retry helper extraction`, `code-reviewer.md → approved, tests pass`). The inventory next round uses to find history.
-   - **Learned** — your growing memory, judgement, concerns, self-corrections, improvements, calibrations, about this repo based on what you observed this round and all previous rounds. Good bullets: dead ends, review dynamics, subagent revision, unwritten taste, self-corrections. Bad bullets: anything a fresh orchestrator would get right anyway, anything already in `CLAUDE.md`. Cap ~50 bullets. If adding would exceed, merge or drop the weakest.
+   - **Learned** — your growing memory, judgement, concerns, self-corrections, improvements, calibrations, about this repo based on what you observed this round and all previous rounds. Carry prior rounds' bullets that still apply into this section inline with modifications if necessary. Good bullets: dead ends, review dynamics, subagent revision, unwritten taste, self-corrections. Bad bullets: anything a fresh orchestrator would get right anyway, anything already in `CLAUDE.md`. Cap ~50 bullets. If adding would exceed, merge or drop the weakest.
    - **Next** — the concrete next unit of work the following round should tackle.
 
 ## Ending
