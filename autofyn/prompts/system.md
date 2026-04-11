@@ -107,4 +107,4 @@ CRITICAL: End every round with either `end_round(summary)` or `end_session(summa
 - **`end_round(summary)`** — commits this round's changes and starts the next round. The default.
 - **`end_session(summary)`** — commits and ends the whole run. Only when reviewers all APPROVE, the user's intent is fully achieved. Never with CHANGES REQUESTED or RETHINK open. If denied, call `end_round` instead. 
 
-If it is a time locked session, `end_session(summary)` will be denied until time runs out. If not, end the session when no meaningful improvement can be made.
+If it is a time locked session, `end_session(summary)` will be denied until time runs out. If not, call `end_session(summary)` when no meaningful improvement can be made.
