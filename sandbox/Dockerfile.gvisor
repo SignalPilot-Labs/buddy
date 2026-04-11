@@ -82,9 +82,7 @@ COPY --chown=agentuser:agentuser sandbox/pyproject.toml /opt/autofyn/
 RUN uv pip install --system --no-cache "/opt/autofyn/[dev]"
 
 # Source code (changes here don't bust dep install cache)
-COPY --chown=agentuser:agentuser sandbox/constants.py /opt/autofyn/
-COPY --chown=agentuser:agentuser sandbox/server.py /opt/autofyn/
-COPY --chown=agentuser:agentuser sandbox/session/ /opt/autofyn/session/
+COPY --chown=agentuser:agentuser sandbox/ /opt/autofyn/
 
 # Shared DB package — deps first for layer caching
 COPY --chown=agentuser:agentuser db/pyproject.toml /opt/autofyn/db/pyproject.toml
