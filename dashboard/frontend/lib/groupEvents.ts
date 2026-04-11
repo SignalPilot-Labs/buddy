@@ -68,7 +68,7 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "pr_failed":
       return { id: `ms-${ts}-PR Failed`, type: "milestone", label: "PR Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
     case "session_ended":
-      return { id: `ms-${ts}-Session Ended`, type: "milestone", label: "Session Ended", detail: `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
+      return { id: `ms-${ts}-Session Ended`, type: "milestone", label: "Session Ended", detail: `${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
     case "killed":
       return { id: `ms-${ts}-Killed`, type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":

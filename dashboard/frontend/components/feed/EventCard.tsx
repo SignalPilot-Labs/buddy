@@ -434,7 +434,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
       case "pr_failed":
         return ((d.error as string) || "").slice(0, 100);
       case "session_ended":
-        return `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`;
+        return `${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`;
       case "planner_invoked":
         return `Round ${d.round} · ${d.tool_summary || ""}`;
       case "killed":

@@ -473,7 +473,7 @@ class _Session:
                 " to build, fix, or verify across any future round. Denied"
                 " while the time lock has more than a few minutes left."
             ),
-            {"summary": str, "changes_made": int},
+            {"summary": str},
         )
         async def end_session_tool(args: dict[str, Any]) -> dict[str, Any]:
             elapsed_sec = time.time() - start
@@ -484,13 +484,11 @@ class _Session:
             if unlocked:
                 await _log_audit(run_id, "session_ended", {
                     "summary": args["summary"],
-                    "changes_made": args["changes_made"],
                     "elapsed_minutes": round(elapsed_min, 1),
                 })
                 session._ended = True
                 emit({"event": "end_session", "data": {
                     "summary": args["summary"],
-                    "changes_made": args["changes_made"],
                     "elapsed_minutes": round(elapsed_min, 1),
                 }})
                 return {"content": [{"type": "text", "text": "Session ended."}]}

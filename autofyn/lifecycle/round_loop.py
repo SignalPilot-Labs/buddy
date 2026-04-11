@@ -28,7 +28,11 @@ from sandbox_client.client import SandboxClient
 from session.runner import RoundRunner
 from session.time_lock import TimeLock
 from utils import db
-from utils.constants import RATE_LIMIT_MAX_WAIT_SEC, RATE_LIMIT_SLEEP_BUFFER_SEC
+from utils.constants import (
+    MAX_ROUNDS,
+    RATE_LIMIT_MAX_WAIT_SEC,
+    RATE_LIMIT_SLEEP_BUFFER_SEC,
+)
 from utils.models import RoundResult, RunContext
 
 log = logging.getLogger("lifecycle.round_loop")
@@ -184,6 +188,19 @@ async def _handle_round_outcome(
         log.info("[%s] Time lock expired after round %d — finishing", rid, round_number)
         return "completed"
 
+    if round_number >= MAX_ROUNDS:
+        log.info(
+            "[%s] Round cap reached (%d) — finishing",
+            rid,
+            MAX_ROUNDS,
+        )
+        await db.log_audit(
+            run.run_id,
+            "max_rounds_reached",
+            {"round_number": round_number, "cap": MAX_ROUNDS},
+        )
+        return "completed"
+
     if inbox.has_stop():
         return "stopped"
 
@@ -219,6 +236,18 @@ async def _commit_and_push_round(
     if not result.committed:
         log.info("Round %d produced no commit", round_number)
         return
+
+    # Append the round entry to /tmp/rounds.json. The orchestrator prompt
+    # promises Python does this on its behalf ("Python appends your round
+    # entry automatically when you call end_round"), so it must actually
+    # happen — otherwise rounds[] stays empty and teardown has no history
+    # to build the final PR body from.
+    await metadata_store.record_round(
+        n=round_number,
+        summary=summary,
+        pr_title=None,
+        pr_description=None,
+    )
 
     if not result.pushed:
         log.warning(

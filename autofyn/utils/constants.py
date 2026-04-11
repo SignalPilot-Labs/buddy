@@ -11,6 +11,10 @@ RATE_LIMIT_MAX_WAIT_SEC = (
     600  # Max seconds to wait for rate limit reset before stopping
 )
 SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
+# Backstop for runs without a time lock. 128 rounds is enough for a
+# very long autonomous session (~8h at ~4 min/round) while still stopping
+# a runaway orchestrator that never judges the task done.
+MAX_ROUNDS = 128
 
 # ── Agent Models ──
 MODEL_OPUS = "opus"
