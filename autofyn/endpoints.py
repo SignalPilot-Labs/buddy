@@ -11,6 +11,7 @@ import asyncio
 import uuid
 from typing import TYPE_CHECKING
 
+import httpx
 from fastapi import FastAPI, HTTPException
 
 from utils import db
@@ -189,3 +190,31 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         """Return sandbox container logs for a run."""
         lines = await server.pool().get_logs(run_id, tail)
         return {"lines": lines, "total": len(lines)}
+
+    # ── Branches (GitHub API proxy) ────────────────────────────────────
+
+    @app.get("/branches")
+    async def list_branches(repo: str, token: str):
+        """List branches on the GitHub remote for the given repo.
+
+        Called by the dashboard's StartRunModal to populate the "branch from"
+        dropdown. The dashboard passes the git token it has in settings; we
+        just proxy to the GitHub API. No sandbox needed because this runs
+        before any run has started.
+        """
+        if "/" not in repo:
+            raise HTTPException(status_code=400, detail="repo must be owner/name")
+        url = f"https://api.github.com/repos/{repo}/branches"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+        }
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url, headers=headers, params={"per_page": 100})
+        if resp.status_code >= 400:
+            raise HTTPException(
+                status_code=resp.status_code,
+                detail=f"GitHub API error: {resp.text[:200]}",
+            )
+        data = resp.json()
+        return [b["name"] for b in data if isinstance(b, dict) and "name" in b]
