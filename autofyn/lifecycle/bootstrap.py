@@ -5,7 +5,7 @@ Responsibilities:
     1. Clone the repo in the sandbox and create the working branch.
     2. Persist the branch name to the runs table.
     3. Build the RunContext, OperatorInbox, TimeLock, ReportStore, MetadataStore.
-    4. Seed operator-messages.md as an empty file.
+    4. Seed /tmp/rounds.json with the empty schema.
     5. Build the (mostly static) SDK session options dict. The orchestrator
        system prompt is rebuilt per round; this dict holds everything else.
 
@@ -20,20 +20,23 @@ import uuid
 from memory.metadata import MetadataStore
 from memory.report import ReportStore
 from operator.inbox import OperatorInbox
-from prompts.subagent import build_agent_defs
 from sandbox_client.client import SandboxClient
 from session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
-    OPERATOR_MESSAGES_PATH,
     PROMPT_SUMMARY_LIMIT,
     SESSION_EFFORT,
     SESSION_PERMISSION_MODE,
     WORK_DIR,
 )
-from utils.models import BootstrapResult, RunContext, get_fallback_model
+from utils.models import (
+    BootstrapResult,
+    RoundsMetadata,
+    RunContext,
+    get_fallback_model,
+)
 
 log = logging.getLogger("lifecycle.bootstrap")
 
@@ -81,8 +84,10 @@ async def bootstrap_run(
     reports = ReportStore(sandbox)
     metadata = MetadataStore(sandbox)
 
-    await reports.ensure_directories()
-    await sandbox.file_system.write(OPERATOR_MESSAGES_PATH, "", append=False)
+    # Seed an empty rounds.json so the first-round orchestrator sees the
+    # canonical schema (pr_title / pr_description / rounds) instead of a
+    # missing file — removes a whole class of "what shape do I write?" bugs.
+    await metadata.save(RoundsMetadata.empty())
 
     run_start_time = time.time()
     base_session_options = _build_base_session_options(
@@ -160,7 +165,6 @@ def _build_base_session_options(
         "setting_sources": ["project"],
         "max_budget_usd": max_budget_usd if max_budget_usd > 0 else None,
         "resume": None,
-        "agents": build_agent_defs(),
         "run_id": run.run_id,
         "github_repo": run.github_repo,
         "branch_name": run.branch_name,

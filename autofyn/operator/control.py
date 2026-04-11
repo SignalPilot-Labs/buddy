@@ -12,7 +12,6 @@ import logging
 
 from operator.inbox import OperatorInbox
 from sandbox_client.client import SandboxClient
-from utils.constants import OPERATOR_MESSAGES_PATH
 from utils.models import ControlOutcome, OperatorEvent
 
 log = logging.getLogger("operator.control")
@@ -65,7 +64,6 @@ class OperatorControl:
         if not messages:
             return
         for msg in messages:
-            await self._persist_operator_message(msg)
             await self._sandbox.session.send_message(
                 self._session_id, f"Operator message: {msg}",
             )
@@ -94,10 +92,3 @@ class OperatorControl:
         log.info("PAUSE requested")
         await self._sandbox.session.interrupt(self._session_id)
         return ControlOutcome(kind="break_pause", reason="operator pause")
-
-    async def _persist_operator_message(self, text: str) -> None:
-        """Append an inject message to /tmp/operator-messages.md."""
-        line = f"- {text}\n"
-        await self._sandbox.file_system.write(
-            OPERATOR_MESSAGES_PATH, line, append=True,
-        )

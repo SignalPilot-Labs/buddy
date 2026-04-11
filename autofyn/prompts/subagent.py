@@ -29,6 +29,16 @@ AGENTS_WITH_VERIFICATION: tuple[str, ...] = (
     "review/security-reviewer",
 )
 
+# Which subagents should see prior-round reports (only when round > 1).
+# Builders, debugger, code-explorer, and security-reviewer work off the
+# CURRENT round only. The architect plans the next step off prior rounds,
+# and code/ui reviewers benefit from catching repeated issues.
+AGENTS_WITH_PRIOR_CONTEXT: tuple[str, ...] = (
+    "plan/architect",
+    "review/code-reviewer",
+    "review/ui-reviewer",
+)
+
 
 SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
     # ── Explore phase ──
@@ -131,17 +141,40 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
 )
 
 
-def build_agent_defs() -> dict[str, dict]:
-    """Build subagent definitions as plain dicts for the sandbox session."""
+def build_agent_defs(round_number: int) -> dict[str, dict]:
+    """Build subagent definitions for a single round.
+
+    `{ROUND_NUMBER}` and `{PRIOR_ROUND_NUMBER}` placeholders in subagent
+    markdown are substituted with the live values so each round's session
+    sees concrete file paths. The prior-round-context query is appended
+    (only for rounds > 1) to agents listed in `AGENTS_WITH_PRIOR_CONTEXT`.
+    """
+    prior_round_number = max(round_number - 1, 0)
     git_rules = load_markdown("query/git-rules")
     verification_rules = load_markdown("query/verification-rules")
+    prior_context = (
+        _substitute(
+            load_markdown("query/prior-round-context"),
+            round_number,
+            prior_round_number,
+        )
+        if round_number > 1
+        else None
+    )
+
     result: dict[str, dict] = {}
     for defn in SUBAGENT_DEFS:
         path = f"{defn.phase}/{defn.name}"
-        agent_body = load_markdown(f"subagents/{path}")
+        agent_body = _substitute(
+            load_markdown(f"subagents/{path}"),
+            round_number,
+            prior_round_number,
+        )
         prompt_parts = [agent_body, git_rules]
         if path in AGENTS_WITH_VERIFICATION:
             prompt_parts.append(verification_rules)
+        if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:
+            prompt_parts.append(prior_context)
         result[defn.name] = {
             "description": defn.description,
             "prompt": "\n\n".join(prompt_parts),
@@ -149,3 +182,12 @@ def build_agent_defs() -> dict[str, dict]:
             "tools": defn.tools,
         }
     return result
+
+
+def _substitute(text: str, round_number: int, prior_round_number: int) -> str:
+    """Replace `{ROUND_NUMBER}` and `{PRIOR_ROUND_NUMBER}` in a subagent prompt."""
+    return (
+        text
+        .replace("{ROUND_NUMBER}", str(round_number))
+        .replace("{PRIOR_ROUND_NUMBER}", str(prior_round_number))
+    )

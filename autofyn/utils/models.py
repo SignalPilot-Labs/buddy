@@ -100,6 +100,7 @@ class RoundResult:
     session_id: str | None
     rate_limit_resets_at: int | None = None
     error: str | None = None
+    round_summary: str | None = None
 
 
 @dataclass
@@ -152,13 +153,12 @@ class RoundContext:
     """Everything the orchestrator prompt builder needs for one round."""
 
     round_number: int
-    task: str
     duration_minutes: float
     time_remaining_minutes: float
     branch_name: str
     base_branch: str
     metadata: RoundsMetadata
-    previous_round_reports: dict[str, list[str]]
+    previous_round_reports: list[str]
     operator_messages: list[str]
 
 
@@ -224,6 +224,7 @@ class StreamSignal:
 
     kind: SignalKind
     rate_limit_data: dict | None = None
+    round_summary: str | None = None
 
 
 # ── Subagent tracking ───────────────────────────────────────────────

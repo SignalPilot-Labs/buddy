@@ -23,6 +23,7 @@ from lifecycle.bootstrap import BootstrapResult
 from memory.metadata import MetadataStore
 from operator.inbox import OperatorInbox
 from prompts.orchestrator import RoundContext, build_round_system_prompt
+from prompts.subagent import build_agent_defs
 from sandbox_client.client import SandboxClient
 from session.runner import RoundRunner
 from session.time_lock import TimeLock
@@ -58,13 +59,17 @@ async def run_rounds(
         round_number += 1
         log.info("[%s] ── Round %d begin ──", rid, round_number)
 
+        await reports.ensure_round_directory(round_number)
+
         prior_metadata = await metadata_store.load()
-        prior_reports = await reports.collect_round(round_number - 1)
+        prior_reports = (
+            await reports.list_round(round_number - 1)
+            if round_number > 1 else []
+        )
         operator_messages = inbox.take_pending_messages()
 
         round_ctx = RoundContext(
             round_number=round_number,
-            task=bootstrap.task,
             duration_minutes=run.duration_minutes,
             time_remaining_minutes=time_lock.remaining_minutes(),
             branch_name=run.branch_name,
@@ -76,6 +81,7 @@ async def run_rounds(
         system_prompt = build_round_system_prompt(round_ctx)
 
         options = dict(bootstrap.base_session_options)
+        options["agents"] = build_agent_defs(round_number)
         options["system_prompt"] = {
             "type": system_prompt["type"],
             "preset": system_prompt["preset"],
@@ -122,7 +128,8 @@ async def _handle_round_outcome(
     if result.status == "stopped":
         log.info("[%s] Round %d stopped by operator", rid, round_number)
         await _commit_and_push_round(
-            sandbox, run, round_number, metadata_store, exec_timeout,
+            sandbox, run, round_number, metadata_store,
+            result.round_summary, exec_timeout,
         )
         return "stopped"
 
@@ -150,7 +157,8 @@ async def _handle_round_outcome(
 
     # status in ("complete", "ended")
     await _commit_and_push_round(
-        sandbox, run, round_number, metadata_store, exec_timeout,
+        sandbox, run, round_number, metadata_store,
+        result.round_summary, exec_timeout,
     )
 
     if result.status == "ended":
@@ -177,14 +185,19 @@ async def _commit_and_push_round(
     run: RunContext,
     round_number: int,
     metadata_store: MetadataStore,
+    end_round_summary: str | None,
     exec_timeout: int,
 ) -> None:
-    """Read metadata for the round's summary and commit+push it."""
-    metadata = await metadata_store.load()
-    entry = next(
-        (r for r in metadata.rounds if r.n == round_number), None,
-    )
-    summary = entry.summary if entry else "(no summary)"
+    """Commit the round. Prefers the `end_round` tool summary; falls back
+    to `/tmp/rounds.json` if the orchestrator exited without calling it."""
+    if end_round_summary:
+        summary = end_round_summary
+    else:
+        metadata = await metadata_store.load()
+        entry = next(
+            (r for r in metadata.rounds if r.n == round_number), None,
+        )
+        summary = entry.summary if entry else "(no summary)"
     message = f"[Round {round_number}] {summary}"
 
     if not await sandbox.repo.has_changes(exec_timeout):
@@ -262,15 +275,10 @@ async def _await_resume(inbox: OperatorInbox) -> bool:
 
 def _build_initial_prompt(round_number: int, task: str) -> str:
     """Short per-round kickoff message paired with the round system prompt."""
+    header = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
     if round_number == 1:
-        return (
-            "Round 1 is starting. Complete the first-round setup steps, "
-            f"then begin work on this task:\n\n{task.strip()}"
-        )
+        return f"{header}\n\nComplete the first-round setup before beginning work."
     return (
-        f"Round {round_number} is starting. Read the previous round's "
-        "reports as needed, decide the next unit of work, and delegate to "
-        "subagents. Write your round summary to "
-        f"/tmp/orchestrator/round-{round_number}-summary.md and update "
-        "/tmp/rounds.json before exiting."
+        f"{header}\n\nRead prior-round context from /tmp/round-*/ as needed, "
+        "then continue."
     )

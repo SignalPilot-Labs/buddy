@@ -432,10 +432,15 @@ class _Session:
         })
         return SyncHookJSONOutput()
 
-    # ── Session gate MCP tool ──
+    # ── Session gate MCP tools ──
 
     def _build_session_gate_mcp(self, config: dict) -> Any:
-        """Build MCP server with end_session tool for time-locked sessions."""
+        """Build MCP server with end_round + end_session tools.
+
+        `end_round` ends the current round (the Python loop will start the
+        next round). `end_session` ends the whole run and is denied while
+        the time lock has more than EARLY_EXIT_THRESHOLD_MIN remaining.
+        """
         duration_min: float = config["duration_minutes"]
         start = time.time()
         emit = self._emit
@@ -443,8 +448,32 @@ class _Session:
         run_id = self._run_id
 
         @tool(
+            "end_round",
+            (
+                "End THIS round so the Python loop can commit and start the"
+                " next round. Use when the plan → build → review cycle is"
+                " done for this round but the overall task is not yet"
+                " complete. Does NOT end the whole run — use `end_session`"
+                " for that."
+            ),
+            {"summary": str},
+        )
+        async def end_round_tool(args: dict[str, Any]) -> dict[str, Any]:
+            summary = args["summary"]
+            await _log_audit(run_id, "round_ended", {
+                "summary": summary,
+            })
+            session._ended = True
+            emit({"event": "end_round", "data": {"summary": summary}})
+            return {"content": [{"type": "text", "text": "Round ended."}]}
+
+        @tool(
             "end_session",
-            "End the current session. Denied if the time lock has not expired.",
+            (
+                "End the ENTIRE run. Call only when there is nothing more"
+                " to build, fix, or verify across any future round. Denied"
+                " while the time lock has more than a few minutes left."
+            ),
             {"summary": str, "changes_made": int},
         )
         async def end_session_tool(args: dict[str, Any]) -> dict[str, Any]:
@@ -475,10 +504,14 @@ class _Session:
             }})
             return {"content": [{"type": "text", "text": (
                 f"SESSION LOCKED — {round(remaining_min, 1)}m remaining. "
-                "Continue working. The planner will tell you when to stop."
+                "Keep working and start another round. Call `end_round` if "
+                "this round's cycle is complete."
             )}]}
 
-        return create_sdk_mcp_server(name="session_gate", tools=[end_session_tool])
+        return create_sdk_mcp_server(
+            name="session_gate",
+            tools=[end_round_tool, end_session_tool],
+        )
 
 
 # ── DB helpers (direct writes, no round-trip to agent) ──────

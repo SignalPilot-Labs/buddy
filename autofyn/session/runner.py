@@ -193,9 +193,17 @@ class RoundRunner:
             await control.flush_pending()
             return None
         if signal.kind == "round_complete":
-            return RoundResult(status="complete", session_id=session_id)
+            return RoundResult(
+                status="complete",
+                session_id=session_id,
+                round_summary=signal.round_summary,
+            )
         if signal.kind == "run_ended":
-            return RoundResult(status="ended", session_id=session_id)
+            return RoundResult(
+                status="ended",
+                session_id=session_id,
+                round_summary=signal.round_summary,
+            )
         if signal.kind == "rate_limited":
             data = signal.rate_limit_data or {}
             resets_at = data.get("resets_at")
