@@ -93,7 +93,7 @@ function extractToolSummary(tc: ToolCall): string {
     case "playwright_form": case "playwright_type": return "form input";
     case "playwright_evaluate": return "evaluate";
     case "playwright_snapshot": return "DOM snapshot";
-    case "session_gate": return "end_session";
+    case "session_gate": return tc.tool_name.toLowerCase().includes("end_round") ? "end_round" : "end_session";
     default: return JSON.stringify(input).slice(0, 80);
   }
 }

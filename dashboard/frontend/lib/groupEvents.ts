@@ -263,8 +263,21 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         continue;
       }
 
-      // Session gate is a milestone
+      // Session gate tools: `end_round` and `end_session` both live under
+      // the same MCP server (`session_gate`), so getToolCategory lumps them
+      // together. Distinguish by the actual tool name:
+      //   - end_round → suppress. The `round_ended` audit event (emitted by
+      //     the Python round loop after commit) already renders the
+      //     "Round N complete" divider. Rendering the tool call as a
+      //     milestone too would duplicate — and worse, mislabel it as
+      //     "End Session" since that was the old unconditional branch.
+      //   - end_session → render as the "End Session" milestone.
       if (cat === "session_gate") {
+        const toolName = tc.tool_name.toLowerCase();
+        if (toolName.includes("end_round")) {
+          i++;
+          continue;
+        }
         result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
         i++;
         continue;

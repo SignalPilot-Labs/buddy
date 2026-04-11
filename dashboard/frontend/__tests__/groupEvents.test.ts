@@ -313,6 +313,33 @@ describe("groupEvents", () => {
     ];
     expect(() => groupEvents(events)).not.toThrow();
   });
+
+  // Regression: `end_round` and `end_session` both live under the
+  // `session_gate` MCP server, so getToolCategory lumps them into one
+  // category. Before the fix, any session_gate tool rendered as an
+  // "End Session" milestone — so ending a round showed up as ending the
+  // whole session. end_round must be suppressed (the `round_ended` audit
+  // event is what renders the divider), and end_session must still render
+  // the milestone.
+  it("suppresses end_round session_gate tool calls (divider comes from round_ended audit)", () => {
+    const events: FeedEvent[] = [
+      makeToolEvent({ tool_name: "mcp__session_gate__end_round", id: 1 }),
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(0);
+  });
+
+  it("renders end_session session_gate tool calls as an End Session milestone", () => {
+    const events: FeedEvent[] = [
+      makeToolEvent({ tool_name: "mcp__session_gate__end_session", id: 1 }),
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("milestone");
+    if (result[0].type === "milestone") {
+      expect(result[0].label).toBe("End Session");
+    }
+  });
 });
 
 /* ── subagent attribution via audit-event link ── */
