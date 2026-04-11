@@ -218,27 +218,10 @@ async def _commit_and_push_round(
     end_round_summary: str | None,
     exec_timeout: int,
 ) -> None:
-    """Commit the round.
-
-    Prefers the `end_round`/`end_session` tool summary. If the orchestrator
-    finishes its turn without calling either tool (the SDK session ends
-    naturally), we can't force a retro tool call — the session is already
-    torn down. Instead we auto-commit the work with a visible marker and
-    log an `end_round_missing` audit event so the failure is loud.
-    """
-    if end_round_summary:
-        summary = end_round_summary
-    else:
-        log.warning(
-            "Round %d ended without end_round — autocommitting",
-            round_number,
-        )
-        await db.log_audit(
-            run.run_id,
-            "end_round_missing",
-            {"round_number": round_number},
-        )
-        summary = "autocommitting changes (end_round not called)"
+    """Commit the round. Uses the end_round/end_session summary if the
+    orchestrator called one; otherwise autocommits and the loop continues
+    into the next round."""
+    summary = end_round_summary or " ended without summary -- autocommit"
     message = f"[Round {round_number}] {summary}"
 
     result = await sandbox.repo.save(message, exec_timeout)
