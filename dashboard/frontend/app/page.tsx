@@ -144,7 +144,16 @@ function MonitorPageInner() {
         showKillConfirm={showKillConfirm}
         onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
         onKill={handleHeaderKill}
-        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        onNewRun={() => {
+          if (!activeRepoFilter) {
+            showToast("Select a repo first", "error");
+            return;
+          }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
+          setStartModalOpen(true);
+        }}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
@@ -289,7 +298,16 @@ function MonitorPageInner() {
         repos={repos}
         activeRepo={activeRepoFilter}
         onRepoSelect={handleRepoSwitch}
-        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        onNewRun={() => {
+          if (!activeRepoFilter) {
+            showToast("Select a repo first", "error");
+            return;
+          }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
+          setStartModalOpen(true);
+        }}
         isConfigured={isConfigured}
       />
 

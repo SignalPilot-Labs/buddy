@@ -218,10 +218,13 @@ async def list_branches(repo: str = Query(...)) -> list:
     creds = await read_credentials(repo)
     token = creds.get("git_token")
     if not token:
-        return ["main"]
+        raise HTTPException(
+            status_code=400,
+            detail=f"No git_token configured for {repo} — set one in Settings",
+        )
     return await agent_request(
         "GET", "/branches", AGENT_TIMEOUT_LONG,
-        None, {"repo": repo, "token": token}, ["main"],
+        None, {"repo": repo, "token": token}, None,
     )
 
 
