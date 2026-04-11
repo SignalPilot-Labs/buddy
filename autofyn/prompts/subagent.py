@@ -60,7 +60,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             "Diagnoses bugs and failures. Finds root causes, reads logs,"
             " reproduces issues. Call when something is broken."
         ),
-        model=MODEL_SONNET,
+        model=MODEL_OPUS,
         tools=TOOLS_REVIEW,
     ),
     # ── Plan phase ──
@@ -105,7 +105,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " and quality. Runs tests, linter, typechecker. Call after every"
             " build, and on any spec that creates new modules or touches 5+ files."
         ),
-        model=MODEL_SONNET,
+        model=MODEL_OPUS,
         tools=TOOLS_REVIEW_FULL,
     ),
     SubagentDef(
@@ -116,7 +116,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " accessibility, and AI slop. Call alongside code-reviewer whenever"
             " frontend-dev made changes."
         ),
-        model=MODEL_SONNET,
+        model=MODEL_OPUS,
         tools=TOOLS_REVIEW,
     ),
     SubagentDef(
@@ -127,7 +127,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " leaked secrets, unsafe config. Call when changes touch auth,"
             " user input, APIs, or secrets."
         ),
-        model=MODEL_SONNET,
+        model=MODEL_OPUS,
         tools=TOOLS_REVIEW,
     ),
 )
@@ -194,8 +194,6 @@ def build_agent_defs(
 
 def _substitute(text: str, round_number: int, prior_round_number: int) -> str:
     """Replace `{ROUND_NUMBER}` and `{PRIOR_ROUND_NUMBER}` in a subagent prompt."""
-    return (
-        text
-        .replace("{ROUND_NUMBER}", str(round_number))
-        .replace("{PRIOR_ROUND_NUMBER}", str(prior_round_number))
+    return text.replace("{ROUND_NUMBER}", str(round_number)).replace(
+        "{PRIOR_ROUND_NUMBER}", str(prior_round_number)
     )
