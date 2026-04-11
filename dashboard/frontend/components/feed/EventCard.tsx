@@ -428,7 +428,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
       case "round_complete":
         return `Round ${d.round} · ${d.turns} turns · $${(d.cost_usd as number)?.toFixed(3) || "?"} · ${(d.elapsed_minutes as number)?.toFixed(1)}min`;
       case "run_started":
-        return `${d.model || "claude"} · ${d.branch || "?"}${d.custom_prompt ? " · custom prompt" : ""}`;
+        return `${d.model || "claude"} · ${d.branch || "?"}${d.has_custom_prompt ? " · custom prompt" : ""}`;
       case "pr_created":
         return (d.url as string) || "";
       case "pr_failed":

@@ -26,7 +26,6 @@ from utils import db
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
-    PROMPT_SUMMARY_LIMIT,
     SESSION_EFFORT,
     SESSION_PERMISSION_MODE,
     WORK_DIR,
@@ -200,13 +199,14 @@ async def _log_run_started(
             "model": model,
             "max_budget_usd": budget,
             "duration_minutes": duration,
-            "custom_prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
+            "has_custom_prompt": bool(custom_prompt),
         },
     )
+    # Full prompt (not truncated) — the frontend uses exact text equality
+    # to reconcile a pending optimistic bubble against this event. Any
+    # truncation here causes a mismatch and a duplicate "two bubbles" render.
     await db.log_audit(
         run_id,
         "prompt_submitted",
-        {
-            "prompt": custom_prompt[:PROMPT_SUMMARY_LIMIT],
-        },
+        {"prompt": custom_prompt},
     )
