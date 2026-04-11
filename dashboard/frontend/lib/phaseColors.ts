@@ -1,10 +1,19 @@
+// Phase color system for subagent cards.
+//
+// Each subagent type resolves to one of four phases (explore, plan, build,
+// review). The phase determines the card's border, background, icon, and
+// label color. Unknown agent types fall back to the default orange.
+//
+// IMPORTANT: Review's color (#ff66aa / pink) is deliberately distinct from
+// the running-state amber (#ffaa00). Using the same hex for both would make
+// a running `code-reviewer` card fully amber with no visual separation
+// between phase and state — defeating the point of phase colors.
+
 export type SubagentPhase = "explore" | "plan" | "build" | "review";
 
 export interface PhaseMeta {
   label: string;
   color: string;
-  textClass: string;
-  borderClass: string;
 }
 
 export const SUBAGENT_PHASE_MAP: Record<string, SubagentPhase> = {
@@ -19,37 +28,15 @@ export const SUBAGENT_PHASE_MAP: Record<string, SubagentPhase> = {
 };
 
 export const PHASE_META: Record<SubagentPhase, PhaseMeta> = {
-  explore: {
-    label: "Explore",
-    color: "#44ddff",
-    textClass: "text-[#44ddff]",
-    borderClass: "border-[#44ddff]",
-  },
-  plan: {
-    label: "Plan",
-    color: "#cc88ff",
-    textClass: "text-[#cc88ff]",
-    borderClass: "border-[#cc88ff]",
-  },
-  build: {
-    label: "Build",
-    color: "#00ff88",
-    textClass: "text-[#00ff88]",
-    borderClass: "border-[#00ff88]",
-  },
-  review: {
-    label: "Review",
-    color: "#ffaa00",
-    textClass: "text-[#ffaa00]",
-    borderClass: "border-[#ffaa00]",
-  },
+  explore: { label: "Explore", color: "#44ddff" }, // cyan
+  plan:    { label: "Plan",    color: "#cc88ff" }, // purple
+  build:   { label: "Build",   color: "#00ff88" }, // green
+  review:  { label: "Review",  color: "#ff66aa" }, // pink — distinct from running-state amber
 };
 
 export const DEFAULT_PHASE_META: PhaseMeta = {
   label: "Agent",
   color: "#ff8844",
-  textClass: "text-[#ff8844]",
-  borderClass: "border-[#ff8844]",
 };
 
 export function resolvePhase(agentType: string): {
@@ -63,10 +50,17 @@ export function resolvePhase(agentType: string): {
   return { phase, meta: PHASE_META[phase] };
 }
 
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
 export function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.slice(0, 2), 16);
-  const g = parseInt(clean.slice(2, 4), 16);
-  const b = parseInt(clean.slice(4, 6), 16);
+  if (!HEX_COLOR_RE.test(hex)) {
+    throw new Error(`hexToRgba: invalid hex color "${hex}" — expected #RRGGBB`);
+  }
+  if (alpha < 0 || alpha > 1) {
+    throw new Error(`hexToRgba: alpha ${alpha} out of range [0, 1]`);
+  }
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
