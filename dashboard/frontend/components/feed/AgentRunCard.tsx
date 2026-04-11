@@ -16,7 +16,7 @@ import {
   IDLE_WARN_MS,
 } from "@/components/feed/eventCardHelpers";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
-import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
+import { CARD_FADE_DURATION, CARD_FADE_EASE, MS_PER_SECOND, FINALIZING_IDLE_MS } from "@/lib/constants";
 
 export function AgentRunCard({
   tool,
@@ -59,13 +59,13 @@ export function AgentRunCard({
       : new Date(ts).getTime();
   const idleMs = isPending ? now - lastActivityTs : 0;
   const isIdle = idleMs > IDLE_WARN_MS;
-  const idleSec = Math.floor(idleMs / 1000);
+  const idleSec = Math.floor(idleMs / MS_PER_SECOND);
   const isFinalizing =
-    isPending && childTools.length > 0 && idleMs > 3000 && !isIdle;
+    isPending && childTools.length > 0 && idleMs > FINALIZING_IDLE_MS && !isIdle;
 
   useEffect(() => {
     if (!isPending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), MS_PER_SECOND);
     return () => clearInterval(id);
   }, [isPending]);
 

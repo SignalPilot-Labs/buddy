@@ -21,6 +21,16 @@ export function getApiKey(): string {
 
 export const API_KEY = getApiKey();
 
+// Time unit constants
+export const MS_PER_SECOND = 1_000;
+export const MS_PER_MINUTE = 60_000;
+export const MS_PER_HOUR = 3_600_000;
+export const SECONDS_PER_MINUTE = 60;
+export const SECONDS_PER_HOUR = 3_600;
+
+// Agent run idle thresholds
+export const FINALIZING_IDLE_MS = 3_000;
+
 // Polling intervals (ms)
 export const AGENT_HEALTH_POLL_MS = 10_000;
 export const NETWORK_INFO_POLL_MS = 30_000;

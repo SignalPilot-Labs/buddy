@@ -1,5 +1,7 @@
 import type { FeedEvent, ToolCall } from "./types";
 import { getToolCategory, type ToolCategory } from "./types";
+import { MS_PER_SECOND } from "./constants";
+import { formatHoursMinutes } from "@/components/feed/eventCardHelpers";
 
 /* ── Grouped Event Types ── */
 
@@ -89,13 +91,11 @@ function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       const resetEpoch = d.resets_at as number | undefined;
       const resetDetail = resetEpoch
         ? (() => {
-            const resetDate = new Date(resetEpoch * 1000);
-            const diffMs = resetEpoch * 1000 - Date.now();
+            const resetDate = new Date(resetEpoch * MS_PER_SECOND);
+            const diffMs = resetEpoch * MS_PER_SECOND - Date.now();
             const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
             if (diffMs <= 0) return `resets ${timeStr} (ready)`;
-            const h = Math.floor(diffMs / 3600000);
-            const m = Math.floor((diffMs % 3600000) / 60000);
-            return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
+            return `resets ${timeStr} (${formatHoursMinutes(diffMs)})`;
           })()
         : (d.reason as string) || "out of credits";
       return { id: `ms-${ts}-Rate Limited`, type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };

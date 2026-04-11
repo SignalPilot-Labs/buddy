@@ -6,25 +6,19 @@ import { clsx } from "clsx";
 import type { AuditEvent } from "@/lib/types";
 import { AUDIT_EVENT_META } from "@/lib/types";
 import { getAuditIcon } from "@/components/ui/ToolIcons";
-import { fmtTime } from "@/components/feed/eventCardHelpers";
-import { CARD_FADE_DURATION, CARD_FADE_EASE } from "@/lib/constants";
+import { fmtTime, UNKNOWN_TIME_LABEL, formatHoursMinutes } from "@/components/feed/eventCardHelpers";
+import { CARD_FADE_DURATION, CARD_FADE_EASE, MS_PER_SECOND } from "@/lib/constants";
 
 /* ── Helpers ── */
 
-const EPOCH_TO_MS = 1000;
-const UNKNOWN_TIME_LABEL = "unknown";
-
 function formatEpoch(epoch: number | null | undefined): string {
   if (!epoch) return UNKNOWN_TIME_LABEL;
-  const d = new Date(epoch * EPOCH_TO_MS);
+  const d = new Date(epoch * MS_PER_SECOND);
   const now = Date.now();
-  const diffMs = epoch * EPOCH_TO_MS - now;
+  const diffMs = epoch * MS_PER_SECOND - now;
   const time = d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   if (diffMs <= 0) return `${time} (ready)`;
-  const h = Math.floor(diffMs / 3600000);
-  const m = Math.floor((diffMs % 3600000) / 60000);
-  if (h > 0) return `${time} (${h}h ${m}m)`;
-  return `${time} (${m}m)`;
+  return `${time} (${formatHoursMinutes(diffMs)})`;
 }
 
 /* ── Audit Event Card ── */
@@ -74,10 +68,11 @@ export function AuditCard({ event }: { event: AuditEvent }) {
       transition={{ duration: CARD_FADE_DURATION, ease: CARD_FADE_EASE }}
       className={clsx(
         "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
-        `border-l-[${meta.iconColor}]`,
         meta.bg,
         "hover:bg-white/[0.025]"
       )}
+      // borderLeftColor must be set via inline style — Tailwind cannot statically
+      // extract dynamic template-literal class names like `border-l-[${color}]`.
       style={{ borderLeftColor: meta.iconColor }}
       onClick={() => setExpanded(!expanded)}
     >

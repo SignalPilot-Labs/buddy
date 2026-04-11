@@ -3,19 +3,20 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
+import { MS_PER_SECOND, SECONDS_PER_HOUR, SECONDS_PER_MINUTE } from "@/lib/constants";
 
 function formatCountdown(seconds: number): string {
   if (seconds <= 0) return "Ready";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
+  const h = Math.floor(seconds / SECONDS_PER_HOUR);
+  const m = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const s = Math.floor(seconds % SECONDS_PER_MINUTE);
   if (h > 0) return `${h}h ${m}m`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
 
 function formatResetTime(epoch: number): string {
-  const d = new Date(epoch * 1000);
+  const d = new Date(epoch * MS_PER_SECOND);
   return d.toLocaleString(undefined, {
     month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
   });
@@ -31,16 +32,16 @@ export function RateLimitBanner({
   busy: boolean;
 }) {
   const [initialRemaining] = useState(() =>
-    Math.max(1, resetsAt - Date.now() / 1000)
+    Math.max(1, resetsAt - Date.now() / MS_PER_SECOND)
   );
   const [remaining, setRemaining] = useState(() =>
-    Math.max(0, resetsAt - Date.now() / 1000)
+    Math.max(0, resetsAt - Date.now() / MS_PER_SECOND)
   );
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRemaining(Math.max(0, resetsAt - Date.now() / 1000));
-    }, 1000);
+      setRemaining(Math.max(0, resetsAt - Date.now() / MS_PER_SECOND));
+    }, MS_PER_SECOND);
     return () => clearInterval(interval);
   }, [resetsAt]);
 
