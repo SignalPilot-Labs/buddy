@@ -59,6 +59,43 @@ class ExecResult:
     exit_code: int
 
 
+# ── Sandbox repo phase results ──────────────────────────────────────
+
+
+@dataclass
+class SaveResult:
+    """Structured response from /repo/save (per-round commit + push).
+
+    `committed` is False when the working tree was clean or git had
+    nothing to commit. `pushed` is False when push failed; the error is
+    in `push_error`. Push failures are reported, not raised — the caller
+    decides whether to retry next round or treat it as fatal.
+    """
+
+    committed: bool
+    pushed: bool
+    push_error: str | None
+
+
+@dataclass
+class TeardownResult:
+    """Structured response from /repo/teardown (end-of-run commit + push + PR).
+
+    Every stage (auto-commit, push, PR) is a separate field so the caller
+    can report exactly what happened. Non-fatal failures (push, PR) are
+    reported via the `*_error` fields rather than raised, so `diff_stats`
+    is always populated when the endpoint returns 200.
+    """
+
+    auto_committed: bool
+    commits_ahead: int
+    pushed: bool
+    push_error: str | None
+    pr_url: str | None
+    pr_error: str | None
+    diff_stats: list[dict]
+
+
 # ── Run context ─────────────────────────────────────────────────────
 
 

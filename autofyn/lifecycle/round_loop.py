@@ -214,23 +214,22 @@ async def _commit_and_push_round(
         summary = entry.summary if entry else "(no summary)"
     message = f"[Round {round_number}] {summary}"
 
-    if not await sandbox.repo.has_changes(exec_timeout):
-        log.info("Round %d made no file changes", round_number)
-    committed = await sandbox.repo.commit(message, exec_timeout)
-    if not committed:
+    result = await sandbox.repo.save(message, exec_timeout)
+
+    if not result.committed:
         log.info("Round %d produced no commit", round_number)
         return
 
-    try:
-        await sandbox.repo.push(exec_timeout)
-    except Exception as exc:
-        log.warning("Round %d push failed: %s", round_number, exc)
+    if not result.pushed:
+        log.warning(
+            "Round %d push failed: %s", round_number, result.push_error,
+        )
         await db.log_audit(
             run.run_id,
             "push_failed",
             {
                 "round_number": round_number,
-                "error": str(exc),
+                "error": result.push_error,
             },
         )
         return

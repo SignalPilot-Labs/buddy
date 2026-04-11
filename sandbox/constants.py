@@ -1,5 +1,7 @@
 """Sandbox constants loaded from config.yml."""
 
+import re
+
 from config.loader import sandbox_config, security_config
 
 _cfg = sandbox_config()
@@ -38,3 +40,14 @@ TASK_TOOL_NAME: str = "Agent"
 # Max file size the /file_system/read endpoint will return. Larger files
 # must be streamed via /exec + tail/head or split before reading.
 FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
+
+# ── Repo handlers ──
+REPO_WORK_DIR: str = "/home/agentuser/repo"
+REPO_BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$")
+REPO_BRANCH_NAME_MAX_LEN: int = 256
+
+# Inline shell credential helper: reads $GIT_TOKEN at the moment git
+# invokes it. Secret lives in process memory only — never on disk.
+GIT_CREDENTIAL_HELPER: str = (
+    '!f() { echo "username=x-access-token"; echo "password=${GIT_TOKEN}"; }; f'
+)

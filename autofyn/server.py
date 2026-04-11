@@ -199,6 +199,27 @@ class AgentServer:
                 exec_timeout=self._exec_timeout,
             )
             active.status = terminal_status
+        except Exception as exc:
+            # Capture sandbox logs before the finally-block destroys the
+            # container. Otherwise failures lose their root cause. Persist
+            # them as an audit event so they survive container cleanup and
+            # show up in the dashboard timeline.
+            tail_lines = await self._pool.get_logs(run_id, tail=200)
+            await db.log_audit(
+                run_id,
+                "sandbox_crash",
+                {
+                    "error": str(exc),
+                    "sandbox_logs": "\n".join(tail_lines) if tail_lines else "",
+                },
+            )
+            if tail_lines:
+                log.error(
+                    "Run %s sandbox tail logs:\n%s",
+                    run_id,
+                    "\n".join(tail_lines),
+                )
+            raise
         finally:
             active.inbox = None
             active.time_lock = None

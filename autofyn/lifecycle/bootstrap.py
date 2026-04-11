@@ -62,17 +62,15 @@ async def bootstrap_run(
     fallback_model = get_fallback_model(model)
 
     branch_name = _make_branch_name(custom_prompt)
-    log.info("Run %s cloning %s", run_id, github_repo)
-    await sandbox.repo.clone(
-        github_repo,
-        git_token,
-        base_branch,
-        clone_timeout,
+    log.info("Run %s bootstrapping %s on branch %s", run_id, github_repo, branch_name)
+    await sandbox.repo.bootstrap(
+        repo=github_repo,
+        token=git_token,
+        base_branch=base_branch,
+        working_branch=branch_name,
+        timeout=clone_timeout,
     )
-    await sandbox.repo.ensure_base_branch(base_branch, clone_timeout)
-    await sandbox.repo.create_branch(branch_name, base_branch, clone_timeout)
     await db.update_run_branch(run_id, branch_name)
-    log.info("Run %s on branch %s", run_id, branch_name)
 
     run = RunContext(
         run_id=run_id,

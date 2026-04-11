@@ -32,6 +32,17 @@ logging.basicConfig(level=getattr(logging, cfg.get("log_level", "info").upper())
 log = logging.getLogger("sandbox.server")
 
 
+# Cache the internal secret in Python memory at import time, then scrub
+# it from os.environ so subprocesses spawned by the SDK Bash tool (and
+# anything else running in this process) cannot inherit it. The sandbox
+# process keeps it in memory for auth_middleware — nothing on the OS env.
+_INTERNAL_SECRET = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
+if not _INTERNAL_SECRET:
+    raise RuntimeError(
+        f"{INTERNAL_SECRET_ENV_VAR} is empty — sandbox cannot start",
+    )
+
+
 @web.middleware
 async def auth_middleware(
     request: web.Request,
@@ -41,13 +52,8 @@ async def auth_middleware(
     if request.path == "/health":
         return await handler(request)
 
-    secret = os.environ.get(INTERNAL_SECRET_ENV_VAR, "")
-    if not secret:
-        log.error("AGENT_INTERNAL_SECRET not set — rejecting all requests")
-        return web.json_response({"error": "server misconfigured"}, status=500)
-
     provided = request.headers.get(INTERNAL_SECRET_HEADER, "")
-    if not hmac.compare_digest(provided, secret):
+    if not hmac.compare_digest(provided, _INTERNAL_SECRET):
         log.warning("Auth failed from %s on %s", request.remote, request.path)
         return web.json_response({"error": "unauthorized"}, status=401)
 
