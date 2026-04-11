@@ -105,4 +105,6 @@ Before your final response you MUST:
 CRITICAL: End every round with either `end_round(summary)` or `end_session(summary)`. `summary` is one line, ≤60 chars (becomes `[Round {ROUND_NUMBER}] <summary>` in git). You MUST finish the round with one of them, otherwise ending will be denied. 
 
 - **`end_round(summary)`** — commits this round's changes and starts the next round. The default.
-- **`end_session(summary)`** — commits and ends the whole run. Only when reviewers all APPROVE, the user's intent is fully achieved, and no meaningful improvement remains. Never with CHANGES REQUESTED or RETHINK open. If denied, call `end_round` instead. If it is a time locked session, `end_session(summary)` will be denied until time runs out.
+- **`end_session(summary)`** — commits and ends the whole run. Only when reviewers all APPROVE, the user's intent is fully achieved. Never with CHANGES REQUESTED or RETHINK open. If denied, call `end_round` instead. 
+
+If it is a time locked session, `end_session(summary)` will be denied until time runs out. If not, end the session when no meaningful improvement can be made.
