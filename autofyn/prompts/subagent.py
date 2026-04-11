@@ -31,10 +31,11 @@ AGENTS_WITH_VERIFICATION: tuple[str, ...] = (
 
 # Which subagents should see prior-round reports (only when round > 1).
 # Builders, debugger, code-explorer, and security-reviewer work off the
-# CURRENT round only. The architect plans the next step off prior rounds,
-# and code/ui reviewers benefit from catching repeated issues.
+# CURRENT round only. The architect plans the next step off prior rounds;
+# spec/code/ui reviewers benefit from catching repeated issues.
 AGENTS_WITH_PRIOR_CONTEXT: tuple[str, ...] = (
     "plan/architect",
+    "review/spec-reviewer",
     "review/code-reviewer",
     "review/ui-reviewer",
 )
@@ -53,17 +54,18 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
         model=MODEL_SONNET,
         tools=TOOLS_RESEARCH,
     ),
+    # ── Plan phase ──
     SubagentDef(
         name="debugger",
-        phase="explore",
+        phase="plan",
         description=(
-            "Diagnoses bugs and failures. Finds root causes, reads logs,"
-            " reproduces issues. Call when something is broken."
+            "Debugging planner. Reproduces the bug, traces the root cause,"
+            " and writes a fix spec a dev can implement. Call when something"
+            " is broken."
         ),
         model=MODEL_OPUS,
-        tools=TOOLS_REVIEW,
+        tools=TOOLS_RESEARCH,
     ),
-    # ── Plan phase ──
     SubagentDef(
         name="architect",
         phase="plan",
@@ -98,12 +100,24 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
     ),
     # ── Review phase ──
     SubagentDef(
+        name="spec-reviewer",
+        phase="review",
+        description=(
+            "Reviews architect or debugger specs BEFORE any code is written."
+            " Checks design quality, file placement, coupling, simplicity,"
+            " and CLAUDE.md compliance. Call on every spec marked"
+            " `Spec review: required`."
+        ),
+        model=MODEL_OPUS,
+        tools=TOOLS_REVIEW,
+    ),
+    SubagentDef(
         name="code-reviewer",
         phase="review",
         description=(
-            "Reviews code and specs for correctness, design, spec compliance,"
+            "Reviews code post-build for correctness, design, spec compliance,"
             " and quality. Runs tests, linter, typechecker. Call after every"
-            " build, and on any spec that creates new modules or touches 5+ files."
+            " build."
         ),
         model=MODEL_OPUS,
         tools=TOOLS_REVIEW_FULL,
@@ -152,6 +166,7 @@ def build_agent_defs(
     """
     prior_round_number = max(round_number - 1, 0)
     git_rules = load_markdown("query/git-rules")
+    dispatch_rules = load_markdown("query/dispatch-rules")
     verification_rules = load_markdown("query/verification-rules")
     prior_context = (
         _substitute(
@@ -176,7 +191,7 @@ def build_agent_defs(
             round_number,
             prior_round_number,
         )
-        prompt_parts = [agent_body, git_rules]
+        prompt_parts = [agent_body, git_rules, dispatch_rules]
         if path in AGENTS_WITH_VERIFICATION:
             prompt_parts.append(verification_rules)
         if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:
