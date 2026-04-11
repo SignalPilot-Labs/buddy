@@ -73,7 +73,24 @@ class StreamDispatcher:
             return StreamSignal(kind="subagent_boundary")
 
         if kind == "rate_limit":
-            return StreamSignal(kind="rate_limited", rate_limit_data=data)
+            # The SDK emits `rate_limit` events for THREE statuses:
+            #   - "allowed"         informational — current window info, no action
+            #   - "allowed_warning" approaching the limit — warn but continue
+            #   - "rejected"        actually denied — abort round and back off
+            # Only "rejected" should trigger rate-limit handling.
+            status = data.get("status")
+            if status == "rejected":
+                log.warning(
+                    "[%s] rate limit rejected (resets_at=%s, utilization=%s)",
+                    self._rid, data.get("resets_at"), data.get("utilization"),
+                )
+                return StreamSignal(kind="rate_limited", rate_limit_data=data)
+            if status == "allowed_warning":
+                log.info(
+                    "[%s] rate limit warning (resets_at=%s, utilization=%s)",
+                    self._rid, data.get("resets_at"), data.get("utilization"),
+                )
+            return StreamSignal(kind="continue")
 
         if kind == "result":
             await self._handle_result(data)

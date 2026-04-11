@@ -6,6 +6,7 @@ import { clsx } from "clsx";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS, AUDIT_EVENT_META } from "@/lib/types";
 import { getToolIcon, getAuditIcon } from "@/components/ui/ToolIcons";
+import { shortPath } from "@/components/feed/eventCardHelpers";
 
 /* ── Helpers ── */
 
@@ -72,8 +73,7 @@ function extractToolSummary(tc: ToolCall): string {
     case "grep": {
       const pat = (input.pattern as string) || "";
       const path = (input.path as string) || "";
-      const shortPath = path.split("/").slice(-2).join("/");
-      return `/${pat}/ in ${shortPath}`;
+      return `/${pat}/ in ${shortPath(path)}`;
     }
     case "agent": return (input.description as string) || "";
     case "web_search": return (input.query as string) || "";
