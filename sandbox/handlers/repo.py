@@ -29,7 +29,6 @@ import json
 import logging
 import os
 import subprocess
-from dataclasses import dataclass
 
 from aiohttp import web
 
@@ -39,7 +38,7 @@ from constants import (
     REPO_BRANCH_NAME_PATTERN,
     REPO_WORK_DIR,
 )
-from models import RepoState
+from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
 
@@ -70,14 +69,7 @@ def _validate_branch(name: str) -> None:
 # ── Subprocess helpers ───────────────────────────────────────────────
 
 
-@dataclass
-class _CmdResult:
-    stdout: str
-    stderr: str
-    exit_code: int
-
-
-async def _run(args: list[str], cwd: str, timeout: int) -> _CmdResult:
+async def _run(args: list[str], cwd: str, timeout: int) -> CmdResult:
     """Run a subprocess inheriting the sandbox process env."""
     proc: asyncio.subprocess.Process | None = None
     try:
@@ -86,7 +78,7 @@ async def _run(args: list[str], cwd: str, timeout: int) -> _CmdResult:
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return _CmdResult(
+        return CmdResult(
             stdout=(stdout or b"").decode(),
             stderr=(stderr or b"").decode(),
             exit_code=proc.returncode or 0,
@@ -94,20 +86,20 @@ async def _run(args: list[str], cwd: str, timeout: int) -> _CmdResult:
     except asyncio.TimeoutError:
         if proc:
             proc.kill()
-        return _CmdResult(stdout="", stderr="timed out", exit_code=-1)
+        return CmdResult(stdout="", stderr="timed out", exit_code=-1)
 
 
-async def _git(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> _CmdResult:
+async def _git(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
     """Run `git <args>`. Callers inspect exit_code themselves."""
     return await _run(["git"] + args, cwd, timeout)
 
 
-async def _gh(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> _CmdResult:
+async def _gh(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
     """Run `gh <args>`."""
     return await _run(["gh"] + args, cwd, timeout)
 
 
-def _fail(result: _CmdResult, label: str) -> None:
+def _fail(result: CmdResult, label: str) -> None:
     """Raise HTTP 500 with the git/gh error in the JSON body on failure.
 
     Stderr goes into the body (not the HTTP reason header) because

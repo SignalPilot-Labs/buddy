@@ -1,8 +1,4 @@
-"""Sandbox-side shared data models.
-
-Types used across handlers live here. Handler-local helper dataclasses
-(like `_CmdResult`) stay in the handler files themselves.
-"""
+"""Sandbox-side shared data models."""
 
 from dataclasses import dataclass
 
@@ -19,3 +15,12 @@ class RepoState:
     repo: str
     base_branch: str
     working_branch: str
+
+
+@dataclass
+class CmdResult:
+    """Result of a subprocess invocation from a sandbox handler."""
+
+    stdout: str
+    stderr: str
+    exit_code: int
