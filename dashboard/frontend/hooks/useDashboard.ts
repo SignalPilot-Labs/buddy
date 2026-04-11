@@ -15,6 +15,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
 import type { DashboardState } from "@/hooks/dashboardTypes";
 import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, loadStoredModel } from "@/lib/constants";
+import { getFeedEventTs } from "@/lib/groupEvents";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -113,7 +114,10 @@ export function useDashboard(): DashboardState {
     );
   }, [liveEvents]);
 
-  const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
+  const allEvents = useMemo(
+    () => [...historyEvents, ...liveEvents].sort((a, b) => getFeedEventTs(a) - getFeedEventTs(b)),
+    [historyEvents, liveEvents],
+  );
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);

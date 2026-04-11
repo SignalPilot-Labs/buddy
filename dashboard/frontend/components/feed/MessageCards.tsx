@@ -13,12 +13,14 @@ export function LLMMessageCard({
   thinking,
   ts,
   isLast,
+  runActive,
 }: {
   role: string;
   text: string;
   thinking: string;
   ts: string;
   isLast: boolean;
+  runActive: boolean;
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const isPlanner = role === "planner";
@@ -124,7 +126,7 @@ export function LLMMessageCard({
               isPlanner ? "text-[#cc9966]" : "text-[#bbb]"
             )}
           />
-          {isLast && (
+          {isLast && runActive && (
             <span
               className={clsx(
                 "inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]",

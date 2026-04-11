@@ -30,7 +30,7 @@ const AGENT_CATEGORY: ToolCategory = "agent";
 // Time window for grouping consecutive same-type tools (ms)
 const GROUP_WINDOW = 30_000;
 
-function getTs(e: FeedEvent): number {
+export function getFeedEventTs(e: FeedEvent): number {
   if (e._kind === "tool") return new Date(e.data.ts).getTime();
   if (e._kind === "audit") return new Date(e.data.ts).getTime();
   if (e._kind === "usage") return new Date(e.data.ts).getTime();
@@ -234,7 +234,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     if (ev._kind === "tool") {
       const tc = ev.data;
       const cat = getToolCategory(tc.tool_name);
-      const tsMs = getTs(ev);
+      const tsMs = getFeedEventTs(ev);
 
       // Agent calls: attach their subagent's child tools and final text.
       // An orphan post (phase="post" with no input_data) is a PostToolUseFailure
@@ -420,7 +420,7 @@ export function extractReadPaths(tools: ToolCall[]): string[] {
   return tools.map(tc => extractFilePath(tc));
 }
 
-export function extractEditSummary(tools: ToolCall[]): Array<{ file: string; path: string; added: number; removed: number }> {
+export function extractEditSummary(tools: ToolCall[]): Array<{ id: number; file: string; path: string; added: number; removed: number }> {
   return tools.map(tc => {
     const path = extractFilePath(tc);
     const file = path.split("/").pop() || path;
@@ -435,11 +435,11 @@ export function extractEditSummary(tools: ToolCall[]): Array<{ file: string; pat
         }
       }
     }
-    return { file, path, added, removed };
+    return { id: tc.id, file, path, added, removed };
   });
 }
 
-export function extractBashCommands(tools: ToolCall[]): Array<{ cmd: string; desc: string; output: string; exitOk: boolean; duration: number }> {
+export function extractBashCommands(tools: ToolCall[]): Array<{ id: number; cmd: string; desc: string; output: string; exitOk: boolean; duration: number }> {
   return tools.map(tc => {
     const input = tc.input_data || {};
     const output = tc.output_data || {};
@@ -448,6 +448,7 @@ export function extractBashCommands(tools: ToolCall[]): Array<{ cmd: string; des
     const stdout = (output.stdout as string) || "";
     const stderr = (output.stderr as string) || "";
     return {
+      id: tc.id,
       cmd: desc || cmd.slice(0, 120),
       desc,
       output: stderr ? `[stderr] ${stderr}\n${stdout}` : stdout,

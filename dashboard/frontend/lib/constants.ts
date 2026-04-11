@@ -45,6 +45,9 @@ export const MAX_VISIBLE_TOASTS = 3;
 
 // Event feed
 export const SCROLL_BOTTOM_THRESHOLD = 20;
+export const SCROLL_DEBOUNCE_MS = 150;
+export const GLOBAL_CLOCK_INTERVAL_MS = 1000;
+export const SSE_RECONNECT_DELAY_MS = 5000;
 
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];

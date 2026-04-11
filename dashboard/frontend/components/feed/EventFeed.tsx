@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, PendingMessage } from "@/lib/types";
-import { SCROLL_BOTTOM_THRESHOLD } from "@/lib/constants";
+import { SCROLL_BOTTOM_THRESHOLD, SCROLL_DEBOUNCE_MS } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
@@ -16,7 +16,6 @@ const FAB_ANIMATE = { opacity: 1, y: 0 };
 const FAB_EXIT = { opacity: 0, y: 8 };
 const FAB_TRANSITION = { duration: 0.15 };
 
-const SCROLL_BEHAVIOR = "smooth" as const;
 const CARD_ENTER_DURATION = 0.2;
 const CARD_ENTER_Y = 6;
 const CARD_ENTER_EASE = "easeOut";
@@ -42,6 +41,8 @@ export function EventFeed({
   const [autoScroll, setAutoScroll] = useState(true);
   const [userScrolled, setUserScrolled] = useState(false);
   const [seenCount, setSeenCount] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const lastScrollTimeRef = useRef<number>(0);
 
   const grouped = useMemo(() => groupEvents(events), [events]);
 
@@ -63,9 +64,18 @@ export function EventFeed({
   }, [userScrolled, events.length]);
 
   useEffect(() => {
-    if (autoScroll && containerRef.current?.scrollTo) {
-      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
-    }
+    if (!autoScroll || !containerRef.current?.scrollTo) return;
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (!containerRef.current?.scrollTo) return;
+      const now = Date.now();
+      const behavior: ScrollBehavior =
+        now - lastScrollTimeRef.current < SCROLL_DEBOUNCE_MS ? "instant" : "smooth";
+      lastScrollTimeRef.current = now;
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior });
+    });
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
   }, [grouped, pendingMessages, autoScroll]);
 
   const handleScroll = useCallback(() => {
@@ -78,7 +88,7 @@ export function EventFeed({
 
   const scrollToBottom = useCallback(() => {
     if (containerRef.current?.scrollTo) {
-      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
       setAutoScroll(true);
       setUserScrolled(false);
       setSeenCount(events.length);
@@ -124,7 +134,7 @@ export function EventFeed({
           </div>
         ) : (
           <>
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               {grouped.map((gev, i) => (
                 <motion.div
                   key={gev.id}

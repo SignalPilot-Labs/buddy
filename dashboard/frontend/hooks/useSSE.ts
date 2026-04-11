@@ -3,7 +3,9 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
-import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS } from "@/lib/constants";
+import { fetchRun } from "@/lib/api";
+import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS, SSE_RECONNECT_DELAY_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import type { RunStatus } from "@/lib/types";
 import { mergeToolEvent } from "@/lib/eventMerge";
 
 export interface SSECursor {
@@ -66,6 +68,10 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
 
 const POLL_INTERVAL = SSE_POLL_INTERVAL_MS;
 
+type PendingSSEEvent =
+  | { type: "tool"; data: ToolCall }
+  | { type: "audit"; data: AuditEvent };
+
 export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [connected, setConnected] = useState(false);
@@ -78,6 +84,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const onSessionResumedRef = useRef(onSessionResumed);
   onRunEndedRef.current = onRunEnded;
   onSessionResumedRef.current = onSessionResumed;
+
+  // SSE batching refs
+  const pendingEventsRef = useRef<PendingSSEEvent[]>([]);
+  const batchScheduledRef = useRef(false);
 
   const clearEvents = useCallback(() => setEvents([]), []);
 
@@ -124,7 +134,6 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
           const result = await pollEvents(runId, afterTool, afterAudit);
           if (gen !== genRef.current) return;
           if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
-            let runEnded = false;
             setEvents((prev) => {
               let next = prev;
               for (const tc of result.tool_calls) {
@@ -134,16 +143,25 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
               for (const ae of result.audit_events) {
                 afterAudit = Math.max(afterAudit, ae.id ?? 0);
                 next = processAudit(next, ae);
-                if (ae.event_type === "run_ended") runEnded = true;
                 if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
               }
               return next;
             });
-            if (runEnded && pollingRef.current) {
-              clearInterval(pollingRef.current);
-              pollingRef.current = null;
-              setConnected(false);
-              onRunEndedRef.current?.();
+          } else {
+            // No new events — check if run has reached a terminal status
+            try {
+              const run = await fetchRun(runId);
+              if (gen !== genRef.current) return;
+              if (TERMINAL_STATUSES.has(run.status as RunStatus)) {
+                if (pollingRef.current) {
+                  clearInterval(pollingRef.current);
+                  pollingRef.current = null;
+                }
+                setConnected(false);
+                onRunEndedRef.current?.();
+              }
+            } catch (statusErr) {
+              console.warn("Failed to check run status:", statusErr);
             }
           }
         } catch (err) {
@@ -167,6 +185,31 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       if (!sseGotMessage) switchToPolling();
     }, SSE_FALLBACK_TIMEOUT_MS);
 
+    // Flush all pending SSE events in a single state update
+    function flushPending(): void {
+      batchScheduledRef.current = false;
+      const batch = pendingEventsRef.current;
+      pendingEventsRef.current = [];
+      if (batch.length === 0) return;
+      setEvents((prev) => {
+        let next = prev;
+        for (const item of batch) {
+          if (item.type === "tool") {
+            next = mergeToolEvent(next, item.data);
+          } else {
+            next = processAudit(next, item.data);
+          }
+        }
+        return next;
+      });
+    }
+
+    function scheduleFlush(): void {
+      if (batchScheduledRef.current) return;
+      batchScheduledRef.current = true;
+      queueMicrotask(flushPending);
+    }
+
     es.addEventListener("connected", () => {
       if (gen !== genRef.current) return;
       sseGotMessage = true;
@@ -184,7 +227,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
-        setEvents((prev) => mergeToolEvent(prev, data));
+        pendingEventsRef.current.push({ type: "tool", data });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse tool_call SSE event:", err);
       }
@@ -196,7 +240,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       try {
         const raw: AuditEvent = JSON.parse(e.data);
         if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
-        setEvents((prev) => processAudit(prev, raw));
+        pendingEventsRef.current.push({ type: "audit", data: raw });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse audit SSE event:", err);
       }
@@ -223,7 +268,17 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     es.onerror = () => {
       if (gen !== genRef.current) return;
       setConnected(false);
-      if (!sseGotMessage) switchToPolling();
+      if (sseGotMessage) {
+        // SSE was working then dropped — wait 5s for EventSource to auto-reconnect
+        // before switching to polling.
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
+          if (gen !== genRef.current) return;
+          switchToPolling();
+        }, SSE_RECONNECT_DELAY_MS);
+      } else {
+        switchToPolling();
+      }
     };
   }, []);
 

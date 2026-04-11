@@ -39,6 +39,7 @@ export function GroupedEventCard({
           thinking={event.thinking}
           ts={event.ts}
           isLast={isLast}
+          runActive={runActive}
         />
       );
     case "tool_group":

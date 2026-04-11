@@ -79,8 +79,8 @@ export function BashGroupCard({
               <span className="text-[9px] text-[#777] ml-2">bash</span>
             </div>
             <div className="bg-black/40 p-3 space-y-3 max-h-[500px] overflow-y-auto font-mono text-[10px]">
-              {commands.map((cmd, i) => (
-                <div key={i}>
+              {commands.map((cmd) => (
+                <div key={cmd.id}>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[#00ff88]/60">$</span>
                     <span className="text-[#ccc] flex-1">{cmd.cmd}</span>
@@ -162,12 +162,12 @@ export function PlaywrightGroupCard({
           className="border-t border-white/[0.04] overflow-hidden"
         >
           <div className="p-3 space-y-2 max-h-[400px] overflow-y-auto">
-            {tools.map((tc, i) => {
+            {tools.map((tc) => {
               const cat = getToolCategory(tc.tool_name);
               const inp = tc.input_data || {};
               return (
                 <div
-                  key={i}
+                  key={tc.id}
                   className="flex items-center gap-2 text-[10px] py-1 px-2 rounded hover:bg-white/[0.02] transition-colors"
                 >
                   <span className="opacity-50 shrink-0">
