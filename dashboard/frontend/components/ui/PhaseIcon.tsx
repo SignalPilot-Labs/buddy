@@ -1,81 +1,57 @@
 "use client";
 
 import type { ReactElement } from "react";
+import {
+  MagnifyingGlassIcon,
+  ClipboardDocumentListIcon,
+  WrenchScrewdriverIcon,
+  EyeIcon,
+} from "@heroicons/react/24/outline";
 import type { SubagentPhase } from "@/lib/phaseColors";
 import { AgentIcon } from "@/components/ui/ToolIcons";
 
-export function ExploreIcon({ color }: { color?: string }): ReactElement {
+// Phase icons use Heroicons (outline 24) wrapped in a span that carries the
+// dynamic phase color via `color` so the icons inherit it through
+// currentColor. Semantically:
+//   explore → magnifying glass (searching the codebase)
+//   plan    → clipboard with list (drafting steps)
+//   build   → wrench & screwdriver (making changes)
+//   review  → eye (inspecting) — deliberately NOT a checkmark, which reads
+//             as "done/success" and collides with card status semantics.
+
+const ICON_CLASS = "h-[14px] w-[14px]";
+
+function PhaseIconWrapper({
+  Icon,
+  color,
+}: {
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  color?: string;
+}): ReactElement {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke={color || "currentColor"}
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <span
+      className="inline-flex items-center justify-center"
+      style={color ? { color } : undefined}
     >
-      <circle cx="7" cy="7" r="5.5" />
-      <polygon points="5,3.5 10.5,5 9,10.5 3.5,9" strokeWidth="1.2" />
-    </svg>
+      <Icon className={ICON_CLASS} strokeWidth={1.75} />
+    </span>
   );
+}
+
+export function ExploreIcon({ color }: { color?: string }): ReactElement {
+  return <PhaseIconWrapper Icon={MagnifyingGlassIcon} color={color} />;
 }
 
 export function PlanIcon({ color }: { color?: string }): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke={color || "currentColor"}
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="2.5" y="1.5" width="9" height="11" rx="1" />
-      <line x1="5" y1="4.5" x2="9.5" y2="4.5" />
-      <line x1="5" y1="7" x2="9.5" y2="7" />
-      <line x1="5" y1="9.5" x2="8" y2="9.5" />
-    </svg>
-  );
+  return <PhaseIconWrapper Icon={ClipboardDocumentListIcon} color={color} />;
 }
 
 export function BuildIcon({ color }: { color?: string }): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke={color || "currentColor"}
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8.5 2.5L5 6l2 2 3.5-3.5" />
-      <path d="M5 6L2 12l6-3-2-2" />
-    </svg>
-  );
+  return <PhaseIconWrapper Icon={WrenchScrewdriverIcon} color={color} />;
 }
 
 export function ReviewIcon({ color }: { color?: string }): ReactElement {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      stroke={color || "currentColor"}
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="7" cy="7" r="5.5" />
-      <polyline points="4.5 7 6.5 9 9.5 5" />
-    </svg>
-  );
+  return <PhaseIconWrapper Icon={EyeIcon} color={color} />;
 }
 
 export function getPhaseIcon(
