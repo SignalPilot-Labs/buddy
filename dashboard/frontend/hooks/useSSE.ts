@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
-import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS, DEFAULT_AGENT_ROLE } from "@/lib/constants";
+import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS, SSE_RECONNECT_DELAY_MS, SSE_MAX_RECONNECTS, DEFAULT_AGENT_ROLE } from "@/lib/constants";
 import { mergeToolEvent } from "@/lib/eventMerge";
 
 export interface SSECursor {
@@ -85,6 +85,14 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   onRunEndedRef.current = onRunEnded;
   onSessionResumedRef.current = onSessionResumed;
 
+  // Cursor refs — track the highest IDs seen so reconnect/polling can resume
+  const afterToolRef = useRef(0);
+  const afterAuditRef = useRef(0);
+
+  // Reconnect state
+  const reconnectCountRef = useRef(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // rAF batch buffer: accumulate pending events and flush in a single setState
   const pendingRef = useRef<PendingItem[]>([]);
   const flushScheduledRef = useRef(false);
@@ -97,8 +105,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       let next = prev;
       for (const item of items) {
         if (item.type === "tool") {
+          afterToolRef.current = Math.max(afterToolRef.current, item.data.id ?? 0);
           next = mergeToolEvent(next, item.data);
         } else {
+          afterAuditRef.current = Math.max(afterAuditRef.current, item.data.id ?? 0);
           next = processAudit(next, item.data);
         }
       }
@@ -116,6 +126,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
 
   const disconnect = useCallback(() => {
     genRef.current++;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
@@ -133,20 +147,24 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   }, []);
 
   const connect = useCallback((runId: string, cursor: SSECursor) => {
-    // Clean up any existing connection
+    // Clean up any existing connection and pending reconnect
+    if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
 
     const gen = ++genRef.current;
     runIdRef.current = runId;
+
+    // Initialise cursor refs from the caller-supplied cursor
+    afterToolRef.current = cursor.afterTool;
+    afterAuditRef.current = cursor.afterAudit;
+
     // Do NOT clear events here — the caller (useDashboard) manages clearing
     // to avoid the flash of empty state before history loads.
     setConnected(false);
 
     let sseGotMessage = false;
-    let afterTool = cursor.afterTool;
-    let afterAudit = cursor.afterAudit;
 
     // --- Polling fallback ---
     function startPolling() {
@@ -155,18 +173,18 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       pollingRef.current = setInterval(async () => {
         if (gen !== genRef.current) return;
         try {
-          const result = await pollEvents(runId, afterTool, afterAudit);
+          const result = await pollEvents(runId, afterToolRef.current, afterAuditRef.current);
           if (gen !== genRef.current) return;
           if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
             let runEnded = false;
             setEvents((prev) => {
               let next = prev;
               for (const tc of result.tool_calls) {
-                afterTool = Math.max(afterTool, tc.id ?? 0);
+                afterToolRef.current = Math.max(afterToolRef.current, tc.id ?? 0);
                 next = mergeToolEvent(next, tc);
               }
               for (const ae of result.audit_events) {
-                afterAudit = Math.max(afterAudit, ae.id ?? 0);
+                afterAuditRef.current = Math.max(afterAuditRef.current, ae.id ?? 0);
                 next = processAudit(next, ae);
                 if (ae.event_type === "run_ended") runEnded = true;
                 if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
@@ -204,6 +222,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     es.addEventListener("connected", () => {
       if (gen !== genRef.current) return;
       sseGotMessage = true;
+      reconnectCountRef.current = 0;
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       setConnected(true);
     });
@@ -249,8 +268,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
           let next = prev;
           for (const item of pending) {
             if (item.type === "tool") {
+              afterToolRef.current = Math.max(afterToolRef.current, item.data.id ?? 0);
               next = mergeToolEvent(next, item.data);
             } else {
+              afterAuditRef.current = Math.max(afterAuditRef.current, item.data.id ?? 0);
               next = processAudit(next, item.data);
             }
           }
@@ -271,7 +292,21 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     es.onerror = () => {
       if (gen !== genRef.current) return;
       setConnected(false);
-      if (!sseGotMessage) switchToPolling();
+      if (!sseGotMessage) {
+        switchToPolling();
+        return;
+      }
+      // SSE was live and then dropped — attempt reconnect
+      if (reconnectCountRef.current < SSE_MAX_RECONNECTS) {
+        reconnectCountRef.current++;
+        const capturedGen = gen;
+        reconnectTimerRef.current = setTimeout(() => {
+          if (capturedGen !== genRef.current) return;
+          connect(runId, { afterTool: afterToolRef.current, afterAudit: afterAuditRef.current });
+        }, SSE_RECONNECT_DELAY_MS);
+      } else {
+        switchToPolling();
+      }
     };
   }, [scheduleFlush]);
 
