@@ -2,7 +2,7 @@
 
 import type { FeedEvent, ToolCall } from "@/lib/types";
 import { fetchToolCalls, fetchAuditLog } from "@/lib/api";
-import { HISTORY_FETCH_LIMIT } from "@/lib/constants";
+import { HISTORY_FETCH_LIMIT, DEFAULT_AGENT_ROLE } from "@/lib/constants";
 
 function mergeToolPhases(tools: ToolCall[]): ToolCall[] {
   // Pair pre/post tool rows strictly by tool_use_id. An unmatched post is
@@ -46,10 +46,27 @@ function buildAuditEvents(audits: { id: number; run_id: string; ts: string; even
     }
     if (a.event_type === "llm_text" || a.event_type === "llm_thinking") {
       const kind = a.event_type === "llm_text" ? "llm_text" as const : "llm_thinking" as const;
-      const role = String(details.agent_role || "worker");
-      const last = events[events.length - 1];
-      if (last && last._kind === kind && last.agent_role === role) {
-        events[events.length - 1] = { ...last, text: last.text + String(details.text || "") };
+      const role = String(details.agent_role || DEFAULT_AGENT_ROLE);
+
+      // Scan backward for the last matching event of this kind+role.
+      // Stop at tool/audit/usage boundaries — same logic as useSSE processAudit.
+      let matchIndex = -1;
+      let foundBoundary = false;
+      for (let i = events.length - 1; i >= 0; i--) {
+        const e = events[i];
+        if (e._kind === kind && e.agent_role === role) {
+          matchIndex = i;
+          break;
+        }
+        if (e._kind === "tool" || e._kind === "audit" || e._kind === "usage") {
+          foundBoundary = true;
+          break;
+        }
+      }
+
+      if (matchIndex >= 0 && !foundBoundary) {
+        const existing = events[matchIndex] as Extract<FeedEvent, { _kind: "llm_text" | "llm_thinking" }>;
+        events[matchIndex] = { ...existing, text: existing.text + String(details.text || "") };
       } else {
         events.push({ _kind: kind, text: String(details.text || ""), ts: a.ts, agent_role: role });
       }

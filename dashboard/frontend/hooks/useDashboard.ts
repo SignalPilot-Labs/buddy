@@ -237,13 +237,14 @@ export function useDashboard(): DashboardState {
       setPendingMessages([]);
       localStorage.setItem("autofyn_last_run_id", id);
       setHistoryLoading(true);
-      sseRef.current.clearEvents();
       let lastToolId = 0;
       let lastAuditId = 0;
       let loadedEvents: FeedEvent[] = [];
       try {
         const result = await loadRunHistory(id);
         if (gen !== selectGenRef.current) return loadedEvents;
+        // Clear live events atomically with the history load — no empty flash.
+        sseRef.current.clearEvents();
         setHistoryEvents(result.events);
         loadedEvents = result.events;
         lastToolId = result.lastToolId;

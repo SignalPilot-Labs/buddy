@@ -13,20 +13,22 @@ export function LLMMessageCard({
   thinking,
   ts,
   isLast,
+  runActive,
 }: {
   role: string;
   text: string;
   thinking: string;
   ts: string;
   isLast: boolean;
+  runActive: boolean;
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const isPlanner = role === "planner";
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
       className={clsx(
         "rounded-lg p-4",
@@ -124,7 +126,7 @@ export function LLMMessageCard({
               isPlanner ? "text-[#cc9966]" : "text-[#bbb]"
             )}
           />
-          {isLast && (
+          {isLast && runActive && (
             <span
               className={clsx(
                 "inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]",
@@ -143,8 +145,8 @@ export function LLMMessageCard({
 export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
       className="flex items-center gap-2 px-4 py-2"
     >
@@ -185,9 +187,9 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
   const bgColor = failed ? "bg-[#ff4444]/10" : "bg-[#88ccff]/10";
   return (
     <motion.div
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="flex justify-end px-4 py-1.5"
     >
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
@@ -227,8 +229,8 @@ export function MilestoneCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
