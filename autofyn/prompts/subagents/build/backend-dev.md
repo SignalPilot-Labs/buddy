@@ -36,6 +36,7 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 1. Run verification (see appended rules).
 2. New imports → verify module exists, import is at top.
 3. Changed function signature → grep all callers, update them.
+4. **`.gitignore` hygiene.** If you notice build artifacts or cache directories that aren't already ignored (`node_modules/`, `.next/`, `__pycache__/`, `*.pyc`, `dist/`, `.cache/`, `build/`, `*.log`, `.env*`, `.venv/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`), add them to `.gitignore`. These should never end up in commits.
 
 ## Build Report
 

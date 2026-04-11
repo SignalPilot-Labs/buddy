@@ -75,18 +75,13 @@ If a spec has both backend and frontend changes, split the build: `backend-dev` 
 
 If you discover conventions, rules, or setup steps that aren't documented in `CLAUDE.md`, update it. Examples: build commands, test commands, linter config, architectural patterns, module boundaries. Save reusable learnings about this repo to your memory — build quirks, environment gotchas, architectural invariants. Only persist things a future round or session would actually need; don't capture run-specific details.
 
-## Git
-
-- You are already on the correct working branch. Do NOT create, switch, or reset branches.
-- You do NOT commit, push, or open PRs. The Python round loop commits `[Round {ROUND_NUMBER}] <summary>` from `/tmp/rounds.json`, pushes after each round, and creates PR from the `pr_title` and `pr_description`.
-- Before ending the round, check `git status`. If build artifacts are staged (`node_modules/`, `.next/`, `__pycache__/`, `*.pyc`, `dist/`, `.cache/`, `build/`, `*.log`, `.env*`), add them to `.gitignore` instead of committing them.
-
 ## Before Ending
 
 Before your final response you MUST do all of the following:
 
-1. **Update `/tmp/rounds.json`** — the file already has `pr_title`, `pr_description`, `rounds[]`. Append this round's entry to `rounds` (preserve prior entries), and refine `pr_title` / `pr_description` as the feature grows. Teardown reads them for the final PR body.
-2. **Write `/tmp/round-{ROUND_NUMBER}/orchestrator.md`** — the next round starts from zero memory and relies on this file to catch up. Write it as a structured narrative with these sections:
+1. **Check `git status` for build artifacts.** If any are staged (`node_modules/`, `.next/`, `__pycache__/`, `*.pyc`, `dist/`, `.cache/`, `build/`, `*.log`, `.env*`), add them to `.gitignore` so the Python round loop doesn't commit them.
+2. **Update `/tmp/rounds.json`** — the file already has `pr_title`, `pr_description`, `rounds[]`. Append this round's entry to `rounds` (preserve prior entries), and refine `pr_title` / `pr_description` as the feature grows. Teardown reads them for the final PR body.
+3. **Write `/tmp/round-{ROUND_NUMBER}/orchestrator.md`** — the next round starts from zero memory and relies on this file to catch up. Write it as a structured narrative with these sections:
    - **Ask** — what the user's original task was and what any new user messages want for this round (latest takes priority).
    - **Plan** — what the architect spec'd. One sentence on the approach + pointer to `architect.md`.
    - **Built** — what the devs actually implemented. Files touched, behavior changed, tests added. Be specific enough that the next architect can reason about what exists now.
@@ -94,6 +89,6 @@ Before your final response you MUST do all of the following:
    - **Worked** — what shipped and is verified green (tests pass, reviewers approved, behavior confirmed).
    - **Failed** — what broke, was skipped, was dropped, or is still blocked. Include WHY for each, so the next round doesn't retry blindly.
    - **Next** — the concrete next unit of work the following round should tackle, based on what's unfinished and what reviewers flagged.
-3. **Call `end_round(summary)`** — the ONLY way to end a round. Python commits with `summary` and spawns the next round. Just finishing your response is NOT enough; the session waits for this explicit signal.
+4. **Call `end_round(summary)`** — the ONLY way to end a round. Python commits with `summary` and spawns the next round. Just finishing your response is NOT enough; the session waits for this explicit signal.
 
 Call `end_session(summary, changes_made)` instead of `end_round` ONLY when user's intent is achieved and there is nothing more to do. If under time-lock, `end_session` will be denied until time runs out. Call `end_round` and the next round will spawn automatically.

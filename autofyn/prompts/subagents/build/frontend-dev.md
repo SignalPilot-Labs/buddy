@@ -31,6 +31,7 @@ You own the implementation. The architect tells you WHAT to build and WHERE — 
 
 1. Run verification (see appended rules).
 2. If you modified props or hooks, grep for all consumers and update them.
+3. **`.gitignore` hygiene.** If you notice build artifacts or cache directories that aren't already ignored (`node_modules/`, `.next/`, `dist/`, `.cache/`, `build/`, `.turbo/`, `*.log`, `.env*`, `coverage/`), add them to `.gitignore`. These should never end up in commits.
 
 ## Build Report
 
