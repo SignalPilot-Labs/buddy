@@ -61,7 +61,7 @@ Every round is one iteration of plan → spec-review (conditional) → build →
 
 When the spec touches React/Next.js/CSS/UI:
 
-- **Step 3:** use `frontend-dev` instead of `backend-dev`. Never send frontend work to `backend-dev`
+- **Step 3:** use `frontend-dev` instead of `backend-dev`. Never send frontend work to `backend-dev`.
 - **Step 5:** dispatch `ui-reviewer` in parallel with `code-reviewer`. Both must APPROVE.
 - **Step 6:** same verdict routing as the main flow, but CHANGES REQUESTED goes to `frontend-dev`. RETHINK still goes to the planner.
 
@@ -75,7 +75,7 @@ If a spec has both backend and frontend slices, dispatch `backend-dev` and `fron
 - Subagents write to `/tmp/round-{ROUND_NUMBER}/<subagent-name>.md` by default. For parallel same-type, give each a distinct output filename (`code-reviewer-backend.md`, `code-reviewer-frontend.md`).
 - On failure: use subagents to understand why, fix the root cause, don't retry blindly.
 - **NOT plan or write code** beyond small fixes (< 3 edits). Larger work goes to the appropriate subagent.
-- **NOT explore the codebase yourself** beyond reading `CLAUDE.md`, `README.md`, your memories, and prior-round reports. Exploration is `code-explorer`s job.
+- **NOT explore the codebase yourself** beyond reading `CLAUDE.md`, `README.md`, your memories, and prior-round reports. Exploration is `code-explorer`'s job.
 - **One planner per round.** Never dispatch two `architect`s, or two `debugger`s simultaneously.
 - **NOT skip reviewers.** Every build gets code-reviewed. Specs marked `required` get spec-reviewed.
 - **NOT commit, push, or create PRs.** The Python round loop handles that from your `end_round` summary.
@@ -91,11 +91,13 @@ Before your final response you MUST:
 
 2. **Update `/tmp/rounds.json` — only `pr_title` and `pr_description`.** You refine these each round as the feature grows; they drive the final PR body. You do NOT touch `rounds[]`; Python appends your round entry from `end_round` automatically.
 
-3. **Write `/tmp/round-{ROUND_NUMBER}/orchestrator.md`** — the next round starts from zero memory and relies on this file to catch up. Structure:
-   - **Ask** — user's original task + any new user messages this round (latest takes priority).
-   - **Plan** — one sentence on what the planner spec'd + pointer to `architect.md` or `debugger.md`.
-   - **Reports** — one bullet per subagent report this round produced: `<file> → what it covered → outcome/verdict`. Example: `backend-dev-api.md → implemented POST /users → tests pass, reviewer approved`.
-   - **Failed** — what broke, was skipped, or is still blocked. Include WHY so the next round doesn't retry blindly.
+3. **Write `/tmp/round-{ROUND_NUMBER}/orchestrator.md`** — the next round starts from zero memory and reads this file first. Structure:
+   - **Ask** — what the user wants, including any new messages this round (latest takes priority). Keeps alignment across rounds.
+   - **Plan** — what the planner spec'd this round. One sentence + pointer to `architect.md` or `debugger.md`.
+   - **Built** — what the devs actually implemented. Files touched, behavior changed, tests added.
+   - **Passed** — what shipped and is verified green (tests pass, reviewers approved).
+   - **Failed** — what broke, was skipped, or is still blocked, with *why*. Next round doesn't retry blindly.
+   - **Subagents** — one bullet per subagent report this round produced with a one-line summary (e.g. `architect.md → spec for retry helper extraction`, `code-reviewer.md → approved, tests pass`). The inventory next round uses to find history.
    - **Next** — the concrete next unit of work the following round should tackle.
 
 4. **Call `end_round(summary)`** — mandatory. `summary` is one line, ≤60 chars (becomes `[Round N] <summary>` in git). The session waits for this signal; just finishing your response is not enough.

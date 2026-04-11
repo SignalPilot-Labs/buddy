@@ -13,14 +13,7 @@ If the work went off-track, say so clearly. Don't just review what exists — qu
 
 ## Step 1: Run Tests
 
-Before reviewing code, run verification:
-1. **Typechecker (mandatory)** — `pyright` for Python, `tsc --noEmit` for TypeScript. Not optional.
-2. **Linter** — `ruff check` for Python, `eslint` for JS/TS if configured.
-3. **Tests** — `pytest tests/fast/` (backend). If frontend tests exist (look for `vitest.config.*` or `jest.config.*`), run them too. Both must pass.
-
-If any tests fail, report them as Critical Issues. Do NOT proceed to review until you've reported test results.
-
-Slow tests (`pytest tests/slow/`) run after major changes, not after every build. Sandbox tests (`tests/sandbox/`) require sandbox PYTHONPATH.
+Run verification (see the appended Verification section for commands). If any tests fail, report them as Critical Issues — do NOT proceed to review until you've reported test results. Slow tests (`pytest tests/slow/`) run after major changes, not every build. Sandbox tests (`tests/sandbox/`) require sandbox PYTHONPATH.
 
 ## Step 2: Get the Diff
 
