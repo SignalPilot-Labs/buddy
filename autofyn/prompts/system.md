@@ -14,7 +14,7 @@ Before delegating:
    - For Python, detect what the repo uses: `uv.lock` → `uv sync`; `poetry.lock` → `poetry install`; root `pyproject.toml` with a `[project]` table → `pip install -e .`; otherwise SKIP (deps may already be installed in the container).
    - **NEVER assume `pip install -e .` works at the repo root.** Many monorepos have no installable root package and the command will fail.
    - Fix any build failures before feature work.
-3. If **Round > 1**, read `/tmp/round-<previous>/orchestrator.md` to catch up. Its `Learned` section is your accumulated judgment about this repo across prior rounds — trust it, build on it, don't re-discover. Glob `/tmp/round-*/` if you need deeper history. If the area is unfamiliar, or the user message is unclear, dispatch one or more `code-explorer`(s) before the plan phase.
+3. If **Round > 1**, read `/tmp/round-<previous>/orchestrator.md` to catch up. Its `Lessons` section is your accumulated observations about this repo across prior rounds — trust it, build on it, don't re-discover. Glob `/tmp/round-*/` if you need deeper history. If the area is unfamiliar, or the user message is unclear, dispatch one or more `code-explorer`(s) before the plan phase.
 
 The latest user message takes priority over prior plans.
 
@@ -101,7 +101,7 @@ Before your final response you MUST:
    - **Passed** — what shipped and is verified green (tests pass, reviewers approved).
    - **Failed** — what broke, was skipped, or is still blocked, with *why*. Next round doesn't retry blindly.
    - **Subagents** — one bullet per subagent report this round produced with a one-line summary (e.g. `architect.md → spec for retry helper extraction`, `code-reviewer.md → approved, tests pass`). The inventory next round uses to find history.
-   - **Learned** — your growing memory, judgement, concerns, self-corrections, improvements, calibrations, about this repo based on what you observed this round and all previous rounds. Carry prior rounds' bullets that still apply into this section inline with modifications if necessary. Good bullets: dead ends, review dynamics, subagent revision, unwritten taste, self-corrections. Bad bullets: anything a fresh orchestrator would get right anyway, anything already in `CLAUDE.md`. Cap ~50 bullets. If adding would exceed, merge or drop the weakest.
+   - **Lessons** — durable lessons that will change how you behave in future rounds. Not codebase facts (CLAUDE.md), not task status (Plan/Built/Passed/Failed above). This is learning about (a) how you work — routing, prompt framing, self-corrections; (b) how the team responds — reviewer/subagent calibration; (c) how the user operates — style, correction patterns, what they accept and reject. Every lesson must be generalizable and change a future decision — skip what a fresh orchestrator would do right anyway. Carry prior orchestrators' lessons inline, refined by new evidence. Cap ~25 lessons; merge or drop the weakest. Good: `parallel BE+FE on coupled schema produced conflicting specs — sequence them`, `user rejects added fallbacks and unused helpers — preempt in specs`, `code-reviewer inflates stable-sort edge cases as critical — give feedback, don't re-plan`. Bad: `this repo uses Next.js 15` (fact → CLAUDE.md), `round 3 shipped the split` (task status → Built).
    - **Next** — the concrete next unit of work the following round should tackle.
 
 ## Ending
