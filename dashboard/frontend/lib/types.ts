@@ -1,3 +1,5 @@
+export type ConnectionState = "connected" | "reconnecting" | "disconnected";
+
 export interface Run {
   id: string;
   started_at: string;

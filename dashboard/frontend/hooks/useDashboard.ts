@@ -66,6 +66,7 @@ export function useDashboard(): DashboardState {
   });
   const [busy, setBusy] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyTruncated, setHistoryTruncated] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -88,8 +89,9 @@ export function useDashboard(): DashboardState {
     sseRef.current.disconnect();
     setPendingMessages([]);
     setHistoryLoading(true);
-    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
+    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId, truncated }) => {
       setHistoryEvents(events);
+      setHistoryTruncated(truncated);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
@@ -103,7 +105,7 @@ export function useDashboard(): DashboardState {
     });
   }, []);
 
-  const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
+  const { events: liveEvents, connected, connectionState, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
@@ -273,6 +275,7 @@ export function useDashboard(): DashboardState {
         const result = await loadRunHistory(id);
         if (gen !== selectGenRef.current) return loadedEvents;
         setHistoryEvents(result.events);
+        setHistoryTruncated(result.truncated);
         loadedEvents = result.events;
         lastToolId = result.lastToolId;
         lastAuditId = result.lastAuditId;
@@ -419,6 +422,8 @@ export function useDashboard(): DashboardState {
     agentHealth,
     activeRunHealth,
     connected,
+    connectionState,
+    historyTruncated,
     branches,
     isMobile,
     isConfigured,

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import type { Run, FeedEvent, RunStatus, PendingMessage } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, PendingMessage, ConnectionState } from "@/lib/types";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { CommandInput } from "@/components/controls/CommandInput";
@@ -20,6 +20,8 @@ export interface MobileLayoutProps {
   runStatus: RunStatus | null;
   selectedRun: Run | null;
   connected: boolean;
+  connectionState: ConnectionState;
+  historyTruncated: boolean;
   busy: boolean;
   historyLoading: boolean;
   controlsOpen: boolean;
@@ -89,6 +91,8 @@ export function MobileLayout({
   runStatus,
   selectedRun,
   connected,
+  connectionState,
+  historyTruncated,
   busy,
   historyLoading,
   controlsOpen,
@@ -123,6 +127,7 @@ export function MobileLayout({
                 runActive={runActive(runStatus)}
                 runPaused={runStatus === "paused"}
                 isLoading={historyLoading}
+                historyTruncated={historyTruncated}
               />
               <CommandInput
                 runId={selectedRunId}

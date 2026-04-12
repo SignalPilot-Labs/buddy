@@ -1,4 +1,4 @@
-import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage, ConnectionState } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
 
 export interface DashboardState {
@@ -14,6 +14,8 @@ export interface DashboardState {
   agentHealth: AgentHealth | null;
   activeRunHealth: HealthRunEntry | undefined;
   connected: boolean;
+  connectionState: ConnectionState;
+  historyTruncated: boolean;
   branches: string[];
   isMobile: boolean;
   // Derived booleans

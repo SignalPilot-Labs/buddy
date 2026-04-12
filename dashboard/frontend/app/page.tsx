@@ -39,6 +39,8 @@ function MonitorPageInner() {
     agentHealth,
     activeRunHealth,
     connected,
+    connectionState,
+    historyTruncated,
     branches,
     isMobile,
     isConfigured,
@@ -221,7 +223,7 @@ function MonitorPageInner() {
           {/* Center — Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0 relative">
             <ConnectionBanner
-              connected={connected}
+              connectionState={connectionState}
               runStatus={runStatus}
               showToast={showToast}
             />
@@ -231,6 +233,7 @@ function MonitorPageInner() {
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
               isLoading={historyLoading}
+              historyTruncated={historyTruncated}
             />
             <CommandInput
               runId={selectedRunId}
@@ -271,6 +274,8 @@ function MonitorPageInner() {
           runStatus={runStatus}
           selectedRun={selectedRun}
           connected={connected}
+          connectionState={connectionState}
+          historyTruncated={historyTruncated}
           busy={busy}
           historyLoading={historyLoading}
           controlsOpen={controlsOpen}

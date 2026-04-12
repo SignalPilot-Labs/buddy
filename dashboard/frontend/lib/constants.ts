@@ -47,6 +47,16 @@ export const MAX_VISIBLE_TOASTS = 3;
 export const SCROLL_BOTTOM_THRESHOLD = 20;
 export const AGENT_IDLE_TIMER_INTERVAL_MS = 5000;
 
+// Skeleton loading state
+export const SKELETON_COUNT = 5;
+export const SKELETON_HEIGHT = "h-12";
+export const SKELETON_WIDTHS: ReadonlyArray<string> = ["w-1/3", "w-1/2", "w-2/5", "w-3/5", "w-1/4"];
+
+// SSE reconnect backoff
+export const RECONNECT_BASE_MS = 1000;
+export const RECONNECT_MAX_MS = 30000;
+export const RECONNECT_MAX_ATTEMPTS = 10;
+
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
 
