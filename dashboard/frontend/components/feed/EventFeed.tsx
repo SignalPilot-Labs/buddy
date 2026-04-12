@@ -151,7 +151,7 @@ export function EventFeed({
                 </span>
               </div>
             )}
-            <AnimatePresence mode="sync">
+            <AnimatePresence initial={false}>
               {grouped.map((gev, i) => (
                 <motion.div
                   key={gev.id}

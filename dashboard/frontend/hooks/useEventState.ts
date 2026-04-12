@@ -71,6 +71,13 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
   const allEvents = useMemo(() => {
     if (liveEvents.length === 0) return historyEvents;
     if (historyEvents.length === 0) return liveEvents;
+    // Common path: history is already sorted and live events follow chronologically.
+    // Only sort if timestamps overlap (reconnect scenario).
+    const lastHistoryTs = getEventTs(historyEvents[historyEvents.length - 1]);
+    const firstLiveTs = getEventTs(liveEvents[0]);
+    if (firstLiveTs >= lastHistoryTs) {
+      return [...historyEvents, ...liveEvents];
+    }
     return [...historyEvents, ...liveEvents].sort((a, b) => {
       const tsA = getEventTs(a);
       const tsB = getEventTs(b);

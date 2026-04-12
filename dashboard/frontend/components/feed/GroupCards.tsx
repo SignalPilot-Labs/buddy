@@ -8,7 +8,7 @@ import { getToolIcon } from "@/components/ui/ToolIcons";
 import {
   extractReadPaths,
   extractEditSummary,
-} from "@/lib/groupEvents";
+} from "@/lib/groupEventHelpers";
 import {
   Chevron,
   FileContentPreview,

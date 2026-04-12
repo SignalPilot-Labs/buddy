@@ -6,7 +6,7 @@ import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
-import { extractBashCommands } from "@/lib/groupEvents";
+import { extractBashCommands } from "@/lib/groupEventHelpers";
 import {
   Chevron,
   TerminalOutput,

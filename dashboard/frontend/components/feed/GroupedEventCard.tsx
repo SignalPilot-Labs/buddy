@@ -1,6 +1,6 @@
 "use client";
 
-import type { GroupedEvent } from "@/lib/groupEvents";
+import type { GroupedEvent } from "@/lib/groupEventTypes";
 import {
   LLMMessageCard,
   ControlMessage,
