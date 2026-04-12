@@ -1,5 +1,39 @@
 import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage, ConnectionState } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
+import type { Dispatch, RefObject, SetStateAction } from "react";
+
+export interface RunActionsConfig {
+  selectedRunId: string | null;
+  selectedRunIdRef: RefObject<string | null>;
+  addEvent: (event: FeedEvent) => void;
+  addPendingMessage: (prompt: string) => number;
+  markPendingFailed: (id: number) => void;
+  sseRef: RefObject<{ disconnect: () => void; clearEvents: () => void; connect: (id: string, cursors: { afterTool: number; afterAudit: number }) => void }>;
+  cursorsRef: RefObject<{ afterTool: number; afterAudit: number }>;
+  refreshRunsRef: RefObject<() => void>;
+  handleSelectRun: (id: string) => Promise<FeedEvent[]>;
+  activeRepoFilter: string | null;
+  setStartModalOpen: (v: boolean) => void;
+  setBusy: (v: boolean) => void;
+  setPendingMessagesRef: RefObject<Dispatch<SetStateAction<PendingMessage[]>>>;
+  setHistoryEventsRef: RefObject<(events: FeedEvent[]) => void>;
+  setHistoryLoadingRef: RefObject<(v: boolean) => void>;
+}
+
+export interface RunActions {
+  controlAction: (label: string, fn: (id: string) => Promise<unknown>) => Promise<void>;
+  handleStartRun: (
+    prompt: string | undefined,
+    budget: number,
+    durationMinutes: number,
+    baseBranch: string,
+    model?: string | undefined,
+  ) => Promise<void>;
+  handleInject: (prompt: string) => void;
+  handleRestart: (prompt: string) => void;
+  handleHeaderKill: () => void;
+  showKillConfirm: boolean;
+}
 
 export interface DashboardState {
   // Data
