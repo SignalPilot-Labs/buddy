@@ -154,12 +154,14 @@ export function useDashboard(): DashboardState {
     setStartModalOpen,
   });
 
+  const { clearPendingMessages, setBusy, onRunEnded } = runActions;
+
   // Keep clearPendingMessagesRef up to date after useRunActions is initialized
-  clearPendingMessagesRef.current = runActions.clearPendingMessages;
+  clearPendingMessagesRef.current = clearPendingMessages;
 
   const handleRunEnded = useCallback(() => {
-    runActions.onRunEnded();
-  }, [runActions]);
+    onRunEnded();
+  }, [onRunEnded]);
   handleRunEndedRef.current = handleRunEnded;
 
   const allEvents = useMemo(() => {
@@ -264,24 +266,24 @@ export function useDashboard(): DashboardState {
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEvents([]);
-    runActions.clearPendingMessages();
+    clearPendingMessages();
     sseRef.current.clearEvents();
     setBranches([]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
     fetchRepos().then(setRepos);
-  }, [runActions]);
+  }, [clearPendingMessages]);
 
   useEffect(() => {
     if (selectedRunId) {
       const found = runs.find((r) => r.id === selectedRunId);
       if (found) {
         setSelectedRun(found);
-        if (TERMINAL_STATUSES.has(found.status as RunStatus)) runActions.setBusy(false);
+        if (TERMINAL_STATUSES.has(found.status as RunStatus)) setBusy(false);
       }
     }
-  }, [runs, selectedRunId, runActions]);
+  }, [runs, selectedRunId, setBusy]);
 
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
@@ -306,10 +308,10 @@ export function useDashboard(): DashboardState {
       setTimeout(() => setShowKillConfirm(false), 3000);
       return;
     }
-    runActions.setBusy(true);
+    setBusy(true);
     void controlAction("Kill", killAgent);
     setShowKillConfirm(false);
-  }, [showKillConfirm, controlAction, runActions]);
+  }, [showKillConfirm, controlAction, setBusy]);
 
   const isConfigured = settingsStatus?.configured ?? false;
   const atCapacity = isAtCapacity(agentHealth);

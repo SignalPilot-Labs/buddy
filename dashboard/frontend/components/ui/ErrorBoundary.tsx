@@ -25,11 +25,24 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error("ErrorBoundary caught:", error, info);
   }
 
+  private handleRetry = (): void => {
+    this.setState({ hasError: false });
+  };
+
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? (
-        <div className="text-[10px] text-[#666] p-2 rounded border border-[#1a1a1a]">
-          Display error — data may be malformed
+      if (this.props.fallback !== undefined) {
+        return this.props.fallback;
+      }
+      return (
+        <div className="flex items-center gap-2 text-[10px] text-[#666] p-2 rounded border border-[#1a1a1a]">
+          <span>Display error — data may be malformed</span>
+          <button
+            onClick={this.handleRetry}
+            className="text-[#888] hover:text-[#ccc] underline underline-offset-2 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]"
+          >
+            Retry
+          </button>
         </div>
       );
     }

@@ -23,6 +23,7 @@ import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
 import { ToastProvider } from "@/components/ui/Toast";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
+import { MotionConfig } from "framer-motion";
 
 function MonitorPageInner() {
   const { showToast } = useToast();
@@ -304,8 +305,10 @@ function MonitorPageInner() {
 
 export default function MonitorPage() {
   return (
-    <ToastProvider>
-      <MonitorPageInner />
-    </ToastProvider>
+    <MotionConfig reducedMotion="user">
+      <ToastProvider>
+        <MonitorPageInner />
+      </ToastProvider>
+    </MotionConfig>
   );
 }
