@@ -29,6 +29,13 @@ RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
 ROUND_DIR_PREFIX = "/tmp/round-"
 ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
+# Persistent round archive on the agent container's `autofyn-rounds`
+# volume. Sandboxes never mount this — the agent pulls/pushes reports
+# via file_system HTTP on round boundaries, keeping per-run isolation.
+# Lives under agentuser's home so no runtime root is needed — the
+# Dockerfile creates + chowns the dir at build time and Docker's named
+# volume first-mount copies that ownership into the volume.
+ROUND_ARCHIVE_AGENT_DIR = "/home/agentuser/.autofyn/rounds"
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──

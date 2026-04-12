@@ -17,6 +17,7 @@ import re
 import time
 import uuid
 
+from memory.archiver import RoundArchiver
 from memory.metadata import MetadataStore
 from memory.report import ReportStore
 from user.inbox import UserInbox
@@ -83,11 +84,18 @@ async def bootstrap_run(
     time_lock = TimeLock(duration_minutes)
     reports = ReportStore(sandbox)
     metadata = MetadataStore(sandbox)
+    archiver = RoundArchiver(sandbox, run_id)
 
-    # Seed an empty rounds.json so the first-round orchestrator sees the
-    # canonical schema (pr_title / pr_description / rounds) instead of a
-    # missing file — removes a whole class of "what shape do I write?" bugs.
-    await metadata.save(RoundsMetadata.empty())
+    # Resume: if the agent volume already has rounds for this run_id,
+    # push them back into the new sandbox's /tmp and start counting
+    # from the next round. Fresh run: returns 0, we seed rounds.json.
+    starting_round = await archiver.restore_all()
+    if starting_round == 0:
+        # Seed an empty rounds.json so the first-round orchestrator sees
+        # the canonical schema instead of a missing file.
+        await metadata.save(RoundsMetadata.empty())
+    else:
+        log.info("Resumed run %s at round %d", run_id, starting_round + 1)
 
     run_start_time = time.time()
     base_session_options = _build_base_session_options(
@@ -113,11 +121,13 @@ async def bootstrap_run(
         time_lock=time_lock,
         reports=reports,
         metadata=metadata,
+        archiver=archiver,
         base_session_options=base_session_options,
         task=custom_prompt,
         model=model,
         fallback_model=fallback_model,
         run_start_time=run_start_time,
+        starting_round=starting_round,
     )
 
 

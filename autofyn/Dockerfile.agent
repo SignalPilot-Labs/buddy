@@ -24,6 +24,12 @@ WORKDIR /app
 # Create non-root user BEFORE copying app files (avoids slow chown -R)
 RUN useradd -m agentuser && chown agentuser:agentuser /app
 
+# Round archive mount point. Docker's first-mount on an empty named
+# volume copies the image dir's ownership into the volume, so creating
+# it here as agentuser avoids any runtime chown step.
+RUN mkdir -p /home/agentuser/.autofyn/rounds \
+    && chown -R agentuser:agentuser /home/agentuser/.autofyn
+
 # Config (required by db/connection.py and config loader)
 COPY --chown=agentuser:agentuser config/ /app/config/
 

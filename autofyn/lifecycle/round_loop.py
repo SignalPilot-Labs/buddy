@@ -53,12 +53,15 @@ async def run_rounds(
     time_lock = bootstrap.time_lock
     reports = bootstrap.reports
     metadata_store = bootstrap.metadata
+    archiver = bootstrap.archiver
     rid = run.run_id[:8]
 
     runner = RoundRunner(sandbox, run, inbox, time_lock)
     metadata_for_commit = metadata_store
 
-    round_number = 0
+    # Fresh run: 0 → first round is 1. Resumed run: starting_round is
+    # the highest archived round; we pick up at starting_round + 1.
+    round_number = bootstrap.starting_round
     while True:
         round_number += 1
         log.info("[%s] ── Round %d begin ──", rid, round_number)
@@ -106,6 +109,16 @@ async def run_rounds(
             metadata_store=metadata_for_commit,
             exec_timeout=exec_timeout,
         )
+
+        # Archive after outcome handling so the persisted rounds.json
+        # reflects record_round(N) from _commit_and_push_round — file
+        # and metadata snapshots stay consistent on resume.
+        try:
+            await archiver.archive_round(round_number)
+        except Exception as exc:
+            log.warning(
+                "[%s] archive_round(%d) failed: %s", rid, round_number, exc,
+            )
         if terminal is not None:
             return terminal
 

@@ -74,6 +74,45 @@ async def handle_ls(request: web.Request) -> web.Response:
     return web.json_response({"entries": entries})
 
 
+async def handle_read_dir(request: web.Request) -> web.Response:
+    """Read every regular file directly under a dir. Non-recursive."""
+    body = await request.json()
+    path = Path(body["path"])
+    if not path.exists() or not path.is_dir():
+        return web.json_response({"exists": False, "files": {}})
+    files: dict[str, str] = {}
+    total = 0
+    for entry in sorted(path.iterdir()):
+        if not entry.is_file():
+            continue
+        size = entry.stat().st_size
+        total += size
+        # Guard against a rogue multi-MB dir blowing the response.
+        if total > FS_READ_MAX_BYTES:
+            return web.json_response(
+                {"error": f"dir too large (>{FS_READ_MAX_BYTES})"},
+                status=413,
+            )
+        files[entry.name] = entry.read_text(encoding="utf-8")
+    return web.json_response({"exists": True, "files": files})
+
+
+async def handle_write_dir(request: web.Request) -> web.Response:
+    """Create a dir and write a filename→content map into it."""
+    body = await request.json()
+    path = Path(body["path"])
+    files: dict[str, str] = body["files"]
+    path.mkdir(parents=True, exist_ok=True)
+    for name, content in files.items():
+        # Filename must be a plain basename — no traversal out of `path`.
+        if "/" in name or name in ("", ".", ".."):
+            return web.json_response(
+                {"error": f"invalid filename: {name}"}, status=400,
+            )
+        (path / name).write_text(content, encoding="utf-8")
+    return web.json_response({"ok": True, "count": len(files)})
+
+
 def register(app: web.Application) -> None:
     """Attach all /file_system/* routes to the aiohttp app."""
     app.router.add_post("/file_system/write", handle_write)
@@ -81,3 +120,5 @@ def register(app: web.Application) -> None:
     app.router.add_post("/file_system/mkdir", handle_mkdir)
     app.router.add_post("/file_system/exists", handle_exists)
     app.router.add_post("/file_system/ls", handle_ls)
+    app.router.add_post("/file_system/read_dir", handle_read_dir)
+    app.router.add_post("/file_system/write_dir", handle_write_dir)

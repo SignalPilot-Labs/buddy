@@ -61,6 +61,11 @@ services:
     volumes:
       - .:/workspace:rw
       - /var/run/docker.sock:/var/run/docker.sock:rw
+      # Persistent round archive. Only the agent mounts this — pool
+      # sandboxes never see it, so runs can't read each other's reports.
+      # The Dockerfile pre-creates the dir as agentuser so Docker's
+      # first-mount copy preserves non-root ownership.
+      - autofyn-rounds:/home/agentuser/.autofyn/rounds
     working_dir: /workspace
     depends_on:
       dashboard:
@@ -120,3 +125,4 @@ volumes:
   claude-agent-sessions:
   agent-repo:
   sandbox-overlays:
+  autofyn-rounds:

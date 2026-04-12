@@ -16,6 +16,8 @@ class FileSystem:
         mkdir(path)                    -> None
         exists(path)                   -> bool
         ls(path)                       -> list[str]
+        read_dir(path)                 -> dict[str, str] | None
+        write_dir(path, files)         -> None
     """
 
     def __init__(self, http: httpx.AsyncClient) -> None:
@@ -64,3 +66,22 @@ class FileSystem:
         )
         resp.raise_for_status()
         return list(resp.json().get("entries", []))
+
+    async def read_dir(self, path: str) -> dict[str, str] | None:
+        """Read every file under a dir as a {name: content} map. None if missing."""
+        resp = await self._http.post(
+            "/file_system/read_dir", json={"path": path},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("exists"):
+            return None
+        return dict(data.get("files", {}))
+
+    async def write_dir(self, path: str, files: dict[str, str]) -> None:
+        """Create a dir and write every entry in `files` into it."""
+        resp = await self._http.post(
+            "/file_system/write_dir",
+            json={"path": path, "files": files},
+        )
+        resp.raise_for_status()

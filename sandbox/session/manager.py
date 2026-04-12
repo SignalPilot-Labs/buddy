@@ -442,7 +442,12 @@ class _Session:
         the time lock has more than EARLY_EXIT_THRESHOLD_MIN remaining.
         """
         duration_min: float = config["duration_minutes"]
-        start = time.time()
+        # The run's real start time comes from bootstrap.py via the
+        # config dict. Do NOT call time.time() here — this method runs
+        # once per sandbox session (i.e. once per round), so a local
+        # clock would reset the budget to full on every new round and
+        # the time lock would never fire.
+        start: float = config["start_time"]
         emit = self._emit
         session = self
         run_id = self._run_id

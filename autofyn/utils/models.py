@@ -31,6 +31,7 @@ def get_fallback_model(model: str) -> str | None:
 
 
 if TYPE_CHECKING:
+    from memory.archiver import RoundArchiver
     from memory.metadata import MetadataStore
     from memory.report import ReportStore
     from user.inbox import UserInbox
@@ -209,11 +210,15 @@ class BootstrapResult:
     time_lock: TimeLock
     reports: ReportStore
     metadata: MetadataStore
+    archiver: RoundArchiver
     base_session_options: dict
     task: str
     model: str
     fallback_model: str | None
     run_start_time: float
+    # Highest round number already archived on disk; 0 for a fresh run,
+    # >0 when resuming — the round loop starts counting from the next.
+    starting_round: int
 
 
 # ── User events ─────────────────────────────────────────────────
