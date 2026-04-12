@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { GroupedEvent } from "@/lib/groupEvents";
 import {
   LLMMessageCard,
@@ -19,17 +20,19 @@ import {
 } from "@/components/feed/ToolGroupCards";
 import { AgentRunCard } from "@/components/feed/AgentRunCard";
 
-export function GroupedEventCard({
-  event,
-  isLast = false,
-  runActive = false,
-  runPaused = false,
-}: {
+interface GroupedEventCardProps {
   event: GroupedEvent;
   isLast?: boolean;
   runActive?: boolean;
   runPaused?: boolean;
-}) {
+}
+
+function GroupedEventCardInner({
+  event,
+  isLast = false,
+  runActive = false,
+  runPaused = false,
+}: GroupedEventCardProps) {
   switch (event.type) {
     case "llm_message":
       return (
@@ -89,9 +92,22 @@ export function GroupedEventCard({
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
     case "control":
-      return <ControlMessage text={event.text} ts={event.ts} retryAction={event.retryAction} />;
+      return (
+        <ControlMessage
+          text={event.text}
+          ts={event.ts}
+          retryAction={event.retryAction}
+        />
+      );
     case "user_prompt":
-      return <UserPromptCard prompt={event.prompt} ts={event.ts} pending={event.pending} failed={event.failed} />;
+      return (
+        <UserPromptCard
+          prompt={event.prompt}
+          ts={event.ts}
+          pending={event.pending}
+          failed={event.failed}
+        />
+      );
     case "milestone":
       return (
         <MilestoneCard
@@ -111,3 +127,53 @@ export function GroupedEventCard({
       );
   }
 }
+
+function areEqual(
+  prev: GroupedEventCardProps,
+  next: GroupedEventCardProps
+): boolean {
+  if (prev.isLast !== next.isLast) return false;
+  if (prev.runActive !== next.runActive) return false;
+  if (prev.runPaused !== next.runPaused) return false;
+
+  const pe = prev.event;
+  const ne = next.event;
+
+  if (pe.id !== ne.id) return false;
+  if (pe.type !== ne.type) return false;
+
+  switch (pe.type) {
+    case "llm_message": {
+      if (ne.type !== "llm_message") return false;
+      return pe.text.length === ne.text.length && pe.thinking.length === ne.thinking.length;
+    }
+    case "tool_group":
+    case "edit_group":
+    case "bash_group":
+    case "playwright_group": {
+      if (ne.type !== pe.type) return false;
+      const pTools = (pe as { tools: { id: number }[] }).tools;
+      const nTools = (ne as { tools: { id: number }[] }).tools;
+      if (pTools.length !== nTools.length) return false;
+      if (pTools.length === 0) return true;
+      return pTools[pTools.length - 1].id === nTools[nTools.length - 1].id;
+    }
+    case "agent_run": {
+      if (ne.type !== "agent_run") return false;
+      if (pe.childTools.length !== ne.childTools.length) return false;
+      if (pe.finalText?.length !== ne.finalText?.length) return false;
+      if (pe.tool.phase !== ne.tool.phase) return false;
+      if (pe.tool.id !== ne.tool.id) return false;
+      return true;
+    }
+    case "single_tool": {
+      if (ne.type !== "single_tool") return false;
+      return pe.tool.id === ne.tool.id && pe.tool.phase === ne.tool.phase;
+    }
+    default:
+      // For control, milestone, user_prompt, divider — id + type comparison above is sufficient
+      return true;
+  }
+}
+
+export const GroupedEventCard = React.memo(GroupedEventCardInner, areEqual);

@@ -202,47 +202,44 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
   const isPending = tool.phase === "pre" && !tool.output_data;
 
   const input = tool.input_data || {};
-  let summary = "";
+  let summary: string | undefined;
   switch (cat) {
     case "bash":
       summary =
-        (input.description as string) ||
-        (input.command as string)?.slice(0, 100) ||
-        "";
+        (input.description as string) ??
+        (input.command as string | undefined)?.slice(0, 100);
       break;
     case "read":
-      summary = shortPath((input.file_path as string) || "");
+      summary = shortPath(input.file_path as string);
       break;
     case "write":
     case "edit":
-      summary = shortPath((input.file_path as string) || "");
+      summary = shortPath(input.file_path as string);
       break;
     case "glob":
-      summary = (input.pattern as string) || "";
+      summary = input.pattern as string;
       break;
     case "grep":
-      summary = `/${input.pattern}/ in ${shortPath(
-        (input.path as string) || ""
-      )}`;
+      summary = `/${input.pattern}/ in ${shortPath(input.path as string)}`;
       break;
     case "todo": {
-      const todos = (input.todos as Array<{ status: string }>) || [];
+      const todos = (input.todos as Array<{ status: string }>) ?? [];
       summary = `${todos.filter((t) => t.status === "completed").length}✓ ${
         todos.filter((t) => t.status === "in_progress").length
       }◉ ${todos.filter((t) => t.status === "pending").length}○`;
       break;
     }
     case "skill":
-      summary = (input.skill as string) || "";
+      summary = input.skill as string;
       break;
     case "tool_search":
-      summary = (input.query as string) || "";
+      summary = input.query as string;
       break;
     case "web_search":
-      summary = (input.query as string) || "";
+      summary = input.query as string;
       break;
     case "web_fetch":
-      summary = (input.url as string) || "";
+      summary = input.url as string;
       break;
     default:
       summary = JSON.stringify(input).slice(0, 80);

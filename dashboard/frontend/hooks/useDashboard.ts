@@ -51,6 +51,7 @@ export function useDashboard(): DashboardState {
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
   const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
+  const agentHealthRef = useRef<AgentHealth | null>(null);
 
   // Declared early so handleSessionResumed and handleSelectRun can reference it;
   // updated after useRunActions is called.
@@ -77,8 +78,11 @@ export function useDashboard(): DashboardState {
     });
   }, []);
 
-  // handleRunEnded is defined after useRunActions; use a ref to break the cycle
+  // handleRunEnded and handleSelectRun are defined after useRunActions; use refs to break cycles
   const handleRunEndedRef = useRef<() => void>(() => undefined);
+  const handleSelectRunRef = useRef<(id: string) => Promise<FeedEvent[]>>(
+    () => Promise.resolve([])
+  );
 
   const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(
     useCallback(() => handleRunEndedRef.current(), []),
@@ -140,6 +144,10 @@ export function useDashboard(): DashboardState {
     },
     [refreshRuns],
   );
+
+  // Keep handleSelectRunRef in sync so the health poll can call handleSelectRun
+  // without adding it to the effect's dependency array.
+  handleSelectRunRef.current = handleSelectRun;
 
   const runActions = useRunActions({
     selectedRunId,
@@ -212,22 +220,22 @@ export function useDashboard(): DashboardState {
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
-      setAgentHealth((prev) => {
-        const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
-        const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
-        if (newRun) {
-          refreshRuns();
-          const currentId = selectedRunIdRef.current;
-          const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
-          const currentIsTerminal = currentRunInHealth
-            ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
-            : true;
-          if (currentId === null || currentIsTerminal) {
-            setSelectedRunId(newRun.run_id);
-          }
+      const prev = agentHealthRef.current;
+      const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
+      const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
+      setAgentHealth(h);
+      agentHealthRef.current = h;
+      if (newRun) {
+        refreshRuns();
+        const currentId = selectedRunIdRef.current;
+        const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
+        const currentIsTerminal = currentRunInHealth
+          ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
+          : true;
+        if (currentId === null || currentIsTerminal) {
+          handleSelectRunRef.current(newRun.run_id);
         }
-        return h;
-      });
+      }
     };
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);

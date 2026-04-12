@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useNow } from "@/hooks/useNow";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
@@ -35,7 +36,6 @@ export function AgentRunCard({
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
-  const [now, setNow] = useState(Date.now());
   // description and subagent_type come from the Task tool input_data;
   // agentType comes from the subagent_start audit event. They should
   // always be populated for a well-formed Agent card. If any is missing,
@@ -48,6 +48,8 @@ export function AgentRunCard({
   const isPending =
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
 
+  const now = useNow(isPending);
+
   const lastActivityTs =
     childTools.length > 0
       ? new Date(childTools[childTools.length - 1].ts).getTime()
@@ -57,12 +59,6 @@ export function AgentRunCard({
   const idleSec = Math.floor(idleMs / 1000);
   const isFinalizing =
     isPending && childTools.length > 0 && idleMs > 3000 && !isIdle;
-
-  useEffect(() => {
-    if (!isPending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [isPending]);
 
   const childSummary = useMemo(() => {
     const counts = new Map<ToolCategory, number>();
