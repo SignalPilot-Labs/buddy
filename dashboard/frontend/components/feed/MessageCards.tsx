@@ -24,10 +24,7 @@ export function LLMMessageCard({
   const isPlanner = role === "planner";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
+    <div
       className={clsx(
         "rounded-lg p-4",
         isPlanner
@@ -135,19 +132,14 @@ export function LLMMessageCard({
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
 /* ── Control ── */
 export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="flex items-center gap-2 px-4 py-2"
-    >
+    <div className="flex items-center gap-2 px-4 py-2">
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
       <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/70">
         <svg
@@ -174,7 +166,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
         <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-    </motion.div>
+    </div>
   );
 }
 
@@ -184,12 +176,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
   const borderColor = failed ? "border-[#ff4444]/20" : "border-[#88ccff]/20";
   const bgColor = failed ? "bg-[#ff4444]/10" : "bg-[#88ccff]/10";
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 10 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 10 }}
-      className="flex justify-end px-4 py-1.5"
-    >
+    <div className="flex justify-end px-4 py-1.5">
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
         <div className="flex items-center justify-between gap-4 mb-1">
           <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">
@@ -209,7 +196,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
           <MarkdownContent content={prompt} className="text-[12px] text-[#cce8ff]" />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -226,11 +213,7 @@ export function MilestoneCard({
   ts: string;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="flex items-center gap-2 px-4 py-2"
-    >
+    <div className="flex items-center gap-2 px-4 py-2">
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
       <div
         className="flex items-center gap-2 px-3 py-1.5 rounded-full border"
@@ -263,7 +246,7 @@ export function MilestoneCard({
         </span>
       </div>
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
-    </motion.div>
+    </div>
   );
 }
 

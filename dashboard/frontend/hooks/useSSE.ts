@@ -4,64 +4,60 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
 import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS } from "@/lib/constants";
-import { mergeToolEvent } from "@/lib/eventMerge";
+import { mergeToolEvent, mergeToolEventMutable } from "@/lib/eventMerge";
 
 export interface SSECursor {
   afterTool: number;
   afterAudit: number;
 }
 
-function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
+type PendingItem =
+  | { type: "tool"; data: ToolCall }
+  | { type: "audit"; data: AuditEvent };
+
+function processAuditInto(events: FeedEvent[], raw: AuditEvent): void {
   const details =
     typeof raw.details === "string"
       ? JSON.parse(raw.details)
       : raw.details || {};
 
   if (raw.event_type === "usage") {
-    return [
-      ...prev,
-      { _kind: "usage", data: { ...details, ts: raw.ts } as UsageEvent },
-    ];
+    events.push({ _kind: "usage", data: { ...details, ts: raw.ts } as UsageEvent });
+    return;
   }
   if (raw.event_type === "llm_text") {
     const role = details.agent_role || "worker";
-    const last = prev[prev.length - 1];
+    const last = events[events.length - 1];
     if (last && last._kind === "llm_text" && last.agent_role === role) {
-      return [
-        ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
-      ];
+      events[events.length - 1] = { ...last, text: last.text + (details.text || "") };
+      return;
     }
-    return [
-      ...prev,
-      {
-        _kind: "llm_text",
-        text: details.text || "",
-        ts: raw.ts,
-        agent_role: role,
-      },
-    ];
+    events.push({ _kind: "llm_text", text: details.text || "", ts: raw.ts, agent_role: role });
+    return;
   }
   if (raw.event_type === "llm_thinking") {
     const role = details.agent_role || "worker";
-    const last = prev[prev.length - 1];
+    const last = events[events.length - 1];
     if (last && last._kind === "llm_thinking" && last.agent_role === role) {
-      return [
-        ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
-      ];
+      events[events.length - 1] = { ...last, text: last.text + (details.text || "") };
+      return;
     }
-    return [
-      ...prev,
-      {
-        _kind: "llm_thinking",
-        text: details.text || "",
-        ts: raw.ts,
-        agent_role: role,
-      },
-    ];
+    events.push({ _kind: "llm_thinking", text: details.text || "", ts: raw.ts, agent_role: role });
+    return;
   }
-  return [...prev, { _kind: "audit", data: { ...raw, details } }];
+  events.push({ _kind: "audit", data: { ...raw, details } });
+}
+
+function applyBatch(prev: FeedEvent[], batch: PendingItem[]): FeedEvent[] {
+  const next = [...prev];
+  for (const item of batch) {
+    if (item.type === "tool") {
+      mergeToolEventMutable(next, item.data);
+    } else {
+      processAuditInto(next, item.data);
+    }
+  }
+  return next;
 }
 
 const POLL_INTERVAL = SSE_POLL_INTERVAL_MS;
@@ -79,7 +75,29 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   onRunEndedRef.current = onRunEnded;
   onSessionResumedRef.current = onSessionResumed;
 
-  const clearEvents = useCallback(() => setEvents([]), []);
+  // rAF batching refs
+  const pendingRef = useRef<PendingItem[]>([]);
+  const rafRef = useRef<number>(0);
+
+  const scheduleFlush = useCallback(() => {
+    if (rafRef.current !== 0) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      const batch = pendingRef.current;
+      if (batch.length === 0) return;
+      pendingRef.current = [];
+      setEvents((prev) => applyBatch(prev, batch));
+    });
+  }, []);
+
+  const clearEvents = useCallback(() => {
+    if (rafRef.current !== 0) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    pendingRef.current = [];
+    setEvents([]);
+  }, []);
 
   const disconnect = useCallback(() => {
     genRef.current++;
@@ -133,7 +151,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
               }
               for (const ae of result.audit_events) {
                 afterAudit = Math.max(afterAudit, ae.id ?? 0);
-                next = processAudit(next, ae);
+                const batchForAudit: PendingItem[] = [{ type: "audit", data: ae }];
+                next = applyBatch(next, batchForAudit);
                 if (ae.event_type === "run_ended") runEnded = true;
                 if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
               }
@@ -184,7 +203,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
-        setEvents((prev) => mergeToolEvent(prev, data));
+        pendingRef.current.push({ type: "tool", data });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse tool_call SSE event:", err);
       }
@@ -196,7 +216,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       try {
         const raw: AuditEvent = JSON.parse(e.data);
         if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
-        setEvents((prev) => processAudit(prev, raw));
+        pendingRef.current.push({ type: "audit", data: raw });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse audit SSE event:", err);
       }
@@ -207,10 +228,18 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
-        ]);
+        // Flush any pending batch first, then append run_ended
+        const batch = pendingRef.current;
+        pendingRef.current = [];
+        if (rafRef.current !== 0) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = 0;
+        }
+        setEvents((prev) => {
+          const next = applyBatch(prev, batch);
+          next.push({ _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } });
+          return next;
+        });
       } catch (err) {
         console.warn("Failed to parse run_ended SSE event:", err);
       }
@@ -225,10 +254,16 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       setConnected(false);
       if (!sseGotMessage) switchToPolling();
     };
-  }, []);
+  }, [scheduleFlush]);
 
   // Clean up on unmount
-  useEffect(() => () => { disconnect(); }, [disconnect]);
+  useEffect(() => () => {
+    disconnect();
+    if (rafRef.current !== 0) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+  }, [disconnect]);
 
   return { events, connected, clearEvents, connect, disconnect };
 }

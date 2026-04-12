@@ -30,7 +30,7 @@ const AGENT_CATEGORY: ToolCategory = "agent";
 // Time window for grouping consecutive same-type tools (ms)
 const GROUP_WINDOW = 30_000;
 
-function getTs(e: FeedEvent): number {
+export function getTs(e: FeedEvent): number {
   if (e._kind === "tool") return new Date(e.data.ts).getTime();
   if (e._kind === "audit") return new Date(e.data.ts).getTime();
   if (e._kind === "usage") return new Date(e.data.ts).getTime();
@@ -277,19 +277,15 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
           i++;
         }
 
-        if (batch.length === 1) {
-          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
-        } else {
-          const label = cat === "read"
-            ? `Read ${batch.length} files`
-            : cat === "glob"
-              ? `Searched ${batch.length} patterns`
-              : cat === "grep"
-                ? `Grep ${batch.length} searches`
-                : `${batch.length} ${cat} calls`;
-          const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ id: `tg-${batch[0].id}`, type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
-        }
+        const label = cat === "read"
+          ? `Read ${batch.length} file${batch.length !== 1 ? "s" : ""}`
+          : cat === "glob"
+            ? `Searched ${batch.length} pattern${batch.length !== 1 ? "s" : ""}`
+            : cat === "grep"
+              ? `Grep ${batch.length} search${batch.length !== 1 ? "es" : ""}`
+              : `${batch.length} ${cat} call${batch.length !== 1 ? "s" : ""}`;
+        const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
+        result.push({ id: `tg-${batch[0].id}`, type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
         continue;
       }
 
@@ -305,12 +301,8 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
           i++;
         }
 
-        if (batch.length === 1) {
-          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
-        } else {
-          const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ id: `eg-${batch[0].id}`, type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
-        }
+        const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
+        result.push({ id: `eg-${batch[0].id}`, type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
         continue;
       }
 
@@ -325,12 +317,8 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
           i++;
         }
 
-        if (batch.length === 1) {
-          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
-        } else {
-          const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ id: `bg-${batch[0].id}`, type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
-        }
+        const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
+        result.push({ id: `bg-${batch[0].id}`, type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
         continue;
       }
 
@@ -345,12 +333,8 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
           i++;
         }
 
-        if (batch.length === 1) {
-          result.push({ id: `st-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
-        } else {
-          const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ id: `pg-${batch[0].id}`, type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
-        }
+        const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
+        result.push({ id: `pg-${batch[0].id}`, type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
         continue;
       }
 
@@ -397,10 +381,7 @@ function _detectGitCommit(gev: GroupedEvent): number | null {
 }
 
 function _extractCommands(gev: GroupedEvent): string[] {
-  /** Extract command strings from bash tools or groups. */
-  if (gev.type === "single_tool") {
-    return [(gev.tool.input_data?.command as string) || ""];
-  }
+  /** Extract command strings from bash groups. */
   if (gev.type === "bash_group") {
     return gev.tools.map((t) => (t.input_data?.command as string) || "");
   }

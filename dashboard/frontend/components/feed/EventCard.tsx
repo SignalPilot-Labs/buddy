@@ -267,10 +267,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
   const hasTodos = !!(category === "todo" && tc.input_data?.todos);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+    <div
       className={clsx(
         "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
         borderColor,
@@ -412,7 +409,7 @@ function ToolCallCard({ tc }: { tc: ToolCall }) {
             </div>
           </motion.div>
         )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -457,10 +454,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
   }, [event]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15 }}
+    <div
       className={clsx(
         "group border-l-[3px] rounded-r px-3 py-1.5 cursor-pointer transition-colors",
         `border-l-[${meta.iconColor}]`,
@@ -542,7 +536,7 @@ function AuditCard({ event }: { event: AuditEvent }) {
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -555,12 +549,7 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 2 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.1 }}
-      className="border-l-[3px] border-l-[#44ccdd]/30 bg-[#44ccdd]/[0.015] rounded-r px-3 py-1"
-    >
+    <div className="border-l-[3px] border-l-[#44ccdd]/30 bg-[#44ccdd]/[0.015] rounded-r px-3 py-1">
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-[9px] text-[#888] tabular-nums shrink-0 w-[52px]">
           {formatTs(usage.ts)}
@@ -583,18 +572,14 @@ function UsageCard({ usage }: { usage: UsageEvent }) {
           </span>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 /* ── Control Card ── */
 function ControlCard({ text, ts }: { text: string; ts: string }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="border-l-[3px] border-l-[#ffaa00] bg-[#ffaa00]/[0.03] rounded-r px-3 py-1.5"
-    >
+    <div className="border-l-[3px] border-l-[#ffaa00] bg-[#ffaa00]/[0.03] rounded-r px-3 py-1.5">
       <div className="flex items-center gap-2">
         <span className="text-[9px] text-[#888] tabular-nums w-[52px]">
           {formatTs(ts)}
@@ -608,7 +593,7 @@ function ControlCard({ text, ts }: { text: string; ts: string }) {
         </span>
         <span className="text-[10px] text-[#888]">{text}</span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

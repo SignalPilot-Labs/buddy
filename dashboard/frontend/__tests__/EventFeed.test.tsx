@@ -46,8 +46,9 @@ describe("EventFeed", () => {
   });
 
   it("renders tool events", () => {
+    // A single Bash event is now grouped as bash_group, showing "Terminal · 1 command"
     render(<EventFeed events={[makeToolEvent(1, "Bash")]} />);
-    expect(screen.getByText(/Bash/)).toBeInTheDocument();
+    expect(screen.getByText(/Terminal/)).toBeInTheDocument();
   });
 
   it("renders control events", () => {

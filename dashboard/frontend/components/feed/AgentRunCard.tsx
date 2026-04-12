@@ -83,9 +83,7 @@ export function AgentRunCard({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={clsx(
         "rounded-lg border overflow-hidden relative",
         isIdle
@@ -245,6 +243,6 @@ export function AgentRunCard({
           isFinalizing={isFinalizing}
         />
       )}
-    </motion.div>
+    </div>
   );
 }

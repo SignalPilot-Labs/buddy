@@ -21,6 +21,7 @@ import { loadRunHistory } from "@/lib/loadRunHistory";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
+import { getTs } from "@/lib/groupEvents";
 
 export function useDashboard(): DashboardState {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -113,7 +114,16 @@ export function useDashboard(): DashboardState {
     );
   }, [liveEvents]);
 
-  const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
+  const allEvents = useMemo(() => {
+    if (liveEvents.length === 0) return historyEvents;
+    const merged = [...historyEvents, ...liveEvents];
+    const lastHistory = historyEvents[historyEvents.length - 1];
+    const firstLive = liveEvents[0];
+    if (lastHistory && firstLive && getTs(lastHistory) > getTs(firstLive)) {
+      merged.sort((a, b) => getTs(a) - getTs(b));
+    }
+    return merged;
+  }, [historyEvents, liveEvents]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);

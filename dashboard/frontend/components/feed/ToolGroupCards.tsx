@@ -32,11 +32,7 @@ export function BashGroupCard({
   const commands = useMemo(() => extractBashCommands(tools), [tools]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#00ff88]/8 bg-[#00ff88]/[0.02] overflow-hidden"
-    >
+    <div className="rounded-lg border border-[#00ff88]/8 bg-[#00ff88]/[0.02] overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
@@ -104,7 +100,7 @@ export function BashGroupCard({
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -120,11 +116,7 @@ export function PlaywrightGroupCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#66bbff]/8 bg-[#66bbff]/[0.02] overflow-hidden"
-    >
+    <div className="rounded-lg border border-[#66bbff]/8 bg-[#66bbff]/[0.02] overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
@@ -197,7 +189,7 @@ export function PlaywrightGroupCard({
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -257,9 +249,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className={clsx(
         "rounded-lg border overflow-hidden",
         denied
@@ -327,6 +317,6 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, PendingMessage } from "@/lib/types";
-import { SCROLL_BOTTOM_THRESHOLD } from "@/lib/constants";
+import { SCROLL_BOTTOM_THRESHOLD, SCROLL_INSTANT_THRESHOLD_MS } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
@@ -16,10 +16,6 @@ const FAB_ANIMATE = { opacity: 1, y: 0 };
 const FAB_EXIT = { opacity: 0, y: 8 };
 const FAB_TRANSITION = { duration: 0.15 };
 
-const SCROLL_BEHAVIOR = "smooth" as const;
-const CARD_ENTER_DURATION = 0.2;
-const CARD_ENTER_Y = 6;
-const CARD_ENTER_EASE = "easeOut";
 const SKELETON_COUNT = 3;
 const SKELETON_HEIGHT = "h-12";
 const LOADING_OPACITY = 0.4;
@@ -43,6 +39,11 @@ export function EventFeed({
   const [userScrolled, setUserScrolled] = useState(false);
   const [seenCount, setSeenCount] = useState(0);
 
+  // rAF ref for deduplicating scroll calls
+  const scrollRafRef = useRef<number>(0);
+  // Timestamp of the last scroll trigger, used to pick instant vs smooth
+  const lastScrollTriggerRef = useRef<number>(0);
+
   const grouped = useMemo(() => groupEvents(events), [events]);
 
   const lastInterruptionTs = useMemo(() => {
@@ -63,9 +64,21 @@ export function EventFeed({
   }, [userScrolled, events.length]);
 
   useEffect(() => {
-    if (autoScroll && containerRef.current?.scrollTo) {
-      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
+    if (!autoScroll) return;
+    if (scrollRafRef.current !== 0) {
+      cancelAnimationFrame(scrollRafRef.current);
     }
+    const now = Date.now();
+    const elapsed = now - lastScrollTriggerRef.current;
+    lastScrollTriggerRef.current = now;
+    const behavior = elapsed < SCROLL_INSTANT_THRESHOLD_MS ? "instant" : "smooth";
+
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      if (containerRef.current?.scrollTo) {
+        containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior });
+      }
+    });
   }, [grouped, pendingMessages, autoScroll]);
 
   const handleScroll = useCallback(() => {
@@ -78,7 +91,7 @@ export function EventFeed({
 
   const scrollToBottom = useCallback(() => {
     if (containerRef.current?.scrollTo) {
-      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: "smooth" });
       setAutoScroll(true);
       setUserScrolled(false);
       setSeenCount(events.length);
@@ -124,28 +137,19 @@ export function EventFeed({
           </div>
         ) : (
           <>
-            <AnimatePresence mode="popLayout">
-              {grouped.map((gev, i) => (
-                <motion.div
-                  key={gev.id}
-                  initial={{ opacity: 0, y: CARD_ENTER_Y }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: CARD_ENTER_DURATION, ease: CARD_ENTER_EASE }}
-                >
-                  <ErrorBoundary
-                    fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
-                  >
-                    <GroupedEventCard
-                      event={gev}
-                      isLast={i === grouped.length - 1 && pendingMessages.length === 0}
-                      runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
-                      runPaused={runPaused}
-                    />
-                  </ErrorBoundary>
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {grouped.map((gev, i) => (
+              <ErrorBoundary
+                key={gev.id}
+                fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+              >
+                <GroupedEventCard
+                  event={gev}
+                  isLast={i === grouped.length - 1 && pendingMessages.length === 0}
+                  runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                  runPaused={runPaused}
+                />
+              </ErrorBoundary>
+            ))}
             {pendingMessages.map((msg) => (
               <UserPromptCard
                 key={`pending-${msg.id}`}

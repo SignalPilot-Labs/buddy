@@ -124,9 +124,7 @@ export function ReadGroupCard({
   );
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="rounded-lg border overflow-hidden"
       style={{
         borderColor: `${iconColor}14`,
@@ -231,7 +229,7 @@ export function ReadGroupCard({
           )}
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -253,11 +251,7 @@ export function EditGroupCard({
   const uniqueFiles = new Set(edits.map((e) => e.path)).size;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden"
-    >
+    <div className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
@@ -351,6 +345,6 @@ export function EditGroupCard({
           </div>
         </motion.div>
       )}
-    </motion.div>
+    </div>
   );
 }
