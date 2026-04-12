@@ -10,7 +10,6 @@ from sqlalchemy import select, func
 from backend import auth, crypto
 from backend.constants import (
     ENV_VARS_MASK_CHAR,
-    MASK_PREFIX_CLAUDE_TOKEN,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
     SECRET_KEYS,
@@ -42,10 +41,7 @@ async def settings_status() -> dict:
     """Check which credentials are configured."""
     async with session() as s:
         has: dict[str, bool] = {}
-        has["has_claude_token"] = (
-            (await s.get(Setting, "claude_token")) is not None
-            or (await s.get(Setting, "claude_tokens")) is not None
-        )
+        has["has_claude_token"] = (await s.get(Setting, "claude_tokens")) is not None
         for key in ("git_token", "github_repo"):
             has[f"has_{key}"] = (await s.get(Setting, key)) is not None
         has["configured"] = all(has.values())
@@ -55,7 +51,7 @@ async def settings_status() -> dict:
 def _decrypt_setting(setting: Setting) -> str:
     """Decrypt and mask an encrypted setting value."""
     plain = crypto.decrypt(setting.value, MASTER_KEY_PATH)
-    prefix = MASK_PREFIX_CLAUDE_TOKEN if setting.key == "claude_token" else MASK_PREFIX_DEFAULT
+    prefix = MASK_PREFIX_DEFAULT
     return crypto.mask(plain, prefix_len=prefix)
 
 

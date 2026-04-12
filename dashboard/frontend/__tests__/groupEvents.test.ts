@@ -233,7 +233,7 @@ describe("extractBashCommands", () => {
 /* ── milestone detail rendering ── */
 
 describe("milestone detail text", () => {
-  it("end_session_denied uses remaining_minutes key", () => {
+  it("end_session_denied renders as Session End Denied with remaining time", () => {
     const events: FeedEvent[] = [
       {
         _kind: "audit",
@@ -249,6 +249,7 @@ describe("milestone detail text", () => {
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
     if (result[0].type === "milestone") {
+      expect(result[0].label).toBe("Session End Denied");
       expect(result[0].detail).toBe("25.3m remaining");
     }
   });
@@ -315,21 +316,25 @@ describe("groupEvents", () => {
   });
 
   // Regression: `end_round` and `end_session` both live under the
-  // `session_gate` MCP server, so getToolCategory lumps them into one
-  // category. Before the fix, any session_gate tool rendered as an
-  // "End Session" milestone — so ending a round showed up as ending the
-  // whole session. end_round must be suppressed (the `round_ended` audit
-  // event is what renders the divider), and end_session must still render
-  // the milestone.
-  it("suppresses end_round session_gate tool calls (divider comes from round_ended audit)", () => {
+  it("renders end_round as an End Round milestone with summary", () => {
     const events: FeedEvent[] = [
-      makeToolEvent({ tool_name: "mcp__session_gate__end_round", id: 1 }),
+      makeToolEvent({
+        tool_name: "mcp__session_gate__end_round",
+        id: 1,
+        input_data: { summary: "Fix event batching" },
+      }),
     ];
     const result = groupEvents(events);
-    expect(result).toHaveLength(0);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("milestone");
+    if (result[0].type === "milestone") {
+      expect(result[0].label).toBe("End Round");
+      expect(result[0].detail).toBe("Fix event batching");
+      expect(result[0].color).toBe("#00ff88");
+    }
   });
 
-  it("renders end_session session_gate tool calls as an End Session milestone", () => {
+  it("renders end_session as an End Session milestone", () => {
     const events: FeedEvent[] = [
       makeToolEvent({ tool_name: "mcp__session_gate__end_session", id: 1 }),
     ];
@@ -338,6 +343,20 @@ describe("groupEvents", () => {
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
       expect(result[0].label).toBe("End Session");
+    }
+  });
+
+  it("filters ToolSearch select: queries (SDK plumbing) but keeps keyword searches", () => {
+    const events: FeedEvent[] = [
+      makeToolEvent({ tool_name: "ToolSearch", id: 1, input_data: { query: "select:TodoWrite" } }),
+      makeToolEvent({ tool_name: "ToolSearch", id: 2, input_data: { query: "notebook jupyter" } }),
+    ];
+    const result = groupEvents(events);
+    // select: query filtered, keyword query kept
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("single_tool");
+    if (result[0].type === "single_tool") {
+      expect(result[0].tool.id).toBe(2);
     }
   });
 });

@@ -158,35 +158,19 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
     """Pick the next Claude token round-robin from the token pool.
 
     Tokens are stored as an encrypted JSON array in settings key 'claude_tokens'.
-    The current index is tracked in 'claude_token_index'.
-    Falls back to the single 'claude_token' setting for backward compatibility.
+    The current index is tracked in 'claude_token_index'. Legacy single-token
+    entries are auto-migrated into the pool by _read_token_pool().
     """
-    pool = await s.get(Setting, "claude_tokens")
-    if pool:
-        try:
-            tokens = json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-            if tokens:
-                idx_row = await s.get(Setting, "claude_token_index")
-                idx = int(idx_row.value) if idx_row else 0
-                idx = idx % len(tokens)
-                picked = tokens[idx]
-                await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
-                # Commit here because read_credentials() owns the session —
-                # index must persist even if the caller doesn't write anything.
-                await s.commit()
-                return picked
-        except (json.JSONDecodeError, TypeError, IndexError, ValueError) as e:
-            log.warning("Failed to read claude_tokens pool: %s", e)
-
-    # Fallback: single token
-    single = await s.get(Setting, "claude_token")
-    if not single:
+    tokens = await _read_token_pool(s)
+    if not tokens:
         return None
-    try:
-        return crypto.decrypt(single.value, MASTER_KEY_PATH) if single.encrypted else single.value
-    except Exception as e:
-        log.error("Failed to decrypt claude_token: %s", e)
-        return None
+    idx_row = await s.get(Setting, "claude_token_index")
+    idx = int(idx_row.value) if idx_row else 0
+    idx = idx % len(tokens)
+    picked = tokens[idx]
+    await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
+    await s.commit()
+    return picked
 
 
 # ---------------------------------------------------------------------------
@@ -194,14 +178,14 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def _read_token_pool(s: AsyncSession) -> list[str]:
-    """Read the decrypted token pool. Returns empty list if not set."""
+    """Read the decrypted token pool."""
     pool = await s.get(Setting, "claude_tokens")
-    if not pool:
-        return []
-    try:
-        return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-    except (json.JSONDecodeError, TypeError, Exception):
-        return []
+    if pool:
+        try:
+            return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
+        except (json.JSONDecodeError, TypeError, Exception):
+            return []
+    return []
 
 
 async def _write_token_pool(s: AsyncSession, tokens: list[str]) -> None:

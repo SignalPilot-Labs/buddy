@@ -2,7 +2,7 @@
 
 import type { SettingsStatus } from "@/lib/types";
 
-type StringSettingsKey = "claude_token" | "git_token" | "github_repo" | "max_budget_usd";
+type StringSettingsKey = "git_token" | "github_repo" | "max_budget_usd";
 
 export interface CredentialFieldConfig {
   key: StringSettingsKey;

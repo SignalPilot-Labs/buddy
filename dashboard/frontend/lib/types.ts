@@ -373,7 +373,6 @@ export interface SettingsStatus {
 }
 
 export interface Settings {
-  claude_token?: string;
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
