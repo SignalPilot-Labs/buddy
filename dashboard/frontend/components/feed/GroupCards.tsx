@@ -194,6 +194,7 @@ export function ReadGroupCard({
                         stroke="#88ccff"
                         strokeWidth="1"
                         opacity="0.4"
+                        aria-hidden="true"
                       >
                         <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
                       </svg>
@@ -317,6 +318,7 @@ export function EditGroupCard({
                     stroke="#ffcc44"
                     strokeWidth="1"
                     opacity="0.5"
+                    aria-hidden="true"
                   >
                     <path d="M6.5 1L8 2.5 3 7.5H1.5V6L6.5 1z" />
                   </svg>

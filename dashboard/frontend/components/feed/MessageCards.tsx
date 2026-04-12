@@ -50,6 +50,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="#ff8844"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <path d="M2 9l2-4 2 2.5 2-3.5 2 5" />
               <rect x="1" y="9" width="10" height="1.5" rx="0.5" />
@@ -62,6 +63,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="#00ff88"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <path d="M6 1l1 3h3l-2.5 2 1 3L6 7.5 3.5 9l1-3L2 4h3L6 1z" />
             </svg>
@@ -90,6 +92,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <circle cx="5" cy="5" r="3.5" />
               <circle cx="5" cy="5" r="1" />
@@ -158,6 +161,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"
+          aria-hidden="true"
         >
           <polyline points="2 4 5 7 2 10" />
           <line x1="6" y1="10" x2="9" y2="10" />

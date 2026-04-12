@@ -204,7 +204,7 @@ export function EventFeed({
               "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
             )}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
               <line x1="5" y1="2" x2="5" y2="8" />
               <polyline points="3 6 5 8 7 6" />
             </svg>

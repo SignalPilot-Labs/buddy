@@ -20,6 +20,7 @@ import {
   AgentRunStatusBadge,
   IdleWarningBanner,
 } from "@/components/feed/AgentRunStatusBadge";
+import { SpinnerIcon } from "@/components/ui/StatusIcons";
 
 function AgentRunCardInner({
   tool,
@@ -232,22 +233,7 @@ function AgentRunCardInner({
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-1.5 text-[9px] text-[#cc88ff]"
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 10 10"
-                    fill="none"
-                    className="animate-spin"
-                  >
-                    <circle
-                      cx="5"
-                      cy="5"
-                      r="4"
-                      stroke="#cc88ff"
-                      strokeWidth="1"
-                      strokeDasharray="12 8"
-                    />
-                  </svg>
+                  <SpinnerIcon color="#cc88ff" />
                   writing response...
                 </motion.span>
               )}

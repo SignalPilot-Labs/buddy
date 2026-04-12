@@ -17,6 +17,7 @@ export function CheckmarkIcon({ color }: { color?: string }): ReactElement {
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
+      aria-hidden="true"
     >
       <polyline points="1.5 4.5 3.5 6.5 7.5 2.5" />
     </svg>
@@ -33,6 +34,7 @@ export function CrossIcon({ color }: { color?: string }): ReactElement {
       stroke={color || "currentColor"}
       strokeWidth="1.5"
       strokeLinecap="round"
+      aria-hidden="true"
     >
       <line x1="2" y1="2" x2="7" y2="7" />
       <line x1="7" y1="2" x2="2" y2="7" />
@@ -48,6 +50,7 @@ export function WarningTriangleIcon({ color }: { color?: string }): ReactElement
       viewBox="0 0 12 12"
       fill="none"
       className="shrink-0"
+      aria-hidden="true"
     >
       <path
         d="M6 1L11 10H1L6 1Z"
@@ -77,6 +80,7 @@ export function SpinnerIcon({ color }: { color?: string }): ReactElement {
       viewBox="0 0 10 10"
       fill="none"
       className="animate-spin"
+      aria-hidden="true"
     >
       <circle
         cx="5"
@@ -97,6 +101,7 @@ export function PauseIcon({ color }: { color?: string }): ReactElement {
       height="9"
       viewBox="0 0 9 9"
       fill="none"
+      aria-hidden="true"
     >
       <rect x="2" y="1.5" width="1.5" height="6" rx="0.5" fill={color || "currentColor"} />
       <rect x="5.5" y="1.5" width="1.5" height="6" rx="0.5" fill={color || "currentColor"} />
