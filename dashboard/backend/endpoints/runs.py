@@ -76,7 +76,7 @@ async def get_tool_calls(
         result = await s.execute(
             select(ToolCall)
             .where(ToolCall.run_id == run_id)
-            .order_by(desc(ToolCall.ts))
+            .order_by(desc(ToolCall.ts), desc(ToolCall.id))
             .limit(limit)
             .offset(offset)
         )
@@ -94,7 +94,7 @@ async def get_audit_log(
         result = await s.execute(
             select(AuditLog)
             .where(AuditLog.run_id == run_id)
-            .order_by(desc(AuditLog.ts))
+            .order_by(desc(AuditLog.ts), desc(AuditLog.id))
             .limit(limit)
             .offset(offset)
         )

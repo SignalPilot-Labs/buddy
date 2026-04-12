@@ -1,13 +1,15 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import type { Run, FeedEvent, RunStatus, PendingMessage } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, PendingMessage, ConnectionState } from "@/lib/types";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { CommandInput } from "@/components/controls/CommandInput";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 import { MobileTab } from "@/components/mobile/MobileTab";
+import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
+import type { ToastVariant } from "@/components/ui/Toast";
 
 export interface MobileLayoutProps {
   mobilePanel: "feed" | "runs" | "changes" | "logs";
@@ -20,6 +22,8 @@ export interface MobileLayoutProps {
   runStatus: RunStatus | null;
   selectedRun: Run | null;
   connected: boolean;
+  connectionState: ConnectionState;
+  historyTruncated: boolean;
   busy: boolean;
   historyLoading: boolean;
   controlsOpen: boolean;
@@ -29,6 +33,7 @@ export interface MobileLayoutProps {
   onResume: () => void;
   onInject: (prompt: string) => void;
   onRestart: (prompt: string) => void;
+  showToast: (message: string, variant: ToastVariant) => void;
 }
 
 function RunsIcon() {
@@ -89,6 +94,8 @@ export function MobileLayout({
   runStatus,
   selectedRun,
   connected,
+  connectionState,
+  historyTruncated,
   busy,
   historyLoading,
   controlsOpen,
@@ -98,6 +105,7 @@ export function MobileLayout({
   onResume,
   onInject,
   onRestart,
+  showToast,
 }: MobileLayoutProps) {
   return (
     <>
@@ -116,13 +124,20 @@ export function MobileLayout({
             </motion.div>
           )}
           {mobilePanel === "feed" && (
-            <motion.div key="feed" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+            <motion.div key="feed" className="relative flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <ConnectionBanner
+                connectionState={connectionState}
+                runStatus={runStatus}
+                showToast={showToast}
+              />
               <EventFeed
                 events={allEvents}
                 pendingMessages={pendingMessages}
                 runActive={runActive(runStatus)}
                 runPaused={runStatus === "paused"}
                 isLoading={historyLoading}
+                historyTruncated={historyTruncated}
+                hasSelectedRun={selectedRunId !== null}
               />
               <CommandInput
                 runId={selectedRunId}

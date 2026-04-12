@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { motion } from "framer-motion";
-import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
 import { getToolCategory, type ToolCategory } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
@@ -15,24 +14,30 @@ import {
   shortPath,
   IDLE_WARN_MS,
 } from "@/components/feed/eventCardHelpers";
+import { AGENT_IDLE_TIMER_INTERVAL_MS } from "@/lib/constants";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
+import {
+  AgentRunStatusBadge,
+  IdleWarningBanner,
+} from "@/components/feed/AgentRunStatusBadge";
+import { SpinnerIcon } from "@/components/ui/StatusIcons";
 
-export function AgentRunCard({
+function AgentRunCardInner({
   tool,
   childTools,
   finalText,
   agentType,
   ts,
-  runActive = false,
-  runPaused = false,
+  runActive,
+  runPaused,
 }: {
   tool: ToolCall;
   childTools: ToolCall[];
   finalText: string;
   agentType: string;
   ts: string;
-  runActive?: boolean;
-  runPaused?: boolean;
+  runActive: boolean;
+  runPaused: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -49,6 +54,9 @@ export function AgentRunCard({
   const subType = agentType || (input.subagent_type as string) || "—";
   const isPending =
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
+  const isPaused = runActive && runPaused && tool.phase === "pre" && !tool.output_data;
+  const isCompleted = !isPending && !!tool.output_data;
+  const isFailed = !isPending && !isPaused && tool.phase === "pre" && !tool.output_data;
 
   const { phase, meta: phaseMeta } = resolvePhase(subType);
 
@@ -64,7 +72,7 @@ export function AgentRunCard({
 
   useEffect(() => {
     if (!isPending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), AGENT_IDLE_TIMER_INTERVAL_MS);
     return () => clearInterval(id);
   }, [isPending]);
 
@@ -92,21 +100,34 @@ export function AgentRunCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden relative"
+      className="rounded-lg border overflow-hidden relative transition-all duration-150 hover:!border-l-[3px] focus-within:!border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
       style={
         isIdle
           ? {
               borderColor: "rgba(255, 68, 68, 0.30)",
+              borderLeftWidth: "2px",
+              borderLeftColor: "#ff4444",
               background:
                 "linear-gradient(to right, rgba(255,68,68,0.05), rgba(255,68,68,0.02), rgba(255,68,68,0.05))",
             }
           : isPending
           ? {
               borderColor: hexToRgba(phaseColor, 0.25),
+              borderLeftWidth: "2px",
+              borderLeftColor: phaseColor,
               background: `linear-gradient(to right, ${hexToRgba(phaseColor, 0.04)}, ${hexToRgba(phaseColor, 0.02)}, ${hexToRgba(phaseColor, 0.04)})`,
+            }
+          : isPaused
+          ? {
+              borderColor: "rgba(255, 170, 0, 0.15)",
+              borderLeftWidth: "2px",
+              borderLeftColor: "#ffaa00",
+              background: "rgba(255, 170, 0, 0.03)",
             }
           : {
               borderColor: hexToRgba(phaseColor, 0.10),
+              borderLeftWidth: "2px",
+              borderLeftColor: phaseColor,
               background: hexToRgba(phaseColor, 0.02),
             }
       }
@@ -220,22 +241,7 @@ export function AgentRunCard({
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-1.5 text-[9px] text-[#cc88ff]"
                 >
-                  <svg
-                    width="10"
-                    height="10"
-                    viewBox="0 0 10 10"
-                    fill="none"
-                    className="animate-spin"
-                  >
-                    <circle
-                      cx="5"
-                      cy="5"
-                      r="4"
-                      stroke="#cc88ff"
-                      strokeWidth="1"
-                      strokeDasharray="12 8"
-                    />
-                  </svg>
+                  <SpinnerIcon color="#cc88ff" />
                   writing response...
                 </motion.span>
               )}
@@ -268,90 +274,21 @@ export function AgentRunCard({
               {fmtDuration(tool.duration_ms)}
             </span>
           )}
-          {isPending && !isIdle && (
-            <span
-              className={clsx(
-                "flex items-center gap-1.5 text-[9px] font-semibold",
-                isFinalizing ? "text-[#cc88ff]" : "text-[#ffaa00]"
-              )}
-            >
-              <span className="relative flex h-1.5 w-1.5">
-                <span
-                  className={clsx(
-                    "absolute inline-flex h-full w-full rounded-full animate-ping opacity-50",
-                    isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
-                  )}
-                />
-                <span
-                  className={clsx(
-                    "relative inline-flex h-1.5 w-1.5 rounded-full",
-                    isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
-                  )}
-                  style={{
-                    boxShadow: isFinalizing
-                      ? "0 0 4px rgba(204, 136, 255, 0.5)"
-                      : "0 0 4px rgba(255, 170, 0, 0.5)",
-                  }}
-                />
-              </span>
-              {isFinalizing ? "finalizing" : "running"}
-            </span>
-          )}
-          {isIdle && (
-            <span className="flex items-center gap-1.5 text-[9px] font-semibold text-[#ff4444]">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff4444] animate-ping opacity-50" />
-                <span
-                  className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#ff4444]"
-                  style={{ boxShadow: "0 0 4px rgba(255, 68, 68, 0.5)" }}
-                />
-              </span>
-              stuck
-            </span>
-          )}
+          <AgentRunStatusBadge
+            isPending={isPending}
+            isPaused={isPaused}
+            isIdle={isIdle}
+            isFinalizing={isFinalizing}
+            isCompleted={isCompleted}
+            isFailed={isFailed}
+            idleSec={idleSec}
+            phaseColor={phaseColor}
+          />
           <Chevron open={expanded} />
         </div>
       </button>
 
-      {isIdle && (
-        <div className="border-t border-[#ff4444]/20 bg-[#ff4444]/[0.06] px-4 py-2">
-          <div className="flex items-center gap-2.5">
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              className="shrink-0"
-            >
-              <path
-                d="M6 1L11 10H1L6 1Z"
-                stroke="#ff4444"
-                strokeWidth="1"
-                fill="none"
-              />
-              <line
-                x1="6"
-                y1="4.5"
-                x2="6"
-                y2="7"
-                stroke="#ff4444"
-                strokeWidth="1"
-                strokeLinecap="round"
-              />
-              <circle cx="6" cy="8.5" r="0.5" fill="#ff4444" />
-            </svg>
-            <span className="text-[10px] text-[#ff4444]">
-              Agent idle for{" "}
-              <span className="font-semibold tabular-nums">
-                {idleSec >= 60
-                  ? `${Math.floor(idleSec / 60)}m ${idleSec % 60}s`
-                  : `${idleSec}s`}
-              </span>{" "}
-              &mdash; auto-recovery at 10m
-            </span>
-          </div>
-        </div>
-      )}
+      {isIdle && <IdleWarningBanner idleSec={idleSec} />}
 
       {expanded && (
         <AgentRunExpanded
@@ -371,3 +308,5 @@ export function AgentRunCard({
     </motion.div>
   );
 }
+
+export const AgentRunCard = memo(AgentRunCardInner);

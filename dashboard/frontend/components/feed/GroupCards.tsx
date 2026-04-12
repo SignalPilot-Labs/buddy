@@ -8,7 +8,7 @@ import { getToolIcon } from "@/components/ui/ToolIcons";
 import {
   extractReadPaths,
   extractEditSummary,
-} from "@/lib/groupEvents";
+} from "@/lib/groupEventHelpers";
 import {
   Chevron,
   FileContentPreview,
@@ -127,9 +127,10 @@ export function ReadGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden"
+      className="rounded-lg border border-l-2 overflow-hidden transition-all duration-150 hover:border-l-[3px] focus-within:border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
       style={{
         borderColor: `${iconColor}14`,
+        borderLeftColor: iconColor,
         backgroundColor: `${iconColor}05`,
       }}
     >
@@ -194,6 +195,7 @@ export function ReadGroupCard({
                         stroke="#88ccff"
                         strokeWidth="1"
                         opacity="0.4"
+                        aria-hidden="true"
                       >
                         <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
                       </svg>
@@ -256,7 +258,7 @@ export function EditGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden"
+      className="rounded-lg border border-l-2 border-[#ffcc44]/8 border-l-[#ffcc44] bg-[#ffcc44]/[0.02] overflow-hidden transition-all duration-150 hover:border-l-[3px] focus-within:border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -317,6 +319,7 @@ export function EditGroupCard({
                     stroke="#ffcc44"
                     strokeWidth="1"
                     opacity="0.5"
+                    aria-hidden="true"
                   >
                     <path d="M6.5 1L8 2.5 3 7.5H1.5V6L6.5 1z" />
                   </svg>

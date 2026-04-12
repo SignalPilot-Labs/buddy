@@ -15,6 +15,7 @@ export function Chevron({ open, size = 10 }: { open: boolean; size?: number }) {
       stroke="#888"
       strokeWidth="1.5"
       strokeLinecap="round"
+      aria-hidden="true"
       className={clsx(
         "shrink-0 transition-transform duration-150",
         open && "rotate-90"
@@ -251,6 +252,7 @@ export function GlobResults({ tool }: { tool: ToolCall }) {
             stroke="#ff88aa"
             strokeWidth="1"
             opacity="0.4"
+            aria-hidden="true"
           >
             <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
           </svg>
@@ -292,6 +294,7 @@ export function TodoDisplay({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
+                aria-hidden="true"
               >
                 <polyline points="2.5 5.5 4.5 7.5 8.5 3.5" />
               </svg>
@@ -304,6 +307,7 @@ export function TodoDisplay({
                 stroke="currentColor"
                 strokeWidth="1.5"
                 className="animate-pulse"
+                aria-hidden="true"
               >
                 <circle cx="5.5" cy="5.5" r="3.5" />
               </svg>
@@ -315,6 +319,7 @@ export function TodoDisplay({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
+                aria-hidden="true"
               >
                 <rect x="2" y="2" width="7" height="7" rx="1" />
               </svg>

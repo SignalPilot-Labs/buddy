@@ -71,29 +71,43 @@ export interface HistoryResult {
   events: FeedEvent[];
   lastToolId: number;
   lastAuditId: number;
+  truncated: boolean;
 }
 
 export async function loadRunHistory(id: string): Promise<HistoryResult> {
   const [tools, audits] = await Promise.all([
-    fetchToolCalls(id, HISTORY_FETCH_LIMIT),
-    fetchAuditLog(id, HISTORY_FETCH_LIMIT),
+    fetchToolCalls(id, HISTORY_FETCH_LIMIT + 1),
+    fetchAuditLog(id, HISTORY_FETCH_LIMIT + 1),
   ]);
 
-  const lastToolId = tools.reduce((max, t) => Math.max(max, t.id ?? 0), 0);
-  const lastAuditId = audits.reduce((max, a) => Math.max(max, a.id ?? 0), 0);
+  const truncated = tools.length > HISTORY_FETCH_LIMIT || audits.length > HISTORY_FETCH_LIMIT;
+  const trimmedTools = tools.length > HISTORY_FETCH_LIMIT ? tools.slice(0, HISTORY_FETCH_LIMIT) : tools;
+  const trimmedAudits = audits.length > HISTORY_FETCH_LIMIT ? audits.slice(0, HISTORY_FETCH_LIMIT) : audits;
 
-  tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
-  audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+  const lastToolId = trimmedTools.reduce((max, t) => Math.max(max, t.id ?? 0), 0);
+  const lastAuditId = trimmedAudits.reduce((max, a) => Math.max(max, a.id ?? 0), 0);
 
-  const toolEvents: FeedEvent[] = mergeToolPhases(tools).map((t) => ({
+  trimmedTools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime() || a.id - b.id);
+  trimmedAudits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime() || a.id - b.id);
+
+  const toolEvents: FeedEvent[] = mergeToolPhases(trimmedTools).map((t) => ({
     _kind: "tool" as const,
     data: t,
   }));
-  const auditEvents = buildAuditEvents(audits);
+  const auditEvents = buildAuditEvents(trimmedAudits);
 
-  const events = [...toolEvents, ...auditEvents].sort(
-    (a, b) => new Date(getEventTs(a)).getTime() - new Date(getEventTs(b)).getTime()
-  );
+  // Sort merged events by ts, then audits before tools (priority 0 vs 1), then by id
+  const events = [...toolEvents, ...auditEvents].sort((a, b) => {
+    const tsA = new Date(getEventTs(a)).getTime();
+    const tsB = new Date(getEventTs(b)).getTime();
+    if (tsA !== tsB) return tsA - tsB;
+    const prioA = a._kind === "tool" ? 1 : 0;
+    const prioB = b._kind === "tool" ? 1 : 0;
+    if (prioA !== prioB) return prioA - prioB;
+    const idA = a._kind === "tool" ? a.data.id : a._kind === "audit" ? a.data.id : 0;
+    const idB = b._kind === "tool" ? b.data.id : b._kind === "audit" ? b.data.id : 0;
+    return idA - idB;
+  });
 
-  return { events, lastToolId, lastAuditId };
+  return { events, lastToolId, lastAuditId, truncated };
 }

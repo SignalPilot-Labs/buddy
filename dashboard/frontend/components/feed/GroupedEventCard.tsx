@@ -1,6 +1,6 @@
 "use client";
 
-import type { GroupedEvent } from "@/lib/groupEvents";
+import type { GroupedEvent } from "@/lib/groupEventTypes";
 import {
   LLMMessageCard,
   ControlMessage,
@@ -21,14 +21,14 @@ import { AgentRunCard } from "@/components/feed/AgentRunCard";
 
 export function GroupedEventCard({
   event,
-  isLast = false,
-  runActive = false,
-  runPaused = false,
+  isLast,
+  runActive,
+  runPaused,
 }: {
   event: GroupedEvent;
-  isLast?: boolean;
-  runActive?: boolean;
-  runPaused?: boolean;
+  isLast: boolean;
+  runActive: boolean;
+  runPaused: boolean;
 }) {
   switch (event.type) {
     case "llm_message":

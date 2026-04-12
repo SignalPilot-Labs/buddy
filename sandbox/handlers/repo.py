@@ -37,6 +37,9 @@ from constants import (
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
     REPO_WORK_DIR,
+    RETRY_BASE_DELAY_SEC,
+    RETRY_MAX_ATTEMPTS,
+    RETRY_TRANSIENT_PATTERNS,
 )
 from models import CmdResult, RepoState
 
@@ -89,14 +92,30 @@ async def _run(args: list[str], cwd: str, timeout: int) -> CmdResult:
         return CmdResult(stdout="", stderr="timed out", exit_code=-1)
 
 
+async def _with_retry(cmd: list[str], cwd: str, timeout: int) -> CmdResult:
+    """Run a command with exponential backoff on transient failures."""
+    result = CmdResult(stdout="", stderr="", exit_code=-1)
+    for attempt in range(RETRY_MAX_ATTEMPTS):
+        result = await _run(cmd, cwd, timeout)
+        if result.exit_code == 0:
+            return result
+        if not any(p in result.stderr.lower() for p in RETRY_TRANSIENT_PATTERNS):
+            return result
+        if attempt < RETRY_MAX_ATTEMPTS - 1:
+            delay = RETRY_BASE_DELAY_SEC * (2 ** attempt)
+            log.warning("%s: transient error, retry %d/%d in %.0fs", cmd[0], attempt + 1, RETRY_MAX_ATTEMPTS, delay)
+            await asyncio.sleep(delay)
+    return result
+
+
 async def _git(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
-    """Run `git <args>`. Callers inspect exit_code themselves."""
-    return await _run(["git"] + args, cwd, timeout)
+    """Run `git <args>` with retry on transient network errors."""
+    return await _with_retry(["git"] + args, cwd, timeout)
 
 
 async def _gh(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
-    """Run `gh <args>`."""
-    return await _run(["gh"] + args, cwd, timeout)
+    """Run `gh <args>` with retry on transient network errors."""
+    return await _with_retry(["gh"] + args, cwd, timeout)
 
 
 def _fail(result: CmdResult, label: str) -> None:
