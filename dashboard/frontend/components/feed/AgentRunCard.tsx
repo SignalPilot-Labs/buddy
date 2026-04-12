@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, memo } from "react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
 import type { ToolCall } from "@/lib/types";
@@ -15,9 +15,10 @@ import {
   shortPath,
   IDLE_WARN_MS,
 } from "@/components/feed/eventCardHelpers";
+import { AGENT_IDLE_TIMER_INTERVAL_MS } from "@/lib/constants";
 import { resolvePhase, hexToRgba } from "@/lib/phaseColors";
 
-export function AgentRunCard({
+function AgentRunCardInner({
   tool,
   childTools,
   finalText,
@@ -64,7 +65,7 @@ export function AgentRunCard({
 
   useEffect(() => {
     if (!isPending) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(Date.now()), AGENT_IDLE_TIMER_INTERVAL_MS);
     return () => clearInterval(id);
   }, [isPending]);
 
@@ -371,3 +372,5 @@ export function AgentRunCard({
     </motion.div>
   );
 }
+
+export const AgentRunCard = memo(AgentRunCardInner);

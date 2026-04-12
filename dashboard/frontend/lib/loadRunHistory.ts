@@ -82,8 +82,8 @@ export async function loadRunHistory(id: string): Promise<HistoryResult> {
   const lastToolId = tools.reduce((max, t) => Math.max(max, t.id ?? 0), 0);
   const lastAuditId = audits.reduce((max, a) => Math.max(max, a.id ?? 0), 0);
 
-  tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
-  audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+  tools.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime() || a.id - b.id);
+  audits.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime() || a.id - b.id);
 
   const toolEvents: FeedEvent[] = mergeToolPhases(tools).map((t) => ({
     _kind: "tool" as const,
@@ -91,9 +91,18 @@ export async function loadRunHistory(id: string): Promise<HistoryResult> {
   }));
   const auditEvents = buildAuditEvents(audits);
 
-  const events = [...toolEvents, ...auditEvents].sort(
-    (a, b) => new Date(getEventTs(a)).getTime() - new Date(getEventTs(b)).getTime()
-  );
+  // Sort merged events by ts, then audits before tools (priority 0 vs 1), then by id
+  const events = [...toolEvents, ...auditEvents].sort((a, b) => {
+    const tsA = new Date(getEventTs(a)).getTime();
+    const tsB = new Date(getEventTs(b)).getTime();
+    if (tsA !== tsB) return tsA - tsB;
+    const prioA = a._kind === "tool" ? 1 : 0;
+    const prioB = b._kind === "tool" ? 1 : 0;
+    if (prioA !== prioB) return prioA - prioB;
+    const idA = a._kind === "tool" ? a.data.id : a._kind === "audit" ? a.data.id : 0;
+    const idB = b._kind === "tool" ? b.data.id : b._kind === "audit" ? b.data.id : 0;
+    return idA - idB;
+  });
 
   return { events, lastToolId, lastAuditId };
 }

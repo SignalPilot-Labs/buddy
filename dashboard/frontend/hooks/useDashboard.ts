@@ -22,6 +22,24 @@ import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
 
+function getEventTs(e: FeedEvent): string {
+  if (e._kind === "tool") return e.data.ts;
+  if (e._kind === "audit") return e.data.ts;
+  if (e._kind === "usage") return e.data.ts;
+  return e.ts;
+}
+
+function getEventPriority(e: FeedEvent): number {
+  // Audit/llm events sort before tool events at same timestamp (matches backend TYPE_PRIORITY)
+  return e._kind === "tool" ? 1 : 0;
+}
+
+function getEventId(e: FeedEvent): number {
+  if (e._kind === "tool") return e.data.id;
+  if (e._kind === "audit") return e.data.id;
+  return 0;
+}
+
 export function useDashboard(): DashboardState {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
     try { return localStorage.getItem("sp_improve_active_repo") || null; } catch { return null; }
@@ -113,7 +131,17 @@ export function useDashboard(): DashboardState {
     );
   }, [liveEvents]);
 
-  const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
+  const allEvents = useMemo(() => {
+    if (liveEvents.length === 0) return historyEvents;
+    if (historyEvents.length === 0) return liveEvents;
+    return [...historyEvents, ...liveEvents].sort((a, b) => {
+      const tsA = getEventTs(a);
+      const tsB = getEventTs(b);
+      if (tsA < tsB) return -1;
+      if (tsA > tsB) return 1;
+      return getEventPriority(a) - getEventPriority(b) || getEventId(a) - getEventId(b);
+    });
+  }, [historyEvents, liveEvents]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);

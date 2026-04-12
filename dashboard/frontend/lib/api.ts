@@ -80,9 +80,12 @@ export function createSSE(runId: string, afterTool: number, afterAudit: number):
   );
 }
 
+export type PollEventItem =
+  | (ToolCall & { _event_type: "tool_call" })
+  | (AuditEvent & { _event_type: "audit" });
+
 export interface PollResult {
-  tool_calls: ToolCall[];
-  audit_events: AuditEvent[];
+  events: PollEventItem[];
 }
 
 export async function pollEvents(

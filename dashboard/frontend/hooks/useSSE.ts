@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
+import type { PollEventItem } from "@/lib/api";
 import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS } from "@/lib/constants";
 import { mergeToolEvent } from "@/lib/eventMerge";
 
@@ -64,6 +65,22 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
   return [...prev, { _kind: "audit", data: { ...raw, details } }];
 }
 
+type BufferedItem =
+  | { kind: "tool"; data: ToolCall }
+  | { kind: "audit"; data: AuditEvent };
+
+function applyBuffer(prev: FeedEvent[], buffer: BufferedItem[]): FeedEvent[] {
+  let next = prev;
+  for (const item of buffer) {
+    if (item.kind === "tool") {
+      next = mergeToolEvent(next, item.data);
+    } else {
+      next = processAudit(next, item.data);
+    }
+  }
+  return next;
+}
+
 const POLL_INTERVAL = SSE_POLL_INTERVAL_MS;
 
 export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
@@ -78,6 +95,23 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const onSessionResumedRef = useRef(onSessionResumed);
   onRunEndedRef.current = onRunEnded;
   onSessionResumedRef.current = onSessionResumed;
+
+  // RAF-batched event buffer
+  const bufferRef = useRef<BufferedItem[]>([]);
+  const rafRef = useRef<number | null>(null);
+
+  function flushBuffer(): void {
+    rafRef.current = null;
+    if (bufferRef.current.length === 0) return;
+    const snapshot = bufferRef.current;
+    bufferRef.current = [];
+    setEvents((prev) => applyBuffer(prev, snapshot));
+  }
+
+  function scheduleFlush(): void {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(flushBuffer);
+  }
 
   const clearEvents = useCallback(() => setEvents([]), []);
 
@@ -95,6 +129,16 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
     }
+    // Cancel pending RAF and flush any buffered events synchronously
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (bufferRef.current.length > 0) {
+      const snapshot = bufferRef.current;
+      bufferRef.current = [];
+      setEvents((prev) => applyBuffer(prev, snapshot));
+    }
     setConnected(false);
     runIdRef.current = null;
   }, []);
@@ -104,6 +148,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (esRef.current) { esRef.current.close(); esRef.current = null; }
     if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    bufferRef.current = [];
 
     const gen = ++genRef.current;
     runIdRef.current = runId;
@@ -123,19 +169,22 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
         try {
           const result = await pollEvents(runId, afterTool, afterAudit);
           if (gen !== genRef.current) return;
-          if (result.tool_calls.length > 0 || result.audit_events.length > 0) {
+          if (result.events.length > 0) {
             let runEnded = false;
             setEvents((prev) => {
               let next = prev;
-              for (const tc of result.tool_calls) {
-                afterTool = Math.max(afterTool, tc.id ?? 0);
-                next = mergeToolEvent(next, tc);
-              }
-              for (const ae of result.audit_events) {
-                afterAudit = Math.max(afterAudit, ae.id ?? 0);
-                next = processAudit(next, ae);
-                if (ae.event_type === "run_ended") runEnded = true;
-                if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
+              for (const ev of result.events) {
+                if (ev._event_type === "tool_call") {
+                  const tc = ev as PollEventItem & { _event_type: "tool_call" };
+                  afterTool = Math.max(afterTool, tc.id ?? 0);
+                  next = mergeToolEvent(next, tc);
+                } else {
+                  const ae = ev as PollEventItem & { _event_type: "audit" };
+                  afterAudit = Math.max(afterAudit, ae.id ?? 0);
+                  next = processAudit(next, ae);
+                  if (ae.event_type === "run_ended") runEnded = true;
+                  if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
+                }
               }
               return next;
             });
@@ -184,7 +233,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
-        setEvents((prev) => mergeToolEvent(prev, data));
+        bufferRef.current.push({ kind: "tool", data });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse tool_call SSE event:", err);
       }
@@ -196,7 +246,8 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       try {
         const raw: AuditEvent = JSON.parse(e.data);
         if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
-        setEvents((prev) => processAudit(prev, raw));
+        bufferRef.current.push({ kind: "audit", data: raw });
+        scheduleFlush();
       } catch (err) {
         console.warn("Failed to parse audit SSE event:", err);
       }
@@ -207,10 +258,20 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data = JSON.parse(e.data);
-        setEvents((prev) => [
-          ...prev,
-          { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
-        ]);
+        // Flush any buffered events before appending run_ended
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        const pending = bufferRef.current;
+        bufferRef.current = [];
+        setEvents((prev) => {
+          let next = applyBuffer(prev, pending);
+          return [
+            ...next,
+            { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
+          ];
+        });
       } catch (err) {
         console.warn("Failed to parse run_ended SSE event:", err);
       }

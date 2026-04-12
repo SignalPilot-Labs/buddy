@@ -44,6 +44,10 @@ HOST_IP_ENV = "HOST_IP"
 # Polling (incremental — frontend HISTORY_FETCH_LIMIT=500 is for initial load)
 POLL_LIMIT_DEFAULT = 100
 
+# Event type priority for interleaved sort: audits sort before tools at same timestamp
+TYPE_PRIORITY_AUDIT = 0
+TYPE_PRIORITY_TOOL = 1
+
 # Query defaults
 QUERY_DEFAULT_LIMIT: int = 200
 LOG_TAIL_DEFAULT: int = 500
