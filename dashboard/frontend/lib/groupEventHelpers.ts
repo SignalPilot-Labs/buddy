@@ -84,7 +84,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "planner_invoked":
       return { id: `ms-${ts}-Planner Invoked`, type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
-      return { id: `ms-${ts}-Session Denied`, type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
+      return { id: `ms-${ts}-Session End Denied`, type: "milestone", label: "Session End Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
       return { id: `ms-${ts}-Session Unlocked`, type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":

@@ -28,7 +28,7 @@ export const SSE_POLL_INTERVAL_MS = 1_000;
 export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
 
 // Fetch limits
-export const HISTORY_FETCH_LIMIT = 500;
+export const HISTORY_FETCH_LIMIT = 5000;
 export const API_FETCH_TIMEOUT_MS = 15_000;
 
 // Container logs

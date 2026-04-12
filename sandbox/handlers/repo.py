@@ -232,17 +232,20 @@ async def _create_or_update_pr(
             return existing, f"gh pr edit failed: {edit.stderr.strip()[:200]}"
         return existing, None
 
-    create = await _gh(
-        [
-            "pr", "create",
-            "--repo", state.repo,
-            "--base", base,
-            "--head", state.working_branch,
-            "--title", title,
-            "--body", description,
-        ],
-        timeout,
-    )
+    create_args = [
+        "pr", "create",
+        "--repo", state.repo,
+        "--base", base,
+        "--head", state.working_branch,
+        "--title", title,
+        "--body", description,
+    ]
+    create = await _gh(create_args, timeout)
+    # One retry on transient network errors (DNS blip, connection reset).
+    if create.exit_code != 0 and "error connecting" in create.stderr.lower():
+        log.warning("gh pr create: transient network error, retrying in 5s")
+        await asyncio.sleep(5)
+        create = await _gh(create_args, timeout)
     if create.exit_code != 0:
         return None, f"gh pr create failed: {create.stderr.strip()[:200]}"
     return create.stdout.strip(), None

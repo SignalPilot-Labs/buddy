@@ -154,14 +154,20 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         continue;
       }
 
-      // Session gate tools
+      // ToolSearch exact-name lookups (select:X) are SDK plumbing — skip
+      if (cat === "tool_search" && typeof tc.input_data?.query === "string" && tc.input_data.query.startsWith("select:")) {
+        i++; continue;
+      }
+
+      // Session gate tools — render as milestones
       if (cat === "session_gate") {
         const toolName = tc.tool_name.toLowerCase();
         if (toolName.includes("end_round")) {
-          i++;
-          continue;
+          const summary = (tc.input_data?.summary as string) || "";
+          result.push({ id: `ms-${tc.ts}-End Round`, type: "milestone", label: "End Round", detail: summary, color: "#00ff88", ts: tc.ts });
+        } else {
+          result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
         }
-        result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
         i++;
         continue;
       }
