@@ -220,7 +220,7 @@ export function ReadGroupCard({
             <div className="max-h-[500px] overflow-y-auto">
               {tools.map((t, i) => (
                 <ChildToolRow
-                  key={i}
+                  key={t.id}
                   tool={t}
                   isLast={i === tools.length - 1}
                 />
@@ -296,7 +296,7 @@ export function EditGroupCard({
         >
           <div className="divide-y divide-white/[0.03]">
             {edits.map((edit, i) => (
-              <div key={i}>
+              <div key={`${edit.path}::${i}`}>
                 <button
                   onClick={() =>
                     setExpandedFile(expandedFile === i ? null : i)

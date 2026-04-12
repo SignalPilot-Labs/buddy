@@ -245,7 +245,7 @@ export function DashboardHeader({
           disabled={!canControl}
           onClick={onKill}
           title={showKillConfirm ? "Click again to confirm kill" : "Kill run"}
-          className={showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}
+          className={showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30" : ""}
           icon={
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
               <circle cx="5" cy="5" r="4" />
