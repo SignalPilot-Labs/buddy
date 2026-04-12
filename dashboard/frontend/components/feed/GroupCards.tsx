@@ -127,9 +127,10 @@ export function ReadGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden"
+      className="rounded-lg border border-l-2 overflow-hidden"
       style={{
         borderColor: `${iconColor}14`,
+        borderLeftColor: iconColor,
         backgroundColor: `${iconColor}05`,
       }}
     >
@@ -257,7 +258,7 @@ export function EditGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-[#ffcc44]/8 bg-[#ffcc44]/[0.02] overflow-hidden"
+      className="rounded-lg border border-l-2 border-[#ffcc44]/8 border-l-[#ffcc44] bg-[#ffcc44]/[0.02] overflow-hidden"
     >
       <button
         onClick={() => setExpanded(!expanded)}

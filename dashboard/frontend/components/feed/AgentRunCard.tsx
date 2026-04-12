@@ -105,21 +105,29 @@ function AgentRunCardInner({
         isIdle
           ? {
               borderColor: "rgba(255, 68, 68, 0.30)",
+              borderLeftWidth: "2px",
+              borderLeftColor: "#ff4444",
               background:
                 "linear-gradient(to right, rgba(255,68,68,0.05), rgba(255,68,68,0.02), rgba(255,68,68,0.05))",
             }
           : isPending
           ? {
               borderColor: hexToRgba(phaseColor, 0.25),
+              borderLeftWidth: "2px",
+              borderLeftColor: phaseColor,
               background: `linear-gradient(to right, ${hexToRgba(phaseColor, 0.04)}, ${hexToRgba(phaseColor, 0.02)}, ${hexToRgba(phaseColor, 0.04)})`,
             }
           : isPaused
           ? {
               borderColor: "rgba(255, 170, 0, 0.15)",
+              borderLeftWidth: "2px",
+              borderLeftColor: "#ffaa00",
               background: "rgba(255, 170, 0, 0.03)",
             }
           : {
               borderColor: hexToRgba(phaseColor, 0.10),
+              borderLeftWidth: "2px",
+              borderLeftColor: phaseColor,
               background: hexToRgba(phaseColor, 0.02),
             }
       }

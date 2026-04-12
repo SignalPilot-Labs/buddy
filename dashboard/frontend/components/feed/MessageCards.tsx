@@ -29,10 +29,10 @@ export function LLMMessageCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={clsx(
-        "rounded-lg p-4",
+        "rounded-lg p-4 border-l-2",
         isPlanner
-          ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10"
-          : "bg-white/[0.02] border border-white/[0.04]"
+          ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10 border-l-[#ff8844]"
+          : "bg-white/[0.02] border border-white/[0.04] border-l-[#00ff88]"
       )}
     >
       <div className="flex items-center gap-2 mb-2.5">
