@@ -158,9 +158,6 @@ export function useDashboard(): DashboardState {
     activeRepoFilter,
     setStartModalOpen,
     setBusy,
-    setPendingMessagesRef,
-    setHistoryEventsRef,
-    setHistoryLoadingRef,
   });
 
   const { controlAction } = runActions;

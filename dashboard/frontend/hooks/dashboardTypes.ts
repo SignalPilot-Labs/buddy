@@ -1,6 +1,6 @@
 import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage, ConnectionState } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import type { Dispatch, RefObject, SetStateAction } from "react";
+import type { RefObject } from "react";
 
 export interface RunActionsConfig {
   selectedRunId: string | null;
@@ -15,9 +15,6 @@ export interface RunActionsConfig {
   activeRepoFilter: string | null;
   setStartModalOpen: (v: boolean) => void;
   setBusy: (v: boolean) => void;
-  setPendingMessagesRef: RefObject<Dispatch<SetStateAction<PendingMessage[]>>>;
-  setHistoryEventsRef: RefObject<(events: FeedEvent[]) => void>;
-  setHistoryLoadingRef: RefObject<(v: boolean) => void>;
 }
 
 export interface RunActions {
