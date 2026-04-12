@@ -145,22 +145,40 @@ def _ask_token(prompt: str) -> str | None:
     return token if token else None
 
 
+def _extract_token(raw: str) -> str | None:
+    """Extract OAuth token from claude setup-token output.
+
+    The CLI line-wraps at 80 columns when stdout is piped, splitting the
+    token across multiple lines. We find the line starting with 'sk-ant-'
+    and join consecutive lines that contain only valid token characters.
+    """
+    parts: list[str] = []
+    collecting = False
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not collecting and stripped.startswith("sk-ant-"):
+            collecting = True
+        if collecting:
+            if stripped and re.fullmatch(r"[A-Za-z0-9_\-]+", stripped):
+                parts.append(stripped)
+            else:
+                break
+    return "".join(parts) if parts else None
+
+
 def _detect_claude_token() -> str | None:
     """Get Claude OAuth token via `claude setup-token` (interactive OAuth flow)."""
     console.print("\n[bold]Claude OAuth Token[/bold]")
     if _ask_yes_no("Run `claude setup-token` to authenticate via browser?"):
         try:
-            env = {**os.environ, "COLUMNS": "200"}
             result = subprocess.run(
                 ["claude", "setup-token"],
                 stdout=subprocess.PIPE,
                 text=True,
-                env=env,
             )
             if result.returncode == 0 and result.stdout:
-                match = re.search(r"(sk-ant-[A-Za-z0-9_\-]+)", result.stdout)
-                if match:
-                    token = match.group(1)
+                token = _extract_token(result.stdout)
+                if token:
                     print(f"✓ Token received ({token[:12]}****)")
                     return token
         except FileNotFoundError:
