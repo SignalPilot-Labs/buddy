@@ -159,9 +159,9 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 
     Tokens are stored as an encrypted JSON array in settings key 'claude_tokens'.
     The current index is tracked in 'claude_token_index'. Legacy single-token
-    entries are auto-migrated into the pool by _read_token_pool().
+    entries are auto-migrated into the pool by read_token_pool().
     """
-    tokens = await _read_token_pool(s)
+    tokens = await read_token_pool(s)
     if not tokens:
         return None
     idx_row = await s.get(Setting, "claude_token_index")
@@ -177,7 +177,7 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 # Token pool CRUD
 # ---------------------------------------------------------------------------
 
-async def _read_token_pool(s: AsyncSession) -> list[str]:
+async def read_token_pool(s: AsyncSession) -> list[str]:
     """Read the decrypted token pool."""
     pool = await s.get(Setting, "claude_tokens")
     if pool:
@@ -197,7 +197,7 @@ async def _write_token_pool(s: AsyncSession, tokens: list[str]) -> None:
 async def add_token_to_pool(raw_token: str) -> dict:
     """Add a Claude token to the pool. Rejects duplicates."""
     async with session() as s:
-        tokens = await _read_token_pool(s)
+        tokens = await read_token_pool(s)
         if raw_token in tokens:
             raise ValueError("This token is already in the pool")
         tokens.append(raw_token)
@@ -209,7 +209,7 @@ async def add_token_to_pool(raw_token: str) -> dict:
 async def list_pool_tokens() -> list[dict]:
     """List all tokens in the pool (masked)."""
     async with session() as s:
-        tokens = await _read_token_pool(s)
+        tokens = await read_token_pool(s)
         idx_row = await s.get(Setting, "claude_token_index")
         current_idx = int(idx_row.value) if idx_row else 0
     if not tokens:
@@ -224,11 +224,16 @@ async def list_pool_tokens() -> list[dict]:
 async def remove_token_from_pool(index: int) -> dict:
     """Remove a token by index. Adjusts round-robin index to avoid skipping."""
     async with session() as s:
-        tokens = await _read_token_pool(s)
+        tokens = await read_token_pool(s)
         if index < 0 or index >= len(tokens):
             raise ValueError(f"Index {index} out of range (pool has {len(tokens)} tokens)")
         tokens.pop(index)
-        await _write_token_pool(s, tokens)
+        if tokens:
+            await _write_token_pool(s, tokens)
+        else:
+            pool_row = await s.get(Setting, "claude_tokens")
+            if pool_row:
+                await s.delete(pool_row)
         # Adjust round-robin index
         idx_row = await s.get(Setting, "claude_token_index")
         if idx_row and tokens:
@@ -238,7 +243,7 @@ async def remove_token_from_pool(index: int) -> dict:
             elif current >= len(tokens):
                 await upsert_setting(s, "claude_token_index", str(0), False)
         elif idx_row and not tokens:
-            await upsert_setting(s, "claude_token_index", str(0), False)
+            await s.delete(idx_row)
         await s.commit()
     return {"ok": True, "count": len(tokens)}
 
@@ -301,7 +306,6 @@ async def autofill_settings(master_key_path: str) -> None:
             return
 
         env_mappings = {
-            "claude_token": "CLAUDE_CODE_OAUTH_TOKEN",
             "git_token": "GIT_TOKEN",
             "max_budget_usd": "MAX_BUDGET_USD",
         }
@@ -313,6 +317,12 @@ async def autofill_settings(master_key_path: str) -> None:
             is_secret = key in SECRET_KEYS
             stored_val = crypto.encrypt(val, master_key_path) if is_secret else val
             await upsert_setting(s, key, stored_val, is_secret)
+
+        claude_token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")
+        if claude_token:
+            pool = json.dumps([claude_token])
+            encrypted = crypto.encrypt(pool, master_key_path)
+            await upsert_setting(s, "claude_tokens", encrypted, True)
 
         await s.commit()
 

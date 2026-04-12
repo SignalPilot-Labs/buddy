@@ -150,13 +150,15 @@ def _detect_claude_token() -> str | None:
     console.print("\n[bold]Claude OAuth Token[/bold]")
     if _ask_yes_no("Run `claude setup-token` to authenticate via browser?"):
         try:
+            env = {**os.environ, "COLUMNS": "200"}
             result = subprocess.run(
                 ["claude", "setup-token"],
                 stdout=subprocess.PIPE,
                 text=True,
+                env=env,
             )
             if result.returncode == 0 and result.stdout:
-                match = re.search(r"(sk-ant-\S+)", result.stdout)
+                match = re.search(r"(sk-ant-[A-Za-z0-9_\-]+)", result.stdout)
                 if match:
                     token = match.group(1)
                     print(f"✓ Token received ({token[:12]}****)")
