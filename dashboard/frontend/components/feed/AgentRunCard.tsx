@@ -100,7 +100,7 @@ function AgentRunCardInner({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border overflow-hidden relative"
+      className="rounded-lg border overflow-hidden relative transition-all duration-150 hover:!border-l-[3px] focus-within:!border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
       style={
         isIdle
           ? {

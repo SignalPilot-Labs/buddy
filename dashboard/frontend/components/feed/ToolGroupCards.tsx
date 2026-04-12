@@ -35,7 +35,7 @@ export function BashGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-l-2 border-[#00ff88]/8 border-l-[#00ff88] bg-[#00ff88]/[0.02] overflow-hidden"
+      className="rounded-lg border border-l-2 border-[#00ff88]/8 border-l-[#00ff88] bg-[#00ff88]/[0.02] overflow-hidden transition-all duration-150 hover:border-l-[3px] focus-within:border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -123,7 +123,7 @@ export function PlaywrightGroupCard({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-lg border border-l-2 border-[#66bbff]/8 border-l-[#66bbff] bg-[#66bbff]/[0.02] overflow-hidden"
+      className="rounded-lg border border-l-2 border-[#66bbff]/8 border-l-[#66bbff] bg-[#66bbff]/[0.02] overflow-hidden transition-all duration-150 hover:border-l-[3px] focus-within:border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]"
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -261,7 +261,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className={clsx(
-        "rounded-lg border border-l-2 overflow-hidden",
+        "rounded-lg border border-l-2 overflow-hidden transition-all duration-150 hover:border-l-[3px] focus-within:border-l-[3px] focus-within:outline focus-within:outline-1 focus-within:outline-white/20 focus-within:outline-offset-[-1px]",
         denied
           ? "border-[#ff4444]/10 bg-[#ff4444]/[0.02]"
           : "border-white/[0.04] bg-white/[0.01]"
