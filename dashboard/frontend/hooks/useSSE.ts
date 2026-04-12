@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent } from "@/lib/types";
 import { createSSE, pollEvents } from "@/lib/api";
-import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS } from "@/lib/constants";
+import { SSE_POLL_INTERVAL_MS, SSE_FALLBACK_TIMEOUT_MS, SSE_RECONNECT_DELAY_MS, SSE_MAX_RECONNECTS } from "@/lib/constants";
 import { mergeToolEvent, mergeToolEventMutable } from "@/lib/eventMerge";
 
 export interface SSECursor {
@@ -79,6 +79,12 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
   const pendingRef = useRef<PendingItem[]>([]);
   const rafRef = useRef<number>(0);
 
+  // Reconnection state
+  const reconnectCountRef = useRef<number>(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track live cursors so reconnect can resume from the right position
+  const cursorsRef = useRef<SSECursor>({ afterTool: 0, afterAudit: 0 });
+
   const scheduleFlush = useCallback(() => {
     if (rafRef.current !== 0) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -99,34 +105,18 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     setEvents([]);
   }, []);
 
-  const disconnect = useCallback(() => {
-    genRef.current++;
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
+  const cancelReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
     }
-    if (esRef.current) {
-      esRef.current.close();
-      esRef.current = null;
-    }
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-    setConnected(false);
-    runIdRef.current = null;
   }, []);
 
-  const connect = useCallback((runId: string, cursor: SSECursor) => {
-    // Clean up any existing connection
-    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
-    if (esRef.current) { esRef.current.close(); esRef.current = null; }
-    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
-
-    const gen = ++genRef.current;
-    runIdRef.current = runId;
-    setEvents([]);
-    setConnected(false);
+  // _attachSSE: creates the EventSource and wires all handlers.
+  // Does NOT clear events — called by both initial connect and reconnect.
+  const _attachSSE = useCallback((runId: string, cursor: SSECursor, gen: number) => {
+    const es = createSSE(runId, cursor.afterTool, cursor.afterAudit);
+    esRef.current = es;
 
     let sseGotMessage = false;
     let afterTool = cursor.afterTool;
@@ -177,10 +167,6 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       startPolling();
     }
 
-    // --- SSE primary with timeout fallback ---
-    const es = createSSE(runId, cursor.afterTool, cursor.afterAudit);
-    esRef.current = es;
-
     timeoutRef.current = setTimeout(() => {
       if (gen !== genRef.current) return;
       if (!sseGotMessage) switchToPolling();
@@ -189,6 +175,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     es.addEventListener("connected", () => {
       if (gen !== genRef.current) return;
       sseGotMessage = true;
+      reconnectCountRef.current = 0;
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       setConnected(true);
     });
@@ -203,6 +190,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const data: ToolCall = JSON.parse(e.data);
+        if (data.id) {
+          afterTool = Math.max(afterTool, data.id);
+          cursorsRef.current = { ...cursorsRef.current, afterTool };
+        }
         pendingRef.current.push({ type: "tool", data });
         scheduleFlush();
       } catch (err) {
@@ -215,6 +206,10 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       sseGotMessage = true;
       try {
         const raw: AuditEvent = JSON.parse(e.data);
+        if (raw.id) {
+          afterAudit = Math.max(afterAudit, raw.id);
+          cursorsRef.current = { ...cursorsRef.current, afterAudit };
+        }
         if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
         pendingRef.current.push({ type: "audit", data: raw });
         scheduleFlush();
@@ -244,17 +239,79 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
         console.warn("Failed to parse run_ended SSE event:", err);
       }
       setConnected(false);
+      genRef.current++;
       es.close();
       if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+      cancelReconnectTimer();
       onRunEndedRef.current?.();
     });
 
     es.onerror = () => {
       if (gen !== genRef.current) return;
       setConnected(false);
-      if (!sseGotMessage) switchToPolling();
+
+      if (!sseGotMessage) {
+        // Never got a message — fall back to polling
+        switchToPolling();
+        return;
+      }
+
+      // Was connected but lost — attempt reconnection
+      es.close();
+      if (esRef.current === es) esRef.current = null;
+
+      if (reconnectCountRef.current < SSE_MAX_RECONNECTS) {
+        reconnectCountRef.current++;
+        const snapshot = cursorsRef.current;
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectTimerRef.current = null;
+          if (gen !== genRef.current) return;
+          _attachSSE(runId, snapshot, gen);
+        }, SSE_RECONNECT_DELAY_MS);
+      } else {
+        // Exhausted SSE reconnects — fall back to polling
+        switchToPolling();
+      }
     };
-  }, [scheduleFlush]);
+  }, [scheduleFlush, cancelReconnectTimer]);
+
+  const disconnect = useCallback(() => {
+    genRef.current++;
+    cancelReconnectTimer();
+    reconnectCountRef.current = 0;
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
+    }
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setConnected(false);
+    runIdRef.current = null;
+  }, [cancelReconnectTimer]);
+
+  const connect = useCallback((runId: string, cursor: SSECursor) => {
+    // Clean up any existing connection
+    cancelReconnectTimer();
+    reconnectCountRef.current = 0;
+    if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+    if (esRef.current) { esRef.current.close(); esRef.current = null; }
+    if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+
+    const gen = ++genRef.current;
+    runIdRef.current = runId;
+    cursorsRef.current = { afterTool: cursor.afterTool, afterAudit: cursor.afterAudit };
+
+    setEvents([]);
+    setConnected(false);
+
+    _attachSSE(runId, cursor, gen);
+  }, [_attachSSE, cancelReconnectTimer]);
 
   // Clean up on unmount
   useEffect(() => () => {

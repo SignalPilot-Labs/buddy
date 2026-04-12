@@ -26,6 +26,8 @@ export const AGENT_HEALTH_POLL_MS = 10_000;
 export const NETWORK_INFO_POLL_MS = 30_000;
 export const SSE_POLL_INTERVAL_MS = 1_000;
 export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
+export const SSE_RECONNECT_DELAY_MS = 2_000;
+export const SSE_MAX_RECONNECTS = 5;
 
 // Fetch limits
 export const HISTORY_FETCH_LIMIT = 500;

@@ -187,7 +187,7 @@ export function EventFeed({
             </svg>
             {newEventCount > 0 ? (
               <span className="flex items-center gap-1">
-                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] text-[8px] font-bold tabular-nums animate-pulse">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] text-[8px] font-bold tabular-nums">
                   {newEventCount}
                 </span>
                 <span>new event{newEventCount === 1 ? "" : "s"}</span>
