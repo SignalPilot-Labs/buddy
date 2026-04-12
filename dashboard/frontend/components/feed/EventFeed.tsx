@@ -8,6 +8,7 @@ import { SCROLL_BOTTOM_THRESHOLD, SCROLL_INSTANT_THRESHOLD_MS } from "@/lib/cons
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
+import { SkeletonCard } from "./SkeletonCard";
 import { EmptyEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
@@ -114,6 +115,7 @@ export function EventFeed({
 
   const hasContent = events.length > 0 || pendingMessages.length > 0;
   const showSkeleton = isLoading && !hasContent;
+  const showRunSkeleton = runActive && !hasContent && !isLoading;
   const containerOpacity = isLoading && hasContent ? LOADING_OPACITY : 1;
 
   return (
@@ -129,6 +131,12 @@ export function EventFeed({
           <div className="space-y-3 py-4">
             {Array.from({ length: SKELETON_COUNT }, (_, i) => (
               <div key={i} className={`${SKELETON_HEIGHT} rounded bg-white/[0.03] animate-pulse`} />
+            ))}
+          </div>
+        ) : showRunSkeleton ? (
+          <div className="space-y-3 py-4">
+            {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+              <SkeletonCard key={i} />
             ))}
           </div>
         ) : !hasContent ? (
