@@ -8,7 +8,7 @@ import { SCROLL_BOTTOM_THRESHOLD, SKELETON_COUNT, SKELETON_HEIGHT, SKELETON_WIDT
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
-import { EmptyEvents } from "@/components/ui/EmptyStates";
+import { EmptyEvents, EmptyRunEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const FAB_INITIAL = { opacity: 0, y: 8 };
@@ -39,6 +39,7 @@ export function EventFeed({
   runPaused = false,
   isLoading = false,
   historyTruncated = false,
+  hasSelectedRun,
 }: {
   events: FeedEvent[];
   pendingMessages?: PendingMessage[];
@@ -46,6 +47,7 @@ export function EventFeed({
   runPaused?: boolean;
   isLoading?: boolean;
   historyTruncated?: boolean;
+  hasSelectedRun: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -138,7 +140,7 @@ export function EventFeed({
           </div>
         ) : !hasContent ? (
           <div className="flex items-center justify-center h-full">
-            <EmptyEvents />
+            {hasSelectedRun ? <EmptyRunEvents /> : <EmptyEvents />}
           </div>
         ) : (
           <>

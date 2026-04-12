@@ -234,6 +234,7 @@ function MonitorPageInner() {
               runPaused={runStatus === "paused"}
               isLoading={historyLoading}
               historyTruncated={historyTruncated}
+              hasSelectedRun={selectedRunId !== null}
             />
             <CommandInput
               runId={selectedRunId}
@@ -285,6 +286,7 @@ function MonitorPageInner() {
           onResume={() => { void toastControlAction("Resume", resumeAgent); }}
           onInject={handleInject}
           onRestart={handleRestart}
+          showToast={showToast}
         />
       )}
 

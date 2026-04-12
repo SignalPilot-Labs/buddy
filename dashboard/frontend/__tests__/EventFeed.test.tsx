@@ -41,17 +41,17 @@ function makeControlEvent(text: string): FeedEvent {
 
 describe("EventFeed", () => {
   it("renders without crashing on empty events", () => {
-    const { container } = render(<EventFeed events={[]} />);
+    const { container } = render(<EventFeed events={[]} hasSelectedRun={false} />);
     expect(container).toBeInTheDocument();
   });
 
   it("renders tool events", () => {
-    render(<EventFeed events={[makeToolEvent(1, "Bash")]} />);
+    render(<EventFeed events={[makeToolEvent(1, "Bash")]} hasSelectedRun={true} />);
     expect(screen.getByText(/Bash/)).toBeInTheDocument();
   });
 
   it("renders control events", () => {
-    render(<EventFeed events={[makeControlEvent("Run starting...")]} />);
+    render(<EventFeed events={[makeControlEvent("Run starting...")]} hasSelectedRun={true} />);
     expect(screen.getByText(/Run starting/)).toBeInTheDocument();
   });
 
@@ -61,13 +61,13 @@ describe("EventFeed", () => {
       makeToolEvent(2, "Write"),
       makeToolEvent(3, "Bash"),
     ];
-    const { container } = render(<EventFeed events={events} />);
+    const { container } = render(<EventFeed events={events} hasSelectedRun={true} />);
     expect(container).toBeInTheDocument();
   });
 
   it("does not duplicate control event text", () => {
     const events = [makeControlEvent("Run starting with custom prompt...")];
-    render(<EventFeed events={events} />);
+    render(<EventFeed events={events} hasSelectedRun={true} />);
     const matches = screen.getAllByText(/Run starting/);
     expect(matches).toHaveLength(1);
   });
