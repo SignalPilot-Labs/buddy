@@ -24,16 +24,16 @@ function AgentRunCardInner({
   finalText,
   agentType,
   ts,
-  runActive = false,
-  runPaused = false,
+  runActive,
+  runPaused,
 }: {
   tool: ToolCall;
   childTools: ToolCall[];
   finalText: string;
   agentType: string;
   ts: string;
-  runActive?: boolean;
-  runPaused?: boolean;
+  runActive: boolean;
+  runPaused: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
@@ -50,6 +50,8 @@ function AgentRunCardInner({
   const subType = agentType || (input.subagent_type as string) || "—";
   const isPending =
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
+  const isCompleted = !isPending && !!tool.output_data;
+  const isFailed = !isPending && tool.phase === "pre" && !tool.output_data;
 
   const { phase, meta: phaseMeta } = resolvePhase(subType);
 
@@ -308,6 +310,23 @@ function AgentRunCardInner({
                 />
               </span>
               stuck
+            </span>
+          )}
+          {isCompleted && (
+            <span className="flex items-center gap-1 text-[9px] font-semibold" style={{ color: phaseColor }}>
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                <polyline points="1.5 4.5 3.5 6.5 7.5 2.5" stroke={phaseColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              done
+            </span>
+          )}
+          {isFailed && (
+            <span className="flex items-center gap-1 text-[9px] font-semibold text-[#ff4444]">
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                <line x1="2" y1="2" x2="7" y2="7" stroke="#ff4444" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="7" y1="2" x2="2" y2="7" stroke="#ff4444" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              failed
             </span>
           )}
           <Chevron open={expanded} />

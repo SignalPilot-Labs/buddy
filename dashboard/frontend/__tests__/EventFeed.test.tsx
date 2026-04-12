@@ -7,7 +7,16 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { EventFeed } from "@/components/feed/EventFeed";
-import type { FeedEvent } from "@/lib/types";
+import type { FeedEvent, PendingMessage } from "@/lib/types";
+
+const DEFAULT_FEED_PROPS = {
+  pendingMessages: [] as PendingMessage[],
+  runActive: false,
+  runPaused: false,
+  isLoading: false,
+  historyTruncated: false,
+  hasSelectedRun: true,
+};
 
 function makeToolEvent(id: number, name: string): FeedEvent {
   return {
@@ -41,17 +50,17 @@ function makeControlEvent(text: string): FeedEvent {
 
 describe("EventFeed", () => {
   it("renders without crashing on empty events", () => {
-    const { container } = render(<EventFeed events={[]} hasSelectedRun={false} />);
+    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} hasSelectedRun={false} />);
     expect(container).toBeInTheDocument();
   });
 
   it("renders tool events", () => {
-    render(<EventFeed events={[makeToolEvent(1, "Bash")]} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[makeToolEvent(1, "Bash")]} hasSelectedRun={true} />);
     expect(screen.getByText(/Bash/)).toBeInTheDocument();
   });
 
   it("renders control events", () => {
-    render(<EventFeed events={[makeControlEvent("Run starting...")]} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[makeControlEvent("Run starting...")]} hasSelectedRun={true} />);
     expect(screen.getByText(/Run starting/)).toBeInTheDocument();
   });
 
@@ -61,13 +70,13 @@ describe("EventFeed", () => {
       makeToolEvent(2, "Write"),
       makeToolEvent(3, "Bash"),
     ];
-    const { container } = render(<EventFeed events={events} hasSelectedRun={true} />);
+    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
     expect(container).toBeInTheDocument();
   });
 
   it("does not duplicate control event text", () => {
     const events = [makeControlEvent("Run starting with custom prompt...")];
-    render(<EventFeed events={events} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
     const matches = screen.getAllByText(/Run starting/);
     expect(matches).toHaveLength(1);
   });

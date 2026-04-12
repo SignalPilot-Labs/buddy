@@ -34,19 +34,19 @@ const SKELETON_BORDERS = [
 
 export function EventFeed({
   events,
-  pendingMessages = [],
-  runActive = false,
-  runPaused = false,
-  isLoading = false,
-  historyTruncated = false,
+  pendingMessages,
+  runActive,
+  runPaused,
+  isLoading,
+  historyTruncated,
   hasSelectedRun,
 }: {
   events: FeedEvent[];
-  pendingMessages?: PendingMessage[];
-  runActive?: boolean;
-  runPaused?: boolean;
-  isLoading?: boolean;
-  historyTruncated?: boolean;
+  pendingMessages: PendingMessage[];
+  runActive: boolean;
+  runPaused: boolean;
+  isLoading: boolean;
+  historyTruncated: boolean;
   hasSelectedRun: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);

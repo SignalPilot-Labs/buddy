@@ -1,15 +1,23 @@
 "use client";
 
-export function EmptyTerminal() {
+import React from "react";
+
+function TerminalChrome(): React.ReactElement {
   return (
-    <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: "float 6s ease-in-out infinite" }}>
-      {/* Terminal window */}
+    <g>
       <rect x="10" y="8" width="100" height="64" rx="4" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-      {/* Title bar */}
       <line x1="10" y1="20" x2="110" y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
       <circle cx="20" cy="14" r="2" fill="rgba(255,68,68,0.4)" />
       <circle cx="28" cy="14" r="2" fill="rgba(255,170,0,0.4)" />
       <circle cx="36" cy="14" r="2" fill="rgba(0,255,136,0.4)" />
+    </g>
+  );
+}
+
+export function EmptyTerminal() {
+  return (
+    <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: "float 6s ease-in-out infinite" }}>
+      <TerminalChrome />
       {/* Terminal prompt */}
       <text x="18" y="34" fill="rgba(0,255,136,0.3)" fontSize="8" fontFamily="monospace">$</text>
       <rect x="26" y="28" width="40" height="8" rx="1" fill="rgba(255,255,255,0.04)" />
@@ -45,13 +53,7 @@ export function EmptyRunEvents() {
     <div role="status" aria-label="Waiting for agent activity" className="flex flex-col items-center gap-4 py-16">
       <div className="rounded-xl border border-white/[0.04] bg-white/[0.01] p-4">
         <svg width="120" height="80" viewBox="0 0 120 80" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ animation: "float 6s ease-in-out infinite" }}>
-          {/* Terminal window */}
-          <rect x="10" y="8" width="100" height="64" rx="4" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-          {/* Title bar */}
-          <line x1="10" y1="20" x2="110" y2="20" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-          <circle cx="20" cy="14" r="2" fill="rgba(255,68,68,0.4)" />
-          <circle cx="28" cy="14" r="2" fill="rgba(255,170,0,0.4)" />
-          <circle cx="36" cy="14" r="2" fill="rgba(0,255,136,0.4)" />
+          <TerminalChrome />
           {/* Prompt */}
           <text x="18" y="34" fill="rgba(0,255,136,0.5)" fontSize="8" fontFamily="monospace">$</text>
           {/* Pulsing cursor */}
