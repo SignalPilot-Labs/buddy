@@ -41,6 +41,14 @@ TASK_TOOL_NAME: str = "Agent"
 # must be streamed via /exec + tail/head or split before reading.
 FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
 
+# ── Retry (transient network errors on git/gh commands) ──
+RETRY_MAX_ATTEMPTS: int = 3
+RETRY_BASE_DELAY_SEC: float = 2.0
+RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
+    "error connecting", "connection refused", "connection reset",
+    "timed out", "could not resolve",
+)
+
 # ── Repo handlers ──
 REPO_WORK_DIR: str = "/home/agentuser/repo"
 REPO_BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$")
