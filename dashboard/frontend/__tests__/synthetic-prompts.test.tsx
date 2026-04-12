@@ -10,6 +10,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { groupEvents } from "@/lib/groupEvents";
 import { EventFeed } from "@/components/feed/EventFeed";
+import { AgentRunCard } from "@/components/feed/AgentRunCard";
 import type { FeedEvent, ToolCall, PendingMessage } from "@/lib/types";
 
 const DEFAULT_FEED_PROPS = {
@@ -341,5 +342,43 @@ describe("groupEvents session_resumed detail", () => {
       expect(grouped[0].label).toBe("Session Resumed");
       expect(grouped[0].detail).toBe("");
     }
+  });
+});
+
+/* ── AgentRunCard: paused badge ── */
+
+describe("AgentRunCard paused badge state", () => {
+  it("renders 'paused' badge (not 'failed') when runActive=true and runPaused=true", () => {
+    const tool: ToolCall = {
+      id: 200,
+      run_id: "run-1",
+      ts: new Date().toISOString(),
+      phase: "pre",
+      tool_name: "Agent",
+      input_data: { description: "do work", prompt: "some prompt", subagent_type: "frontend-dev" },
+      output_data: null,
+      duration_ms: null,
+      permitted: true,
+      deny_reason: null,
+      agent_role: "orchestrator",
+      tool_use_id: "tu-paused-1",
+      session_id: null,
+      agent_id: null,
+    };
+
+    render(
+      <AgentRunCard
+        tool={tool}
+        childTools={[]}
+        finalText=""
+        agentType="frontend-dev"
+        ts={tool.ts}
+        runActive={true}
+        runPaused={true}
+      />
+    );
+
+    expect(screen.getByText("paused")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
   });
 });
