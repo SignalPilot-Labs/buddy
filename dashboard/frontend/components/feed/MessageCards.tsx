@@ -209,8 +209,8 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
             {fmtTime(ts)}
           </span>
         </div>
-        <div className="max-h-[300px] overflow-y-auto">
-          <MarkdownContent content={prompt} className="text-body text-[#cce8ff]" />
+        <div className="max-h-[300px] overflow-y-auto text-body text-[#cce8ff] whitespace-pre-wrap break-words leading-relaxed">
+          {prompt}
         </div>
       </div>
     </motion.div>
