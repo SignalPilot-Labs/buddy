@@ -14,7 +14,8 @@ from typing import Any, TypeVar
 from sqlalchemy import func, select, update
 
 from db.connection import connect, close, get_session_factory
-from db.models import AuditLog, Run, ToolCall
+from db.models import AuditLog, ControlSignal, Run, ToolCall
+from utils.models import UserAction
 
 log = logging.getLogger("agent.db")
 
@@ -145,22 +146,57 @@ async def get_run_base_branch(run_id: str) -> str | None:
         return run.base_branch
 
 
-async def get_user_messages(run_id: str) -> list[dict]:
-    """Get all user-injected prompts for a run, ordered by time."""
+_USER_FACING_SIGNALS = ("inject", "pause", "resume", "stop")
+
+_SIGNAL_RENDERERS: dict[str, Callable[[str | None], tuple[str, str]]] = {
+    "inject": lambda p: ("message", p or ""),
+    "pause": lambda _: ("pause", "Paused"),
+    "resume": lambda _: ("resume", "Resumed"),
+    "stop": lambda p: ("stop", f"Stopped: {p}" if p else "Stopped"),
+}
+
+
+async def get_user_activity(run_id: str) -> list[UserAction]:
+    """Build the full user activity timeline for a run.
+
+    Includes the initial task (from runs.custom_prompt) followed by all
+    user-facing control signals (inject, pause, resume, stop) ordered
+    chronologically.
+    """
     async with get_session_factory()() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            return []
+
+        actions: list[UserAction] = []
+        if run.custom_prompt:
+            actions.append(UserAction(
+                timestamp=run.started_at.isoformat() if run.started_at else "",
+                kind="task",
+                text=run.custom_prompt,
+            ))
+
         rows = (
             await s.execute(
-                select(AuditLog.ts, AuditLog.details)
+                select(ControlSignal.ts, ControlSignal.signal, ControlSignal.payload)
                 .where(
-                    AuditLog.run_id == run_id, AuditLog.event_type == "prompt_injected"
+                    ControlSignal.run_id == run_id,
+                    ControlSignal.signal.in_(_USER_FACING_SIGNALS),
                 )
-                .order_by(AuditLog.ts)
+                .order_by(ControlSignal.ts)
             )
         ).all()
-        return [
-            {"ts": r.ts.isoformat(), "prompt": r.details.get("prompt", "")}
-            for r in rows
-        ]
+
+        for row in rows:
+            renderer = _SIGNAL_RENDERERS[row.signal]
+            kind, text = renderer(row.payload)
+            actions.append(UserAction(
+                timestamp=row.ts.isoformat(),
+                kind=kind,
+                text=text,
+            ))
+
+        return actions
 
 
 async def finish_run(

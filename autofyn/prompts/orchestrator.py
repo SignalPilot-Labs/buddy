@@ -9,37 +9,37 @@ rounds summary, prior-round file index, user messages).
 from claude_agent_sdk.types import SystemPromptPreset
 
 from prompts.loader import load_markdown, render_time_status
-from utils.models import RoundContext, RoundsMetadata
+from utils.models import RoundContext, RoundsMetadata, UserAction
 
 
-def build_round_system_prompt(ctx: RoundContext) -> SystemPromptPreset:
+def build_round_system_prompt(context: RoundContext) -> SystemPromptPreset:
     """Build the system prompt for a single round's orchestrator session."""
     template = load_markdown("system")
-    body = _apply_placeholders(template, ctx)
+    body = _apply_placeholders(template, context)
 
     sections: list[str] = [body, load_markdown("query/git-rules")]
 
-    if ctx.duration_minutes > 0:
+    if context.duration_minutes > 0:
         sections.append(
             render_time_status(
-                ctx.duration_minutes,
-                ctx.time_remaining_minutes,
+                context.duration_minutes,
+                context.time_remaining_minutes,
             )
         )
 
-    if ctx.metadata.rounds:
-        sections.append(_prior_rounds_block(ctx.metadata))
+    if context.metadata.rounds:
+        sections.append(_prior_rounds_block(context.metadata))
 
-    if ctx.previous_round_reports:
+    if context.previous_round_reports:
         sections.append(
             _prior_reports_block(
-                ctx.round_number - 1,
-                ctx.previous_round_reports,
+                context.round_number - 1,
+                context.previous_round_reports,
             )
         )
 
-    if ctx.user_messages:
-        sections.append(_user_messages_block(ctx.user_messages))
+    if context.user_activity:
+        sections.append(_user_activity_block(context.user_activity))
 
     return SystemPromptPreset(
         type="preset",
@@ -51,9 +51,9 @@ def build_round_system_prompt(ctx: RoundContext) -> SystemPromptPreset:
 # ── Placeholder substitution ─────────────────────────────────────────
 
 
-def _apply_placeholders(template: str, ctx: RoundContext) -> str:
+def _apply_placeholders(template: str, context: RoundContext) -> str:
     """Replace `{ROUND_NUMBER}` in the template with the current round."""
-    return template.replace("{ROUND_NUMBER}", str(ctx.round_number))
+    return template.replace("{ROUND_NUMBER}", str(context.round_number))
 
 
 # ── Dynamic context blocks ───────────────────────────────────────────
@@ -78,11 +78,19 @@ def _prior_reports_block(prior_round: int, files: list[str]) -> str:
     return "\n".join(lines)
 
 
-def _user_messages_block(messages: list[str]) -> str:
-    """Inline messages the user sent since the previous round."""
-    lines = ["## User messages (newest last)"]
-    for msg in messages:
-        lines.append(f"- {msg}")
+def _user_activity_block(activity: list[UserAction]) -> str:
+    """Chronological timeline of user actions across the entire run."""
+    lines = ["## User activity (chronological)"]
+    for action in activity:
+        timestamp = action.timestamp[:19].replace("T", " ")
+        if action.kind == "task":
+            lines.append(f'- [{timestamp}] Task started: "{action.text}"')
+        elif action.kind == "message":
+            lines.append(f'- [{timestamp}] User message: "{action.text}"')
+        elif action.kind in ("pause", "resume"):
+            lines.append(f"- [{timestamp}] {action.text}")
+        elif action.kind == "stop":
+            lines.append(f"- [{timestamp}] {action.text}")
     lines.append(
         "The latest user message takes priority over previous plans.",
     )
