@@ -83,7 +83,7 @@ export function LLMMessageCard({
         {thinking && (
           <button
             onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[10px] text-text-secondary hover:text-text-muted transition-colors flex items-center gap-1"
+            className="ml-auto text-[10px] text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
           >
             <svg
               width="10"

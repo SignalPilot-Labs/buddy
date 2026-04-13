@@ -101,7 +101,7 @@ export function MobileControlSheet({
             <div className="px-4 pb-6 space-y-4">
               {/* Repo selector */}
               <div>
-                <label className="text-[10px] uppercase tracking-[0.15em] text-text-secondary font-semibold mb-2 block">
+                <label className="text-[12px] uppercase tracking-[0.15em] text-text-secondary font-semibold mb-2 block">
                   Repository
                 </label>
                 <RepoSelector
@@ -130,7 +130,7 @@ export function MobileControlSheet({
               {/* Run controls grid */}
               {status && (
                 <>
-                  <label className="text-[10px] uppercase tracking-[0.15em] text-text-secondary font-semibold block">
+                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-secondary font-semibold block">
                     Run Controls
                   </label>
                   <div className="grid grid-cols-3 gap-2">

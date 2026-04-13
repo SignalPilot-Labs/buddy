@@ -317,7 +317,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
             <StyledToolOutput tool={tool} />
             {tool.input_data && cat !== "bash" && cat !== "todo" && (
               <details className="group">
-                <summary className="text-[10px] text-text-dim cursor-pointer hover:text-text-muted transition-colors">
+                <summary className="text-[10px] text-text-dim cursor-pointer hover:text-accent-hover transition-colors">
                   raw input
                 </summary>
                 <pre className="mt-1 text-[10px] text-text-secondary bg-black/20 rounded p-2 border border-border whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">

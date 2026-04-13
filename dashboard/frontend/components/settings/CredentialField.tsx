@@ -43,7 +43,7 @@ export function CredentialField({
           {field.label}
         </label>
         {isSet && (
-          <span className="flex items-center gap-1 text-[11px] text-[#00ff88]/60">
+          <span className="flex items-center gap-1 text-[12px] text-[#00ff88]/60">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
               <polyline points="2 5 4 7 8 3" />
             </svg>
@@ -53,11 +53,11 @@ export function CredentialField({
       </div>
 
       {currentValue && editValue === undefined && (
-        <div className="mb-2 px-2.5 py-1.5 bg-black/30 rounded border border-border text-[11px] font-mono text-text-secondary flex items-center justify-between overflow-hidden">
+        <div className="mb-2 px-2.5 py-1.5 bg-black/30 rounded border border-border text-[12px] font-mono text-text-secondary flex items-center justify-between overflow-hidden">
           <span className="truncate min-w-0">{currentValue}</span>
           <button
             onClick={onStartEdit}
-            className="text-[11px] text-text-secondary hover:text-text-muted transition-colors ml-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+            className="text-[12px] text-text-secondary hover:text-accent-hover transition-colors ml-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
           >
             Change
           </button>
@@ -79,7 +79,7 @@ export function CredentialField({
             <button
               type="button"
               onClick={onToggleShow}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
               tabIndex={-1}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -100,7 +100,7 @@ export function CredentialField({
           {editValue !== undefined && currentValue && (
             <button
               onClick={onCancelEdit}
-              className="absolute right-8 top-1/2 -translate-y-1/2 text-[11px] text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+              className="absolute right-8 top-1/2 -translate-y-1/2 text-[12px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
             >
               Cancel
             </button>
@@ -108,7 +108,7 @@ export function CredentialField({
         </div>
       )}
 
-      <p className="mt-2 text-[11px] text-text-muted leading-relaxed">
+      <p className="mt-2 text-[13px] text-text-muted leading-relaxed">
         {field.helpText}
       </p>
     </div>

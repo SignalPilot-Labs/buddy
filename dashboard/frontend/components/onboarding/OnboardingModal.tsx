@@ -24,14 +24,14 @@ const STEPS = [
     type: "password" as const,
     help: (
       <>
-        <p className="text-[11px] text-text-secondary leading-relaxed">
+        <p className="text-[13px] text-text-secondary leading-relaxed">
           This authenticates the Claude CLI inside Docker.
         </p>
         <div className="mt-2 p-2.5 bg-black/40 rounded border border-border">
-          <p className="text-[11px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[11px] text-text-muted space-y-1 list-decimal list-inside">
+          <p className="text-[12px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
+          <ol className="text-[13px] text-text-muted space-y-1 list-decimal list-inside">
             <li>
-              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[11px]">claude setup-token</code> in your terminal
+              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[12px]">claude setup-token</code> in your terminal
             </li>
             <li>Follow the prompts to authenticate</li>
             <li>Copy the token that is output</li>
@@ -48,17 +48,17 @@ const STEPS = [
     type: "password" as const,
     help: (
       <>
-        <p className="text-[11px] text-text-secondary leading-relaxed">
+        <p className="text-[13px] text-text-secondary leading-relaxed">
           Used by the agent to push branches and create PRs. Never exposed to the LLM.
         </p>
         <div className="mt-2 p-2.5 bg-black/40 rounded border border-border">
-          <p className="text-[11px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[11px] text-text-muted space-y-1 list-decimal list-inside">
+          <p className="text-[12px] text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
+          <ol className="text-[13px] text-text-muted space-y-1 list-decimal list-inside">
             <li>Go to GitHub Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens</li>
             <li>Click &ldquo;Generate new token&rdquo;</li>
             <li>
-              Select your repo and grant <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[11px]">Contents: Read and write</code> and{" "}
-              <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[11px]">Pull requests: Read and write</code>
+              Select your repo and grant <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[12px]">Contents: Read and write</code> and{" "}
+              <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[12px]">Pull requests: Read and write</code>
             </li>
             <li>Copy the generated token</li>
           </ol>
@@ -73,8 +73,8 @@ const STEPS = [
     placeholder: "your-org/your-repo",
     type: "text" as const,
     help: (
-      <p className="text-[11px] text-text-secondary leading-relaxed">
-        The repository slug in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[11px]">owner/repo</code> format.
+      <p className="text-[13px] text-text-secondary leading-relaxed">
+        The repository slug in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[12px]">owner/repo</code> format.
         The agent is gated to only operate on this repository.
       </p>
     ),
@@ -180,7 +180,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     <h2 className="text-[12px] font-semibold text-text">
                       Welcome to AutoFyn
                     </h2>
-                    <p className="text-[11px] text-text-muted mt-0.5">
+                    <p className="text-[12px] text-text-muted mt-0.5">
                       Set up your credentials to get started
                     </p>
                   </div>
@@ -236,7 +236,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         }
                         onKeyDown={handleKeyDown}
                         placeholder={currentStep.placeholder}
-                        className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-[11px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
+                        className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-[12px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
                         autoComplete="off"
                         spellCheck={false}
                       />
@@ -244,7 +244,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                           tabIndex={-1}
                         >
                           {showPassword ? (
@@ -263,7 +263,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     </div>
 
                     {initialStatus[currentStep.statusKey] && !currentValue && (
-                      <p className="mt-2 text-[11px] text-[#00ff88]/60 flex items-center gap-1">
+                      <p className="mt-2 text-[12px] text-[#00ff88]/60 flex items-center gap-1">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <polyline points="2 5 4 7 8 3" />
                         </svg>
@@ -272,7 +272,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     )}
 
                     {error && (
-                      <p className="mt-2 text-[11px] text-[#ff4444]">{error}</p>
+                      <p className="mt-2 text-[12px] text-[#ff4444]">{error}</p>
                     )}
 
                     <div className="mt-4">{currentStep.help}</div>

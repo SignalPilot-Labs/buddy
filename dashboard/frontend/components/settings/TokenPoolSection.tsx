@@ -29,7 +29,7 @@ export function TokenPoolSection({
         <label className="text-[12px] font-semibold text-accent-hover">
           Claude OAuth Tokens
         </label>
-        <span className="text-[11px] text-text-secondary">
+        <span className="text-[12px] text-text-secondary">
           {tokens.length} key{tokens.length !== 1 ? "s" : ""} — round-robin on resume
         </span>
       </div>
@@ -48,11 +48,11 @@ export function TokenPoolSection({
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span className="text-[11px] font-mono text-accent-hover flex-1 min-w-0 truncate">
+              <span className="text-[12px] font-mono text-accent-hover flex-1 min-w-0 truncate">
                 {t.masked}
               </span>
               {t.active && (
-                <span className="flex items-center gap-1 text-[11px] text-[#00ff88]/60 shrink-0">
+                <span className="flex items-center gap-1 text-[12px] text-[#00ff88]/60 shrink-0">
                   <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <polyline points="2 5 4 7 8 3" />
                   </svg>
@@ -74,7 +74,7 @@ export function TokenPoolSection({
         </AnimatePresence>
 
         {tokens.length === 0 && (
-          <div className="px-2.5 py-3 text-[11px] text-text-secondary text-center">
+          <div className="px-2.5 py-3 text-[12px] text-text-secondary text-center">
             No tokens configured. Add one to get started.
           </div>
         )}
@@ -88,7 +88,7 @@ export function TokenPoolSection({
             onChange={(e) => { onNewTokenChange(e.target.value); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onAddToken(); } }}
             placeholder="sk-ant-oat01-..."
-            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[11px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[12px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
             autoComplete="off"
             spellCheck={false}
           />
@@ -104,12 +104,12 @@ export function TokenPoolSection({
       </div>
 
       {tokenError && (
-        <p className="mt-1.5 text-[11px] text-[#ff4444]">{tokenError}</p>
+        <p className="mt-1.5 text-[12px] text-[#ff4444]">{tokenError}</p>
       )}
 
-      <p className="mt-2 text-[11px] text-text-muted leading-relaxed">
+      <p className="mt-2 text-[13px] text-text-muted leading-relaxed">
         Add multiple Claude OAuth tokens for automatic rotation. When a run hits a rate limit and is resumed, the next token is used automatically.
-        Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[11px]">claude setup-token</code> to generate tokens.
+        Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[12px]">claude setup-token</code> to generate tokens.
       </p>
     </div>
   );

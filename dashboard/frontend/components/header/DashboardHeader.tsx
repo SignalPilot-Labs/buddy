@@ -85,7 +85,7 @@ export function DashboardHeader({
         onClick={onToggleSidebar}
         title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-text-muted transition-colors flex-shrink-0"
+        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors flex-shrink-0"
       >
         {sidebarCollapsed ? (
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -170,7 +170,7 @@ export function DashboardHeader({
       {/* Settings link */}
       <Link
         href="/settings"
-        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-text-muted transition-colors"
+        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors"
         title="Settings"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
