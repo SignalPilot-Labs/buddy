@@ -72,7 +72,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
             className="absolute top-full left-0 mt-1 z-50 w-[260px] bg-bg-card border border-border rounded-lg shadow-xl shadow-black/50 overflow-hidden"
           >
             <div className="px-3 py-2 border-b border-border">
-              <span className="text-[11px] uppercase tracking-[0.1em] text-text-secondary font-semibold">
+              <span className="text-[12px] uppercase tracking-[0.1em] text-text-secondary font-semibold">
                 Repositories
               </span>
             </div>

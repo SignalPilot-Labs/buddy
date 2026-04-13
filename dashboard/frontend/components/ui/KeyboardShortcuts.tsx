@@ -110,7 +110,7 @@ function ShortcutList({ shortcuts }: { shortcuts: ShortcutRow[] }) {
 function ShortcutRow({ row }: { row: ShortcutRow }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-[var(--color-border)]/60 last:border-0">
-      <span className="text-[10px] text-[var(--color-text-muted)]">{row.description}</span>
+      <span className="text-[11px] text-[var(--color-text-muted)]">{row.description}</span>
       <div className="flex items-center gap-1 shrink-0">
         {row.keys.map((key, i) => (
           <span key={i} className="flex items-center gap-1">

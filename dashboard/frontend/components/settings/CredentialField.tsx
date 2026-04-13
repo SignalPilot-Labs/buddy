@@ -100,7 +100,7 @@ export function CredentialField({
           {editValue !== undefined && currentValue && (
             <button
               onClick={onCancelEdit}
-              className="absolute right-8 top-1/2 -translate-y-1/2 text-[10px] text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+              className="absolute right-8 top-1/2 -translate-y-1/2 text-[11px] text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
             >
               Cancel
             </button>
