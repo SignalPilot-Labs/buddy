@@ -171,6 +171,16 @@ export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
   "completed_no_changes",
 ]);
 
+// Panel resize
+export const SIDEBAR_DEFAULT_WIDTH = 260;
+export const SIDEBAR_MIN_WIDTH = 180;
+export const SIDEBAR_MAX_WIDTH = 400;
+export const RIGHT_PANEL_DEFAULT_WIDTH = 280;
+export const RIGHT_PANEL_MIN_WIDTH = 200;
+export const RIGHT_PANEL_MAX_WIDTH = 600;
+export const SIDEBAR_COLLAPSED_WIDTH = 48;
+export const PANEL_WIDTH_STORAGE_PREFIX = "autofyn_panel_";
+
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.
   // Client-side: use empty string so all /api/* requests go to the same origin

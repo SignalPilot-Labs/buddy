@@ -18,12 +18,23 @@ import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { DashboardHeader } from "@/components/header/DashboardHeader";
 import { RightPanel } from "@/components/layout/RightPanel";
+import { PanelDivider } from "@/components/layout/PanelDivider";
+import { usePanelResize } from "@/hooks/usePanelResize";
 import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
 import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
 import { StopConfirmDialog } from "@/components/ui/StopConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
+import {
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_COLLAPSED_WIDTH,
+  RIGHT_PANEL_DEFAULT_WIDTH,
+  RIGHT_PANEL_MIN_WIDTH,
+  RIGHT_PANEL_MAX_WIDTH,
+} from "@/lib/constants";
 
 function MonitorPageInner() {
   const { showToast } = useToast();
@@ -78,6 +89,22 @@ function MonitorPageInner() {
     setSettingsStatus,
     setRepos,
   } = dashboard;
+
+  const sidebarResize = usePanelResize({
+    storageKey: "sidebar",
+    defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+    minWidth: SIDEBAR_MIN_WIDTH,
+    maxWidth: SIDEBAR_MAX_WIDTH,
+    direction: "left",
+  });
+
+  const rightPanelResize = usePanelResize({
+    storageKey: "right_panel",
+    defaultWidth: RIGHT_PANEL_DEFAULT_WIDTH,
+    minWidth: RIGHT_PANEL_MIN_WIDTH,
+    maxWidth: RIGHT_PANEL_MAX_WIDTH,
+    direction: "right",
+  });
 
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
@@ -211,7 +238,10 @@ function MonitorPageInner() {
       {!isMobile && (
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar */}
-          <div className={`desktop-sidebar h-full overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
+          <div
+            className={`desktop-sidebar h-full overflow-hidden flex-shrink-0 ${sidebarResize.isDragging ? "" : "transition-[width] duration-200"}`}
+            style={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarResize.width }}
+          >
             <RunList
               runs={runs}
               activeId={selectedRunId}
@@ -220,6 +250,14 @@ function MonitorPageInner() {
               collapsed={sidebarCollapsed}
             />
           </div>
+
+          {/* Left panel divider */}
+          {!sidebarCollapsed && (
+            <PanelDivider
+              onMouseDown={sidebarResize.handleMouseDown}
+              isDragging={sidebarResize.isDragging}
+            />
+          )}
 
           {/* Center — Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0 relative">
@@ -253,14 +291,22 @@ function MonitorPageInner() {
             />
           </main>
 
-          {/* Right sidebar */}
+          {/* Right panel divider + panel */}
           {selectedRunId && (
-            <RightPanel
-              runId={selectedRunId}
-              events={allEvents}
-              activeTab={rightPanel}
-              onTabChange={setRightPanel}
-            />
+            <>
+              <PanelDivider
+                onMouseDown={rightPanelResize.handleMouseDown}
+                isDragging={rightPanelResize.isDragging}
+              />
+              <div className="flex-shrink-0 h-full" style={{ width: rightPanelResize.width }}>
+                <RightPanel
+                  runId={selectedRunId}
+                  events={allEvents}
+                  activeTab={rightPanel}
+                  onTabChange={setRightPanel}
+                />
+              </div>
+            </>
           )}
         </div>
       )}
