@@ -185,7 +185,7 @@ export function ReadGroupCard({
                       onClick={() =>
                         setPreviewIdx(previewIdx === i ? null : i)
                       }
-                      className="w-full flex items-center gap-2 text-[10px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+                      className="w-full flex items-center gap-2 text-[12px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                     >
                       <svg
                         width="10"
@@ -201,7 +201,7 @@ export function ReadGroupCard({
                       </svg>
                       <span className="text-text-secondary truncate flex-1">{p}</span>
                       {totalLines > 0 && (
-                        <span className="text-[10px] text-text-secondary shrink-0 tabular-nums">
+                        <span className="text-text-secondary shrink-0 tabular-nums">
                           {totalLines} lines
                         </span>
                       )}
@@ -309,7 +309,7 @@ export function EditGroupCard({
                   onClick={() =>
                     setExpandedFile(expandedFile === i ? null : i)
                   }
-                  className="w-full flex items-center gap-2 px-4 py-2 text-[10px] hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-[12px] hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
                 >
                   <svg
                     width="10"
