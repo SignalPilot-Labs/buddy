@@ -25,14 +25,11 @@ export function usePanelResize({
   direction,
 }: UsePanelResizeOptions): UsePanelResizeResult {
   const [width, setWidth] = useState<number>(() => {
-    try {
-      const stored = localStorage.getItem(PANEL_WIDTH_STORAGE_PREFIX + storageKey);
-      if (stored !== null) {
-        const parsed = parseInt(stored, 10);
-        if (!isNaN(parsed)) return Math.min(maxWidth, Math.max(minWidth, parsed));
-      }
-    } catch {
-      // localStorage unavailable (SSR or restricted context)
+    if (typeof window === "undefined") return defaultWidth;
+    const stored = localStorage.getItem(PANEL_WIDTH_STORAGE_PREFIX + storageKey);
+    if (stored !== null) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed)) return Math.min(maxWidth, Math.max(minWidth, parsed));
     }
     return defaultWidth;
   });
@@ -67,14 +64,10 @@ export function usePanelResize({
     setIsDragging(false);
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
-    try {
-      localStorage.setItem(
-        PANEL_WIDTH_STORAGE_PREFIX + storageKey,
-        String(currentWidthRef.current),
-      );
-    } catch {
-      // ignore write failures
-    }
+    localStorage.setItem(
+      PANEL_WIDTH_STORAGE_PREFIX + storageKey,
+      String(currentWidthRef.current),
+    );
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
   }, [storageKey, handleMouseMove]);
