@@ -115,6 +115,7 @@ class RunContext:
     total_output_tokens: int = 0
     cache_creation_input_tokens: int = 0
     cache_read_input_tokens: int = 0
+    skip_pr: bool = False
 
 
 # ── Round execution ─────────────────────────────────────────────────
@@ -318,6 +319,7 @@ class ActiveRun:
     inbox: UserInbox | None = field(default=None, repr=False)
     time_lock: TimeLock | None = field(default=None, repr=False)
     run_context: RunContext | None = field(default=None, repr=False)
+    skip_pr: bool = False
 
 
 # ── HTTP request schemas ────────────────────────────────────────────
@@ -378,6 +380,12 @@ class InjectRequest(BaseModel):
                 f"payload must be under {INJECT_PAYLOAD_MAX_LEN} characters"
             )
         return v
+
+
+class StopRequest(BaseModel):
+    """POST /stop request body."""
+
+    skip_pr: bool = False
 
 
 class HealthRunEntry(BaseModel):

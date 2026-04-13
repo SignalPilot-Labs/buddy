@@ -60,7 +60,11 @@ def model_to_dict(obj) -> dict:
 # ---------------------------------------------------------------------------
 
 async def send_control_signal(
-    run_id: str, signal: str, valid_statuses: set[str], payload: str | None,
+    run_id: str,
+    signal: str,
+    valid_statuses: set[str],
+    payload: str | None,
+    extra_body: dict[str, Any] | None,
 ) -> dict:
     """Validate run status, log to DB, and forward to agent EventBus."""
     async with session() as s:
@@ -83,7 +87,12 @@ async def send_control_signal(
 
     agent_path = SIGNAL_AGENT_PATHS.get(signal)
     if agent_path:
-        json_body = {"payload": payload} if signal == "inject" else None
+        if signal == "inject":
+            json_body: dict[str, Any] | None = {"payload": payload}
+        elif extra_body is not None:
+            json_body = extra_body
+        else:
+            json_body = None
         params = {"run_id": run_id}
         await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None)
 

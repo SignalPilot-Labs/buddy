@@ -25,6 +25,7 @@ from backend.models import (
     ControlSignalRequest,
     RunId,
     StartRunRequest,
+    StopRunRequest,
 )
 from backend.utils import (
     agent_request,
@@ -108,7 +109,7 @@ async def get_audit_log(
 @router.post("/runs/{run_id}/pause")
 async def pause_run(run_id: str = RunId) -> dict:
     """Pause a running agent."""
-    return await send_control_signal(run_id, "pause", {"running"}, None)
+    return await send_control_signal(run_id, "pause", {"running"}, None, None)
 
 
 async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: AsyncSession) -> dict:
@@ -139,10 +140,12 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         if run.status == "paused":
             prompt = (body.payload or "").strip() or None
             if prompt:
-                await send_control_signal(run_id, "inject", {"paused"}, prompt)
-            return await send_control_signal(run_id, "resume", {"paused"}, None)
+                await send_control_signal(run_id, "inject", {"paused"}, prompt, None)
+            return await send_control_signal(run_id, "resume", {"paused"}, None, None)
         if run.status in RESTARTABLE_STATUSES:
-            return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)
+            return await _resume_completed_run(
+                run, run_id, (body.payload or "").strip() or None, s,
+            )
         raise HTTPException(status_code=409, detail=f"Cannot resume run with status '{run.status}'")
 
 
@@ -158,29 +161,27 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status in ACTIVE_STATUSES:
-            return await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt)
+            return await send_control_signal(
+                run_id, "inject", set(ACTIVE_STATUSES), prompt, None,
+            )
         if run.status in INJECTABLE_TERMINAL_STATUSES:
             return await _resume_completed_run(run, run_id, prompt, s)
         raise HTTPException(status_code=409, detail=f"Cannot inject into run with status '{run.status}'")
 
 
 @router.post("/runs/{run_id}/stop")
-async def stop_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -> dict:
+async def stop_run(run_id: str = RunId, body: StopRunRequest = Body()) -> dict:
     """Stop a running agent."""
     reason = (body.payload or "").strip() or DEFAULT_STOP_REASON
-    return await send_control_signal(run_id, "stop", set(ACTIVE_STATUSES), reason)
+    return await send_control_signal(
+        run_id, "stop", set(ACTIVE_STATUSES), reason, {"skip_pr": body.skip_pr},
+    )
 
 
 @router.post("/runs/{run_id}/unlock")
 async def unlock_run(run_id: str = RunId) -> dict:
     """Unlock a session time gate."""
-    return await send_control_signal(run_id, "unlock", set(ACTIVE_STATUSES), None)
-
-
-@router.post("/runs/{run_id}/kill")
-async def kill_run(run_id: str = RunId) -> dict:
-    """Kill a run immediately (cancels the task)."""
-    return await send_control_signal(run_id, "kill", set(ACTIVE_STATUSES), None)
+    return await send_control_signal(run_id, "unlock", set(ACTIVE_STATUSES), None, None)
 
 
 # ---------------------------------------------------------------------------

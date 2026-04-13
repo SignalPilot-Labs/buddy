@@ -3,14 +3,12 @@
 import { useState, useCallback } from "react";
 import {
   startRun as apiStartRun,
-  killAgent,
+  stopRun,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
 import { loadStoredModel } from "@/lib/constants";
 import type { RunActionsConfig, RunActions } from "@/hooks/dashboardTypes";
-
-const KILL_CONFIRM_TIMEOUT_MS = 3000;
 
 export function useRunActions(config: RunActionsConfig): RunActions {
   const {
@@ -28,7 +26,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     setBusy,
   } = config;
 
-  const [showKillConfirm, setShowKillConfirm] = useState(false);
+  const [showStopDialog, setShowStopDialog] = useState(false);
 
   const controlAction = useCallback(
     (label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
@@ -116,23 +114,31 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     [selectedRunId, selectedRunIdRef, addPendingMessage, markPendingFailed, addEvent, sseRef, cursorsRef],
   );
 
-  const handleHeaderKill = useCallback((): void => {
-    if (!showKillConfirm) {
-      setShowKillConfirm(true);
-      setTimeout(() => setShowKillConfirm(false), KILL_CONFIRM_TIMEOUT_MS);
-      return;
-    }
-    setBusy(true);
-    void controlAction("Kill", killAgent);
-    setShowKillConfirm(false);
-  }, [showKillConfirm, controlAction, setBusy]);
+  const handleStopClick = useCallback((): void => {
+    setShowStopDialog(true);
+  }, []);
+
+  const handleStopConfirm = useCallback(
+    (openPr: boolean): void => {
+      setShowStopDialog(false);
+      setBusy(true);
+      void controlAction("Stop", (id) => stopRun(id, !openPr));
+    },
+    [controlAction, setBusy],
+  );
+
+  const handleStopCancel = useCallback((): void => {
+    setShowStopDialog(false);
+  }, []);
 
   return {
     controlAction,
     handleStartRun,
     handleInject,
     handleRestart,
-    handleHeaderKill,
-    showKillConfirm,
+    showStopDialog,
+    handleStopClick,
+    handleStopConfirm,
+    handleStopCancel,
   };
 }
