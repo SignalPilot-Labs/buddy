@@ -1,0 +1,1 @@
+STUCK SUBAGENT RECOVERY: {AGENT_NAMES} became unresponsive (idle >{IDLE_THRESHOLD_MIN}min) and was terminated. Check /tmp/round-*/ for any partial reports they may have written, then continue with the remaining work.

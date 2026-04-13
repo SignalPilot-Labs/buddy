@@ -18,7 +18,7 @@ from claude_agent_sdk.types import (
     SubagentStopHookInput,
 )
 
-from sandbox.session.session import Session
+from session.session import Session
 
 BASE_SESSION_OPTS = {
     "run_id": "run-1",
@@ -53,7 +53,7 @@ class TestAgentPreToolUseEnqueue:
             "agent_id": None,
             "session_id": "s",
         })
-        with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock):
+        with patch("session.session.log_tool_call", new_callable=AsyncMock):
             await session._hook_pre_tool(hook_input, "toolu_parent_1", _hook_ctx())
         assert list(session._pending_task_tool_use_ids) == ["toolu_parent_1"]
 
@@ -67,7 +67,7 @@ class TestAgentPreToolUseEnqueue:
             "agent_id": None,
             "session_id": "s",
         })
-        with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock):
+        with patch("session.session.log_tool_call", new_callable=AsyncMock):
             await session._hook_pre_tool(hook_input, "toolu_bash_1", _hook_ctx())
         assert list(session._pending_task_tool_use_ids) == []
 
@@ -81,7 +81,7 @@ class TestAgentPreToolUseEnqueue:
             "agent_id": None,
             "session_id": "s",
         })
-        with patch("sandbox.session.manager._log_tool_call", new_callable=AsyncMock):
+        with patch("session.session.log_tool_call", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="without tool_use_id"):
                 await session._hook_pre_tool(hook_input, None, _hook_ctx())
 
@@ -102,7 +102,7 @@ class TestSubagentStartPopsQueue:
             "cwd": "/tmp",
             "hook_event_name": "SubagentStart",
         })
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock) as mock_audit:
+        with patch("session.session.log_audit", new_callable=AsyncMock) as mock_audit:
             await session._hook_subagent_start(hook_input, "unrelated_hook_uuid", _hook_ctx())
         assert list(session._pending_task_tool_use_ids) == []
         assert session._subagent_parent_tuids == {"aAgentA": "toolu_parent_A"}
@@ -122,7 +122,7 @@ class TestSubagentStartPopsQueue:
         session._pending_task_tool_use_ids.append("toolu_B")
         session._pending_task_tool_use_ids.append("toolu_C")
 
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock) as mock_audit:
+        with patch("session.session.log_audit", new_callable=AsyncMock) as mock_audit:
             for agent_id, agent_type in [
                 ("aA", "builder"),
                 ("aB", "reviewer"),
@@ -161,7 +161,7 @@ class TestSubagentStartPopsQueue:
             "cwd": "/tmp",
             "hook_event_name": "SubagentStart",
         })
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock):
+        with patch("session.session.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="no pending Agent"):
                 await session._hook_subagent_start(hook_input, "uuid", _hook_ctx())
 
@@ -178,7 +178,7 @@ class TestSubagentStartPopsQueue:
             "cwd": "/tmp",
             "hook_event_name": "SubagentStart",
         })
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock):
+        with patch("session.session.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="missing agent_id"):
                 await session._hook_subagent_start(hook_input, "uuid", _hook_ctx())
 
@@ -204,7 +204,7 @@ class TestSubagentStopWritesFinalText:
             "agent_type": "builder",
             "last_assistant_message": "done.",
         })
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock) as mock_audit:
+        with patch("session.session.log_audit", new_callable=AsyncMock) as mock_audit:
             await session._hook_subagent_stop(hook_input, "uuid", _hook_ctx())
 
         details = mock_audit.call_args[0][2]
@@ -231,6 +231,6 @@ class TestSubagentStopWritesFinalText:
             "agent_transcript_path": "",
             "agent_type": "builder",
         })
-        with patch("sandbox.session.manager._log_audit", new_callable=AsyncMock):
+        with patch("session.session.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="no recorded parent"):
                 await session._hook_subagent_stop(hook_input, "uuid", _hook_ctx())

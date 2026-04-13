@@ -1,0 +1,1 @@
+Warning: No activity detected for {IDLE_SECONDS}s. If you are still working, continue. If you are stuck, describe what is blocking you and try a different approach.

@@ -24,3 +24,19 @@ class CmdResult:
     stdout: str
     stderr: str
     exit_code: int
+
+
+@dataclass(frozen=True, slots=True)
+class ToolContext:
+    """Shared context extracted from SDK hook_input for tool call logging.
+
+    Built once per hook invocation by Session._resolve_tool_context and
+    passed to log_tool_call so callers don't juggle positional args.
+    """
+
+    tool_name: str
+    tool_use_id: str
+    agent_id: str | None
+    session_id: str | None
+    role: str
+    duration_ms: int | None

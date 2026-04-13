@@ -24,27 +24,34 @@ from claude_agent_sdk.types import (
 from constants import INPUT_SUMMARY_MAX_LEN
 from db.connection import get_session_factory
 from db.models import AuditLog, ToolCall
+from models import ToolContext
 
 log = logging.getLogger("sandbox.session_utils")
 
 
 async def log_tool_call(
-    run_id: str, phase: str, tool_name: str,
-    input_data: dict | None, output_data: dict | None,
-    duration_ms: int | None, permitted: bool, deny_reason: str | None,
-    agent_role: str, tool_use_id: str | None,
-    session_id: str | None, agent_id: str | None,
+    run_id: str,
+    phase: str,
+    ctx: ToolContext,
+    input_data: dict | None,
+    output_data: dict | None,
 ) -> None:
     """Insert a tool call row into the database."""
     try:
         async with get_session_factory()() as s:
             s.add(ToolCall(
-                run_id=run_id, phase=phase, tool_name=tool_name,
-                input_data=input_data, output_data=output_data,
-                duration_ms=duration_ms, permitted=permitted,
-                deny_reason=deny_reason, agent_role=agent_role,
-                tool_use_id=tool_use_id, session_id=session_id,
-                agent_id=agent_id,
+                run_id=run_id,
+                phase=phase,
+                tool_name=ctx.tool_name,
+                input_data=input_data,
+                output_data=output_data,
+                duration_ms=ctx.duration_ms,
+                permitted=True,
+                deny_reason=None,
+                agent_role=ctx.role,
+                tool_use_id=ctx.tool_use_id,
+                session_id=ctx.session_id,
+                agent_id=ctx.agent_id,
             ))
             await s.commit()
     except Exception as e:
