@@ -25,6 +25,7 @@ from utils.models import (
     HealthResponse,
     HealthRunEntry,
     InjectRequest,
+    ResumeRequest,
     StartRequest,
     StopRequest,
 )
@@ -47,6 +48,39 @@ def _merge_tokens_into_env(
     if git_token:
         merged[ENV_KEY_GIT_TOKEN] = git_token
     return merged
+
+
+async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> dict:
+    """Restart a stopped/crashed/completed run by re-bootstrapping from its branch."""
+    run_id = body.run_id
+    run_info = await db.get_run_for_resume(run_id)
+    if not run_info:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if not run_info["branch_name"]:
+        raise HTTPException(status_code=409, detail="Run has no branch — cannot resume")
+
+    # Build a StartRequest from the DB state + incoming credentials.
+    merged_env = _merge_tokens_into_env(body.env, body.claude_token, body.git_token)
+    start_body = StartRequest(
+        prompt=body.prompt or run_info["custom_prompt"],
+        max_budget_usd=0,
+        duration_minutes=run_info["duration_minutes"] or 0,
+        base_branch=run_info["base_branch"] or "main",
+        model=run_info["model_name"] or "claude-sonnet-4-20250514",
+        github_repo=body.github_repo or run_info["github_repo"],
+        env=merged_env,
+    )
+
+    # Clean up stale ActiveRun if present (e.g. crashed but not cleaned up).
+    server.remove_run(run_id)
+
+    active = ActiveRun(run_id=run_id)
+    server.register_run(active)
+
+    task = asyncio.create_task(server.execute_run(active, start_body))
+    active.task = task
+    task.add_done_callback(lambda t: server.on_task_done(active, t))
+    return {"ok": True, "event": "resume", "run_id": run_id, "restarted": True}
 
 
 def register_routes(app: FastAPI, server: "AgentServer") -> None:
@@ -136,8 +170,13 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         return {"ok": True, "event": "pause", "run_id": r.run_id}
 
     @app.post("/resume")
-    async def resume(run_id: str | None = None):
-        """Unpause a paused run. Restart of terminated runs is not supported."""
+    async def resume(body: ResumeRequest | None = None, run_id: str | None = None):
+        """Unpause a paused run or restart a terminal run."""
+        # If body has run_id, this is a restart of a terminal run.
+        if body and body.run_id:
+            return await _restart_terminal_run(server, body)
+
+        # Otherwise, unpause a paused run.
         r = server.get_run_or_first(run_id)
         if not r.inbox:
             raise HTTPException(status_code=409, detail="Run not accepting signals")

@@ -388,6 +388,17 @@ class StopRequest(BaseModel):
     skip_pr: bool
 
 
+class ResumeRequest(BaseModel):
+    """POST /resume request body for restarting a terminal run."""
+
+    run_id: str
+    prompt: str | None
+    claude_token: str | None
+    git_token: str | None
+    github_repo: str | None
+    env: dict[str, str] | None
+
+
 class HealthRunEntry(BaseModel):
     """Per-run details in the health response."""
 

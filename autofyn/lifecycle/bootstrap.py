@@ -61,7 +61,9 @@ async def bootstrap_run(
 
     fallback_model = get_fallback_model(model)
 
-    branch_name = _make_branch_name(custom_prompt)
+    # Resume: reuse existing branch if the DB already has one for this run.
+    existing_branch = await db.get_run_branch_name(run_id)
+    branch_name = existing_branch or _make_branch_name(custom_prompt)
     log.info("Run %s bootstrapping %s on branch %s", run_id, github_repo, branch_name)
     await sandbox.repo.bootstrap(
         repo=github_repo,
@@ -70,7 +72,10 @@ async def bootstrap_run(
         working_branch=branch_name,
         timeout=clone_timeout,
     )
-    await db.update_run_branch(run_id, branch_name)
+    if existing_branch:
+        await db.update_run_status(run_id, "running")
+    else:
+        await db.update_run_branch(run_id, branch_name)
 
     run = RunContext(
         run_id=run_id,

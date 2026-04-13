@@ -146,6 +146,15 @@ async def get_run_base_branch(run_id: str) -> str | None:
         return run.base_branch
 
 
+async def get_run_branch_name(run_id: str) -> str | None:
+    """Get the working branch name for a run (set after bootstrap)."""
+    async with get_session_factory()() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            return None
+        return run.branch_name
+
+
 _USER_FACING_SIGNALS = ("inject", "pause", "resume", "stop", "unlock")
 
 _SIGNAL_RENDERERS: dict[str, Callable[[str | None], tuple[str, str]]] = {

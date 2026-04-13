@@ -133,6 +133,10 @@ class AgentServer:
             raise RuntimeError("register_run requires run_id")
         self._runs[active.run_id] = active
 
+    def remove_run(self, run_id: str) -> None:
+        """Remove a run from the registry (idempotent)."""
+        self._runs.pop(run_id, None)
+
     def runs(self) -> dict[str, ActiveRun]:
         """Expose the run dict (read-only use by endpoints)."""
         return self._runs

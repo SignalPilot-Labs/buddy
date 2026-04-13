@@ -311,12 +311,24 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         f"base branch '{base_branch}' not found on origin",
     )
 
-    for args in (
-        ["fetch", "origin", base_branch],
-        ["checkout", "-B", base_branch, f"origin/{base_branch}"],
-        ["checkout", "-b", working_branch],
-    ):
-        _fail(await _git(args, timeout), f"git {args[0]}")
+    _fail(await _git(["fetch", "origin", base_branch], timeout), "git fetch")
+    _fail(
+        await _git(["checkout", "-B", base_branch, f"origin/{base_branch}"], timeout),
+        "git checkout base",
+    )
+
+    # Resume: if the working branch already exists on origin, check it out.
+    # Fresh run: create a new branch from base.
+    ls_result = await _git(
+        ["ls-remote", "--exit-code", "--heads", "origin", working_branch], timeout,
+    )
+    if ls_result.exit_code == 0:
+        _fail(
+            await _git(["checkout", "-b", working_branch, f"origin/{working_branch}"], timeout),
+            "git checkout existing branch",
+        )
+    else:
+        _fail(await _git(["checkout", "-b", working_branch], timeout), "git checkout -b")
 
     request.app["repo_state"] = RepoState(
         repo=repo,
