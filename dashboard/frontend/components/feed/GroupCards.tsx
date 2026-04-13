@@ -339,32 +339,34 @@ export function EditGroupCard({
                   )}
                   <Chevron open={expandedFile === i} size={8} />
                 </button>
-                {expandedFile === i &&
-                  (!!tools[i]?.output_data?.structuredPatch ||
-                    typeof tools[i]?.input_data?.content === "string") && (
+                {expandedFile === i && (() => {
+                  const patch = tools[i]?.output_data?.structuredPatch;
+                  const hasPatch = Array.isArray(patch) && (patch as unknown[]).length > 0;
+                  const content = tools[i]?.output_data?.content ?? tools[i]?.input_data?.content;
+                  const hasContent = typeof content === "string" && content.length > 0;
+                  if (!hasPatch && !hasContent) return null;
+                  const filePath =
+                    typeof tools[i]?.output_data?.filePath === "string"
+                      ? (tools[i].output_data!.filePath as string)
+                      : typeof tools[i]?.input_data?.file_path === "string"
+                        ? (tools[i].input_data!.file_path as string)
+                        : "";
+                  return (
                     <div className="px-4 pb-3">
-                      {tools[i]?.output_data?.structuredPatch ? (
+                      {hasPatch ? (
                         <DiffBlock
-                          patch={
-                            tools[i].output_data!
-                              .structuredPatch as Array<Record<string, unknown>>
-                          }
+                          patch={patch as Array<Record<string, unknown>>}
                         />
                       ) : (
                         <FileContentPreview
-                          content={tools[i].input_data!.content as string}
-                          totalLines={
-                            (tools[i].input_data!.content as string).split("\n").length
-                          }
-                          filePath={
-                            typeof tools[i].input_data?.file_path === "string"
-                              ? (tools[i].input_data!.file_path as string)
-                              : ""
-                          }
+                          content={content as string}
+                          totalLines={(content as string).split("\n").length}
+                          filePath={filePath}
                         />
                       )}
                     </div>
-                  )}
+                  );
+                })()}
               </div>
             ))}
           </div>
