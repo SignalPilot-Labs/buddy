@@ -1,6 +1,6 @@
 """Tests for TimeLock — per-run time budget tracker."""
 
-from session.time_lock import TimeLock
+from agent_session.time_lock import TimeLock
 
 
 class TestTimeLock:

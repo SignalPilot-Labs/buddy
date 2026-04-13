@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from memory.metadata import MetadataStore
     from memory.report import ReportStore
     from user.inbox import UserInbox
-    from session.time_lock import TimeLock
+    from agent_session.time_lock import TimeLock
 
 
 # ── Sandbox execute request/response ────────────────────────────────

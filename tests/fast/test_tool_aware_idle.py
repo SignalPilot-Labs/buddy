@@ -10,8 +10,8 @@ import time
 
 import pytest
 
-from session.stream import StreamDispatcher
-from session.tracker import SubagentTracker, ORCHESTRATOR_ID
+from agent_session.stream import StreamDispatcher
+from agent_session.tracker import SubagentTracker, ORCHESTRATOR_ID
 from utils.models import RunContext
 
 
