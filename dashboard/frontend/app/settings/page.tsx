@@ -56,16 +56,16 @@ function DefaultModelSetting(): React.ReactElement {
   };
 
   return (
-    <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
+    <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="mb-3">
-        <h3 className="text-[10px] font-semibold text-[#ccc] uppercase tracking-[0.12em]">Default Model</h3>
-        <p className="mt-1 text-[10px] text-[#999] leading-relaxed">
+        <h3 className="text-title font-semibold text-accent-hover uppercase tracking-[0.12em]">Default Model</h3>
+        <p className="mt-1 text-body text-text-muted leading-relaxed">
           Select the Claude model to use for new runs. Saved as your default preference.
         </p>
       </div>
       <ModelSelector value={selectedModel} onChange={handleSelect} />
       {modelSaveError && (
-        <p className="mt-2 text-[9px] text-[#ff4444]">{modelSaveError}</p>
+        <p className="mt-2 text-content text-[#ff4444]">{modelSaveError}</p>
       )}
     </div>
   );
@@ -225,27 +225,27 @@ export default function SettingsPage() {
   const activeRepo = settings.github_repo || "";
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#333] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-      <div className="border-b border-[#1a1a1a]">
+    <div className="h-screen bg-bg-card text-text overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-border-subtle [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="border-b border-border">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 text-[#999] hover:text-[#888] transition-colors">
+            <Link href="/" className="flex items-center gap-2 text-text-secondary hover:text-accent-hover transition-colors">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <polyline points="8 2 4 6 8 10" />
               </svg>
-              <span className="text-[10px]">Dashboard</span>
+              <span className="text-content">Dashboard</span>
             </Link>
             <span className="text-[#1a1a1a]">/</span>
             <div className="flex items-center gap-2">
               <div className="flex items-center justify-center h-6 w-6 rounded bg-white/[0.04] border border-white/[0.08]">
                 <Image src="/logo.svg" alt="AutoFyn" width={14} height={14} />
               </div>
-              <h1 className="text-[12px] font-semibold">Settings</h1>
+              <h1 className="text-content font-semibold">Settings</h1>
             </div>
           </div>
           {status && (
             <div className={clsx(
-              "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium",
+              "flex items-center gap-1.5 px-2 py-1 rounded text-content font-medium",
               status.configured ? "bg-[#00ff88]/[0.06] text-[#00ff88]" : "bg-[#ffaa00]/[0.06] text-[#ffaa00]"
             )}>
               <div className={clsx("w-1.5 h-1.5 rounded-full", status.configured ? "bg-[#00ff88]" : "bg-[#ffaa00]")} />
@@ -258,7 +258,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         {loading && (
           <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
-            <div className="flex items-center gap-2 text-[11px] text-[#888]">
+            <div className="flex items-center gap-2 text-meta text-text-secondary">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
                 <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
               </svg>
@@ -269,7 +269,7 @@ export default function SettingsPage() {
 
         {!loading && loadError && (
           <div className="flex flex-col items-center justify-center py-16 gap-3" role="alert">
-            <p className="text-[11px] text-[#ff4444]">{loadError}</p>
+            <p className="text-meta text-[#ff4444]">{loadError}</p>
             <Button variant="success" size="md" onClick={() => setLoadAttempt((n) => n + 1)}>
               Retry
             </Button>
@@ -321,9 +321,9 @@ export default function SettingsPage() {
 
             <div className="flex items-center justify-between pt-2">
               <div>
-                {error && <p className="text-[10px] text-[#ff4444]">{error}</p>}
+                {error && <p className="text-content text-[#ff4444]">{error}</p>}
                 {saved && (
-                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#00ff88]">
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-content text-[#00ff88]">
                     Settings saved and encrypted
                   </motion.p>
                 )}

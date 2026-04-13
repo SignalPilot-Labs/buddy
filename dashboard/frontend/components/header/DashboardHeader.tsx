@@ -79,13 +79,13 @@ export function DashboardHeader({
   const canControl = runStatus !== null && (ACTIVE_STATUSES as readonly RunStatus[]).includes(runStatus) && !busy;
 
   return (
-    <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-[#1a1a1a] bg-[#0a0a0a] header-glow">
+    <header className="desktop-header relative z-10 flex items-center gap-3 px-4 py-2.5 border-b border-border bg-bg-card header-glow">
       {/* Sidebar toggle */}
       <button
         onClick={onToggleSidebar}
         title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="p-2 rounded hover:bg-white/[0.04] text-[#666] hover:text-[#999] transition-colors flex-shrink-0"
+        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors flex-shrink-0"
       >
         {sidebarCollapsed ? (
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -117,11 +117,11 @@ export function DashboardHeader({
           </svg>
           <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
         </div>
-        <h1 className="text-[12px] font-bold text-[#e8e8e8] tracking-tight">AutoFyn</h1>
+        <h1 className="text-title font-bold text-text tracking-tight">AutoFyn</h1>
       </div>
 
       {/* Repo Selector */}
-      <div className="w-px h-4 bg-[#1a1a1a]" />
+      <div className="w-px h-4 bg-border" />
       <RepoSelector
         repos={repos}
         activeRepo={activeRepo}
@@ -135,9 +135,9 @@ export function DashboardHeader({
           animate={{ opacity: 1, x: 0 }}
           className="flex items-center gap-2.5 ml-1"
         >
-          <div className="w-px h-4 bg-[#1a1a1a]" />
+          <div className="w-px h-4 bg-border" />
           <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-          <span className="text-[10px] text-[#888] font-medium">
+          <span className="text-meta text-text-secondary font-medium">
             {selectedRun.branch_name.replace("autofyn/", "")}
           </span>
         </motion.div>
@@ -145,7 +145,7 @@ export function DashboardHeader({
 
       <div className="flex-1" />
 
-      <div className="w-px h-4 bg-[#1a1a1a]" />
+      <div className="w-px h-4 bg-border" />
 
       {/* Agent health indicator */}
       <div className="flex items-center gap-1.5 mr-2">
@@ -161,7 +161,7 @@ export function DashboardHeader({
           }`}
           style={!agentIdle && !agentBootstrapping && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
         />
-        <span className="text-[10px] text-[#888]">{healthLabel}</span>
+        <span className="text-meta text-text-secondary">{healthLabel}</span>
       </div>
 
       {/* Mobile Access QR */}
@@ -170,7 +170,7 @@ export function DashboardHeader({
       {/* Settings link */}
       <Link
         href="/settings"
-        className="p-2 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
+        className="p-2 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors"
         title="Settings"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -196,7 +196,7 @@ export function DashboardHeader({
         New Run
       </Button>
 
-      <div className="w-px h-4 bg-[#1a1a1a]" />
+      <div className="w-px h-4 bg-border" />
 
       {/* Stop / Kill icon buttons */}
       <div className="flex items-center gap-1">
@@ -217,7 +217,7 @@ export function DashboardHeader({
           </Button>
         )}
         {sessionLocked && activeRunHealth?.time_remaining && (
-          <span className="text-[10px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
+          <span className="text-meta text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#ffaa00" strokeWidth="1" opacity="0.5">
               <rect x="1.5" y="4" width="5" height="3" rx="0.5" />
               <path d="M2.5 4V3a1.5 1.5 0 013 0v1" />

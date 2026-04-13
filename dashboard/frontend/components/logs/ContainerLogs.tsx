@@ -55,37 +55,37 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
 
   if (!runId) {
     return (
-      <div className="flex items-center justify-center h-full text-[11px] text-[#555]">
+      <div className="flex items-center justify-center h-full text-meta text-text-dim">
         Select a run to view logs
       </div>
     );
   }
 
   return (
-    <div className="relative flex flex-col h-full bg-[#030303]">
+    <div className="relative flex flex-col h-full bg-sidebar">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a1a]">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round">
           <rect x="1" y="1" width="10" height="10" rx="1" />
           <path d="M3 4l2 2-2 2" />
           <line x1="6" y1="8" x2="9" y2="8" />
         </svg>
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#999]">
+        <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">
           Sandbox Logs
         </span>
-        <span className="text-[10px] text-[#555] tabular-nums ml-auto">
+        <span className="text-meta text-text-dim tabular-nums ml-auto">
           {filtered.length} lines
         </span>
       </div>
 
       {/* Filter bar */}
-      <div className="px-3 py-1.5 border-b border-[#1a1a1a]/60">
+      <div className="px-3 py-1.5 border-b border-border/60">
         <input
           type="text"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter logs..."
-          className="w-full bg-transparent text-[10px] text-[#ccc] placeholder-[#444] outline-none"
+          className="w-full bg-transparent text-content text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
         />
       </div>
 
@@ -93,12 +93,12 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto font-mono text-[10px] leading-[16px] px-2 py-1"
+        className="flex-1 overflow-y-auto font-mono text-meta leading-[16px] px-2 py-1"
       >
         {loading && lines.length === 0 && (
           <div className="flex items-center justify-center py-8">
             <div
-              className="h-4 w-4 rounded-full border-2 border-[#333] border-t-[#00ff88]"
+              className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]"
               style={{ animation: "spin 1s linear infinite" }}
             />
           </div>
@@ -109,7 +109,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
         ))}
 
         {!loading && lines.length === 0 && (
-          <div className="text-[10px] text-[#555] px-2 py-6 text-center">
+          <div className="text-text-dim px-2 py-6 text-center">
             No logs available
           </div>
         )}
@@ -124,7 +124,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
             setAutoScroll(true);
             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-[#1a1a1a] border border-[#333] text-[10px] text-[#888] hover:text-[#ccc] transition-colors"
+          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-meta text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
         >
           Scroll to bottom
         </button>
@@ -141,9 +141,9 @@ function LogLine({ line }: { line: string }) {
         "px-1 py-[1px] rounded whitespace-pre-wrap break-all hover:bg-white/[0.02]",
         level === "error" && "text-[#ff6666]",
         level === "warning" && "text-[#ffaa44]",
-        level === "info" && "text-[#999]",
-        level === "debug" && "text-[#666]",
-        !level && "text-[#888]",
+        level === "info" && "text-text-muted",
+        level === "debug" && "text-text-secondary",
+        !level && "text-text-secondary",
       )}
     >
       {line}

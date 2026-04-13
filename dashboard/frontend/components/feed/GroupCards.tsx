@@ -55,22 +55,22 @@ export function ChildToolRow({
         onClick={() => hasOutput && setOpen(!open)}
         className={
           hasOutput
-            ? "flex items-center gap-2 px-4 py-1.5 text-[10px] w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
-            : "flex items-center gap-2 px-4 py-1.5 text-[10px] w-full text-left transition-colors cursor-default"
+            ? "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
+            : "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors cursor-default"
         }
       >
         <span className="opacity-50 shrink-0">
           {getToolIcon(cat, colors?.iconColor || "#888")}
         </span>
-        <span className={`shrink-0 font-medium ${colors?.text || "text-[#888]"}`}>
+        <span className={`shrink-0 font-medium ${colors?.text || "text-text-secondary"}`}>
           {tool.tool_name}
         </span>
         {detail && (
-          <span className="text-[#666] truncate flex-1 min-w-0" title={fp || detail}>{detail}</span>
+          <span className="text-text-secondary truncate flex-1 min-w-0" title={fp || detail}>{detail}</span>
         )}
         {!detail && <span className="flex-1" />}
         {!!tool.duration_ms && (
-          <span className="text-[9px] text-[#666] tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(tool.duration_ms)}
           </span>
         )}
@@ -136,7 +136,7 @@ export function ReadGroupCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         <div
           className="flex items-center justify-center h-8 w-8 rounded-md shrink-0"
@@ -145,20 +145,20 @@ export function ReadGroupCard({
           {getToolIcon(cat, iconColor)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium" style={{ color: iconColor }}>
+          <div className="text-title font-medium" style={{ color: iconColor }}>
             {label}
           </div>
           {subtitle && (
-            <div className="text-[9px] text-[#888] mt-0.5 truncate">
+            <div className="text-body text-text-secondary mt-0.5 truncate">
               {subtitle}
             </div>
           )}
         </div>
-        <span className="text-[9px] text-[#777] tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[9px] text-[#888] tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -185,7 +185,7 @@ export function ReadGroupCard({
                       onClick={() =>
                         setPreviewIdx(previewIdx === i ? null : i)
                       }
-                      className="w-full flex items-center gap-2 text-[10px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left"
+                      className="w-full flex items-center gap-2 text-content py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                     >
                       <svg
                         width="10"
@@ -199,9 +199,9 @@ export function ReadGroupCard({
                       >
                         <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
                       </svg>
-                      <span className="text-[#888] truncate flex-1">{p}</span>
+                      <span className="text-text-secondary truncate flex-1">{p}</span>
                       {totalLines > 0 && (
-                        <span className="text-[9px] text-[#888] shrink-0 tabular-nums">
+                        <span className="text-text-secondary shrink-0 tabular-nums">
                           {totalLines} lines
                         </span>
                       )}
@@ -262,34 +262,34 @@ export function EditGroupCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#ffcc44]/8 shrink-0">
           {getToolIcon("edit", "#ffcc44")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#ffcc44]">
+          <div className="text-title font-medium text-[#ffcc44]">
             Edited {uniqueFiles} file{uniqueFiles !== 1 ? "s" : ""} (
             {edits.length} changes)
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             {totalAdded > 0 && (
-              <span className="text-[9px] text-[#00ff88]/60 tabular-nums">
+              <span className="text-caption text-[#00ff88]/80 tabular-nums">
                 +{totalAdded}
               </span>
             )}
             {totalRemoved > 0 && (
-              <span className="text-[9px] text-[#ff4444]/60 tabular-nums">
+              <span className="text-caption text-[#ff4444]/80 tabular-nums">
                 -{totalRemoved}
               </span>
             )}
           </div>
         </div>
-        <span className="text-[9px] text-[#777] tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[9px] text-[#888] tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -309,7 +309,7 @@ export function EditGroupCard({
                   onClick={() =>
                     setExpandedFile(expandedFile === i ? null : i)
                   }
-                  className="w-full flex items-center gap-2 px-4 py-2 text-[10px] hover:bg-white/[0.02] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-content hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
                 >
                   <svg
                     width="10"
@@ -323,16 +323,16 @@ export function EditGroupCard({
                   >
                     <path d="M6.5 1L8 2.5 3 7.5H1.5V6L6.5 1z" />
                   </svg>
-                  <span className="text-[#999] truncate flex-1">
+                  <span className="text-text-muted truncate flex-1">
                     {edit.path}
                   </span>
                   {edit.added > 0 && (
-                    <span className="text-[#00ff88]/50 tabular-nums shrink-0">
+                    <span className="text-[#00ff88]/70 tabular-nums shrink-0">
                       +{edit.added}
                     </span>
                   )}
                   {edit.removed > 0 && (
-                    <span className="text-[#ff4444]/50 tabular-nums shrink-0">
+                    <span className="text-[#ff4444]/70 tabular-nums shrink-0">
                       -{edit.removed}
                     </span>
                   )}

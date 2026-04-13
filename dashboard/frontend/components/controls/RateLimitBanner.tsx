@@ -66,20 +66,20 @@ export function RateLimitBanner({
 
         <div className="flex-1 min-w-0">
           {isReady ? (
-            <span className="text-[10px] font-semibold text-[#00ff88]">
+            <span className="text-meta font-semibold text-[#00ff88]">
               Rate limit cleared — ready to retry
             </span>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-[#ffaa00]">
+              <div className="flex items-center gap-2 text-meta">
+                <span className="font-semibold text-[#ffaa00]">
                   Out of credits
                 </span>
-                <span className="text-[10px] text-[#888]">
+                <span className="text-text-secondary">
                   resets {formatResetTime(resetsAt)} ({formatCountdown(remaining)})
                 </span>
               </div>
-              <p className="mt-1 text-[9px] text-[#666] leading-relaxed">
+              <p className="mt-1 text-body text-text-secondary leading-relaxed">
                 Your Claude account has hit its usage limit.
                 {" "}
                 <a
