@@ -36,24 +36,24 @@ afterEach(() => {
 
 describe("startRun", () => {
   it("sends POST to /api/agent/start with all params", async () => {
-    await startRun("fix bugs", 10, 30, "main", true, "owner/repo");
+    await startRun("fix bugs", 10, 30, "main", "opus", "owner/repo");
     expect(fetchCalls).toHaveLength(1);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBe("fix bugs");
     expect(body.max_budget_usd).toBe(10);
     expect(body.duration_minutes).toBe(30);
     expect(body.base_branch).toBe("main");
-    expect(body.extended_context).toBe(true);
+    expect(body.model).toBe("opus");
     expect(body.repo).toBe("owner/repo");
   });
 
   it("returns run_id from response", async () => {
-    const result = await startRun("test", 0, 0, "main", false, null);
+    const result = await startRun("test", 0, 0, "main", "sonnet", null);
     expect(result.run_id).toBe("test-run-id");
   });
 
   it("sends null prompt when undefined", async () => {
-    await startRun(undefined, 0, 0, "main", false, null);
+    await startRun(undefined, 0, 0, "main", "opus-4-5", null);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBeNull();
   });
@@ -78,6 +78,21 @@ describe("control signals use /api/runs/{run_id}/* endpoints", () => {
   it("resumeAgent hits /api/runs/{run_id}/resume", async () => {
     await resumeAgent("abc-123");
     expect(fetchCalls[0].url).toContain("/api/runs/abc-123/resume");
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body).toEqual({});
+  });
+
+  it("resumeAgent sends prompt as payload when provided", async () => {
+    await resumeAgent("abc-123", "continue from where you left off");
+    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/resume");
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body.payload).toBe("continue from where you left off");
+  });
+
+  it("resumeAgent sends empty body when prompt is undefined", async () => {
+    await resumeAgent("abc-123", undefined);
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body).toEqual({});
   });
 
   it("unlockAgent hits /api/runs/{run_id}/unlock", async () => {

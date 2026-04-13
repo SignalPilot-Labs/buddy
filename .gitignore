@@ -13,6 +13,7 @@ benchmark/results/
 benchmark/skills/improvements_*.json
 
 # Build artifacts
+node_modules/
 autofyn/monitor-web/.next/
 autofyn/monitor-web/node_modules/
 dashboard/frontend/.next/

@@ -18,9 +18,11 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
     setLines(data.lines ?? []);
   }, []);
 
-  // Initial load
+  // Initial load — clear old lines immediately on run switch to avoid showing stale logs
   useEffect(() => {
-    if (!runId) { setLines([]); return; }
+    if (!runId) { setLines([]); setFilter(""); return; }
+    setLines([]);
+    setFilter("");
     setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [runId, refresh]);
@@ -60,7 +62,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#030303]">
+    <div className="relative flex flex-col h-full bg-[#030303]">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-[#1a1a1a]">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round">
@@ -122,7 +124,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
             setAutoScroll(true);
             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-[#1a1a1a] border border-[#333] text-[9px] text-[#888] hover:text-[#ccc] transition-colors"
+          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-[#1a1a1a] border border-[#333] text-[10px] text-[#888] hover:text-[#ccc] transition-colors"
         >
           Scroll to bottom
         </button>

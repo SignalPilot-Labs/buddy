@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
@@ -29,6 +30,41 @@ function formatTokenCount(n: number): string {
   return String(n);
 }
 
+export const NO_DATA = "—";
+
+/**
+ * Distinct cost states — never collapse them into a single fallback chain.
+ *  - settled: DB has a real number → show `$X.XX` (no tilde)
+ *  - estimated: only in-flight live cost is available → show `~$X.XX`
+ *  - none: no data at all → show `—` so a broken pipeline is visible
+ */
+export function formatCostStat(
+  settled: number | null | undefined,
+  liveCost: number,
+): { value: string; accent: string } {
+  if (settled !== null && settled !== undefined) {
+    return { value: `$${settled.toFixed(2)}`, accent: "text-[#00ff88]" };
+  }
+  if (liveCost > 0) {
+    return { value: `~$${liveCost.toFixed(2)}`, accent: "text-[#00ff88]/70" };
+  }
+  return { value: NO_DATA, accent: "text-[#666]" };
+}
+
+export function formatToolStat(settled: number | null | undefined, liveCount: number): string {
+  if (settled !== null && settled !== undefined) return String(settled);
+  if (liveCount > 0) return String(liveCount);
+  return NO_DATA;
+}
+
+export function formatContextStat(liveTokens: number, settledTokens: number | null | undefined): string {
+  if (liveTokens > 0) return formatTokenCount(liveTokens);
+  if (settledTokens !== null && settledTokens !== undefined && settledTokens > 0) {
+    return formatTokenCount(settledTokens);
+  }
+  return NO_DATA;
+}
+
 function Stat({
   icon,
   label,
@@ -41,30 +77,35 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5 min-w-0 shrink-0">
       <span className="text-[#777]">{icon}</span>
       <span className="text-[10px] text-[#777]">{label}</span>
-      <span className={`text-[10px] font-semibold tabular-nums ${accent || "text-[#e8e8e8]"}`}>
+      <span className={`text-[10px] font-semibold tabular-nums truncate ${accent ?? "text-[#e8e8e8]"}`}>
         {value}
       </span>
     </div>
   );
 }
 
-export function StatsBar({
-  run,
-  connected,
-  events = EMPTY_EVENTS,
-}: {
+export interface StatsRowProps {
   run: Run | null;
   connected: boolean;
   events?: FeedEvent[];
-}) {
+}
+
+export function StatsRow({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
+  const cost = formatCostStat(run?.total_cost_usd, live.costUsd);
+  const toolValue = run ? formatToolStat(run.total_tool_calls, live.toolCount) : NO_DATA;
+  const contextValue = run ? formatContextStat(live.contextTokens, run.context_tokens) : NO_DATA;
 
   if (!run) {
     return (
-      <div className="h-8 flex items-center px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <div className="h-7 flex items-center px-1">
         <span className="text-[10px] text-[#777]">No run selected</span>
       </div>
     );
@@ -74,8 +115,19 @@ export function StatsBar({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-[36px] sm:h-8 flex items-center gap-3 sm:gap-5 px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505] overflow-x-auto"
+      className="min-h-[28px] flex items-center gap-3 sm:gap-5 px-1 overflow-hidden"
     >
+      <div className="flex items-center gap-1.5">
+        <span
+          className={`h-1.5 w-1.5 rounded-full ${
+            connected ? "bg-[#00ff88]" : "bg-[#444]"
+          }`}
+          style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
+        />
+        <span className="text-[10px] text-[#888]">
+          {connected ? "Live" : "Disconnected"}
+        </span>
+      </div>
       <Stat
         icon={
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -83,7 +135,7 @@ export function StatsBar({
           </svg>
         }
         label="Tools"
-        value={String(run.total_tool_calls || live.toolCount || 0)}
+        value={toolValue}
       />
       <Stat
         icon={
@@ -93,8 +145,8 @@ export function StatsBar({
           </svg>
         }
         label="Cost"
-        value={`~$${(run.total_cost_usd || live.costUsd || 0).toFixed(2)}`}
-        accent="text-[#00ff88]"
+        value={cost.value}
+        accent={cost.accent}
       />
       <Stat
         icon={
@@ -104,15 +156,10 @@ export function StatsBar({
           </svg>
         }
         label="Context"
-        value={
-          live.contextTokens > 0
-            ? formatTokenCount(live.contextTokens)
-            : (run.context_tokens ?? 0) > 0
-              ? formatTokenCount(run.context_tokens)
-              : "—"
-        }
+        value={contextValue}
         accent="text-[#88ccff]"
       />
+      <ModelBadge modelName={run.model_name} showIcon />
       {run.pr_url && (
         <a
           href={run.pr_url}
@@ -130,20 +177,18 @@ export function StatsBar({
           PR #{run.pr_url.split("/").pop()}
         </a>
       )}
-
-      <div className="flex-1" />
-
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            connected ? "bg-[#00ff88]" : "bg-[#444]"
-          }`}
-          style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
-        />
-        <span className="text-[10px] text-[#888]">
-          {connected ? "Live" : "Disconnected"}
-        </span>
-      </div>
     </motion.div>
+  );
+}
+
+export function StatsBar({
+  run,
+  connected,
+  events = EMPTY_EVENTS,
+}: StatsRowProps) {
+  return (
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+      <StatsRow run={run} connected={connected} events={events} />
+    </div>
   );
 }

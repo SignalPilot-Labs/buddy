@@ -100,8 +100,8 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
 
         {(totalAdded > 0 || totalRemoved > 0) && (
           <span className="flex items-center gap-1 shrink-0">
-            {totalAdded > 0 && <span className="text-[9px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
-            {totalRemoved > 0 && <span className="text-[9px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
+            {totalAdded > 0 && <span className="text-[10px] text-[#00ff88]/70 tabular-nums">+{totalAdded}</span>}
+            {totalRemoved > 0 && <span className="text-[10px] text-[#ff4444]/70 tabular-nums">-{totalRemoved}</span>}
           </span>
         )}
 
@@ -161,8 +161,9 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
 
-  // Fetch git diff when run changes
+  // Fetch git diff when run changes — reset tab to tree view
   useEffect(() => {
+    setActiveTab("tree");
     if (!runId) { setDiffData(null); return; }
     setDiffLoading(true);
     fetchRunDiff(runId).then(d => { setDiffData(d); setDiffLoading(false); }).catch(() => setDiffLoading(false));
@@ -283,15 +284,24 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                 .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
+            {activeTab === "tree" && !diffLoading && (!diffTree || diffTree.children.size === 0) && hasGitDiff && (
+              <div className="text-[10px] text-[#777] px-3 py-6 text-center">No tree data</div>
+            )}
 
             {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
               <FileList files={diffData.files} />
+            )}
+            {activeTab === "files" && !diffLoading && (!diffData?.files || diffData.files.length === 0) && (
+              <div className="text-[10px] text-[#777] px-3 py-6 text-center">No files in this diff</div>
             )}
 
             {activeTab === "live" && liveTree.children.size > 0 && (
               Array.from(liveTree.children.values())
                 .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
+            )}
+            {activeTab === "live" && !diffLoading && liveTree.children.size === 0 && (
+              <div className="text-[10px] text-[#777] px-3 py-6 text-center">No session activity yet</div>
             )}
 
             {!diffLoading && !hasGitDiff && !hasLive && (

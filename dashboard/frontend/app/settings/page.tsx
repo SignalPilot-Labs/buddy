@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { fetchSettings, fetchSettingsStatus, updateSettings, fetchPoolTokens, addPoolToken, removePoolToken } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
 import type { Settings, SettingsStatus, RepoInfo, PoolToken } from "@/lib/types";
-import { LOCALSTORAGE_EXTENDED_CONTEXT_KEY } from "@/lib/constants";
+import { loadStoredModel, saveStoredModel } from "@/lib/constants";
+import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
+import { ModelSelector } from "@/components/ui/ModelSelector";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
 import { RepoListSection } from "@/components/settings/RepoListSection";
 import { SecurityBanner } from "@/components/settings/SecurityBanner";
@@ -17,7 +19,7 @@ import type { CredentialFieldConfig } from "@/components/settings/CredentialFiel
 import { clsx } from "clsx";
 import { apiFetch } from "@/lib/fetch";
 
-type StringSettingsKey = "claude_token" | "git_token" | "github_repo" | "max_budget_usd";
+type StringSettingsKey = "git_token" | "github_repo" | "max_budget_usd";
 
 const FIELDS: CredentialFieldConfig[] = [
   {
@@ -38,45 +40,33 @@ const FIELDS: CredentialFieldConfig[] = [
   },
 ];
 
-function ExtendedContextSetting() {
-  const [enabled, setEnabled] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY) === "1";
-    }
-    return false;
-  });
+function DefaultModelSetting(): React.ReactElement {
+  const [selectedModel, setSelectedModel] = useState<ModelId>(loadStoredModel);
+  const [modelSaveError, setModelSaveError] = useState<string | null>(null);
 
-  const toggle = () => {
-    const next = !enabled;
-    setEnabled(next);
-    localStorage.setItem(LOCALSTORAGE_EXTENDED_CONTEXT_KEY, next ? "1" : "0");
+  const handleSelect = async (id: ModelId): Promise<void> => {
+    setSelectedModel(id);
+    setModelSaveError(null);
+    saveStoredModel(id);
+    try {
+      await updateSettings({ default_model: id });
+    } catch (e) {
+      setModelSaveError(e instanceof Error ? e.message : "Failed to save model preference");
+    }
   };
 
   return (
     <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
-      <label
-        className="text-[10px] font-semibold text-[#ccc] flex items-center gap-2 cursor-pointer select-none"
-        onClick={toggle}
-      >
-        <span
-          className={clsx(
-            "flex items-center justify-center h-3.5 w-3.5 rounded border transition-all",
-            enabled ? "bg-[#00ff88] border-[#00ff88]" : "border-[#666] bg-transparent"
-          )}
-        >
-          {enabled && (
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
-              <polyline points="1.5 4 3 5.5 6.5 2" />
-            </svg>
-          )}
-        </span>
-        Always Enable Extended Context (1M)
-      </label>
-      <p className="mt-1.5 text-[9px] text-[#999] leading-relaxed ml-5">
-        When enabled, all new runs will use extended 1M context by default.
-        This uses more of your daily quota but supports larger context windows.
-        You can override this per-run in the launch modal.
-      </p>
+      <div className="mb-3">
+        <h3 className="text-[10px] font-semibold text-[#ccc] uppercase tracking-[0.12em]">Default Model</h3>
+        <p className="mt-1 text-[10px] text-[#999] leading-relaxed">
+          Select the Claude model to use for new runs. Saved as your default preference.
+        </p>
+      </div>
+      <ModelSelector value={selectedModel} onChange={handleSelect} />
+      {modelSaveError && (
+        <p className="mt-2 text-[9px] text-[#ff4444]">{modelSaveError}</p>
+      )}
     </div>
   );
 }
@@ -87,6 +77,7 @@ export default function SettingsPage() {
   const [edits, setEdits] = useState<Partial<Record<StringSettingsKey, string>>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
 
@@ -100,16 +91,31 @@ export default function SettingsPage() {
   const [addingToken, setAddingToken] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
 
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
     Promise.all([fetchSettingsStatus(), fetchSettings(), fetchRepos(), fetchPoolTokens()]).then(
       ([s, cfg, r, t]) => {
+        if (cancelled) return;
         setStatus(s);
         setSettings(cfg);
         setRepos(r);
         setTokens(t);
+        setLoading(false);
       }
-    ).catch((e) => { console.error("Settings load failed:", e); setError("Failed to load settings"); });
-  }, []);
+    ).catch((e) => {
+      if (cancelled) return;
+      console.error("Settings load failed:", e);
+      setLoadError(e instanceof Error ? e.message : "Failed to load settings");
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [loadAttempt]);
 
   const handleSave = async () => {
     const updates: Partial<Record<StringSettingsKey, string>> = {};
@@ -126,7 +132,8 @@ export default function SettingsPage() {
       setSettings(cfg);
       setEdits({});
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
@@ -162,16 +169,18 @@ export default function SettingsPage() {
   };
 
   const handleRemoveRepo = async (slug: string) => {
+    setRepoError(null);
     try {
       const res = await apiFetch(`/api/repos/${encodeURIComponent(slug)}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setRepos(await fetchRepos());
     } catch (err) {
-      console.error("Failed to remove repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Failed to remove repo");
     }
   };
 
   const handleSetActive = async (slug: string) => {
+    setRepoError(null);
     try {
       const res = await apiFetch(`/api/repos/active`, {
         method: "PUT",
@@ -183,7 +192,7 @@ export default function SettingsPage() {
       setStatus(s);
       setSettings(cfg);
     } catch (err) {
-      console.error("Failed to set active repo:", err);
+      setRepoError(err instanceof Error ? err.message : "Failed to set active repo");
     }
   };
 
@@ -216,7 +225,7 @@ export default function SettingsPage() {
   const activeRepo = settings.github_repo || "";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto">
+    <div className="h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#333] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
       <div className="border-b border-[#1a1a1a]">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -236,7 +245,7 @@ export default function SettingsPage() {
           </div>
           {status && (
             <div className={clsx(
-              "flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-medium",
+              "flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-medium",
               status.configured ? "bg-[#00ff88]/[0.06] text-[#00ff88]" : "bg-[#ffaa00]/[0.06] text-[#ffaa00]"
             )}>
               <div className={clsx("w-1.5 h-1.5 rounded-full", status.configured ? "bg-[#00ff88]" : "bg-[#ffaa00]")} />
@@ -247,62 +256,84 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-6 py-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <SecurityBanner />
-
-          <TokenPoolSection
-            tokens={tokens}
-            newToken={newToken}
-            addingToken={addingToken}
-            tokenError={tokenError}
-            onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
-            onAddToken={handleAddToken}
-            onRemoveToken={handleRemoveToken}
-          />
-
-          <ExtendedContextSetting />
-
-          <RepoListSection
-            repos={repos}
-            activeRepo={activeRepo}
-            newRepo={newRepo}
-            addingRepo={addingRepo}
-            repoError={repoError}
-            onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
-            onAddRepo={handleAddRepo}
-            onRemoveRepo={handleRemoveRepo}
-            onSetActive={handleSetActive}
-          />
-
-          {FIELDS.map((field) => (
-            <CredentialField
-              key={field.key}
-              field={field}
-              currentValue={settings[field.key] || ""}
-              editValue={edits[field.key]}
-              isSet={field.statusKey ? !!(status?.[field.statusKey]) : false}
-              show={showSecrets[field.key] || false}
-              onStartEdit={() => setEdits({ ...edits, [field.key]: "" })}
-              onCancelEdit={() => { const next = { ...edits }; delete next[field.key]; setEdits(next); }}
-              onEditChange={(v) => setEdits({ ...edits, [field.key]: v })}
-              onToggleShow={() => setShowSecrets({ ...showSecrets, [field.key]: !showSecrets[field.key] })}
-            />
-          ))}
-
-          <div className="flex items-center justify-between pt-2">
-            <div>
-              {error && <p className="text-[10px] text-[#ff4444]">{error}</p>}
-              {saved && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#00ff88]">
-                  Settings saved and encrypted
-                </motion.p>
-              )}
+        {loading && (
+          <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
+            <div className="flex items-center gap-2 text-[11px] text-[#888]">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
+                <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
+              </svg>
+              Loading settings…
             </div>
-            <Button variant="success" size="md" onClick={handleSave} disabled={saving || !hasEdits}>
-              {saving ? "Saving..." : "Save Changes"}
+          </div>
+        )}
+
+        {!loading && loadError && (
+          <div className="flex flex-col items-center justify-center py-16 gap-3" role="alert">
+            <p className="text-[11px] text-[#ff4444]">{loadError}</p>
+            <Button variant="success" size="md" onClick={() => setLoadAttempt((n) => n + 1)}>
+              Retry
             </Button>
           </div>
-        </motion.div>
+        )}
+
+        {!loading && !loadError && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <SecurityBanner />
+
+            {FIELDS.map((field) => (
+              <CredentialField
+                key={field.key}
+                field={field}
+                currentValue={settings[field.key] || ""}
+                editValue={edits[field.key]}
+                isSet={field.statusKey ? !!(status?.[field.statusKey]) : false}
+                show={showSecrets[field.key] || false}
+                onStartEdit={() => setEdits({ ...edits, [field.key]: "" })}
+                onCancelEdit={() => { const next = { ...edits }; delete next[field.key]; setEdits(next); }}
+                onEditChange={(v) => setEdits({ ...edits, [field.key]: v })}
+                onToggleShow={() => setShowSecrets({ ...showSecrets, [field.key]: !showSecrets[field.key] })}
+              />
+            ))}
+
+            <RepoListSection
+              repos={repos}
+              activeRepo={activeRepo}
+              newRepo={newRepo}
+              addingRepo={addingRepo}
+              repoError={repoError}
+              onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
+              onAddRepo={handleAddRepo}
+              onRemoveRepo={handleRemoveRepo}
+              onSetActive={handleSetActive}
+            />
+
+            <TokenPoolSection
+              tokens={tokens}
+              newToken={newToken}
+              addingToken={addingToken}
+              tokenError={tokenError}
+              onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
+              onAddToken={handleAddToken}
+              onRemoveToken={handleRemoveToken}
+            />
+
+            <DefaultModelSetting />
+
+            <div className="flex items-center justify-between pt-2">
+              <div>
+                {error && <p className="text-[10px] text-[#ff4444]">{error}</p>}
+                {saved && (
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[10px] text-[#00ff88]">
+                    Settings saved and encrypted
+                  </motion.p>
+                )}
+              </div>
+              <Button variant="success" size="md" onClick={handleSave} disabled={saving || !hasEdits}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

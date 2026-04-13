@@ -1,3 +1,5 @@
+export type ConnectionState = "connected" | "reconnecting" | "disconnected";
+
 export interface Run {
   id: string;
   started_at: string;
@@ -18,6 +20,7 @@ export interface Run {
   custom_prompt: string | null;
   duration_minutes: number;
   context_tokens: number;
+  model_name?: string | null;
 }
 
 export interface RepoInfo {
@@ -79,12 +82,12 @@ export type FeedEvent =
   | { _kind: "audit"; data: AuditEvent }
   | { _kind: "llm_text"; text: string; ts: string; agent_role?: string }
   | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: string }
-  | { _kind: "control"; text: string; ts: string }
+  | { _kind: "control"; text: string; ts: string; retryAction?: () => void }
   | { _kind: "usage"; data: UsageEvent };
 
 export const STATUS_META: Record<
   RunStatus,
-  { label: string; color: string; bg: string; dot: string; pulse: boolean }
+  { label: string; color: string; bg: string; dot: string; pulse: boolean; flashColor: string }
 > = {
   starting: {
     label: "Starting",
@@ -92,6 +95,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
   running: {
     label: "Running",
@@ -99,6 +103,7 @@ export const STATUS_META: Record<
     bg: "bg-[#00ff88]/10",
     dot: "bg-[#00ff88]",
     pulse: true,
+    flashColor: "#00ff88",
   },
   paused: {
     label: "Paused",
@@ -106,6 +111,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: false,
+    flashColor: "#ffaa00",
   },
   stopped: {
     label: "Stopped",
@@ -113,6 +119,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   completed: {
     label: "Completed",
@@ -120,6 +127,7 @@ export const STATUS_META: Record<
     bg: "bg-[#88ccff]/10",
     dot: "bg-[#88ccff]",
     pulse: false,
+    flashColor: "#88ccff",
   },
   completed_no_changes: {
     label: "No Changes",
@@ -127,6 +135,7 @@ export const STATUS_META: Record<
     bg: "bg-[#777]/10",
     dot: "bg-[#777]",
     pulse: false,
+    flashColor: "#777777",
   },
   error: {
     label: "Error",
@@ -134,6 +143,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   crashed: {
     label: "Crashed",
@@ -141,6 +151,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff8844]/10",
     dot: "bg-[#ff8844]",
     pulse: false,
+    flashColor: "#ff8844",
   },
   killed: {
     label: "Killed",
@@ -148,6 +159,7 @@ export const STATUS_META: Record<
     bg: "bg-[#ff4444]/10",
     dot: "bg-[#ff4444]",
     pulse: false,
+    flashColor: "#ff4444",
   },
   rate_limited: {
     label: "Rate Limited",
@@ -155,8 +167,17 @@ export const STATUS_META: Record<
     bg: "bg-[#ffaa00]/10",
     dot: "bg-[#ffaa00]",
     pulse: true,
+    flashColor: "#ffaa00",
   },
 };
+
+/* ── Pending Message (UI-only, never in event stream) ── */
+export interface PendingMessage {
+  id: number;
+  prompt: string;
+  ts: string;
+  status: "pending" | "failed";
+}
 
 /* ── Tool Categories ── */
 // All 20 tool types from the database, mapped to visual categories
@@ -249,6 +270,7 @@ export type AuditEventType =
   | "llm_text"
   | "llm_thinking"
   | "round_complete"
+  | "round_ended"
   | "rate_limit"
   | "run_started"
   | "sdk_config"
@@ -303,8 +325,8 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
-  pause_requested:     { label: "Paused",            color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  stop_requested:      { label: "Stop Requested",     color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  pause_requested:     { label: "Pause Requested",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   resumed:             { label: "Resumed",           color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
@@ -351,10 +373,10 @@ export interface SettingsStatus {
 }
 
 export interface Settings {
-  claude_token?: string;
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;
+  default_model?: string;
 }
 
 export interface PoolToken {

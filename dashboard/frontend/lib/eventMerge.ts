@@ -1,100 +1,33 @@
 /**
- * Shared event merge utilities — pre/post tool call pairing.
- *
- * Used by both useSSE (live events) and page.tsx (history+live merge).
+ * Pre/post tool call pairing for live SSE events.
  */
 
 import type { FeedEvent, ToolCall } from "@/lib/types";
 
 /**
  * Merge a tool call event into an existing event list.
- * Post events are matched to their pre by tool_use_id (or tool_name fallback),
- * enriching the pre entry with output_data and duration.
+ *
+ * Post events are matched to their pre strictly by tool_use_id. A post
+ * without a matching pre is appended as-is so error outputs stay visible
+ * (see tool-error-render tests). Name-based fallback matching has been
+ * removed: the backend always emits a tool_use_id, so a missing one is a
+ * bug to surface, not paper over.
  */
 export function mergeToolEvent(prev: FeedEvent[], data: ToolCall): FeedEvent[] {
-  if (data.phase === "post") {
+  if (data.phase === "post" && data.tool_use_id) {
     for (let i = prev.length - 1; i >= 0; i--) {
       const ev = prev[i];
       if (ev._kind !== "tool" || ev.data.phase !== "pre" || ev.data.output_data)
         continue;
-      const idMatch =
-        data.tool_use_id && ev.data.tool_use_id === data.tool_use_id;
-      const nameMatch =
-        !data.tool_use_id && ev.data.tool_name === data.tool_name;
-      if (idMatch || nameMatch) {
-        const merged = { ...ev.data };
-        merged.output_data = data.output_data;
-        merged.duration_ms = data.duration_ms;
-        merged.phase = "post";
-        const next = [...prev];
-        next[i] = { _kind: "tool", data: merged };
-        return next;
-      }
+      if (ev.data.tool_use_id !== data.tool_use_id) continue;
+      const merged = { ...ev.data };
+      merged.output_data = data.output_data;
+      merged.duration_ms = data.duration_ms;
+      merged.phase = "post";
+      const next = [...prev];
+      next[i] = { _kind: "tool", data: merged };
+      return next;
     }
   }
   return [...prev, { _kind: "tool", data }];
-}
-
-/**
- * Merge live events into a history list.
- * Post tool events that match a pre in history get merged in-place;
- * all other events are appended.
- */
-export function mergeHistoryWithLive(
-  history: FeedEvent[],
-  live: FeedEvent[],
-): FeedEvent[] {
-  if (live.length === 0) return history;
-
-  const preIndex = new Map<string, number>();
-  const seenAuditIds = new Set<number>();
-  const seenToolIds = new Set<number>();
-  const hasHistoryText = history.some((e) => e._kind === "llm_text" || e._kind === "llm_thinking");
-  const merged = [...history];
-
-  for (let i = 0; i < merged.length; i++) {
-    const ev = merged[i];
-    if (ev._kind === "tool") {
-      if (ev.data.phase === "pre" && !ev.data.output_data && ev.data.tool_use_id) {
-        preIndex.set(ev.data.tool_use_id, i);
-      }
-      if (ev.data.id) seenToolIds.add(ev.data.id);
-    } else if (ev._kind === "audit" && ev.data.id) {
-      seenAuditIds.add(ev.data.id);
-    }
-  }
-
-  for (const ev of live) {
-    if (
-      ev._kind === "tool" &&
-      ev.data.phase === "post" &&
-      ev.data.tool_use_id &&
-      preIndex.has(ev.data.tool_use_id)
-    ) {
-      const idx = preIndex.get(ev.data.tool_use_id)!;
-      const pre = merged[idx];
-      if (pre._kind === "tool") {
-        merged[idx] = {
-          _kind: "tool",
-          data: {
-            ...pre.data,
-            output_data: ev.data.output_data,
-            duration_ms: ev.data.duration_ms,
-            phase: "post",
-          },
-        };
-      }
-      preIndex.delete(ev.data.tool_use_id);
-    } else if (ev._kind === "audit" && ev.data.id && seenAuditIds.has(ev.data.id)) {
-      continue;
-    } else if (ev._kind === "tool" && ev.data.id && seenToolIds.has(ev.data.id)) {
-      continue;
-    } else if (hasHistoryText && (ev._kind === "llm_text" || ev._kind === "llm_thinking")) {
-      continue;
-    } else {
-      merged.push(ev);
-    }
-  }
-
-  return merged;
 }

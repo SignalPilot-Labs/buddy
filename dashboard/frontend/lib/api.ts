@@ -74,15 +74,18 @@ export async function injectPrompt(
   return res.json();
 }
 
-export function createSSE(runId: string): EventSource {
+export function createSSE(runId: string, afterTool: number, afterAudit: number): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}`,
+    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
 }
 
+export type PollEventItem =
+  | (ToolCall & { _event_type: "tool_call" })
+  | (AuditEvent & { _event_type: "audit" });
+
 export interface PollResult {
-  tool_calls: ToolCall[];
-  audit_events: AuditEvent[];
+  events: PollEventItem[];
 }
 
 export async function pollEvents(
@@ -131,7 +134,7 @@ export async function startRun(
   maxBudgetUsd: number,
   durationMinutes: number,
   baseBranch: string,
-  extendedContext: boolean,
+  model: string,
   repo: string | null,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
@@ -142,7 +145,7 @@ export async function startRun(
       max_budget_usd: maxBudgetUsd,
       duration_minutes: durationMinutes,
       base_branch: baseBranch,
-      extended_context: extendedContext,
+      model: model,
       repo: repo || null,
     }),
   });
@@ -212,11 +215,11 @@ export async function unlockAgent(runId: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function resumeAgent(runId: string): Promise<{ ok: boolean }> {
+export async function resumeAgent(runId: string, prompt?: string): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(prompt ? { payload: prompt } : {}),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
@@ -289,14 +292,11 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
-export async function fetchBranches(repo?: string): Promise<string[]> {
-  try {
-    const params = repo ? `?repo=${encodeURIComponent(repo)}` : "";
-    const res = await apiFetch(`/api/agent/branches${params}`);
-    if (!res.ok) return ["main"];
-    return res.json();
-  } catch (err) {
-    console.warn("Failed to fetch branches:", err);
-    return ["main"];
+export async function fetchBranches(repo: string): Promise<string[]> {
+  const res = await apiFetch(`/api/agent/branches?repo=${encodeURIComponent(repo)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail || `Failed to fetch branches (HTTP ${res.status})`);
   }
+  return res.json();
 }

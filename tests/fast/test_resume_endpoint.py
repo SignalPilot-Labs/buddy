@@ -1,112 +1,178 @@
-"""Tests for the unified /resume endpoint logic.
+"""Tests for resume_run logic — the pause/resume bug regression guard.
 
-Covers both paths: unpause (paused run in _runs) and restart (completed run
-requiring new sandbox). Uses the same pure helpers from run_helpers.py.
+The root bug: resuming a paused run with a prompt sent only an 'inject' signal,
+never a 'resume' signal. The agent's wait_for_resume_or_stop() queued the inject
+but blocked forever waiting for 'resume'. The fix: always send 'resume' after
+optional 'inject'.
+
+These tests mock at the send_control_signal level and call resume_run through
+a patched import to avoid the auth module's /data/api.key requirement.
 """
 
-from unittest.mock import MagicMock
-
+import sys
 import pytest
-
-from utils.constants import ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN
-from utils.models import ActiveRun, ResumeRequest
-from utils.run_helpers import merge_tokens_into_env
+from unittest.mock import AsyncMock, MagicMock, patch
+from contextlib import asynccontextmanager
 
 
-def _make_active(run_id: str, status: str) -> ActiveRun:
-    """Build an ActiveRun with a mock EventBus."""
-    active = ActiveRun(run_id=run_id, status=status)
-    active.events = MagicMock()
-    active.events.push = MagicMock()
-    return active
+def _mock_run(status: str, github_repo: str = "org/repo") -> MagicMock:
+    """Create a mock Run ORM object with given status."""
+    run = MagicMock()
+    run.status = status
+    run.github_repo = github_repo
+    run.error_message = None
+    return run
 
 
-class TestResumeUnpause:
-    """Unpause path: run exists in _runs and is paused."""
+def _mock_session(run: MagicMock | None):
+    """Create a mock async session context manager."""
+    session_mock = AsyncMock()
+    session_mock.get = AsyncMock(return_value=run)
+    session_mock.add = MagicMock()
+    session_mock.commit = AsyncMock()
 
-    def test_paused_run_gets_resume_signal(self) -> None:
-        active = _make_active("run-1", "paused")
-        runs: dict[str, ActiveRun] = {"run-1": active}
+    @asynccontextmanager
+    async def ctx():
+        yield session_mock
 
-        # Simulate what the endpoint does for a paused run
-        rid = "run-1"
-        found = runs.get(rid)
-        assert found is not None
-        assert found.status == "paused"
-        assert found.events is not None
-
-        mock_events: MagicMock = found.events  # type: ignore[assignment]
-        mock_events.push("resume", None)
-        mock_events.push.assert_called_once_with("resume", None)
-
-    def test_running_run_is_not_unpaused(self) -> None:
-        active = _make_active("run-1", "running")
-        runs: dict[str, ActiveRun] = {"run-1": active}
-
-        found = runs.get("run-1")
-        assert found is not None
-        # Endpoint should NOT push resume to a running run
-        assert found.status != "paused"
+    return ctx
 
 
-class TestResumeRestart:
-    """Restart path: run not in _runs (completed/stopped), needs new sandbox."""
-
-    def test_missing_run_id_for_restart_is_rejected(self) -> None:
-        """Restart requires run_id in the body — Pydantic rejects empty string."""
-        with pytest.raises(Exception, match="run_id"):
-            ResumeRequest(run_id="")
-
-    def test_tokens_merged_for_restart(self) -> None:
-        """Restart must merge tokens into env just like /start does."""
-        body = ResumeRequest(
-            run_id="run-old",
-            claude_token="ct-123",
-            git_token="gt-456",
-        )
-        result = merge_tokens_into_env(body.env, body.claude_token, body.git_token)
-        assert result is not None
-        assert result[ENV_KEY_CLAUDE_TOKEN] == "ct-123"
-        assert result[ENV_KEY_GIT_TOKEN] == "gt-456"
-
-    def test_restart_preserves_existing_env(self) -> None:
-        """Extra env vars from dashboard should survive token merge."""
-        body = ResumeRequest(
-            run_id="run-old",
-            claude_token="ct-123",
-            git_token="gt-456",
-            env={"CUSTOM_VAR": "hello"},
-        )
-        result = merge_tokens_into_env(body.env, body.claude_token, body.git_token)
-        assert result is not None
-        assert result["CUSTOM_VAR"] == "hello"
-        assert result[ENV_KEY_CLAUDE_TOKEN] == "ct-123"
-
-    def test_completed_run_not_in_active_runs_triggers_restart(self) -> None:
-        """A run_id not in server._runs means the run finished — restart path."""
-        runs: dict[str, ActiveRun] = {}
-        found = runs.get("run-old")
-        assert found is None
-        # Endpoint would proceed to restart path
+@pytest.fixture(autouse=True)
+def _patch_auth():
+    """Stub out backend.auth so importing endpoints doesn't need /data/api.key."""
+    fake_auth = MagicMock()
+    fake_auth.verify_api_key = AsyncMock()
+    sys.modules.setdefault("backend.auth", fake_auth)
+    yield
 
 
-class TestResumeDispatch:
-    """The endpoint must pick the correct path based on run state."""
+def _import_resume_run():
+    """Import resume_run after auth is patched."""
+    from backend.endpoints.runs import resume_run
+    return resume_run
 
-    def test_paused_run_takes_unpause_path(self) -> None:
-        runs: dict[str, ActiveRun] = {"r1": _make_active("r1", "paused")}
-        active = runs.get("r1")
-        assert active is not None and active.status == "paused"
 
-    def test_absent_run_takes_restart_path(self) -> None:
-        runs: dict[str, ActiveRun] = {}
-        active = runs.get("r1")
-        assert active is None
+def _make_body(payload: str | None = None):
+    """Create a ControlSignalRequest."""
+    from backend.models import ControlSignalRequest
+    return ControlSignalRequest(payload=payload)
 
-    def test_completed_run_still_in_dict_takes_restart_path(self) -> None:
-        """A completed run lingering in _runs should NOT be unpaused."""
-        runs: dict[str, ActiveRun] = {"r1": _make_active("r1", "completed")}
-        active = runs.get("r1")
-        assert active is not None
-        # Not paused, so endpoint should NOT push resume signal
-        assert active.status != "paused"
+
+class TestResumePausedRun:
+    """Resume on a paused run must always send a 'resume' signal to unblock the agent."""
+
+    @pytest.mark.asyncio
+    async def test_resume_paused_no_prompt_sends_resume_signal(self):
+        """Resuming a paused run with no prompt sends exactly one 'resume' signal."""
+        resume_run = _import_resume_run()
+        run = _mock_run("paused")
+        with (
+            patch("backend.endpoints.runs.session", _mock_session(run)),
+            patch("backend.endpoints.runs.send_control_signal", new_callable=AsyncMock) as mock_signal,
+        ):
+            mock_signal.return_value = {"ok": True, "signal": "resume", "run_id": "r-1"}
+            result = await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
+
+            assert result["ok"] is True
+            mock_signal.assert_called_once_with(
+                "00000000-0000-0000-0000-000000000001", "resume", {"paused"}, None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_resume_paused_with_prompt_sends_inject_then_resume(self):
+        """Resuming a paused run with a prompt must send inject AND resume.
+
+        This is the exact regression: the old code sent only 'inject' and the
+        agent's wait_for_resume_or_stop() never unblocked.
+        """
+        resume_run = _import_resume_run()
+        run = _mock_run("paused")
+        signals_sent: list[str] = []
+
+        async def track_signal(run_id, signal, valid_statuses, payload):
+            signals_sent.append(signal)
+            return {"ok": True, "signal": signal, "run_id": run_id}
+
+        with (
+            patch("backend.endpoints.runs.session", _mock_session(run)),
+            patch("backend.endpoints.runs.send_control_signal", side_effect=track_signal),
+        ):
+            await resume_run(
+                "00000000-0000-0000-0000-000000000001",
+                _make_body("continue with tests"),
+            )
+
+            assert signals_sent == ["inject", "resume"], (
+                f"Expected ['inject', 'resume'] but got {signals_sent}. "
+                "If only 'inject' is sent, the agent stays stuck in pause forever."
+            )
+
+    @pytest.mark.asyncio
+    async def test_resume_paused_with_whitespace_only_sends_resume_only(self):
+        """Whitespace-only prompt should be treated as no prompt."""
+        resume_run = _import_resume_run()
+        run = _mock_run("paused")
+        with (
+            patch("backend.endpoints.runs.session", _mock_session(run)),
+            patch("backend.endpoints.runs.send_control_signal", new_callable=AsyncMock) as mock_signal,
+        ):
+            mock_signal.return_value = {"ok": True, "signal": "resume", "run_id": "r-1"}
+            await resume_run("00000000-0000-0000-0000-000000000001", _make_body("   "))
+
+            mock_signal.assert_called_once_with(
+                "00000000-0000-0000-0000-000000000001", "resume", {"paused"}, None,
+            )
+
+    @pytest.mark.asyncio
+    async def test_resume_completed_run_calls_restart(self):
+        """Terminal status routes to _resume_completed_run, not send_control_signal."""
+        resume_run = _import_resume_run()
+        run = _mock_run("completed")
+        session_mock = AsyncMock()
+        session_mock.get = AsyncMock(return_value=run)
+        session_mock.commit = AsyncMock()
+
+        @asynccontextmanager
+        async def ctx():
+            yield session_mock
+
+        with (
+            patch("backend.endpoints.runs.session", ctx),
+            patch(
+                "backend.endpoints.runs._resume_completed_run",
+                new_callable=AsyncMock,
+            ) as mock_restart,
+        ):
+            mock_restart.return_value = {"ok": True, "resumed": True}
+            result = await resume_run(
+                "00000000-0000-0000-0000-000000000001",
+                _make_body("fix the bug"),
+            )
+
+            assert result["ok"] is True
+            mock_restart.assert_called_once()
+            assert mock_restart.call_args[0][2] == "fix the bug"
+
+    @pytest.mark.asyncio
+    async def test_resume_running_run_returns_409(self):
+        """Cannot resume a run that is already running."""
+        resume_run = _import_resume_run()
+        run = _mock_run("running")
+        with patch("backend.endpoints.runs.session", _mock_session(run)):
+            from fastapi import HTTPException
+
+            with pytest.raises(HTTPException) as exc_info:
+                await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
+            assert exc_info.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_resume_missing_run_returns_404(self):
+        """Resuming a nonexistent run returns 404."""
+        resume_run = _import_resume_run()
+        with patch("backend.endpoints.runs.session", _mock_session(None)):
+            from fastapi import HTTPException
+
+            with pytest.raises(HTTPException) as exc_info:
+                await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
+            assert exc_info.value.status_code == 404

@@ -8,14 +8,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
 from backend.constants import (
+    ACTIVE_STATUSES,
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
     DEFAULT_STOP_REASON,
+    INJECTABLE_TERMINAL_STATUSES,
     LOG_TAIL_DEFAULT,
     LOG_TAIL_MAX,
     QUERY_DEFAULT_LIMIT,
     QUERY_MAX_LIMIT,
+    RESTARTABLE_STATUSES,
     RUNS_PAGE_SIZE,
 )
 from backend.models import (
@@ -73,7 +76,7 @@ async def get_tool_calls(
         result = await s.execute(
             select(ToolCall)
             .where(ToolCall.run_id == run_id)
-            .order_by(desc(ToolCall.ts))
+            .order_by(desc(ToolCall.ts), desc(ToolCall.id))
             .limit(limit)
             .offset(offset)
         )
@@ -91,7 +94,7 @@ async def get_audit_log(
         result = await s.execute(
             select(AuditLog)
             .where(AuditLog.run_id == run_id)
-            .order_by(desc(AuditLog.ts))
+            .order_by(desc(AuditLog.ts), desc(AuditLog.id))
             .limit(limit)
             .offset(offset)
         )
@@ -121,6 +124,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None)
     run.status = "running"
+    run.error_message = None
     await s.commit()
     return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
 
@@ -133,8 +137,11 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.status == "paused":
+            prompt = (body.payload or "").strip() or None
+            if prompt:
+                await send_control_signal(run_id, "inject", {"paused"}, prompt)
             return await send_control_signal(run_id, "resume", {"paused"}, None)
-        if run.status in ("completed", "stopped", "error"):
+        if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)
         raise HTTPException(status_code=409, detail=f"Cannot resume run with status '{run.status}'")
 
@@ -150,9 +157,9 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status in ("running", "paused", "rate_limited"):
-            return await send_control_signal(run_id, "inject", {"running", "paused", "rate_limited"}, prompt)
-        if run.status in ("completed", "stopped", "error"):
+        if run.status in ACTIVE_STATUSES:
+            return await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt)
+        if run.status in INJECTABLE_TERMINAL_STATUSES:
             return await _resume_completed_run(run, run_id, prompt, s)
         raise HTTPException(status_code=409, detail=f"Cannot inject into run with status '{run.status}'")
 
@@ -161,19 +168,19 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
 async def stop_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -> dict:
     """Stop a running agent."""
     reason = (body.payload or "").strip() or DEFAULT_STOP_REASON
-    return await send_control_signal(run_id, "stop", {"running", "paused", "rate_limited"}, reason)
+    return await send_control_signal(run_id, "stop", set(ACTIVE_STATUSES), reason)
 
 
 @router.post("/runs/{run_id}/unlock")
 async def unlock_run(run_id: str = RunId) -> dict:
     """Unlock a session time gate."""
-    return await send_control_signal(run_id, "unlock", {"running", "paused", "rate_limited"}, None)
+    return await send_control_signal(run_id, "unlock", set(ACTIVE_STATUSES), None)
 
 
 @router.post("/runs/{run_id}/kill")
 async def kill_run(run_id: str = RunId) -> dict:
     """Kill a run immediately (cancels the task)."""
-    return await send_control_signal(run_id, "kill", {"running", "paused", "rate_limited"}, None)
+    return await send_control_signal(run_id, "kill", set(ACTIVE_STATUSES), None)
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +204,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
-        "extended_context": body.extended_context,
+        "model": body.model,
         "claude_token": creds.get("claude_token"),
         "git_token": creds.get("git_token"),
         "github_repo": creds.get("github_repo"),
@@ -206,9 +213,19 @@ async def start_agent_run(body: StartRunRequest) -> dict:
 
 
 @router.get("/agent/branches")
-async def list_branches() -> list:
-    """List git branches from agent."""
-    return await agent_request("GET", "/branches", AGENT_TIMEOUT_LONG, None, None, ["main"])
+async def list_branches(repo: str = Query(...)) -> list:
+    """List git branches for a repo via the agent (GitHub API proxy)."""
+    creds = await read_credentials(repo)
+    token = creds.get("git_token")
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No git_token configured for {repo} — set one in Settings",
+        )
+    return await agent_request(
+        "GET", "/branches", AGENT_TIMEOUT_LONG,
+        None, {"repo": repo, "token": token}, None,
+    )
 
 
 @router.get("/agent/logs")
@@ -259,7 +276,7 @@ async def get_run_diff(run_id: str = RunId) -> dict:
         diff_stats = run.diff_stats
         branch_name = run.branch_name
         base_branch = run.base_branch or DEFAULT_BASE_BRANCH
-        is_active = run.status in ("running", "paused", "rate_limited")
+        is_active = run.status in ACTIVE_STATUSES
 
     if diff_stats:
         return _build_stored_diff(diff_stats)

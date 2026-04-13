@@ -4,7 +4,7 @@ import os
 from unittest.mock import patch
 
 from utils.constants import DOCKER_SOCKET_PATH, ENV_KEY_ALLOW_DOCKER
-from sandbox_manager.pool import SandboxPool
+from sandbox_client.pool import SandboxPool
 
 
 class TestAllowDocker:
