@@ -26,8 +26,8 @@ from user.inbox import UserInbox
 from prompts.orchestrator import RoundContext, build_round_system_prompt
 from prompts.subagent import build_agent_defs
 from sandbox_client.client import SandboxClient
-from session.runner import RoundRunner
-from session.time_lock import TimeLock
+from agent_session.runner import RoundRunner
+from agent_session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
     MAX_ROUNDS,

@@ -9,8 +9,8 @@ Verifies that:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from session.stream import StreamDispatcher
-from session.tracker import SubagentTracker
+from agent_session.stream import StreamDispatcher
+from agent_session.tracker import SubagentTracker
 from utils.models import RunContext, StreamSignal
 
 
@@ -83,7 +83,7 @@ class TestApplySignalSessionError:
     @pytest.mark.asyncio
     async def test_session_error_signal_produces_session_error_result(self):
         """session_error StreamSignal → RoundResult(status='session_error')."""
-        from session.runner import RoundRunner
+        from agent_session.runner import RoundRunner
 
         runner = RoundRunner(
             sandbox=MagicMock(),
@@ -104,7 +104,7 @@ class TestApplySignalSessionError:
     @pytest.mark.asyncio
     async def test_round_complete_signal_still_works(self):
         """round_complete StreamSignal → RoundResult(status='complete')."""
-        from session.runner import RoundRunner
+        from agent_session.runner import RoundRunner
 
         runner = RoundRunner(
             sandbox=MagicMock(),

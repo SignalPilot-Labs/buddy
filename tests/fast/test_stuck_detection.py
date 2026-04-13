@@ -2,7 +2,7 @@
 
 import time
 
-from session.tracker import SubagentTracker
+from agent_session.tracker import SubagentTracker
 
 
 class TestStuckSubagentDetection:

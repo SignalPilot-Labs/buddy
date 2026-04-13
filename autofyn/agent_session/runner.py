@@ -25,9 +25,9 @@ from prompts.loader import render_idle_nudge, render_stuck_recovery, render_tool
 from sandbox_client.client import SandboxClient
 from user.control import UserControl
 from user.inbox import UserInbox
-from session.stream import StreamDispatcher, StreamSignal
-from session.time_lock import TimeLock
-from session.tracker import SubagentTracker
+from agent_session.stream import StreamDispatcher, StreamSignal
+from agent_session.time_lock import TimeLock
+from agent_session.tracker import SubagentTracker
 from utils import db
 from utils.constants import (
     IDLE_NUDGE_MAX_ATTEMPTS,
