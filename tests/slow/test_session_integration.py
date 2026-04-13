@@ -34,7 +34,7 @@ BASE_OPTS = {
 }
 
 
-def _ctx() -> HookContext:
+def _context() -> HookContext:
     return cast(HookContext, {"cwd": "/tmp", "session_id": "s", "transcript_path": ""})
 
 
@@ -55,14 +55,17 @@ class TestSessionDelegation:
         session = Session("sess-1", dict(BASE_OPTS))
         hooks = session._hooks
 
-        hook_input = cast(PreToolUseHookInput, {
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo"},
-            "agent_id": None,
-            "session_id": "s",
-        })
+        hook_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": "echo"},
+                "agent_id": None,
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(hook_input, "tu-1", _ctx())
+            await hooks._hook_pre_tool(hook_input, "tu-1", _context())
 
         events = _drain_queue(session)
         assert any(e["event"] == "tool_use" for e in events)
@@ -73,14 +76,17 @@ class TestSessionDelegation:
         session = Session("sess-1", dict(BASE_OPTS))
         hooks = session._hooks
 
-        hook_input = cast(PostToolUseHookInput, {
-            "tool_name": "Bash",
-            "tool_response": "ok",
-            "agent_id": "a1",
-            "session_id": "s",
-        })
+        hook_input = cast(
+            PostToolUseHookInput,
+            {
+                "tool_name": "Bash",
+                "tool_response": "ok",
+                "agent_id": "a1",
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_post_tool(hook_input, "tu-1", _ctx())
+            await hooks._hook_post_tool(hook_input, "tu-1", _context())
 
         events = _drain_queue(session)
         assert any(e["event"] == "tool_done" for e in events)
@@ -110,22 +116,28 @@ class TestFullToolLifecycle:
         session = Session("sess-1", dict(BASE_OPTS))
         hooks = session._hooks
 
-        pre_input = cast(PreToolUseHookInput, {
-            "tool_name": "Bash",
-            "tool_input": {"command": "sleep 1"},
-            "agent_id": "a1",
-            "session_id": "s",
-        })
-        post_input = cast(PostToolUseHookInput, {
-            "tool_name": "Bash",
-            "tool_response": "done",
-            "agent_id": "a1",
-            "session_id": "s",
-        })
+        pre_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": "sleep 1"},
+                "agent_id": "a1",
+                "session_id": "s",
+            },
+        )
+        post_input = cast(
+            PostToolUseHookInput,
+            {
+                "tool_name": "Bash",
+                "tool_response": "done",
+                "agent_id": "a1",
+                "session_id": "s",
+            },
+        )
 
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(pre_input, "tu-1", _ctx())
-            await hooks._hook_post_tool(post_input, "tu-1", _ctx())
+            await hooks._hook_pre_tool(pre_input, "tu-1", _context())
+            await hooks._hook_post_tool(post_input, "tu-1", _context())
 
         events = _drain_queue(session)
         event_types = [e["event"] for e in events]
@@ -141,41 +153,50 @@ class TestFullSubagentLifecycle:
         hooks = session._hooks
 
         # 1. Agent PreToolUse
-        pre_input = cast(PreToolUseHookInput, {
-            "tool_name": "Agent",
-            "tool_input": {"subagent_type": "builder", "prompt": "p"},
-            "agent_id": None,
-            "session_id": "s",
-        })
+        pre_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Agent",
+                "tool_input": {"subagent_type": "builder", "prompt": "p"},
+                "agent_id": None,
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(pre_input, "toolu_parent", _ctx())
+            await hooks._hook_pre_tool(pre_input, "toolu_parent", _context())
 
         # 2. SubagentStart
-        start_input = cast(SubagentStartHookInput, {
-            "agent_id": "aBuilder",
-            "agent_type": "builder",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStart",
-        })
+        start_input = cast(
+            SubagentStartHookInput,
+            {
+                "agent_id": "aBuilder",
+                "agent_type": "builder",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStart",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock):
-            await hooks._hook_subagent_start(start_input, "uuid", _ctx())
+            await hooks._hook_subagent_start(start_input, "uuid", _context())
 
         # 3. SubagentStop
-        stop_input = cast(SubagentStopHookInput, {
-            "agent_id": "aBuilder",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStop",
-            "stop_hook_active": False,
-            "agent_transcript_path": "",
-            "agent_type": "builder",
-            "last_assistant_message": "all done",
-        })
+        stop_input = cast(
+            SubagentStopHookInput,
+            {
+                "agent_id": "aBuilder",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStop",
+                "stop_hook_active": False,
+                "agent_transcript_path": "",
+                "agent_type": "builder",
+                "last_assistant_message": "all done",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock):
-            await hooks._hook_subagent_stop(stop_input, "uuid", _ctx())
+            await hooks._hook_subagent_stop(stop_input, "uuid", _context())
 
         events = _drain_queue(session)
         event_types = [e["event"] for e in events]

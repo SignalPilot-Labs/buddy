@@ -47,13 +47,16 @@ class AgentServer:
     def __init__(self) -> None:
         cfg = sandbox_config()
         self._health_timeout: int = cfg.get(
-            "health_timeout_sec", SANDBOX_HEALTH_TIMEOUT_DEFAULT,
+            "health_timeout_sec",
+            SANDBOX_HEALTH_TIMEOUT_DEFAULT,
         )
         self._exec_timeout: int = cfg.get(
-            "exec_timeout_sec", SANDBOX_EXEC_TIMEOUT_DEFAULT,
+            "exec_timeout_sec",
+            SANDBOX_EXEC_TIMEOUT_DEFAULT,
         )
         self._clone_timeout: int = cfg.get(
-            "clone_timeout_sec", SANDBOX_CLONE_TIMEOUT_DEFAULT,
+            "clone_timeout_sec",
+            SANDBOX_CLONE_TIMEOUT_DEFAULT,
         )
 
         self._pool = SandboxPool()
@@ -77,7 +80,8 @@ class AgentServer:
             provided = request.headers.get("X-Internal-Secret", "")
             if not hmac.compare_digest(provided, secret):
                 return JSONResponse(
-                    status_code=401, content={"detail": "Unauthorized"},
+                    status_code=401,
+                    content={"detail": "Unauthorized"},
                 )
             return await call_next(request)
 
@@ -97,10 +101,7 @@ class AgentServer:
 
     def active_count(self) -> int:
         """Count non-terminal runs (includes starting/running/paused)."""
-        return sum(
-            1 for r in self._runs.values()
-            if r.status in ACTIVE_RUN_STATUSES
-        )
+        return sum(1 for r in self._runs.values() if r.status in ACTIVE_RUN_STATUSES)
 
     def ensure_capacity(self) -> None:
         """Raise 409 if max concurrent runs reached."""
@@ -164,7 +165,9 @@ class AgentServer:
             raise RuntimeError(f"{ENV_KEY_GIT_TOKEN} missing from run env")
 
         sandbox = await self._pool.create(
-            run_id, self._health_timeout, body.env,
+            run_id,
+            self._health_timeout,
+            body.env,
         )
         terminal_status = "error"
         try:
@@ -187,7 +190,9 @@ class AgentServer:
 
             log.info("Run %s: entering round loop", run_id)
             terminal_status = await run_rounds(
-                sandbox, bootstrap, self._exec_timeout,
+                sandbox,
+                bootstrap,
+                self._exec_timeout,
             )
             log.info("Run %s: round loop returned %s", run_id, terminal_status)
 
@@ -228,7 +233,7 @@ class AgentServer:
 
     def on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
         """Persist final status for crashes and cancels."""
-        ctx = active.run_context
+        context = active.run_context
         try:
             exc = task.exception()
             if exc:
@@ -238,16 +243,22 @@ class AgentServer:
                 log.error("Run %s crashed:\n%s", active.run_id, tb)
                 active.status = "crashed"
                 active.error_message = str(exc)
-                if active.run_id and ctx is not None:
-                    asyncio.create_task(db.finish_run(
-                        active.run_id, "crashed", None,
-                        ctx.total_cost,
-                        ctx.total_input_tokens,
-                        ctx.total_output_tokens,
-                        str(exc), None, None,
-                        ctx.cache_creation_input_tokens,
-                        ctx.cache_read_input_tokens,
-                    ))
+                if active.run_id and context is not None:
+                    asyncio.create_task(
+                        db.finish_run(
+                            active.run_id,
+                            "crashed",
+                            None,
+                            context.total_cost,
+                            context.total_input_tokens,
+                            context.total_output_tokens,
+                            str(exc),
+                            None,
+                            None,
+                            context.cache_creation_input_tokens,
+                            context.cache_read_input_tokens,
+                        )
+                    )
                 elif active.run_id:
                     asyncio.create_task(
                         db.update_run_status(active.run_id, "crashed"),
@@ -255,16 +266,22 @@ class AgentServer:
         except asyncio.CancelledError:
             active.status = "killed"
             active.error_message = "Cancelled"
-            if active.run_id and ctx is not None:
-                asyncio.create_task(db.finish_run(
-                    active.run_id, "killed", None,
-                    ctx.total_cost,
-                    ctx.total_input_tokens,
-                    ctx.total_output_tokens,
-                    "Cancelled", None, None,
-                    ctx.cache_creation_input_tokens,
-                    ctx.cache_read_input_tokens,
-                ))
+            if active.run_id and context is not None:
+                asyncio.create_task(
+                    db.finish_run(
+                        active.run_id,
+                        "killed",
+                        None,
+                        context.total_cost,
+                        context.total_input_tokens,
+                        context.total_output_tokens,
+                        "Cancelled",
+                        None,
+                        None,
+                        context.cache_creation_input_tokens,
+                        context.cache_read_input_tokens,
+                    )
+                )
             elif active.run_id:
                 asyncio.create_task(
                     db.update_run_status(active.run_id, "killed"),

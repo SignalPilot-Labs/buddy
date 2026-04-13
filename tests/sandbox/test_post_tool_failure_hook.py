@@ -41,18 +41,25 @@ class TestPostToolUseFailureHook:
         }
 
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock) as mock_log:
-            ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
-            await hooks._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
+            context = cast(
+                HookContext,
+                {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""},
+            )
+            await hooks._hook_post_tool_failure(
+                cast(PostToolUseFailureHookInput, hook_input), "tu-abc", context
+            )
 
             mock_log.assert_awaited_once()
             args = mock_log.call_args[0]
             assert args[0] == "run-1"  # run_id
             assert args[1] == "post"  # phase
-            ctx_arg = args[2]  # ToolContext
-            assert ctx_arg.tool_name == "Read"
-            assert ctx_arg.tool_use_id == "tu-abc"
+            context_arg = args[2]  # ToolContext
+            assert context_arg.tool_name == "Read"
+            assert context_arg.tool_use_id == "tu-abc"
             assert args[3] is None  # input_data (post doesn't repeat input)
-            assert args[4] == {"error": "File not found: /nonexistent.ts"}  # output_data
+            assert args[4] == {
+                "error": "File not found: /nonexistent.ts"
+            }  # output_data
 
     @pytest.mark.asyncio
     async def test_failure_hook_tracks_duration(self) -> None:
@@ -69,11 +76,16 @@ class TestPostToolUseFailureHook:
         }
 
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock) as mock_log:
-            ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
-            await hooks._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
+            context = cast(
+                HookContext,
+                {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""},
+            )
+            await hooks._hook_post_tool_failure(
+                cast(PostToolUseFailureHookInput, hook_input), "tu-abc", context
+            )
 
             args = mock_log.call_args[0]
-            ctx_arg = args[2]  # ToolContext
-            assert ctx_arg.duration_ms is not None
-            assert ctx_arg.duration_ms >= 90  # at least ~100ms
+            context_arg = args[2]  # ToolContext
+            assert context_arg.duration_ms is not None
+            assert context_arg.duration_ms >= 90  # at least ~100ms
             assert "tu-abc" not in hooks._pre_tool_times  # cleaned up
