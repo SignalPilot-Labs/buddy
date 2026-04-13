@@ -92,28 +92,23 @@ def _ensure_tokens() -> None:
     if status["configured"]:
         return
 
-    updates: dict[str, str] = {}
-
     if not status["has_claude_token"]:
         token = _detect_claude_token()
         if token:
-            updates["claude_token"] = token
+            try:
+                client.post("/api/tokens", json={"token": token})
+                console.print("[green]✓[/green] Saved Claude OAuth token to pool")
+            except SystemExit:
+                console.print("[yellow]Failed to save Claude token — add it in settings[/yellow]")
 
     if not status["has_git_token"]:
         token = _detect_git_token()
         if token:
-            updates["git_token"] = token
-
-    if updates:
-        try:
-            client.put("/api/settings", json=updates)
-            console.print(
-                f"[green]✓[/green] Saved {', '.join(updates.keys())} to settings"
-            )
-        except SystemExit:
-            console.print(
-                "[yellow]Failed to save tokens — set them manually via settings[/yellow]"
-            )
+            try:
+                client.put("/api/settings", json={"git_token": token})
+                console.print("[green]✓[/green] Saved git token to settings")
+            except SystemExit:
+                console.print("[yellow]Failed to save git token — add it in settings[/yellow]")
 
     if not status["has_github_repo"]:
         _detect_repo(client)
@@ -150,6 +145,27 @@ def _ask_token(prompt: str) -> str | None:
     return token if token else None
 
 
+def _extract_token(raw: str) -> str | None:
+    """Extract OAuth token from claude setup-token output.
+
+    The CLI line-wraps at 80 columns when stdout is piped, splitting the
+    token across multiple lines. We find the line starting with 'sk-ant-'
+    and join consecutive lines that contain only valid token characters.
+    """
+    parts: list[str] = []
+    collecting = False
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if not collecting and stripped.startswith("sk-ant-"):
+            collecting = True
+        if collecting:
+            if stripped and re.fullmatch(r"[A-Za-z0-9_\-]+", stripped):
+                parts.append(stripped)
+            else:
+                break
+    return "".join(parts) if parts else None
+
+
 def _detect_claude_token() -> str | None:
     """Get Claude OAuth token via `claude setup-token` (interactive OAuth flow)."""
     console.print("\n[bold]Claude OAuth Token[/bold]")
@@ -161,9 +177,8 @@ def _detect_claude_token() -> str | None:
                 text=True,
             )
             if result.returncode == 0 and result.stdout:
-                match = re.search(r"(sk-ant-\S+)", result.stdout)
-                if match:
-                    token = match.group(1)
+                token = _extract_token(result.stdout)
+                if token:
                     print(f"✓ Token received ({token[:12]}****)")
                     return token
         except FileNotFoundError:

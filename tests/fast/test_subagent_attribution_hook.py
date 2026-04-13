@@ -18,7 +18,7 @@ from claude_agent_sdk.types import (
     SubagentStopHookInput,
 )
 
-from sandbox.session.manager import _Session
+from sandbox.session.session import Session
 
 BASE_SESSION_OPTS = {
     "run_id": "run-1",
@@ -33,8 +33,8 @@ BASE_SESSION_OPTS = {
 }
 
 
-def _make_session() -> _Session:
-    return _Session("test-sess", dict(BASE_SESSION_OPTS))
+def _make_session() -> Session:
+    return Session("test-sess", dict(BASE_SESSION_OPTS))
 
 
 def _hook_ctx() -> HookContext:

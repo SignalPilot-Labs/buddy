@@ -1,3 +1,5 @@
+export type ConnectionState = "connected" | "reconnecting" | "disconnected";
+
 export interface Run {
   id: string;
   started_at: string;
@@ -268,6 +270,7 @@ export type AuditEventType =
   | "llm_text"
   | "llm_thinking"
   | "round_complete"
+  | "round_ended"
   | "rate_limit"
   | "run_started"
   | "sdk_config"
@@ -370,7 +373,6 @@ export interface SettingsStatus {
 }
 
 export interface Settings {
-  claude_token?: string;
   git_token?: string;
   github_repo?: string;
   max_budget_usd?: string;

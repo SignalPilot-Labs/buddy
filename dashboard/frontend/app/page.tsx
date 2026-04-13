@@ -39,6 +39,8 @@ function MonitorPageInner() {
     agentHealth,
     activeRunHealth,
     connected,
+    connectionState,
+    historyTruncated,
     branches,
     isMobile,
     isConfigured,
@@ -144,7 +146,16 @@ function MonitorPageInner() {
         showKillConfirm={showKillConfirm}
         onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
         onKill={handleHeaderKill}
-        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        onNewRun={() => {
+          if (!activeRepoFilter) {
+            showToast("Select a repo first", "error");
+            return;
+          }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
+          setStartModalOpen(true);
+        }}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
@@ -212,7 +223,7 @@ function MonitorPageInner() {
           {/* Center — Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0 relative">
             <ConnectionBanner
-              connected={connected}
+              connectionState={connectionState}
               runStatus={runStatus}
               showToast={showToast}
             />
@@ -222,6 +233,8 @@ function MonitorPageInner() {
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
               isLoading={historyLoading}
+              historyTruncated={historyTruncated}
+              hasSelectedRun={selectedRunId !== null}
             />
             <CommandInput
               runId={selectedRunId}
@@ -262,6 +275,8 @@ function MonitorPageInner() {
           runStatus={runStatus}
           selectedRun={selectedRun}
           connected={connected}
+          connectionState={connectionState}
+          historyTruncated={historyTruncated}
           busy={busy}
           historyLoading={historyLoading}
           controlsOpen={controlsOpen}
@@ -271,6 +286,7 @@ function MonitorPageInner() {
           onResume={() => { void toastControlAction("Resume", resumeAgent); }}
           onInject={handleInject}
           onRestart={handleRestart}
+          showToast={showToast}
         />
       )}
 
@@ -289,7 +305,16 @@ function MonitorPageInner() {
         repos={repos}
         activeRepo={activeRepoFilter}
         onRepoSelect={handleRepoSwitch}
-        onNewRun={() => { fetchBranches(activeRepoFilter || undefined).then(setBranches); setStartModalOpen(true); }}
+        onNewRun={() => {
+          if (!activeRepoFilter) {
+            showToast("Select a repo first", "error");
+            return;
+          }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
+          setStartModalOpen(true);
+        }}
         isConfigured={isConfigured}
       />
 

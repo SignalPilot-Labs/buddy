@@ -28,7 +28,7 @@ export const SSE_POLL_INTERVAL_MS = 1_000;
 export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
 
 // Fetch limits
-export const HISTORY_FETCH_LIMIT = 500;
+export const HISTORY_FETCH_LIMIT = 5000;
 export const API_FETCH_TIMEOUT_MS = 15_000;
 
 // Container logs
@@ -45,6 +45,17 @@ export const MAX_VISIBLE_TOASTS = 3;
 
 // Event feed
 export const SCROLL_BOTTOM_THRESHOLD = 20;
+export const AGENT_IDLE_TIMER_INTERVAL_MS = 5000;
+
+// Skeleton loading state
+export const SKELETON_COUNT = 5;
+export const SKELETON_HEIGHT = "h-12";
+export const SKELETON_WIDTHS: ReadonlyArray<string> = ["w-1/3", "w-1/2", "w-2/5", "w-3/5", "w-1/4"];
+
+// SSE reconnect backoff
+export const RECONNECT_BASE_MS = 1000;
+export const RECONNECT_MAX_MS = 30000;
+export const RECONNECT_MAX_ATTEMPTS = 10;
 
 // Branches pinned to the top of the branch picker, in display order.
 export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];

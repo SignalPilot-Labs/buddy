@@ -76,7 +76,7 @@ async def get_tool_calls(
         result = await s.execute(
             select(ToolCall)
             .where(ToolCall.run_id == run_id)
-            .order_by(desc(ToolCall.ts))
+            .order_by(desc(ToolCall.ts), desc(ToolCall.id))
             .limit(limit)
             .offset(offset)
         )
@@ -94,7 +94,7 @@ async def get_audit_log(
         result = await s.execute(
             select(AuditLog)
             .where(AuditLog.run_id == run_id)
-            .order_by(desc(AuditLog.ts))
+            .order_by(desc(AuditLog.ts), desc(AuditLog.id))
             .limit(limit)
             .offset(offset)
         )
@@ -213,9 +213,19 @@ async def start_agent_run(body: StartRunRequest) -> dict:
 
 
 @router.get("/agent/branches")
-async def list_branches() -> list:
-    """List git branches from agent."""
-    return await agent_request("GET", "/branches", AGENT_TIMEOUT_LONG, None, None, ["main"])
+async def list_branches(repo: str = Query(...)) -> list:
+    """List git branches for a repo via the agent (GitHub API proxy)."""
+    creds = await read_credentials(repo)
+    token = creds.get("git_token")
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No git_token configured for {repo} — set one in Settings",
+        )
+    return await agent_request(
+        "GET", "/branches", AGENT_TIMEOUT_LONG,
+        None, {"repo": repo, "token": token}, None,
+    )
 
 
 @router.get("/agent/logs")

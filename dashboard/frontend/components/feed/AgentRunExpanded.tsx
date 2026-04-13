@@ -11,6 +11,7 @@ import {
   fmtDuration,
   extractResultText,
 } from "@/components/feed/eventCardHelpers";
+import { SpinnerIcon } from "@/components/ui/StatusIcons";
 
 export function AgentRunExpanded({
   tool,
@@ -129,22 +130,7 @@ export function AgentRunExpanded({
 
       {isFinalizing && (
         <div className="border-t border-white/[0.03] px-4 py-3 flex items-center gap-2">
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            className="animate-spin shrink-0"
-          >
-            <circle
-              cx="6"
-              cy="6"
-              r="5"
-              stroke="#cc88ff"
-              strokeWidth="1"
-              strokeDasharray="16 10"
-            />
-          </svg>
+          <SpinnerIcon color="#cc88ff" />
           <span className="text-[10px] text-[#cc88ff]/70">
             Agent is writing its final response...
           </span>

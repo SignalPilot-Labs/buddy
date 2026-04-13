@@ -1,26 +1,25 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage } from "@/lib/types";
+import type { Dispatch, SetStateAction } from "react";
 import {
   fetchAgentHealth,
   fetchRepos,
   setActiveRepo,
-  startRun as apiStartRun,
-  killAgent,
-  resumeAgent,
-  injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
-import type { AgentHealth, HealthRunEntry } from "@/lib/api";
+import type { AgentHealth } from "@/lib/api";
 import type { DashboardState } from "@/hooks/dashboardTypes";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, loadStoredModel } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
 import { useRuns } from "@/hooks/useRuns";
 import { useSSE } from "@/hooks/useSSE";
 import { useMobile } from "@/hooks/useMobile";
+import { useEventState } from "@/hooks/useEventState";
+import { useRunActions } from "@/hooks/useRunActions";
 
 export function useDashboard(): DashboardState {
   const [activeRepoFilter, setActiveRepoFilter] = useState<string | null>(() => {
@@ -30,9 +29,7 @@ export function useDashboard(): DashboardState {
   const { runs, loading: runsLoading, refresh: refreshRuns } = useRuns(activeRepoFilter);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
-  const [historyEvents, setHistoryEvents] = useState<FeedEvent[]>([]);
   const [startModalOpen, setStartModalOpen] = useState(false);
-  const [showKillConfirm, setShowKillConfirm] = useState(false);
   const [agentHealth, setAgentHealth] = useState<AgentHealth | null>(null);
   const [branches, setBranches] = useState<string[]>(["main"]);
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
@@ -47,91 +44,61 @@ export function useDashboard(): DashboardState {
     try { return localStorage.getItem("autofyn_sidebar_collapsed") === "true"; } catch { return false; }
   });
   const [busy, setBusy] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   const selectedRunIdRef = useRef<string | null>(null);
   useEffect(() => { selectedRunIdRef.current = selectedRunId; }, [selectedRunId]);
   const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
 
+  // Stable refs — wired to useEventState setters after useSSE (ordering constraint)
+  const failAllPendingRef = useRef<() => void>(() => undefined);
+  const refreshRunsRef = useRef(refreshRuns);
+  refreshRunsRef.current = refreshRuns;
+  const setHistoryEventsRef = useRef<(events: FeedEvent[]) => void>(() => undefined);
+  const setHistoryLoadingRef = useRef<(v: boolean) => void>(() => undefined);
+  const setHistoryTruncatedRef = useRef<(v: boolean) => void>(() => undefined);
+  const setPendingMessagesRef = useRef<Dispatch<SetStateAction<PendingMessage[]>>>(() => undefined);
+  const addEventRef = useRef<(event: FeedEvent) => void>(() => undefined);
+
   const handleRunEnded = useCallback(() => {
-    refreshRuns();
+    refreshRunsRef.current();
     setBusy(false);
-    setPendingMessages((prev) => {
-      if (prev.length === 0) return prev;
-      return prev.map((m) => m.status === "pending" ? { ...m, status: "failed" } : m);
-    });
-  }, [refreshRuns]);
+    failAllPendingRef.current();
+  }, []);
 
   const handleSessionResumed = useCallback(() => {
     const runId = selectedRunIdRef.current;
     if (!runId) return;
     sseRef.current.disconnect();
-    setPendingMessages([]);
-    setHistoryLoading(true);
-    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId }) => {
-      setHistoryEvents(events);
+    setPendingMessagesRef.current([]);
+    setHistoryLoadingRef.current(true);
+    loadRunHistory(runId).then(({ events, lastToolId, lastAuditId, truncated }) => {
+      setHistoryEventsRef.current(events);
+      setHistoryTruncatedRef.current(truncated);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
       sseRef.current.clearEvents();
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
-      setHistoryLoading(false);
+      setHistoryLoadingRef.current(false);
     }).catch((err) => {
-      setHistoryLoading(false);
-      setHistoryEvents((prev) => [
-        ...prev,
-        { _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() },
-      ]);
+      setHistoryLoadingRef.current(false);
+      addEventRef.current({ _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() });
     });
   }, []);
 
-  const { events: liveEvents, connected, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
+  const { events: liveEvents, connected, connectionState, clearEvents, connect: sseConnect, disconnect: sseDisconnect } = useSSE(handleRunEnded, handleSessionResumed);
   const sseRef = useRef({ connect: sseConnect, disconnect: sseDisconnect, clearEvents });
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
-  // Clear pending messages by prompt text matching when prompt events arrive via SSE
-  const confirmedPromptsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    // Reset when liveEvents is cleared (run switch, session resumed, etc.)
-    if (liveEvents.length === 0) {
-      confirmedPromptsRef.current = new Set();
-      return;
-    }
-    const confirmedTexts = liveEvents
-      .filter((e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"))
-      .map((e) => {
-        if (e._kind !== "audit") return "";
-        return String(e.data.details.prompt || "");
-      })
-      .filter((t) => t.length > 0);
-    const newConfirmed = confirmedTexts.filter((t) => !confirmedPromptsRef.current.has(t));
-    if (newConfirmed.length === 0) return;
-    for (const t of newConfirmed) confirmedPromptsRef.current.add(t);
-    const confirmedSet = new Set(newConfirmed);
-    setPendingMessages((prev) =>
-      prev.filter((m) => m.status !== "pending" || !confirmedSet.has(m.prompt)),
-    );
-  }, [liveEvents]);
+  const evState = useEventState(liveEvents);
+  const { allEvents, historyLoading, historyTruncated, pendingMessages } = evState;
+  const { addEvent, addPendingMessage, markPendingFailed } = evState;
 
-  const allEvents = useMemo(() => [...historyEvents, ...liveEvents], [historyEvents, liveEvents]);
-
-  const addEvent = useCallback((event: FeedEvent) => {
-    setHistoryEvents((prev) => [...prev, event]);
-  }, []);
-
-  const controlAction = useCallback((label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
-    if (!selectedRunId) return Promise.resolve();
-    return fn(selectedRunId).then(() => undefined).catch((e: unknown) => {
-      const retry = () => controlAction(label, fn);
-      addEvent({
-        _kind: "control",
-        text: `${label} failed: ${e}`,
-        ts: new Date().toISOString(),
-        retryAction: retry,
-      });
-      return Promise.reject(e);
-    });
-  }, [selectedRunId, addEvent]);
+  failAllPendingRef.current = evState.failAllPending;
+  setHistoryEventsRef.current = evState.setHistoryEvents;
+  setHistoryLoadingRef.current = evState.setHistoryLoading;
+  setHistoryTruncatedRef.current = evState.setHistoryTruncated;
+  setPendingMessagesRef.current = evState.setPendingMessages;
+  addEventRef.current = addEvent;
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed((prev) => {
@@ -142,6 +109,58 @@ export function useDashboard(): DashboardState {
   }, []);
 
   const runStatus: RunStatus | null = (selectedRun?.status as RunStatus) || null;
+
+  const handleSelectRun = useCallback(
+    async (id: string): Promise<FeedEvent[]> => {
+      const gen = ++selectGenRef.current;
+      sseRef.current.disconnect();
+      setSelectedRunId(id);
+      setPendingMessagesRef.current([]);
+      localStorage.setItem("autofyn_last_run_id", id);
+      setHistoryLoadingRef.current(true);
+      sseRef.current.clearEvents();
+      let lastToolId = 0;
+      let lastAuditId = 0;
+      let loadedEvents: FeedEvent[] = [];
+      try {
+        const result = await loadRunHistory(id);
+        if (gen !== selectGenRef.current) return loadedEvents;
+        setHistoryEventsRef.current(result.events);
+        setHistoryTruncatedRef.current(result.truncated);
+        loadedEvents = result.events;
+        lastToolId = result.lastToolId;
+        lastAuditId = result.lastAuditId;
+      } catch (err) {
+        console.warn("Failed to load history:", err);
+        if (gen === selectGenRef.current) setHistoryEventsRef.current([]);
+      } finally {
+        if (gen === selectGenRef.current) setHistoryLoadingRef.current(false);
+      }
+      if (gen !== selectGenRef.current) return loadedEvents;
+      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
+      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
+      refreshRunsRef.current();
+      return loadedEvents;
+    },
+    [],
+  );
+
+  const runActions = useRunActions({
+    selectedRunId,
+    selectedRunIdRef,
+    addEvent,
+    addPendingMessage,
+    markPendingFailed,
+    sseRef,
+    cursorsRef,
+    refreshRunsRef,
+    handleSelectRun,
+    activeRepoFilter,
+    setStartModalOpen,
+    setBusy,
+  });
+
+  const { controlAction } = runActions;
 
   useKeyboardShortcuts({
     handleToggleSidebar,
@@ -160,7 +179,7 @@ export function useDashboard(): DashboardState {
         const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
         const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
         if (newRun) {
-          refreshRuns();
+          refreshRunsRef.current();
           const currentId = selectedRunIdRef.current;
           const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
           const currentIsTerminal = currentRunInHealth
@@ -176,7 +195,7 @@ export function useDashboard(): DashboardState {
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
-  }, [refreshRuns]);
+  }, []);
 
   useEffect(() => {
     fetchSettingsStatus().then((s) => {
@@ -209,8 +228,8 @@ export function useDashboard(): DashboardState {
     sseRef.current.disconnect();
     setSelectedRunId(null);
     setSelectedRun(null);
-    setHistoryEvents([]);
-    setPendingMessages([]);
+    setHistoryEventsRef.current([]);
+    setPendingMessagesRef.current([]);
     sseRef.current.clearEvents();
     setBranches([]);
     if (repo) {
@@ -229,40 +248,6 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId]);
 
-  const handleSelectRun = useCallback(
-    async (id: string): Promise<FeedEvent[]> => {
-      const gen = ++selectGenRef.current;
-      sseRef.current.disconnect();
-      setSelectedRunId(id);
-      setPendingMessages([]);
-      localStorage.setItem("autofyn_last_run_id", id);
-      setHistoryLoading(true);
-      sseRef.current.clearEvents();
-      let lastToolId = 0;
-      let lastAuditId = 0;
-      let loadedEvents: FeedEvent[] = [];
-      try {
-        const result = await loadRunHistory(id);
-        if (gen !== selectGenRef.current) return loadedEvents;
-        setHistoryEvents(result.events);
-        loadedEvents = result.events;
-        lastToolId = result.lastToolId;
-        lastAuditId = result.lastAuditId;
-      } catch (err) {
-        console.warn("Failed to load history:", err);
-        if (gen === selectGenRef.current) setHistoryEvents([]);
-      } finally {
-        if (gen === selectGenRef.current) setHistoryLoading(false);
-      }
-      if (gen !== selectGenRef.current) return loadedEvents;
-      cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
-      sseRef.current.connect(id, { afterTool: lastToolId, afterAudit: lastAuditId });
-      refreshRuns();
-      return loadedEvents;
-    },
-    [refreshRuns],
-  );
-
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
       if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
@@ -279,99 +264,6 @@ export function useDashboard(): DashboardState {
       handleSelectRun(active?.id || runs[0].id);
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
-
-  const addPendingMessage = useCallback(
-    (prompt: string): number => {
-      const id = -Date.now();
-      setPendingMessages((prev) => [...prev, { id, prompt, ts: new Date().toISOString(), status: "pending" }]);
-      return id;
-    },
-    [],
-  );
-
-  const markPendingFailed = useCallback(
-    (id: number) => {
-      setPendingMessages((prev) => prev.map((m) => m.id === id ? { ...m, status: "failed" } : m));
-    },
-    [],
-  );
-
-  const handleStartRun = useCallback(
-    async (
-      prompt: string | undefined,
-      budget: number,
-      durationMinutes: number,
-      baseBranch: string,
-      model?: string,
-    ) => {
-      const resolvedModel = model ?? loadStoredModel();
-      setStartModalOpen(false);
-      setBusy(true);
-      try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
-        refreshRuns();
-        if (result.run_id) {
-          const events = await handleSelectRun(result.run_id);
-          if (prompt) {
-            const hasPrompt = events.some((e) =>
-              e._kind === "audit" && (e.data.event_type === "prompt_submitted" || e.data.event_type === "prompt_injected"),
-            );
-            if (!hasPrompt) addPendingMessage(prompt);
-          }
-        }
-      } catch (err) {
-        addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
-      } finally {
-        setBusy(false);
-      }
-    },
-    [addEvent, addPendingMessage, handleSelectRun, refreshRuns, activeRepoFilter],
-  );
-
-  const handleInject = useCallback(
-    (prompt: string) => {
-      if (!selectedRunId) return;
-      const pid = addPendingMessage(prompt);
-      apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-        markPendingFailed(pid);
-        addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
-      });
-    },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
-  );
-
-  const handleRestart = useCallback(
-    (prompt: string) => {
-      if (!selectedRunId) return;
-      const pid = prompt ? addPendingMessage(prompt) : 0;
-      resumeAgent(selectedRunId, prompt)
-        .then(() => {
-          // Run was terminal → SSE was disconnected. Reconnect so new events arrive.
-          const runId = selectedRunIdRef.current;
-          if (runId) {
-            sseRef.current.disconnect();
-            sseRef.current.clearEvents();
-            sseRef.current.connect(runId, cursorsRef.current);
-          }
-        })
-        .catch((e) => {
-          if (pid) markPendingFailed(pid);
-          addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
-        });
-    },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
-  );
-
-  const handleHeaderKill = useCallback(() => {
-    if (!showKillConfirm) {
-      setShowKillConfirm(true);
-      setTimeout(() => setShowKillConfirm(false), 3000);
-      return;
-    }
-    setBusy(true);
-    void controlAction("Kill", killAgent);
-    setShowKillConfirm(false);
-  }, [showKillConfirm, controlAction]);
 
   const isConfigured = settingsStatus?.configured ?? false;
   const atCapacity = isAtCapacity(agentHealth);
@@ -391,6 +283,8 @@ export function useDashboard(): DashboardState {
     agentHealth,
     activeRunHealth,
     connected,
+    connectionState,
+    historyTruncated,
     branches,
     isMobile,
     isConfigured,
@@ -399,7 +293,6 @@ export function useDashboard(): DashboardState {
     historyLoading,
     activeRepoFilter,
     startModalOpen,
-    showKillConfirm,
     onboardingOpen,
     settingsStatus,
     sidebarCollapsed,
@@ -408,14 +301,9 @@ export function useDashboard(): DashboardState {
     rightPanel,
     showShortcuts,
     setShowShortcuts,
-    controlAction,
     handleToggleSidebar,
     handleRepoSwitch,
     handleSelectRun,
-    handleStartRun,
-    handleInject,
-    handleRestart,
-    handleHeaderKill,
     setStartModalOpen,
     setOnboardingOpen,
     setMobilePanel,
@@ -424,5 +312,6 @@ export function useDashboard(): DashboardState {
     setBranches,
     setSettingsStatus,
     setRepos,
+    ...runActions,
   };
 }

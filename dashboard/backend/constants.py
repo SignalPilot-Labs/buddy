@@ -13,7 +13,7 @@ AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500
 
 # Pagination
 RUNS_PAGE_SIZE = 50
-QUERY_MAX_LIMIT = 1000
+QUERY_MAX_LIMIT = 5001
 
 # SSE
 SSE_POLL_INTERVAL_SEC = 0.5
@@ -27,14 +27,14 @@ MASK_PREFIX_CLAUDE_TOKEN = 8
 MASK_PREFIX_DEFAULT = 6
 
 # Settings keys that must be encrypted at rest
-SECRET_KEYS = frozenset({"claude_token", "git_token"})
+SECRET_KEYS = frozenset({"git_token"})
 
 # Mask value used in GET /settings for encrypted env var values
 ENV_VARS_MASK_CHAR = "****"
 
 # Default values
 DEFAULT_BASE_BRANCH = "main"
-DEFAULT_STOP_REASON = "Operator requested stop"
+DEFAULT_STOP_REASON = "User requested stop"
 
 
 # Network / ports
@@ -43,6 +43,10 @@ HOST_IP_ENV = "HOST_IP"
 
 # Polling (incremental — frontend HISTORY_FETCH_LIMIT=500 is for initial load)
 POLL_LIMIT_DEFAULT = 100
+
+# Event type priority for interleaved sort: audits sort before tools at same timestamp
+TYPE_PRIORITY_AUDIT = 0
+TYPE_PRIORITY_TOOL = 1
 
 # Query defaults
 QUERY_DEFAULT_LIMIT: int = 200
@@ -61,11 +65,20 @@ SIGNAL_AGENT_PATHS: dict[str, str] = {
 
 # Run status sets — single source of truth for the runs endpoints. Add a new
 # status here, not inline in runs.py.
-RESTARTABLE_STATUSES: frozenset[str] = frozenset({
-    "completed", "completed_no_changes", "stopped", "error", "crashed", "killed",
-})
+RESTARTABLE_STATUSES: frozenset[str] = frozenset(
+    {
+        "completed",
+        "completed_no_changes",
+        "stopped",
+        "error",
+        "crashed",
+        "killed",
+    }
+)
 
 ACTIVE_STATUSES: frozenset[str] = frozenset({"running", "paused", "rate_limited"})
 
 # Statuses that allow injecting into a stopped run by spawning a fresh resume.
-INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset({"completed", "stopped", "error"})
+INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset(
+    {"completed", "stopped", "error"}
+)

@@ -19,7 +19,7 @@ import type { CredentialFieldConfig } from "@/components/settings/CredentialFiel
 import { clsx } from "clsx";
 import { apiFetch } from "@/lib/fetch";
 
-type StringSettingsKey = "claude_token" | "git_token" | "github_repo" | "max_budget_usd";
+type StringSettingsKey = "git_token" | "github_repo" | "max_budget_usd";
 
 const FIELDS: CredentialFieldConfig[] = [
   {
@@ -225,7 +225,7 @@ export default function SettingsPage() {
   const activeRepo = settings.github_repo || "";
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto">
+    <div className="h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#333] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
       <div className="border-b border-[#1a1a1a]">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -280,30 +280,6 @@ export default function SettingsPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
             <SecurityBanner />
 
-            <TokenPoolSection
-              tokens={tokens}
-              newToken={newToken}
-              addingToken={addingToken}
-              tokenError={tokenError}
-              onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
-              onAddToken={handleAddToken}
-              onRemoveToken={handleRemoveToken}
-            />
-
-            <DefaultModelSetting />
-
-            <RepoListSection
-              repos={repos}
-              activeRepo={activeRepo}
-              newRepo={newRepo}
-              addingRepo={addingRepo}
-              repoError={repoError}
-              onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
-              onAddRepo={handleAddRepo}
-              onRemoveRepo={handleRemoveRepo}
-              onSetActive={handleSetActive}
-            />
-
             {FIELDS.map((field) => (
               <CredentialField
                 key={field.key}
@@ -318,6 +294,30 @@ export default function SettingsPage() {
                 onToggleShow={() => setShowSecrets({ ...showSecrets, [field.key]: !showSecrets[field.key] })}
               />
             ))}
+
+            <RepoListSection
+              repos={repos}
+              activeRepo={activeRepo}
+              newRepo={newRepo}
+              addingRepo={addingRepo}
+              repoError={repoError}
+              onNewRepoChange={(v) => { setNewRepo(v); setRepoError(null); }}
+              onAddRepo={handleAddRepo}
+              onRemoveRepo={handleRemoveRepo}
+              onSetActive={handleSetActive}
+            />
+
+            <TokenPoolSection
+              tokens={tokens}
+              newToken={newToken}
+              addingToken={addingToken}
+              tokenError={tokenError}
+              onNewTokenChange={(v) => { setNewToken(v); setTokenError(null); }}
+              onAddToken={handleAddToken}
+              onRemoveToken={handleRemoveToken}
+            />
+
+            <DefaultModelSetting />
 
             <div className="flex items-center justify-between pt-2">
               <div>

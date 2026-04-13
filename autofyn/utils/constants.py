@@ -11,9 +11,31 @@ RATE_LIMIT_MAX_WAIT_SEC = (
     600  # Max seconds to wait for rate limit reset before stopping
 )
 SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
+# Backstop for runs without a time lock. 128 rounds is enough for a
+# very long autonomous session (~8h at ~4 min/round) while still stopping
+# a runaway orchestrator that never judges the task done.
+MAX_ROUNDS = 128
+
+# ── Agent Models ──
+MODEL_OPUS = "opus"
+MODEL_SONNET = "sonnet"
+DEFAULT_AGENT_ROLE = "worker"
+SESSION_EFFORT = "medium"
+SESSION_PERMISSION_MODE = "bypassPermissions"
 
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
+RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
+ROUND_DIR_PREFIX = "/tmp/round-"
+ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
+METADATA_PATH = "/tmp/rounds.json"
+# Persistent round archive on the agent container's `autofyn-rounds`
+# volume. Sandboxes never mount this — the agent pulls/pushes reports
+# via file_system HTTP on round boundaries, keeping per-run isolation.
+# Lives under agentuser's home so no runtime root is needed — the
+# Dockerfile creates + chowns the dir at build time and Docker's named
+# volume first-mount copies that ownership into the volume.
+ROUND_ARCHIVE_AGENT_DIR = "/home/agentuser/.autofyn/rounds"
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──
@@ -58,6 +80,7 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 # ── Token env keys — passed per-run via extra_env, not os.environ ──
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
+ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"

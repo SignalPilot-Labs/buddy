@@ -1,6 +1,6 @@
 """Tests for SandboxPool container/volume naming."""
 
-from sandbox_manager.pool import SandboxPool
+from sandbox_client.pool import SandboxPool
 
 
 class TestSandboxPoolNaming:

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { updateSettings } from "@/lib/settings-api";
+import { updateSettings, addPoolToken } from "@/lib/settings-api";
 import type { SettingsStatus } from "@/lib/types";
 import { clsx } from "clsx";
 
@@ -113,7 +113,11 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
     setError(null);
     setSaving(true);
     try {
-      await updateSettings({ [currentStep.key]: currentValue.trim() });
+      if (currentStep.key === "claude_token") {
+        await addPoolToken(currentValue.trim());
+      } else {
+        await updateSettings({ [currentStep.key]: currentValue.trim() });
+      }
       if (isLastStep) {
         onComplete();
       } else {

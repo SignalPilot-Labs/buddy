@@ -62,7 +62,7 @@ def get_settings() -> None:
 
 @app.command("set")
 def set_settings(
-    claude_token: Optional[str] = typer.Option(None, metavar="<token>", help="Anthropic API key"),
+    claude_token: Optional[str] = typer.Option(None, metavar="<token>", help="Claude OAuth token (added to token pool)"),
     git_token: Optional[str] = typer.Option(None, metavar="<token>", help="GitHub personal access token"),
     github_repo: Optional[str] = typer.Option(None, metavar="<owner/repo>", help="GitHub repo (owner/name)"),
     budget: Optional[str] = typer.Option(None, "--budget", metavar="<amount>", help="Max budget in USD"),
@@ -77,9 +77,12 @@ def set_settings(
       autofyn settings set --budget 10.00
       autofyn settings set --api-key my-secret-key
     """
-    body: dict = {}
+    # Claude token goes to the pool, not generic settings.
     if claude_token is not None:
-        body["claude_token"] = claude_token
+        get_client().post("/api/tokens", json={"token": claude_token})
+        print_success("Added Claude OAuth token to pool")
+
+    body: dict = {}
     if git_token is not None:
         body["git_token"] = git_token
     if github_repo is not None:

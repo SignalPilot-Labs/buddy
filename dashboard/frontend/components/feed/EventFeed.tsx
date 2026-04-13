@@ -4,11 +4,11 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, PendingMessage } from "@/lib/types";
-import { SCROLL_BOTTOM_THRESHOLD } from "@/lib/constants";
+import { SCROLL_BOTTOM_THRESHOLD, SKELETON_COUNT, SKELETON_HEIGHT, SKELETON_WIDTHS } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
 import { UserPromptCard } from "./MessageCards";
-import { EmptyEvents } from "@/components/ui/EmptyStates";
+import { EmptyEvents, EmptyRunEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
 const FAB_INITIAL = { opacity: 0, y: 8 };
@@ -20,23 +20,34 @@ const SCROLL_BEHAVIOR = "smooth" as const;
 const CARD_ENTER_DURATION = 0.2;
 const CARD_ENTER_Y = 6;
 const CARD_ENTER_EASE = "easeOut";
-const SKELETON_COUNT = 3;
-const SKELETON_HEIGHT = "h-12";
 const LOADING_OPACITY = 0.4;
 const LOADING_OPACITY_TRANSITION = "opacity 0.2s";
 
+// Ordered list of tool color border classes for skeleton visual variety
+const SKELETON_BORDERS = [
+  "border-l-[#00ff88]",
+  "border-l-[#88ccff]",
+  "border-l-[#cc88ff]",
+  "border-l-[#ffcc44]",
+  "border-l-[#ff88aa]",
+] as const satisfies ReadonlyArray<string>;
+
 export function EventFeed({
   events,
-  pendingMessages = [],
-  runActive = false,
-  runPaused = false,
-  isLoading = false,
+  pendingMessages,
+  runActive,
+  runPaused,
+  isLoading,
+  historyTruncated,
+  hasSelectedRun,
 }: {
   events: FeedEvent[];
-  pendingMessages?: PendingMessage[];
-  runActive?: boolean;
-  runPaused?: boolean;
-  isLoading?: boolean;
+  pendingMessages: PendingMessage[];
+  runActive: boolean;
+  runPaused: boolean;
+  isLoading: boolean;
+  historyTruncated: boolean;
+  hasSelectedRun: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -49,7 +60,7 @@ export function EventFeed({
     const interruptLabels = new Set(["Pause Requested", "Stop Requested", "Resumed"]);
     for (let i = grouped.length - 1; i >= 0; i--) {
       const gev = grouped[i];
-      if (gev.type === "user_prompt") return gev.ts;
+      if (gev.type === "user_prompt" && !gev.injected) return gev.ts;
       if (gev.type === "milestone" && interruptLabels.has(gev.label)) return gev.ts;
     }
     return null;
@@ -113,18 +124,34 @@ export function EventFeed({
         style={{ opacity: containerOpacity, transition: LOADING_OPACITY_TRANSITION }}
       >
         {showSkeleton ? (
-          <div className="space-y-3 py-4">
+          <div className="space-y-2 py-4">
             {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-              <div key={i} className={`${SKELETON_HEIGHT} rounded bg-white/[0.03] animate-pulse`} />
+              <div
+                key={i}
+                className={`${SKELETON_HEIGHT} rounded-lg border-l-2 ${SKELETON_BORDERS[i % SKELETON_BORDERS.length]} bg-white/[0.03] animate-pulse px-3 flex flex-col justify-center gap-1.5`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-[8px] w-10 rounded bg-white/[0.06] shrink-0" />
+                  <div className="h-[9px] w-20 rounded bg-white/[0.08]" />
+                </div>
+                <div className={`h-[8px] ${SKELETON_WIDTHS[i % SKELETON_WIDTHS.length]} rounded bg-white/[0.04]`} />
+              </div>
             ))}
           </div>
         ) : !hasContent ? (
           <div className="flex items-center justify-center h-full">
-            <EmptyEvents />
+            {hasSelectedRun ? <EmptyRunEvents /> : <EmptyEvents />}
           </div>
         ) : (
           <>
-            <AnimatePresence mode="popLayout">
+            {historyTruncated && !isLoading && (
+              <div role="status" aria-label="History truncated" className="border-l-2 border-l-[#555] bg-white/[0.02] rounded px-3 py-1.5 mb-1">
+                <span className="text-[10px] text-[#777]">
+                  Showing latest 500 events. Older events are not displayed.
+                </span>
+              </div>
+            )}
+            <AnimatePresence initial={false}>
               {grouped.map((gev, i) => (
                 <motion.div
                   key={gev.id}
@@ -177,7 +204,7 @@ export function EventFeed({
               "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
             )}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
               <line x1="5" y1="2" x2="5" y2="8" />
               <polyline points="3 6 5 8 7 6" />
             </svg>

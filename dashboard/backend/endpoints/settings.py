@@ -10,7 +10,6 @@ from sqlalchemy import select, func
 from backend import auth, crypto
 from backend.constants import (
     ENV_VARS_MASK_CHAR,
-    MASK_PREFIX_CLAUDE_TOKEN,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
     SECRET_KEYS,
@@ -21,6 +20,7 @@ from backend.models import (
     UpdateSettingsRequest,
 )
 from backend.utils import (
+    read_token_pool,
     add_token_to_pool,
     ensure_repo_in_list,
     get_repo_list,
@@ -42,10 +42,7 @@ async def settings_status() -> dict:
     """Check which credentials are configured."""
     async with session() as s:
         has: dict[str, bool] = {}
-        has["has_claude_token"] = (
-            (await s.get(Setting, "claude_token")) is not None
-            or (await s.get(Setting, "claude_tokens")) is not None
-        )
+        has["has_claude_token"] = bool(await read_token_pool(s))
         for key in ("git_token", "github_repo"):
             has[f"has_{key}"] = (await s.get(Setting, key)) is not None
         has["configured"] = all(has.values())
@@ -55,7 +52,7 @@ async def settings_status() -> dict:
 def _decrypt_setting(setting: Setting) -> str:
     """Decrypt and mask an encrypted setting value."""
     plain = crypto.decrypt(setting.value, MASTER_KEY_PATH)
-    prefix = MASK_PREFIX_CLAUDE_TOKEN if setting.key == "claude_token" else MASK_PREFIX_DEFAULT
+    prefix = MASK_PREFIX_DEFAULT
     return crypto.mask(plain, prefix_len=prefix)
 
 
@@ -146,9 +143,11 @@ async def list_repos() -> list:
 
         result = []
         for repo in repos:
-            count = (await s.execute(
-                select(func.count()).select_from(Run).where(Run.github_repo == repo)
-            )).scalar_one()
+            count = (
+                await s.execute(
+                    select(func.count()).select_from(Run).where(Run.github_repo == repo)
+                )
+            ).scalar_one()
             result.append({"repo": repo, "run_count": count})
         return result
 
@@ -166,7 +165,7 @@ async def set_active_repo(body: SetActiveRepoRequest) -> dict:
 @router.delete("/repos/{repo_slug:path}")
 async def remove_repo(repo_slug: str) -> dict:
     """Remove a repo from the list (does not delete runs)."""
-    if not re.match(r'^[\w\-\.]+/[\w\-\.]+$', repo_slug):
+    if not re.match(r"^[\w\-\.]+/[\w\-\.]+$", repo_slug):
         raise HTTPException(status_code=400, detail="Invalid repo slug format")
     async with session() as s:
         repos = [r for r in await get_repo_list(s) if r != repo_slug]
