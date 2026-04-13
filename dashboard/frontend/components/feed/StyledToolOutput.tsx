@@ -74,6 +74,17 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
     );
   }
 
+  if (cat === "write" && typeof input.content === "string" && input.content) {
+    const content = input.content;
+    return (
+      <FileContentPreview
+        content={content}
+        totalLines={content.split("\n").length}
+        filePath={typeof input.file_path === "string" ? input.file_path : ""}
+      />
+    );
+  }
+
   if (cat === "grep" && tool.output_data) {
     return <GrepResults tool={tool} />;
   }

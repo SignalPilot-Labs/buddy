@@ -210,7 +210,7 @@ function MonitorPageInner() {
       {!isMobile && (
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar */}
-          <div className={`desktop-sidebar overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
+          <div className={`desktop-sidebar h-full overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
             <RunList
               runs={runs}
               activeId={selectedRunId}

@@ -339,14 +339,29 @@ export function EditGroupCard({
                   <Chevron open={expandedFile === i} size={8} />
                 </button>
                 {expandedFile === i &&
-                  !!tools[i]?.output_data?.structuredPatch && (
+                  (!!tools[i]?.output_data?.structuredPatch ||
+                    typeof tools[i]?.input_data?.content === "string") && (
                     <div className="px-4 pb-3">
-                      <DiffBlock
-                        patch={
-                          tools[i].output_data!
-                            .structuredPatch as Array<Record<string, unknown>>
-                        }
-                      />
+                      {tools[i]?.output_data?.structuredPatch ? (
+                        <DiffBlock
+                          patch={
+                            tools[i].output_data!
+                              .structuredPatch as Array<Record<string, unknown>>
+                          }
+                        />
+                      ) : (
+                        <FileContentPreview
+                          content={tools[i].input_data!.content as string}
+                          totalLines={
+                            (tools[i].input_data!.content as string).split("\n").length
+                          }
+                          filePath={
+                            typeof tools[i].input_data?.file_path === "string"
+                              ? (tools[i].input_data!.file_path as string)
+                              : ""
+                          }
+                        />
+                      )}
                     </div>
                   )}
               </div>
