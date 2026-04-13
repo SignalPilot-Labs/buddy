@@ -127,6 +127,7 @@ RoundStatus = Literal[
     "stopped",  # user stopped; outer loop will tear down
     "rate_limited",  # rate limit rejected; outer loop will back off or abort
     "error",  # exception during round execution
+    "session_error",  # SDK/API error (e.g. 401, 500); outer loop retries with backoff
 ]
 
 
@@ -255,6 +256,7 @@ SignalKind = Literal[
     "run_ended",
     "subagent_boundary",
     "rate_limited",
+    "session_error",
 ]
 
 
@@ -265,6 +267,7 @@ class StreamSignal:
     kind: SignalKind
     rate_limit_data: dict | None = None
     round_summary: str | None = None
+    error: str | None = None
 
 
 # ── Subagent tracking ───────────────────────────────────────────────

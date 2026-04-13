@@ -244,7 +244,9 @@ function MonitorPageInner() {
               events={allEvents}
               busy={busy}
               onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-              onResume={() => { void toastControlAction("Resume", resumeAgent); }}
+              onResume={(prompt) => {
+                void toastControlAction("Resume", (id) => resumeAgent(id, prompt));
+              }}
               onInject={handleInject}
               onRestart={handleRestart}
             />

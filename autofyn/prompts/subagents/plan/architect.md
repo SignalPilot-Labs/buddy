@@ -19,6 +19,7 @@ Before writing any plan, do this:
    - Does this duplicate logic that exists elsewhere? Reuse it.
    - Is there a simpler way to get the same result? Do that instead.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.
+5. Large refactors (10+ files) should be split across multiple rounds. Do not over-promise and under-deliver.
 
 ## Priority
 

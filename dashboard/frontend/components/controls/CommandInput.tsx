@@ -51,7 +51,7 @@ export interface CommandInputProps {
   events: FeedEvent[];
   busy: boolean;
   onPause: () => void;
-  onResume: () => void;
+  onResume: (prompt?: string) => void;
   onInject: (prompt: string) => void;
   onRestart: (prompt: string) => void;
 }
@@ -95,23 +95,28 @@ export function CommandInput({
       onPause();
       return;
     }
-    // "send" covers inject, resume, and restart depending on run status
+    if (status === "paused") {
+      // Resume — with or without a message
+      const trimmed = text.trim();
+      onResume(trimmed || undefined);
+      setText("");
+      return;
+    }
+    // "send" covers inject and restart depending on run status
     if (!hasText) return;
     const trimmed = text.trim();
-    if (status === "paused") {
-      onInject(trimmed);
-    } else if (status != null && TERMINAL_STATUSES.has(status)) {
+    if (status != null && TERMINAL_STATUSES.has(status)) {
       onRestart(trimmed);
     } else {
       onInject(trimmed);
     }
     setText("");
-  }, [buttonState, busy, hasText, text, status, onPause, onInject, onRestart]);
+  }, [buttonState, busy, hasText, text, status, onPause, onResume, onInject, onRestart]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
-        if (!hasText) return;
+        if (!hasText && status !== "paused") return;
         e.preventDefault();
         handleAction();
         return;
@@ -121,7 +126,7 @@ export function CommandInput({
         textareaRef.current?.blur();
       }
     },
-    [hasText, handleAction],
+    [hasText, status, handleAction],
   );
 
   const handlePresetClick = useCallback(

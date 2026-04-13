@@ -27,7 +27,10 @@ export function getButtonState(
   }
 
   if (status === "paused") {
-    return { label: "Send", variant: "primary", disabled: !hasText, icon: "send" };
+    if (hasText) {
+      return { label: "Resume & Send", variant: "primary", disabled: false, icon: "send" };
+    }
+    return { label: "Resume", variant: "success", disabled: false, icon: "send" };
   }
 
   if (status === "rate_limited") {
