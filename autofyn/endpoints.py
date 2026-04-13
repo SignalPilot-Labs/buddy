@@ -59,7 +59,6 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
     if not run_info["branch_name"]:
         raise HTTPException(status_code=409, detail="Run has no branch — cannot resume")
 
-    # Validate required fields — fail fast instead of hiding broken DB state.
     prompt = body.prompt or run_info["custom_prompt"]
     if not prompt:
         raise HTTPException(status_code=409, detail="Run has no prompt and none provided")
