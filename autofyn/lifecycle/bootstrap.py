@@ -61,7 +61,9 @@ async def bootstrap_run(
 
     fallback_model = get_fallback_model(model)
 
-    branch_name = _make_branch_name(custom_prompt)
+    # Resume: reuse existing branch if the DB already has one for this run.
+    existing_branch = await db.get_run_branch_name(run_id)
+    branch_name = existing_branch or _make_branch_name(custom_prompt)
     log.info("Run %s bootstrapping %s on branch %s", run_id, github_repo, branch_name)
     await sandbox.repo.bootstrap(
         repo=github_repo,
@@ -70,8 +72,14 @@ async def bootstrap_run(
         working_branch=branch_name,
         timeout=clone_timeout,
     )
-    await db.update_run_branch(run_id, branch_name)
+    if existing_branch:
+        await db.update_run_status(run_id, "running")
+    else:
+        await db.update_run_branch(run_id, branch_name)
 
+    # On resume, seed cost/token accumulators from the DB so teardown
+    # doesn't overwrite the previous run's totals with zeros.
+    prior = await db.get_run_for_resume(run_id) if existing_branch else None
     run = RunContext(
         run_id=run_id,
         agent_role=DEFAULT_AGENT_ROLE,
@@ -79,6 +87,11 @@ async def bootstrap_run(
         base_branch=base_branch,
         duration_minutes=duration_minutes,
         github_repo=github_repo,
+        total_cost=float(prior["total_cost_usd"] or 0) if prior else 0.0,
+        total_input_tokens=int(prior["total_input_tokens"] or 0) if prior else 0,
+        total_output_tokens=int(prior["total_output_tokens"] or 0) if prior else 0,
+        cache_creation_input_tokens=int(prior["cache_creation_input_tokens"] or 0) if prior else 0,
+        cache_read_input_tokens=int(prior["cache_read_input_tokens"] or 0) if prior else 0,
     )
     inbox = UserInbox()
     time_lock = TimeLock(duration_minutes)

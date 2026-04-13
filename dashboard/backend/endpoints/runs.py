@@ -137,11 +137,13 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status == "paused":
+        if run.status in ("paused", "rate_limited"):
             prompt = (body.payload or "").strip() or None
             if prompt:
-                await send_control_signal(run_id, "inject", {"paused"}, prompt, None)
-            return await send_control_signal(run_id, "resume", {"paused"}, None, None)
+                await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt, None)
+            if run.status == "paused":
+                return await send_control_signal(run_id, "resume", {"paused"}, None, None)
+            return {"ok": True, "signal": "inject", "run_id": run_id}
         if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(
                 run, run_id, (body.payload or "").strip() or None, s,
