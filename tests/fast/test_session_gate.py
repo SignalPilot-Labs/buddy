@@ -14,11 +14,11 @@ class TestTimeLock:
         lock = TimeLock(0)
         assert not lock.is_expired()
 
-    def test_force_unlock_flag(self) -> None:
+    def test_unlock(self) -> None:
         lock = TimeLock(30)
-        assert not lock.is_force_unlocked()
-        lock.force_unlock()
-        assert lock.is_force_unlocked()
+        assert lock.locked is True
+        lock.unlock()
+        assert lock.locked is False
 
     def test_elapsed_minutes_starts_near_zero(self) -> None:
         lock = TimeLock(30)

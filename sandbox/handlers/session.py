@@ -94,6 +94,15 @@ async def handle_stop(request: web.Request) -> web.Response:
     return web.json_response({"status": "stopped"})
 
 
+@_require_session
+async def handle_unlock(request: web.Request) -> web.Response:
+    """Unlock a session's time gate so end_session is allowed."""
+    session_id = request.match_info["session_id"]
+    sessions: SessionManager = request.app["sessions"]
+    sessions.unlock(session_id)
+    return web.json_response({"status": "unlocked"})
+
+
 def register(app: web.Application) -> None:
     """Attach all /session/* routes to the aiohttp app."""
     app.router.add_post("/session/start", handle_start)
@@ -101,3 +110,4 @@ def register(app: web.Application) -> None:
     app.router.add_post("/session/{session_id}/message", handle_message)
     app.router.add_post("/session/{session_id}/interrupt", handle_interrupt)
     app.router.add_post("/session/{session_id}/stop", handle_stop)
+    app.router.add_post("/session/{session_id}/unlock", handle_unlock)

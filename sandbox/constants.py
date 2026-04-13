@@ -25,6 +25,7 @@ SESSION_EVENT_QUEUE_SIZE: int = _cfg.get("session_event_queue_size", 1000)
 
 # ── Time Lock ──
 EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
+SECONDS_PER_MINUTE: int = 60
 
 # ── Subagent Limits ──
 SUBAGENT_TIMEOUT_SEC: int = 45 * 60

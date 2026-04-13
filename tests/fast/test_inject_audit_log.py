@@ -22,7 +22,7 @@ def _mock_session_tracking_adds(run: MagicMock | None):
     """Create a mock session that records all .add() calls."""
     session_mock = AsyncMock()
     session_mock.get = AsyncMock(return_value=run)
-    session_mock.added: list = []
+    session_mock.added = []
 
     def track_add(obj):
         session_mock.added.append(obj)

@@ -101,7 +101,7 @@ class TestControlSignals:
         run.time_lock = MagicMock()
         resp = client.post("/unlock?run_id=run-1")
         assert resp.status_code == 200
-        run.time_lock.force_unlock.assert_called_once()
+        run.time_lock.unlock.assert_called_once()
 
     def test_kill_cancels_task(self, client, mock_server) -> None:
         run, _ = self._make_running(mock_server)

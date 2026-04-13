@@ -66,6 +66,11 @@ class Session:
         resp = await self._http.post(f"/session/{session_id}/stop")
         resp.raise_for_status()
 
+    async def unlock(self, session_id: str) -> None:
+        """Force-unlock the session time gate in the sandbox."""
+        resp = await self._http.post(f"/session/{session_id}/unlock")
+        resp.raise_for_status()
+
 
 def _parse_sse_event(raw: str) -> dict | None:
     """Parse a single SSE event block into a {event, data} dict."""

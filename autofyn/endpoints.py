@@ -66,7 +66,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             if r.time_lock:
                 entry.elapsed_minutes = round(r.time_lock.elapsed_minutes(), 1)
                 entry.time_remaining = r.time_lock.time_remaining_str()
-                entry.session_unlocked = r.time_lock.is_force_unlocked()
+                entry.session_unlocked = not r.time_lock.locked
             runs_list.append(entry)
         return HealthResponse(
             status="running" if server.active_count() > 0 else "idle",
@@ -155,7 +155,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         r = server.get_run_or_first(run_id)
         if not r.time_lock:
             raise HTTPException(status_code=409, detail="Run not accepting signals")
-        r.time_lock.force_unlock()
+        r.time_lock.unlock()
         if r.inbox:
             r.inbox.push("unlock", "")
         return {"ok": True, "event": "unlock", "run_id": r.run_id}

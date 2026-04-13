@@ -49,8 +49,9 @@ class UserControl:
             log.info("Queued user inject (%d chars)", len(event.payload))
             return ControlOutcome(kind="continue", reason="queued inject")
         if event.kind == "unlock":
-            log.info("Unlock requested — forwarded to session gate")
-            return ControlOutcome(kind="continue", reason="unlock forwarded")
+            await self._sandbox.session.unlock(self._session_id)
+            log.info("Unlock requested — session gate unlocked")
+            return ControlOutcome(kind="continue", reason="unlock applied")
         if event.kind == "resume":
             log.warning("Ignoring resume event outside of pause state")
             return ControlOutcome(kind="continue", reason="spurious resume")
