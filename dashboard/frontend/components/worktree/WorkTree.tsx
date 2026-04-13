@@ -77,7 +77,7 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     <div>
       <div
         className={clsx(
-          "flex items-center gap-1.5 py-[3px] px-1 rounded cursor-pointer transition-colors text-[10px]",
+          "flex items-center gap-1.5 py-[3px] px-1 rounded cursor-pointer transition-colors text-[12px]",
           "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
@@ -135,7 +135,7 @@ function FileList({ files }: { files: DiffFile[] }) {
   return (
     <div className="space-y-0.5">
       {sorted.map((f, i) => (
-        <div key={i} className="flex items-center gap-1.5 px-2 py-[3px] text-[10px] hover:bg-white/[0.02] rounded transition-colors">
+        <div key={i} className="flex items-center gap-1.5 px-2 py-[3px] text-[12px] hover:bg-white/[0.02] rounded transition-colors">
           <span className={clsx(
             "shrink-0 w-[14px] text-center text-[10px] font-bold uppercase",
             f.status === "added" && "text-[#00ff88]/80",
@@ -209,7 +209,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
               <circle cx="6" cy="11" r="0" /><circle cx="3" cy="6" r="1" /><circle cx="9" cy="8" r="1" />
               <line x1="3" y1="6" x2="6" y2="6" /><line x1="9" y1="8" x2="6" y2="8" />
             </svg>
-            <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
+            <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
             {diffData?.source && (
               <span className={clsx(
                 "text-[10px] rounded px-1 py-0.5 uppercase tracking-wider leading-tight",
@@ -220,7 +220,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                 {diffData.source === "live" ? "live" : diffData.source === "stored" ? "git" : diffData.source}
               </span>
             )}
-            <span className="text-[10px] text-text-dim tabular-nums ml-auto">{totalFiles} files</span>
+            <span className="text-[11px] text-text-dim tabular-nums ml-auto">{totalFiles} files</span>
           </>
         )}
         {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-text-dim hover:text-accent-hover transition-colors p-0.5 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]">
@@ -234,7 +234,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
         <>
           {/* Stats */}
           {(totalAdded > 0 || totalRemoved > 0) && (
-            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border/60 text-[10px] text-text-secondary">
+            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border/60 text-[11px] text-text-secondary">
               <span>{totalFiles} files changed</span>
               {totalAdded > 0 && <span className="text-[#00ff88]/70">+{totalAdded}</span>}
               {totalRemoved > 0 && <span className="text-[#ff4444]/70">-{totalRemoved}</span>}
@@ -245,27 +245,27 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
           <div className="flex border-b border-border/60">
             {hasGitDiff && (
               <button onClick={() => setActiveTab("tree")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
+                className={clsx("flex-1 py-1.5 text-[11px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "tree" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Tree
               </button>
             )}
             {hasGitDiff && (
               <button onClick={() => setActiveTab("files")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
+                className={clsx("flex-1 py-1.5 text-[11px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "files" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Files
               </button>
             )}
             {hasLive && (
               <button onClick={() => setActiveTab("live")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
+                className={clsx("flex-1 py-1.5 text-[11px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "live" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Session
               </button>
             )}
             {!hasGitDiff && !hasLive && (
-              <div className="flex-1 py-1.5 text-[10px] text-text-dim text-center">
+              <div className="flex-1 py-1.5 text-[11px] text-text-dim text-center">
                 {diffLoading ? "Loading..." : "No changes"}
               </div>
             )}
@@ -285,14 +285,14 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
             {activeTab === "tree" && !diffLoading && (!diffTree || diffTree.children.size === 0) && hasGitDiff && (
-              <div className="text-[10px] text-text-dim px-3 py-6 text-center">No tree data</div>
+              <div className="text-[11px] text-text-dim px-3 py-6 text-center">No tree data</div>
             )}
 
             {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
               <FileList files={diffData.files} />
             )}
             {activeTab === "files" && !diffLoading && (!diffData?.files || diffData.files.length === 0) && (
-              <div className="text-[10px] text-text-dim px-3 py-6 text-center">No files in this diff</div>
+              <div className="text-[11px] text-text-dim px-3 py-6 text-center">No files in this diff</div>
             )}
 
             {activeTab === "live" && liveTree.children.size > 0 && (
@@ -301,11 +301,11 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
                 .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
             )}
             {activeTab === "live" && !diffLoading && liveTree.children.size === 0 && (
-              <div className="text-[10px] text-text-dim px-3 py-6 text-center">No session activity yet</div>
+              <div className="text-[11px] text-text-dim px-3 py-6 text-center">No session activity yet</div>
             )}
 
             {!diffLoading && !hasGitDiff && !hasLive && (
-              <div className="text-[10px] text-text-dim px-3 py-6 text-center">
+              <div className="text-[11px] text-text-dim px-3 py-6 text-center">
                 No file changes detected yet
               </div>
             )}

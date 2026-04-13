@@ -31,10 +31,10 @@ export function RunList({
       {!isCollapsed && (
         <div className="px-4 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-[11px] font-bold text-text-muted">
+            <h2 className="text-[13px] font-bold text-text-muted">
               Runs
             </h2>
-            <span className="text-[10px] text-text-secondary tabular-nums ml-auto">{runs.length}</span>
+            <span className="text-[11px] text-text-secondary tabular-nums ml-auto">{runs.length}</span>
           </div>
         </div>
       )}
