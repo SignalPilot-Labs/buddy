@@ -59,7 +59,7 @@ export function AgentRunExpanded({
           </button>
           {showPrompt && (
             <div className="px-4 pb-3">
-              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[400px] overflow-y-auto">
+              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[250px] overflow-y-auto">
                 <MarkdownContent
                   content={prompt}
                   className="text-content text-accent-hover"
@@ -120,7 +120,7 @@ export function AgentRunExpanded({
           </button>
           {showFinalText && (
             <div className="px-4 pb-3">
-              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
+              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[250px] overflow-y-auto">
                 <MarkdownContent
                   content={finalText}
                   className="text-content text-accent-hover"
