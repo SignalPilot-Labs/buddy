@@ -323,6 +323,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         ["ls-remote", "--exit-code", "--heads", "origin", working_branch], timeout,
     )
     if ls_result.exit_code == 0:
+        _fail(await _git(["fetch", "origin", working_branch], timeout), "git fetch working branch")
         _fail(
             await _git(["checkout", "-b", working_branch, f"origin/{working_branch}"], timeout),
             "git checkout existing branch",

@@ -87,11 +87,11 @@ async def bootstrap_run(
         base_branch=base_branch,
         duration_minutes=duration_minutes,
         github_repo=github_repo,
-        total_cost=prior["total_cost_usd"] if prior else 0.0,
-        total_input_tokens=prior["total_input_tokens"] if prior else 0,
-        total_output_tokens=prior["total_output_tokens"] if prior else 0,
-        cache_creation_input_tokens=prior["cache_creation_input_tokens"] if prior else 0,
-        cache_read_input_tokens=prior["cache_read_input_tokens"] if prior else 0,
+        total_cost=float(prior["total_cost_usd"] or 0) if prior else 0.0,
+        total_input_tokens=int(prior["total_input_tokens"] or 0) if prior else 0,
+        total_output_tokens=int(prior["total_output_tokens"] or 0) if prior else 0,
+        cache_creation_input_tokens=int(prior["cache_creation_input_tokens"] or 0) if prior else 0,
+        cache_read_input_tokens=int(prior["cache_read_input_tokens"] or 0) if prior else 0,
     )
     inbox = UserInbox()
     time_lock = TimeLock(duration_minutes)

@@ -72,6 +72,7 @@ RESTARTABLE_STATUSES: frozenset[str] = frozenset(
         "error",
         "crashed",
         "killed",
+        "rate_limited",
     }
 )
 
