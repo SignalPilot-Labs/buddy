@@ -146,13 +146,14 @@ async def get_run_base_branch(run_id: str) -> str | None:
         return run.base_branch
 
 
-_USER_FACING_SIGNALS = ("inject", "pause", "resume", "stop")
+_USER_FACING_SIGNALS = ("inject", "pause", "resume", "stop", "unlock")
 
 _SIGNAL_RENDERERS: dict[str, Callable[[str | None], tuple[str, str]]] = {
     "inject": lambda p: ("message", p or ""),
     "pause": lambda _: ("pause", "Paused"),
     "resume": lambda _: ("resume", "Resumed"),
     "stop": lambda p: ("stop", f"Stopped: {p}" if p else "Stopped"),
+    "unlock": lambda _: ("unlock", "Time gate unlocked"),
 }
 
 

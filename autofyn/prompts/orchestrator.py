@@ -87,9 +87,7 @@ def _user_activity_block(activity: list[UserAction]) -> str:
             lines.append(f'- [{timestamp}] Task started: "{action.text}"')
         elif action.kind == "message":
             lines.append(f'- [{timestamp}] User message: "{action.text}"')
-        elif action.kind in ("pause", "resume"):
-            lines.append(f"- [{timestamp}] {action.text}")
-        elif action.kind == "stop":
+        else:
             lines.append(f"- [{timestamp}] {action.text}")
     lines.append(
         "The latest user message takes priority over previous plans.",

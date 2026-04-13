@@ -108,3 +108,9 @@ class TestSignalRenderers:
         kind, text = _SIGNAL_RENDERERS["stop"](None)
         assert kind == "stop"
         assert text == "Stopped"
+
+    def test_unlock_produces_unlock_kind(self) -> None:
+        from utils.db import _SIGNAL_RENDERERS
+        kind, text = _SIGNAL_RENDERERS["unlock"](None)
+        assert kind == "unlock"
+        assert text == "Time gate unlocked"
