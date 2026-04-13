@@ -139,7 +139,7 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         if run.status == "paused":
             prompt = (body.payload or "").strip() or None
             if prompt:
-                return await send_control_signal(run_id, "inject", {"paused"}, prompt)
+                await send_control_signal(run_id, "inject", {"paused"}, prompt)
             return await send_control_signal(run_id, "resume", {"paused"}, None)
         if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(run, run_id, (body.payload or "").strip() or None, s)

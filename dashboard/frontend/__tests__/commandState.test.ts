@@ -30,15 +30,16 @@ describe("getButtonState", () => {
     expect(state.disabled).toBe(false);
   });
 
-  it("returns disabled Send when paused with no text", () => {
+  it("returns enabled Resume when paused with no text", () => {
     const state = getButtonState("paused", false);
-    expect(state.label).toBe("Send");
-    expect(state.disabled).toBe(true);
+    expect(state.label).toBe("Resume");
+    expect(state.variant).toBe("success");
+    expect(state.disabled).toBe(false);
   });
 
-  it("returns Send when paused with text", () => {
+  it("returns Resume & Send when paused with text", () => {
     const state = getButtonState("paused", true);
-    expect(state.label).toBe("Send");
+    expect(state.label).toBe("Resume & Send");
     expect(state.variant).toBe("primary");
     expect(state.disabled).toBe(false);
   });
