@@ -342,16 +342,16 @@ export function StartRunModal({
                           setCustomPrompt("");
                         }}
                         className={clsx(
-                          "text-left p-3 rounded border transition-all",
+                          "text-left p-3 rounded border transition-all text-[12px]",
                           selectedQuick === i
                             ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
                             : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
                         )}
                       >
-                        <div className="text-[12px] font-medium text-accent-hover">
+                        <div className="font-medium text-accent-hover">
                           {q.label}
                         </div>
-                        <div className="text-[12px] text-text-muted mt-0.5">
+                        <div className="text-text-muted mt-0.5">
                           {q.desc}
                         </div>
                       </button>
@@ -459,7 +459,7 @@ export function StartRunModal({
                     </span>
                     Max Budget
                     {!budgetEnabled && (
-                      <span className="text-[12px] text-text-secondary font-normal normal-case tracking-normal ml-1">
+                      <span className="text-text-secondary font-normal normal-case tracking-normal ml-1">
                         (unlimited)
                       </span>
                     )}

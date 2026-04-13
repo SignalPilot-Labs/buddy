@@ -71,11 +71,11 @@ export function RateLimitBanner({
             </span>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[#ffaa00]">
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className="font-semibold text-[#ffaa00]">
                   Out of credits
                 </span>
-                <span className="text-[11px] text-text-secondary">
+                <span className="text-text-secondary">
                   resets {formatResetTime(resetsAt)} ({formatCountdown(remaining)})
                 </span>
               </div>

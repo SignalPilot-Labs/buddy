@@ -85,7 +85,7 @@ export function BashGroupCard({
                     <span className="text-[#00ff88]/60">$</span>
                     <span className="text-accent-hover flex-1">{cmd.cmd}</span>
                     {cmd.duration > 0 && (
-                      <span className="text-[10px] text-text-dim">
+                      <span className="text-text-dim">
                         {fmtDuration(cmd.duration)}
                       </span>
                     )}
@@ -187,7 +187,7 @@ export function PlaywrightGroupCard({
                     )}
                   </span>
                   {!!tc.duration_ms && (
-                    <span className="text-[10px] text-text-dim tabular-nums">
+                    <span className="text-text-dim tabular-nums">
                       {fmtDuration(tc.duration_ms)}
                     </span>
                   )}

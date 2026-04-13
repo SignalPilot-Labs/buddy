@@ -109,7 +109,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
         ))}
 
         {!loading && lines.length === 0 && (
-          <div className="text-[11px] text-text-dim px-2 py-6 text-center">
+          <div className="text-text-dim px-2 py-6 text-center">
             No logs available
           </div>
         )}

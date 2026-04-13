@@ -118,7 +118,7 @@ export function FileContentPreview({
           </div>
         ))}
         {totalLines > 30 && (
-          <div className="px-2 py-1 text-[11px] text-text-dim text-center">
+          <div className="px-2 py-1 text-text-dim text-center">
             … {totalLines - 30} more lines
           </div>
         )}
@@ -139,7 +139,7 @@ export function DiffBlock({
         const lines = (hunk.lines as string[]) || [];
         return (
           <div key={hi}>
-            <div className="text-[11px] text-text-secondary px-3 py-1 bg-bg-card border-b border-border font-semibold">
+            <div className="text-text-secondary px-3 py-1 bg-bg-card border-b border-border font-semibold">
               @@ -{String(hunk.oldStart)},{String(hunk.oldLines)} +
               {String(hunk.newStart)},{String(hunk.newLines)} @@
             </div>
@@ -157,7 +157,7 @@ export function DiffBlock({
                 >
                   <span
                     className={clsx(
-                      "w-5 shrink-0 text-center select-none text-[11px]",
+                      "w-5 shrink-0 text-center select-none",
                       isAdd
                         ? "text-[#00ff88]/60"
                         : isDel

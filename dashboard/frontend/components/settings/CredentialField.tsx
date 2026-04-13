@@ -57,7 +57,7 @@ export function CredentialField({
           <span className="truncate min-w-0">{currentValue}</span>
           <button
             onClick={onStartEdit}
-            className="text-[12px] text-text-secondary hover:text-accent-hover transition-colors ml-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+            className="text-text-secondary hover:text-accent-hover transition-colors ml-2 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
           >
             Change
           </button>
