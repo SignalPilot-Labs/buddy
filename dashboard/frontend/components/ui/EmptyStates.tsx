@@ -40,9 +40,9 @@ export function EmptyEvents() {
         <EmptyTerminal />
       </div>
       <div className="text-center space-y-1.5">
-        <p className="text-[12px] text-[#aaa] font-medium">Waiting for events</p>
-        <p className="text-[11px] text-[#777]">Select a run or start a new one to see live activity</p>
-        <p className="text-[10px] text-[#555]">Press N to start a new run</p>
+        <p className="text-[12px] text-accent-hover font-medium">Waiting for events</p>
+        <p className="text-[11px] text-text-dim">Select a run or start a new one to see live activity</p>
+        <p className="text-[10px] text-text-dim">Press N to start a new run</p>
       </div>
     </div>
   );
@@ -65,8 +65,8 @@ export function EmptyRunEvents() {
         </svg>
       </div>
       <div className="text-center space-y-1.5">
-        <p className="text-[12px] text-[#aaa] font-medium">Waiting for agent activity</p>
-        <p className="text-[11px] text-[#777]">Events will appear here as the agent works</p>
+        <p className="text-[12px] text-accent-hover font-medium">Waiting for agent activity</p>
+        <p className="text-[11px] text-text-dim">Events will appear here as the agent works</p>
       </div>
     </div>
   );
@@ -85,8 +85,8 @@ export function EmptyRuns() {
         <line x1="33" y1="36" x2="39" y2="36" stroke="rgba(0,255,136,0.3)" strokeWidth="1" />
       </svg>
       <div className="text-center space-y-1">
-        <p className="text-[11px] text-[#aaa]">No runs yet</p>
-        <p className="text-[10px] text-[#777]">Start an improvement run to begin</p>
+        <p className="text-[11px] text-accent-hover">No runs yet</p>
+        <p className="text-[10px] text-text-dim">Start an improvement run to begin</p>
       </div>
     </div>
   );

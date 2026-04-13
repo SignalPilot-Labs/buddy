@@ -72,18 +72,18 @@ export function LLMMessageCard({
         <span
           className={clsx(
             "text-[11px] font-semibold",
-            isPlanner ? "text-[#ff8844]" : "text-[#ccc]"
+            isPlanner ? "text-[#ff8844]" : "text-accent-hover"
           )}
         >
           {isPlanner ? "Planner" : "AutoFyn"}
         </span>
-        <span className="text-[9px] text-[#777] tabular-nums">
+        <span className="text-[10px] text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
         {thinking && (
           <button
             onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[10px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1"
+            className="ml-auto text-[10px] text-text-secondary hover:text-text-muted transition-colors flex items-center gap-1"
           >
             <svg
               width="10"
@@ -109,10 +109,10 @@ export function LLMMessageCard({
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
         >
-          <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">
+          <div className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold mb-1">
             Reasoning
           </div>
-          <div className="text-[10px] text-[#666] italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
+          <div className="text-[10px] text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
             {thinking}
           </div>
         </motion.div>
@@ -152,7 +152,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-      <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/70">
+      <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/80">
         <svg
           width="10"
           height="10"
@@ -175,7 +175,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
             Retry
           </button>
         )}
-        <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
+        <span className="text-text-dim tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
     </motion.div>
@@ -196,15 +196,15 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
     >
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
         <div className="flex items-center justify-between gap-4 mb-1">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-[#88ccff]">
             You
           </span>
-          <span className="text-[9px] text-[#777] tabular-nums flex items-center gap-1.5">
+          <span className="text-[10px] text-text-dim tabular-nums flex items-center gap-1.5">
             {pending && (
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor} animate-pulse`} />
             )}
             {failed && !pending && (
-              <span className="text-[#ff4444] text-[8px]">not delivered</span>
+              <span className="text-[#ff4444] text-[10px]">not delivered</span>
             )}
             {fmtTime(ts)}
           </span>
@@ -253,16 +253,16 @@ export function MilestoneCard({
               href={detail}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] text-[#666] max-w-[300px] truncate hover:text-[#aaa] underline underline-offset-2"
+              className="text-[10px] text-text-secondary max-w-[300px] truncate hover:text-accent-hover underline underline-offset-2"
             >
               {detail}
             </a>
           ) : (
-            <span className="text-[9px] text-[#666] max-w-[300px] truncate">
+            <span className="text-[10px] text-text-secondary max-w-[300px] truncate">
               {detail}
             </span>
           ))}
-        <span className="text-[9px] text-[#777] tabular-nums">
+        <span className="text-[10px] text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
       </div>
@@ -276,7 +276,7 @@ export function DividerCard({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <div className="flex-1 terminal-hr" />
-      <span className="text-[10px] text-[#777] uppercase tracking-wider">
+      <span className="text-[10px] text-text-dim uppercase tracking-wider">
         {label}
       </span>
       <div className="flex-1 terminal-hr" />

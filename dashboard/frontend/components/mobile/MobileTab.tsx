@@ -16,7 +16,7 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
       onClick={onClick}
       className={clsx(
         "mobile-tab-btn flex flex-col items-center justify-center gap-0.5 flex-1 h-full relative transition-colors duration-150",
-        active ? "text-[#00ff88]" : "text-[#666]",
+        active ? "text-[#00ff88]" : "text-text-secondary",
       )}
     >
       {/* Active indicator bar */}
@@ -28,7 +28,7 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
         {icon}
         {badge != null && badge > 0 && (
           <span
-            className="absolute -top-1.5 -right-2.5 min-w-[14px] h-[14px] flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[8px] font-bold px-0.5"
+            className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] leading-none flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[10px] font-bold px-0.5"
             aria-label={`${badge > 99 ? "99+" : badge} new items`}
           >
             {badge > 99 ? "99+" : badge}

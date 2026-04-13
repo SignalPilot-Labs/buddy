@@ -31,12 +31,12 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
         {!!input.command && (
           <div className="flex items-center gap-1.5 font-mono text-[10px]">
             <span className="text-[#00ff88]/60">$</span>
-            <span className="text-[#ccc]">
+            <span className="text-accent-hover">
               {String(input.command).slice(0, 200)}
             </span>
           </div>
         )}
-        <div className="rounded border border-[#1a1a1a] bg-black/30 p-2.5">
+        <div className="rounded border border-border bg-black/30 p-2.5">
           <TerminalOutput
             stdout={String(output.stdout || "")}
             stderr={String(output.stderr || "")}
@@ -98,7 +98,7 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
     );
     if (text && text !== "undefined") {
       return (
-        <div className="rounded border border-[#1a1a1a] bg-black/30 p-3 max-h-[300px] overflow-y-auto text-[10px] text-[#888] whitespace-pre-wrap break-words leading-relaxed">
+        <div className="rounded border border-border bg-black/30 p-3 max-h-[300px] overflow-y-auto text-[10px] text-text-secondary whitespace-pre-wrap break-words leading-relaxed">
           {text.slice(0, 3000)}
         </div>
       );
@@ -107,7 +107,7 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
 
   if (tool.output_data) {
     return (
-      <pre className="text-[10px] text-[#666] bg-black/20 rounded border border-[#1a1a1a] p-2.5 whitespace-pre-wrap break-all max-h-[300px] overflow-y-auto font-mono leading-relaxed">
+      <pre className="text-[10px] text-text-secondary bg-black/20 rounded border border-border p-2.5 whitespace-pre-wrap break-all max-h-[300px] overflow-y-auto font-mono leading-relaxed">
         {JSON.stringify(tool.output_data, null, 2)}
       </pre>
     );

@@ -75,11 +75,11 @@ export function RateLimitBanner({
                 <span className="text-[10px] font-semibold text-[#ffaa00]">
                   Out of credits
                 </span>
-                <span className="text-[10px] text-[#888]">
+                <span className="text-[10px] text-text-secondary">
                   resets {formatResetTime(resetsAt)} ({formatCountdown(remaining)})
                 </span>
               </div>
-              <p className="mt-1 text-[9px] text-[#666] leading-relaxed">
+              <p className="mt-1 text-[10px] text-text-secondary leading-relaxed">
                 Your Claude account has hit its usage limit.
                 {" "}
                 <a

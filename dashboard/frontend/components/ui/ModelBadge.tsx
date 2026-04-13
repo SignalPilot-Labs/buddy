@@ -23,7 +23,7 @@ export function ModelBadge({ modelName, showIcon = false, className }: ModelBadg
   return (
     <span
       className={clsx(
-        "inline-flex items-center rounded text-[9px] font-medium leading-tight",
+        "inline-flex items-center rounded text-[10px] font-medium leading-tight",
         showIcon ? "gap-1 px-1.5 py-0" : "px-1 py-0",
         spec.color,
         className,

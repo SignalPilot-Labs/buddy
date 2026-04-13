@@ -56,16 +56,16 @@ function DefaultModelSetting(): React.ReactElement {
   };
 
   return (
-    <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
+    <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="mb-3">
-        <h3 className="text-[10px] font-semibold text-[#ccc] uppercase tracking-[0.12em]">Default Model</h3>
-        <p className="mt-1 text-[10px] text-[#999] leading-relaxed">
+        <h3 className="text-[10px] font-semibold text-accent-hover uppercase tracking-[0.12em]">Default Model</h3>
+        <p className="mt-1 text-[10px] text-text-muted leading-relaxed">
           Select the Claude model to use for new runs. Saved as your default preference.
         </p>
       </div>
       <ModelSelector value={selectedModel} onChange={handleSelect} />
       {modelSaveError && (
-        <p className="mt-2 text-[9px] text-[#ff4444]">{modelSaveError}</p>
+        <p className="mt-2 text-[10px] text-[#ff4444]">{modelSaveError}</p>
       )}
     </div>
   );
@@ -225,11 +225,11 @@ export default function SettingsPage() {
   const activeRepo = settings.github_repo || "";
 
   return (
-    <div className="h-screen bg-[#0a0a0a] text-[#e8e8e8] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#333] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
-      <div className="border-b border-[#1a1a1a]">
+    <div className="h-screen bg-bg-card text-text overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-border-subtle [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="border-b border-border">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 text-[#999] hover:text-[#888] transition-colors">
+            <Link href="/" className="flex items-center gap-2 text-text-secondary hover:text-text-muted transition-colors">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <polyline points="8 2 4 6 8 10" />
               </svg>
@@ -258,7 +258,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         {loading && (
           <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
-            <div className="flex items-center gap-2 text-[11px] text-[#888]">
+            <div className="flex items-center gap-2 text-[11px] text-text-secondary">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
                 <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
               </svg>

@@ -37,7 +37,7 @@ export function TerminalOutput({
   const text = stdout || stderr;
   if (!text)
     return (
-      <div className="text-[9px] text-[#777] italic py-1">no output</div>
+      <div className="text-[10px] text-text-dim italic py-1">no output</div>
     );
   const allLines = text.split("\n");
   const lines = allLines.slice(0, 200);
@@ -49,7 +49,7 @@ export function TerminalOutput({
           key={i}
           className={clsx(
             "px-0.5",
-            stderr && !stdout ? "text-[#ff6666]" : "text-[#999]",
+            stderr && !stdout ? "text-[#ff6666]" : "text-text-muted",
             line.startsWith("error") ||
               line.startsWith("Error") ||
               line.startsWith("ERR")
@@ -66,7 +66,7 @@ export function TerminalOutput({
         </div>
       ))}
       {outputTruncated && (
-        <div className="px-2 py-1.5 text-[9px] text-[#777] text-center border-t border-white/[0.04]">
+        <div className="px-2 py-1.5 text-[10px] text-text-dim text-center border-t border-white/[0.04]">
           … {allLines.length - 200} more lines
         </div>
       )}
@@ -87,21 +87,21 @@ export function FileContentPreview({
   const ext = filePath.split(".").pop()?.toLowerCase() || "";
   const lines = content.split("\n").slice(0, 30);
   return (
-    <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
+    <div className="rounded border border-border overflow-hidden bg-black/30">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-card border-b border-border">
         <div className="flex gap-1">
           <span className="h-2 w-2 rounded-full bg-[#ff4444]/30" />
           <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
-        <span className="text-[9px] text-[#666] flex-1 truncate" title={filePath}>
+        <span className="text-[10px] text-text-secondary flex-1 truncate" title={filePath}>
           {shortPath(filePath)}
         </span>
-        <span className="text-[9px] text-[#777] tabular-nums">
+        <span className="text-[10px] text-text-dim tabular-nums">
           {totalLines} lines
         </span>
         {ext && (
-          <span className="text-[9px] text-[#888] bg-white/[0.04] rounded px-1 py-0.5 uppercase">
+          <span className="text-[10px] text-text-secondary bg-white/[0.04] rounded px-1 py-0.5 uppercase">
             {ext}
           </span>
         )}
@@ -109,16 +109,16 @@ export function FileContentPreview({
       <div className="font-mono text-[10px] leading-relaxed max-h-[250px] overflow-y-auto">
         {lines.map((line, i) => (
           <div key={i} className="flex">
-            <span className="w-8 shrink-0 text-right pr-2 text-[#888] select-none">
+            <span className="w-8 shrink-0 text-right pr-2 text-text-secondary select-none">
               {i + 1}
             </span>
-            <span className="text-[#888] whitespace-pre-wrap break-all">
+            <span className="text-text-secondary whitespace-pre-wrap break-all">
               {line || "\u00A0"}
             </span>
           </div>
         ))}
         {totalLines > 30 && (
-          <div className="px-2 py-1 text-[9px] text-[#777] text-center">
+          <div className="px-2 py-1 text-[10px] text-text-dim text-center">
             … {totalLines - 30} more lines
           </div>
         )}
@@ -134,12 +134,12 @@ export function DiffBlock({
   patch: Array<Record<string, unknown>>;
 }) {
   return (
-    <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30 max-h-[400px] overflow-y-auto font-mono text-[10px]">
+    <div className="rounded border border-border overflow-hidden bg-black/30 max-h-[400px] overflow-y-auto font-mono text-[10px]">
       {patch.map((hunk, hi) => {
         const lines = (hunk.lines as string[]) || [];
         return (
           <div key={hi}>
-            <div className="text-[9px] text-[#888] px-3 py-1 bg-[#0a0a0a] border-b border-[#1a1a1a] font-semibold">
+            <div className="text-[10px] text-text-secondary px-3 py-1 bg-bg-card border-b border-border font-semibold">
               @@ -{String(hunk.oldStart)},{String(hunk.oldLines)} +
               {String(hunk.newStart)},{String(hunk.newLines)} @@
             </div>
@@ -157,12 +157,12 @@ export function DiffBlock({
                 >
                   <span
                     className={clsx(
-                      "w-5 shrink-0 text-center select-none text-[9px]",
+                      "w-5 shrink-0 text-center select-none text-[10px]",
                       isAdd
-                        ? "text-[#00ff88]/40"
+                        ? "text-[#00ff88]/60"
                         : isDel
-                        ? "text-[#ff4444]/40"
-                        : "text-[#888]"
+                        ? "text-[#ff4444]/60"
+                        : "text-text-secondary"
                     )}
                   >
                     {isAdd ? "+" : isDel ? "−" : " "}
@@ -174,7 +174,7 @@ export function DiffBlock({
                         ? "text-[#88ffbb]"
                         : isDel
                         ? "text-[#ff8888]"
-                        : "text-[#888]"
+                        : "text-text-secondary"
                     )}
                   >
                     {line.slice(1)}
@@ -204,21 +204,21 @@ export function GrepResults({ tool }: { tool: ToolCall }) {
   const truncated = allLines.length > 30;
 
   return (
-    <div className="rounded border border-[#1a1a1a] overflow-hidden bg-black/30">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
-        <span className="text-[9px] text-[#88ffcc]">/{pattern}/</span>
-        <span className="text-[9px] text-[#777]">
+    <div className="rounded border border-border overflow-hidden bg-black/30">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-card border-b border-border">
+        <span className="text-[10px] text-[#88ffcc]">/{pattern}/</span>
+        <span className="text-[10px] text-text-dim">
           {truncated ? `${lines.length} of ${allLines.length}` : lines.length} matches
         </span>
       </div>
       <div className="font-mono text-[10px] leading-relaxed max-h-[200px] overflow-y-auto px-3 py-1.5">
         {lines.map((line, i) => (
-          <div key={i} className="text-[#888]">
+          <div key={i} className="text-text-secondary">
             {line}
           </div>
         ))}
         {truncated && (
-          <div className="text-[9px] text-[#777] text-center py-1">
+          <div className="text-[10px] text-text-dim text-center py-1">
             … {allLines.length - 30} more matches
           </div>
         )}
@@ -235,7 +235,7 @@ export function GlobResults({ tool }: { tool: ToolCall }) {
   const paths = raw.match(/[^\s"[\],{}]+\.\w+/g) || [];
   if (paths.length === 0)
     return (
-      <pre className="text-[10px] text-[#888] whitespace-pre-wrap">
+      <pre className="text-[10px] text-text-secondary whitespace-pre-wrap">
         {raw.slice(0, 500)}
       </pre>
     );
@@ -256,11 +256,11 @@ export function GlobResults({ tool }: { tool: ToolCall }) {
           >
             <path d="M2.5 1h4l2 2v5.5a.5.5 0 01-.5.5h-5a.5.5 0 01-.5-.5v-7a.5.5 0 01.5-.5z" />
           </svg>
-          <span className="text-[#888]">{p}</span>
+          <span className="text-text-secondary">{p}</span>
         </div>
       ))}
       {paths.length > 20 && paths.length - 20 > 0 && (
-        <div className="text-[9px] text-[#777]">… {paths.length - 20} more files</div>
+        <div className="text-[10px] text-text-dim">… {paths.length - 20} more files</div>
       )}
     </div>
   );
@@ -283,7 +283,7 @@ export function TodoDisplay({
                 ? "text-[#00ff88]"
                 : t.status === "in_progress"
                 ? "text-[#ffaa00]"
-                : "text-[#777]"
+                : "text-text-dim"
             )}
           >
             {t.status === "completed" ? (
@@ -327,9 +327,9 @@ export function TodoDisplay({
           </span>
           <span
             className={clsx(
-              t.status === "completed" && "text-[#666] line-through",
+              t.status === "completed" && "text-text-secondary line-through",
               t.status === "in_progress" && "text-[#ddd]",
-              t.status === "pending" && "text-[#888]"
+              t.status === "pending" && "text-text-secondary"
             )}
           >
             {t.content}

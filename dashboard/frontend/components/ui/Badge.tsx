@@ -18,7 +18,7 @@ export function StatusBadge({
         "inline-flex items-center gap-1.5 rounded font-medium tracking-wider uppercase",
         meta.bg,
         meta.color,
-        size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-[10px]"
+        size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-[12px]"
       )}
     >
       {meta.pulse && (

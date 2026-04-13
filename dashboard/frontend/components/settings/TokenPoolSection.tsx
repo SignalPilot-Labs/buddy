@@ -24,12 +24,12 @@ export function TokenPoolSection({
   onRemoveToken,
 }: TokenPoolSectionProps) {
   return (
-    <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
+    <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <label className="text-[10px] font-semibold text-[#ccc]">
+        <label className="text-[10px] font-semibold text-accent-hover">
           Claude OAuth Tokens
         </label>
-        <span className="text-[9px] text-[#666]">
+        <span className="text-[10px] text-text-secondary">
           {tokens.length} key{tokens.length !== 1 ? "s" : ""} — round-robin on resume
         </span>
       </div>
@@ -42,17 +42,17 @@ export function TokenPoolSection({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-2 px-2.5 py-2 bg-black/30 rounded border border-[#1a1a1a] group"
+              className="flex items-center gap-2 px-2.5 py-2 bg-black/30 rounded border border-border group"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#666] shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-secondary shrink-0">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span className="text-[10px] font-mono text-[#ccc] flex-1 min-w-0 truncate">
+              <span className="text-[10px] font-mono text-accent-hover flex-1 min-w-0 truncate">
                 {t.masked}
               </span>
               {t.active && (
-                <span className="flex items-center gap-1 text-[9px] text-[#00ff88]/60 shrink-0">
+                <span className="flex items-center gap-1 text-[10px] text-[#00ff88]/60 shrink-0">
                   <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <polyline points="2 5 4 7 8 3" />
                   </svg>
@@ -61,7 +61,7 @@ export function TokenPoolSection({
               )}
               <button
                 onClick={() => onRemoveToken(t.index)}
-                className="text-[#666] hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
                 title="Remove token"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -74,7 +74,7 @@ export function TokenPoolSection({
         </AnimatePresence>
 
         {tokens.length === 0 && (
-          <div className="px-2.5 py-3 text-[10px] text-[#666] text-center">
+          <div className="px-2.5 py-3 text-[10px] text-text-secondary text-center">
             No tokens configured. Add one to get started.
           </div>
         )}
@@ -88,7 +88,7 @@ export function TokenPoolSection({
             onChange={(e) => { onNewTokenChange(e.target.value); }}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onAddToken(); } }}
             placeholder="sk-ant-oat01-..."
-            className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
+            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[11px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
             autoComplete="off"
             spellCheck={false}
           />
@@ -104,12 +104,12 @@ export function TokenPoolSection({
       </div>
 
       {tokenError && (
-        <p className="mt-1.5 text-[9px] text-[#ff4444]">{tokenError}</p>
+        <p className="mt-1.5 text-[10px] text-[#ff4444]">{tokenError}</p>
       )}
 
-      <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
+      <p className="mt-2 text-[10px] text-text-muted leading-relaxed">
         Add multiple Claude OAuth tokens for automatic rotation. When a run hits a rate limit and is resumed, the next token is used automatically.
-        Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">claude setup-token</code> to generate tokens.
+        Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[10px]">claude setup-token</code> to generate tokens.
       </p>
     </div>
   );

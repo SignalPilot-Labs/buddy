@@ -14,10 +14,16 @@
   --color-border: #1a1a1a;
   --color-border-hover: #2a2a2a;
   --color-border-active: #3a3a3a;
+  --color-border-subtle: #333333;
+  --color-border-muted: #555555;
+  --color-border-faint: #666666;
+
+  --color-bg-indicator: #444444;
 
   --color-text: #e8e8e8;
   --color-text-muted: #999999;
   --color-text-dim: #808080;
+  --color-text-secondary: #888888;
   --color-accent: #ffffff;
   --color-accent-hover: #cccccc;
 
@@ -545,6 +551,11 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   .mobile-tab-btn:active {
     transform: none;
   }

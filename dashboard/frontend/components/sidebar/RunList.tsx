@@ -25,16 +25,16 @@ export function RunList({
   return (
     <aside className={
       mobile
-        ? "flex-1 flex flex-col bg-[#030303]"
-        : `flex-shrink-0 flex flex-col border-r border-[#1a1a1a] bg-[#030303] ${isCollapsed ? "w-[48px]" : "w-[260px]"}`
+        ? "flex-1 flex flex-col bg-sidebar"
+        : `flex-shrink-0 flex flex-col border-r border-border bg-sidebar ${isCollapsed ? "w-[48px]" : "w-[260px]"}`
     }>
       {!isCollapsed && (
-        <div className="px-4 py-3 border-b border-[#1a1a1a] shrink-0">
+        <div className="px-4 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-[11px] font-bold text-[#999]">
+            <h2 className="text-[11px] font-bold text-text-muted">
               Runs
             </h2>
-            <span className="text-[10px] text-[#666] tabular-nums ml-auto">{runs.length}</span>
+            <span className="text-[10px] text-text-secondary tabular-nums ml-auto">{runs.length}</span>
           </div>
         </div>
       )}
@@ -42,7 +42,7 @@ export function RunList({
       <div className="flex-1 overflow-y-auto sidebar-scroll">
         {loading && runs.length === 0 ? (
           <div className="p-6 text-center">
-            <div className="inline-flex h-5 w-5 rounded-full border-2 border-[#333] border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+            <div className="inline-flex h-5 w-5 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
           </div>
         ) : runs.length === 0 ? (
           isCollapsed ? null : <EmptyRuns />

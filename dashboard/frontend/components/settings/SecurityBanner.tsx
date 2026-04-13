@@ -1,13 +1,13 @@
 export function SecurityBanner() {
   return (
-    <div className="border border-[#1a1a1a] rounded bg-[#050505] overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a] border-b border-[#1a1a1a]">
+    <div className="border border-border rounded bg-bg overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-card border-b border-border">
         <div className="flex gap-1">
           <span className="h-2 w-2 rounded-full bg-[#ff4444]/30" />
           <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
-        <span className="text-[9px] text-[#666] font-mono">security</span>
+        <span className="text-[10px] text-text-secondary font-mono">security</span>
       </div>
       <div className="flex items-start gap-3 px-4 py-3">
         <svg width="44" height="44" viewBox="0 0 32 32" fill="none" className="shrink-0">
@@ -30,20 +30,20 @@ export function SecurityBanner() {
         <div className="space-y-1.5 min-w-0">
           <div className="font-mono text-[10px] leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
-            <span className="text-[#aaa]">Credentials encrypted with</span>{" "}
+            <span className="text-accent-hover">Credentials encrypted with</span>{" "}
             <span className="text-[#00ff88]">AES-128 (Fernet)</span>{" "}
-            <span className="text-[#aaa]">before storage.</span>
+            <span className="text-accent-hover">before storage.</span>
           </div>
           <div className="font-mono text-[10px] leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
-            <span className="text-[#aaa]">Decrypted</span>{" "}
+            <span className="text-accent-hover">Decrypted</span>{" "}
             <span className="text-[#ffcc44]">in-memory only</span>{" "}
-            <span className="text-[#aaa]">when starting a run.</span>
+            <span className="text-accent-hover">when starting a run.</span>
           </div>
           <div className="font-mono text-[10px] leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
-            <span className="text-[#aaa]">Master key on Docker volume &mdash;</span>{" "}
-            <span className="text-[#888]">never leaves host.</span>
+            <span className="text-accent-hover">Master key on Docker volume &mdash;</span>{" "}
+            <span className="text-text-secondary">never leaves host.</span>
           </div>
         </div>
       </div>

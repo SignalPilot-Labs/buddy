@@ -145,8 +145,8 @@ export function EventFeed({
         ) : (
           <>
             {historyTruncated && !isLoading && (
-              <div role="status" aria-label="History truncated" className="border-l-2 border-l-[#555] bg-white/[0.02] rounded px-3 py-1.5 mb-1">
-                <span className="text-[10px] text-[#777]">
+              <div role="status" aria-label="History truncated" className="border-l-2 border-l-border-muted bg-white/[0.02] rounded px-3 py-1.5 mb-1">
+                <span className="text-[10px] text-text-dim">
                   Showing latest 500 events. Older events are not displayed.
                 </span>
               </div>
@@ -161,7 +161,7 @@ export function EventFeed({
                   transition={{ duration: CARD_ENTER_DURATION, ease: CARD_ENTER_EASE }}
                 >
                   <ErrorBoundary
-                    fallback={<div className="text-[10px] text-[#555] px-2 py-1">Event render error</div>}
+                    fallback={<div className="text-[10px] text-text-dim px-2 py-1">Event render error</div>}
                   >
                     <GroupedEventCard
                       event={gev}
@@ -198,7 +198,7 @@ export function EventFeed({
             className={clsx(
               "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
               "flex items-center gap-1.5 px-3 py-1.5 rounded",
-              "bg-[var(--color-success)]/10 text-[var(--color-success)] text-[9px] font-medium",
+              "bg-[var(--color-success)]/10 text-[var(--color-success)] text-[10px] font-medium",
               "border border-[var(--color-success)]/20 frosted-glass",
               "hover:bg-[var(--color-success)]/20 transition-colors",
               "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"
@@ -210,7 +210,7 @@ export function EventFeed({
             </svg>
             {newEventCount > 0 ? (
               <span className="flex items-center gap-1">
-                <span className="inline-flex items-center justify-center min-w-[16px] h-[14px] px-1 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] text-[8px] font-bold tabular-nums animate-pulse">
+                <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--color-success)]/20 text-[var(--color-success)] text-[10px] font-bold tabular-nums animate-pulse">
                   {newEventCount}
                 </span>
                 <span>new event{newEventCount === 1 ? "" : "s"}</span>

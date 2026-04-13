@@ -38,18 +38,18 @@ function TerminalIcon() {
 
 export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanelProps) {
   return (
-    <div className="flex flex-col border-l border-[#1a1a1a] w-[280px] flex-shrink-0 min-h-0">
+    <div className="flex flex-col border-l border-border w-[280px] flex-shrink-0 min-h-0">
       {/* Segmented tab bar */}
-      <div className="bg-[#0a0a0a] p-2 shrink-0">
-        <div className="bg-[#111] rounded-lg p-0.5 flex" role="tablist">
+      <div className="bg-bg-card p-2 shrink-0">
+        <div className="bg-bg-hover rounded-lg p-0.5 flex" role="tablist">
           <button
             role="tab"
             aria-selected={activeTab === "changes"}
             onClick={() => onTabChange("changes")}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[10px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "changes"
-                ? "bg-[#1a1a1a] text-[#e8e8e8] shadow-sm"
-                : "text-[#666] hover:text-[#999]"
+                ? "bg-border text-text shadow-sm"
+                : "text-text-secondary hover:text-text-muted"
             }`}
           >
             <GitBranchIcon />
@@ -61,8 +61,8 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
             onClick={() => onTabChange("logs")}
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[10px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "logs"
-                ? "bg-[#1a1a1a] text-[#e8e8e8] shadow-sm"
-                : "text-[#666] hover:text-[#999]"
+                ? "bg-border text-text shadow-sm"
+                : "text-text-secondary hover:text-text-muted"
             }`}
           >
             <TerminalIcon />

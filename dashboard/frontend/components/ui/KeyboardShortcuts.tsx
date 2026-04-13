@@ -114,11 +114,11 @@ function ShortcutRow({ row }: { row: ShortcutRow }) {
       <div className="flex items-center gap-1 shrink-0">
         {row.keys.map((key, i) => (
           <span key={i} className="flex items-center gap-1">
-            <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[9px] font-medium text-[var(--color-accent-hover)] bg-[var(--color-border)] border border-[var(--color-border-hover)] min-w-[20px]">
+            <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium text-[var(--color-accent-hover)] bg-[var(--color-border)] border border-[var(--color-border-hover)] min-w-[20px]">
               {key}
             </kbd>
             {i < row.keys.length - 1 && (
-              <span className="text-[8px] text-[var(--color-text-dim)]">+</span>
+              <span className="text-[10px] text-[var(--color-text-dim)]">+</span>
             )}
           </span>
         ))}
