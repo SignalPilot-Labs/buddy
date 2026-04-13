@@ -112,7 +112,7 @@ export function LLMMessageCard({
           <div className="text-[12px] text-text-secondary uppercase tracking-wider font-semibold mb-1">
             Reasoning
           </div>
-          <div className="text-[10px] text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
+          <div className="text-[11px] text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
             {thinking}
           </div>
         </motion.div>
