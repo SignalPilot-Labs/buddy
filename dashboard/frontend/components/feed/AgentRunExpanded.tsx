@@ -95,7 +95,7 @@ export function AgentRunExpanded({
       )}
 
       {childTools.length > 0 && (
-        <div className="max-h-[250px] overflow-y-auto">
+        <div className="max-h-[150px] overflow-y-auto">
           {childTools.map((ct, idx) => (
             <ChildToolRow
               key={idx}
