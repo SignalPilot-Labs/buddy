@@ -124,7 +124,7 @@ export function LLMMessageCard({
             content={text}
             className={clsx(
               "text-[13px]",
-              isPlanner ? "text-[#cc9966]" : "text-[#bbb]"
+              isPlanner ? "text-[#cc9966]" : "text-accent-hover"
             )}
           />
           {isLast && (

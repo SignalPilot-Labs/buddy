@@ -17,13 +17,13 @@ const MARKDOWN_COMPONENTS: Components = {
   h2: ({ children }) => <h2 className="font-medium leading-tight mb-1.5 mt-3 first:mt-0 text-[15px]">{children}</h2>,
   h3: ({ children }) => <h3 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[14px]">{children}</h3>,
   h4: ({ children }) => <h4 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[13px]">{children}</h4>,
-  strong: ({ children }) => <strong className="font-semibold text-[#ddd]">{children}</strong>,
+  strong: ({ children }) => <strong className="font-semibold text-text">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   del: ({ children }) => <del className="opacity-60">{children}</del>,
   a: ({ children, href }) => (
     <a
       href={href}
-      className="underline underline-offset-2 hover:text-[#eee] transition-colors"
+      className="underline underline-offset-2 hover:text-text transition-colors"
       target="_blank"
       rel="noopener noreferrer"
     >

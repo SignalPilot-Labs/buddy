@@ -120,7 +120,7 @@ export function AgentRunExpanded({
               <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
                 <MarkdownContent
                   content={finalText}
-                  className="text-[10px] text-[#bbb]"
+                  className="text-[10px] text-accent-hover"
                 />
               </div>
             </div>

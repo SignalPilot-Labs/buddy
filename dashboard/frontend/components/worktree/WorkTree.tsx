@@ -94,7 +94,7 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
 
         {isDir ? <DirIcon open={open} /> : <FileIcon name={node.name} status={node.status} />}
 
-        <span className={clsx("flex-1 truncate", node.status === "deleted" ? "text-[#ff4444]/80 line-through" : node.status === "added" ? "text-[#00ff88]" : "text-[#bbb]")}>
+        <span className={clsx("flex-1 truncate", node.status === "deleted" ? "text-[#ff4444]/80 line-through" : node.status === "added" ? "text-[#00ff88]" : "text-accent-hover")}>
           {node.name}
         </span>
 

@@ -66,7 +66,7 @@ export function TerminalOutput({
         </div>
       ))}
       {outputTruncated && (
-        <div className="px-2 py-1.5 text-[11px] text-text-dim text-center border-t border-white/[0.04]">
+        <div className="px-2 py-1.5 text-text-dim text-center border-t border-white/[0.04]">
           … {allLines.length - 200} more lines
         </div>
       )}
@@ -328,7 +328,7 @@ export function TodoDisplay({
           <span
             className={clsx(
               t.status === "completed" && "text-text-secondary line-through",
-              t.status === "in_progress" && "text-[#ddd]",
+              t.status === "in_progress" && "text-text",
               t.status === "pending" && "text-text-secondary"
             )}
           >
