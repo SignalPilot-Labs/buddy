@@ -256,6 +256,12 @@ class RoundRunner:
                 session_id=session_id,
                 rate_limit_resets_at=int(resets_at) if resets_at else None,
             )
+        if signal.kind == "session_error":
+            return RoundResult(
+                status="session_error",
+                session_id=session_id,
+                error=signal.error,
+            )
         return None
 
     # ── Stuck-subagent pulse ───────────────────────────────────────────

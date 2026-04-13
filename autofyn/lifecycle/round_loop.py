@@ -12,6 +12,7 @@ Round terminal states and what the loop does with them:
     paused        : await resume/stop on the user inbox
     stopped       : user stopped — tear down
     rate_limited  : back off (if fallback missing and wait < 10m), then loop
+    session_error : API/SDK error — retry up to 3× with exponential backoff (2/4/8s)
     error         : log and tear down
 """
 
@@ -32,6 +33,8 @@ from utils.constants import (
     MAX_ROUNDS,
     RATE_LIMIT_MAX_WAIT_SEC,
     RATE_LIMIT_SLEEP_BUFFER_SEC,
+    SESSION_ERROR_BASE_BACKOFF_SEC,
+    SESSION_ERROR_MAX_RETRIES,
 )
 from utils.models import RoundResult, RunContext
 
@@ -58,6 +61,7 @@ async def run_rounds(
 
     runner = RoundRunner(sandbox, run, inbox, time_lock)
     metadata_for_commit = metadata_store
+    consecutive_session_errors = 0
 
     # Fresh run: 0 → first round is 1. Resumed run: starting_round is
     # the highest archived round; we pick up at starting_round + 1.
@@ -99,7 +103,7 @@ async def run_rounds(
 
         result = await runner.run(options, initial_prompt, round_number)
 
-        terminal = await _handle_round_outcome(
+        terminal, consecutive_session_errors = await _handle_round_outcome(
             result=result,
             round_number=round_number,
             sandbox=sandbox,
@@ -108,6 +112,7 @@ async def run_rounds(
             time_lock=time_lock,
             metadata_store=metadata_for_commit,
             exec_timeout=exec_timeout,
+            consecutive_session_errors=consecutive_session_errors,
         )
 
         # Archive after outcome handling so the persisted rounds.json
@@ -135,13 +140,44 @@ async def _handle_round_outcome(
     time_lock: TimeLock,
     metadata_store: MetadataStore,
     exec_timeout: int,
-) -> str | None:
-    """Apply the round result. Returns a terminal run status or None to loop."""
+    consecutive_session_errors: int,
+) -> tuple[str | None, int]:
+    """Apply the round result. Returns (terminal status or None, error counter)."""
     rid = run.run_id[:8]
 
     if result.status == "error":
         log.error("[%s] Round %d errored: %s", rid, round_number, result.error)
-        return "error"
+        return "error", 0
+
+    if result.status == "session_error":
+        consecutive_session_errors += 1
+        backoff_sec = SESSION_ERROR_BASE_BACKOFF_SEC * (2 ** (consecutive_session_errors - 1))
+        log.warning(
+            "[%s] Round %d session error (%d/%d): %s — retrying in %ds",
+            rid, round_number, consecutive_session_errors,
+            SESSION_ERROR_MAX_RETRIES, result.error, backoff_sec,
+        )
+        await db.log_audit(
+            run.run_id,
+            "session_error",
+            {
+                "round_number": round_number,
+                "error": result.error,
+                "attempt": consecutive_session_errors,
+                "backoff_sec": backoff_sec,
+            },
+        )
+        if consecutive_session_errors >= SESSION_ERROR_MAX_RETRIES:
+            log.error(
+                "[%s] %d consecutive session errors — giving up",
+                rid, consecutive_session_errors,
+            )
+            return "error", consecutive_session_errors
+        await asyncio.sleep(backoff_sec)
+        return None, consecutive_session_errors
+
+    # Any non-error round resets the counter.
+    consecutive_session_errors = 0
 
     if result.status == "stopped":
         log.info("[%s] Round %d stopped by user", rid, round_number)
@@ -153,7 +189,7 @@ async def _handle_round_outcome(
             result.round_summary,
             exec_timeout,
         )
-        return "stopped"
+        return "stopped", 0
 
     if result.status == "rate_limited":
         backed_off = await _handle_rate_limit(
@@ -162,8 +198,8 @@ async def _handle_round_outcome(
             inbox,
         )
         if not backed_off:
-            return "rate_limited"
-        return None
+            return "rate_limited", 0
+        return None, 0
 
     if result.status == "paused":
         log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
@@ -178,10 +214,10 @@ async def _handle_round_outcome(
         resumed = await _await_resume(inbox)
         if not resumed:
             log.info("[%s] Stopped during pause", rid)
-            return "stopped"
+            return "stopped", 0
         await db.update_run_status(run.run_id, "running")
         await db.log_audit(run.run_id, "resumed", {})
-        return None
+        return None, 0
 
     # status in ("complete", "ended")
     await _commit_and_push_round(
@@ -195,11 +231,11 @@ async def _handle_round_outcome(
 
     if result.status == "ended":
         log.info("[%s] Orchestrator ended the run after round %d", rid, round_number)
-        return "completed"
+        return "completed", 0
 
     if time_lock.is_expired():
         log.info("[%s] Time lock expired after round %d — finishing", rid, round_number)
-        return "completed"
+        return "completed", 0
 
     if round_number >= MAX_ROUNDS:
         log.info(
@@ -212,12 +248,12 @@ async def _handle_round_outcome(
             "max_rounds_reached",
             {"round_number": round_number, "cap": MAX_ROUNDS},
         )
-        return "completed"
+        return "completed", 0
 
     if inbox.has_stop():
-        return "stopped"
+        return "stopped", 0
 
-    return None
+    return None, 0
 
 
 # ── Commit + push ────────────────────────────────────────────────────

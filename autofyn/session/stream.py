@@ -112,13 +112,13 @@ class StreamDispatcher:
             )
             return StreamSignal(kind="continue")
 
-        if kind in ("session_end", "session_error"):
-            if kind == "session_error":
-                log.error(
-                    "[%s] session error: %s",
-                    self._rid, data.get("error", "unknown"),
-                )
+        if kind == "session_end":
             return StreamSignal(kind="round_complete")
+
+        if kind == "session_error":
+            error_msg = data.get("error", "unknown")
+            log.error("[%s] session error: %s", self._rid, error_msg)
+            return StreamSignal(kind="session_error", error=error_msg)
 
         return StreamSignal(kind="continue")
 
