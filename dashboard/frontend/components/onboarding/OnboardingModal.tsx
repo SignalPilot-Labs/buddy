@@ -177,7 +177,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
                   </div>
                   <div>
-                    <h2 className="text-[12px] font-semibold text-text">
+                    <h2 className="text-[14px] font-semibold text-text">
                       Welcome to AutoFyn
                     </h2>
                     <p className="text-[12px] text-text-muted mt-0.5">

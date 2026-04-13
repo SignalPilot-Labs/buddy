@@ -55,8 +55,8 @@ export function ChildToolRow({
         onClick={() => hasOutput && setOpen(!open)}
         className={
           hasOutput
-            ? "flex items-center gap-2 px-4 py-1.5 text-[10px] w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
-            : "flex items-center gap-2 px-4 py-1.5 text-[10px] w-full text-left transition-colors cursor-default"
+            ? "flex items-center gap-2 px-4 py-1.5 text-[12px] w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
+            : "flex items-center gap-2 px-4 py-1.5 text-[12px] w-full text-left transition-colors cursor-default"
         }
       >
         <span className="opacity-50 shrink-0">
