@@ -105,7 +105,7 @@ export function GroupedEventCard({
       return <DividerCard label={event.label} />;
     default:
       return (
-        <div className="text-[10px] text-text-dim px-3 py-1.5 rounded border border-border bg-white/[0.01]">
+        <div className="text-caption text-text-dim px-3 py-1.5 rounded border border-border bg-white/[0.01]">
           Unknown event: {(event as { type: string }).type}
         </div>
       );

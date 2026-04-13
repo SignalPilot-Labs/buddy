@@ -79,8 +79,8 @@ function Stat({
   return (
     <div className="flex items-center gap-1.5 min-w-0 shrink-0">
       <span className="text-text-dim">{icon}</span>
-      <span className="text-[10px] text-text-dim">{label}</span>
-      <span className={`text-[12px] font-semibold tabular-nums truncate ${accent ?? "text-text"}`}>
+      <span className="text-caption text-text-dim">{label}</span>
+      <span className={`text-content font-semibold tabular-nums truncate ${accent ?? "text-text"}`}>
         {value}
       </span>
     </div>
@@ -106,7 +106,7 @@ export function StatsRow({
   if (!run) {
     return (
       <div className="h-7 flex items-center px-1">
-        <span className="text-[10px] text-text-dim">No run selected</span>
+        <span className="text-caption text-text-dim">No run selected</span>
       </div>
     );
   }
@@ -124,7 +124,7 @@ export function StatsRow({
           }`}
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
-        <span className="text-[10px] text-text-secondary">
+        <span className="text-caption text-text-secondary">
           {connected ? "Live" : "Disconnected"}
         </span>
       </div>
@@ -165,7 +165,7 @@ export function StatsRow({
           href={run.pr_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
+          className="flex items-center gap-1 text-caption text-[#88ccff] hover:text-[#aaddff] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="3" cy="3" r="1.5" />

@@ -146,7 +146,7 @@ export function EventFeed({
           <>
             {historyTruncated && !isLoading && (
               <div role="status" aria-label="History truncated" className="border-l-2 border-l-border-muted bg-white/[0.02] rounded px-3 py-1.5 mb-1">
-                <span className="text-[10px] text-text-dim">
+                <span className="text-caption text-text-dim">
                   Showing latest 500 events. Older events are not displayed.
                 </span>
               </div>
@@ -161,7 +161,7 @@ export function EventFeed({
                   transition={{ duration: CARD_ENTER_DURATION, ease: CARD_ENTER_EASE }}
                 >
                   <ErrorBoundary
-                    fallback={<div className="text-[10px] text-text-dim px-2 py-1">Event render error</div>}
+                    fallback={<div className="text-caption text-text-dim px-2 py-1">Event render error</div>}
                   >
                     <GroupedEventCard
                       event={gev}
@@ -198,7 +198,7 @@ export function EventFeed({
             className={clsx(
               "absolute bottom-2 left-1/2 -translate-x-1/2 z-10",
               "flex items-center gap-1.5 px-3 py-1.5 rounded",
-              "bg-[var(--color-success)]/10 text-[var(--color-success)] text-[10px] font-medium",
+              "bg-[var(--color-success)]/10 text-[var(--color-success)] text-caption font-medium",
               "border border-[var(--color-success)]/20 frosted-glass",
               "hover:bg-[var(--color-success)]/20 transition-colors",
               "shadow-[0_-4px_12px_rgba(0,0,0,0.4)]"

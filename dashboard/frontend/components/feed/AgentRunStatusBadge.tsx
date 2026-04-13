@@ -37,7 +37,7 @@ export function AgentRunStatusBadge({
     return (
       <span
         className={clsx(
-          "flex items-center gap-1.5 text-[12px] font-semibold",
+          "flex items-center gap-1.5 text-content font-semibold",
           isFinalizing ? "text-[#cc88ff]" : "text-[#ffaa00]"
         )}
       >
@@ -67,7 +67,7 @@ export function AgentRunStatusBadge({
 
   if (isIdle) {
     return (
-      <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[#ff4444]">
+      <span className="flex items-center gap-1.5 text-content font-semibold text-[#ff4444]">
         <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full rounded-full bg-[#ff4444] animate-ping opacity-50" />
           <span
@@ -82,7 +82,7 @@ export function AgentRunStatusBadge({
 
   if (isPaused) {
     return (
-      <span className="flex items-center gap-1 text-[12px] font-semibold" style={{ color: "rgba(255, 170, 0, 0.7)" }}>
+      <span className="flex items-center gap-1 text-content font-semibold" style={{ color: "rgba(255, 170, 0, 0.7)" }}>
         <PauseIcon color="rgba(255, 170, 0, 0.7)" />
         paused
       </span>
@@ -91,7 +91,7 @@ export function AgentRunStatusBadge({
 
   if (isCompleted) {
     return (
-      <span className="flex items-center gap-1 text-[12px] font-semibold" style={{ color: phaseColor }}>
+      <span className="flex items-center gap-1 text-content font-semibold" style={{ color: phaseColor }}>
         <CheckmarkIcon color={phaseColor} />
         done
       </span>
@@ -100,7 +100,7 @@ export function AgentRunStatusBadge({
 
   if (isFailed) {
     return (
-      <span className="flex items-center gap-1 text-[12px] font-semibold text-[#ff4444]">
+      <span className="flex items-center gap-1 text-content font-semibold text-[#ff4444]">
         <CrossIcon color="#ff4444" />
         failed
       </span>
@@ -115,7 +115,7 @@ export function IdleWarningBanner({ idleSec }: IdleWarningBannerProps): ReactEle
     <div className="border-t border-[#ff4444]/20 bg-[#ff4444]/[0.06] px-4 py-2">
       <div className="flex items-center gap-2.5">
         <WarningTriangleIcon color="#ff4444" />
-        <span className="text-[12px] text-[#ff4444]">
+        <span className="text-content text-[#ff4444]">
           Agent idle for{" "}
           <span className="font-semibold tabular-nums">
             {idleSec >= 60

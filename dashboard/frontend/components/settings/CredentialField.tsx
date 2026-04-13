@@ -39,11 +39,11 @@ export function CredentialField({
   return (
     <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="flex items-center justify-between mb-2">
-        <label className="text-[12px] font-semibold text-accent-hover">
+        <label className="text-content font-semibold text-accent-hover">
           {field.label}
         </label>
         {isSet && (
-          <span className="flex items-center gap-1 text-[12px] text-[#00ff88]/60">
+          <span className="flex items-center gap-1 text-content text-[#00ff88]/60">
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
               <polyline points="2 5 4 7 8 3" />
             </svg>
@@ -53,7 +53,7 @@ export function CredentialField({
       </div>
 
       {currentValue && editValue === undefined && (
-        <div className="mb-2 px-2.5 py-1.5 bg-black/30 rounded border border-border text-[12px] font-mono text-text-secondary flex items-center justify-between overflow-hidden">
+        <div className="mb-2 px-2.5 py-1.5 bg-black/30 rounded border border-border text-content font-mono text-text-secondary flex items-center justify-between overflow-hidden">
           <span className="truncate min-w-0">{currentValue}</span>
           <button
             onClick={onStartEdit}
@@ -71,7 +71,7 @@ export function CredentialField({
             value={editValue || ""}
             onChange={(e) => onEditChange(e.target.value)}
             placeholder={field.placeholder}
-            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[12px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
+            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-content text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
             autoComplete="off"
             spellCheck={false}
           />
@@ -100,7 +100,7 @@ export function CredentialField({
           {editValue !== undefined && currentValue && (
             <button
               onClick={onCancelEdit}
-              className="absolute right-8 top-1/2 -translate-y-1/2 text-[12px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+              className="absolute right-8 top-1/2 -translate-y-1/2 text-content text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
             >
               Cancel
             </button>
@@ -108,7 +108,7 @@ export function CredentialField({
         </div>
       )}
 
-      <p className="mt-2 text-[13px] text-text-muted leading-relaxed">
+      <p className="mt-2 text-body text-text-muted leading-relaxed">
         {field.helpText}
       </p>
     </div>

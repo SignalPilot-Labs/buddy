@@ -55,8 +55,8 @@ export function ChildToolRow({
         onClick={() => hasOutput && setOpen(!open)}
         className={
           hasOutput
-            ? "flex items-center gap-2 px-4 py-1.5 text-[12px] w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
-            : "flex items-center gap-2 px-4 py-1.5 text-[12px] w-full text-left transition-colors cursor-default"
+            ? "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
+            : "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors cursor-default"
         }
       >
         <span className="opacity-50 shrink-0">
@@ -70,7 +70,7 @@ export function ChildToolRow({
         )}
         {!detail && <span className="flex-1" />}
         {!!tool.duration_ms && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(tool.duration_ms)}
           </span>
         )}
@@ -145,20 +145,20 @@ export function ReadGroupCard({
           {getToolIcon(cat, iconColor)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium" style={{ color: iconColor }}>
+          <div className="text-title font-medium" style={{ color: iconColor }}>
             {label}
           </div>
           {subtitle && (
-            <div className="text-[13px] text-text-secondary mt-0.5 truncate">
+            <div className="text-body text-text-secondary mt-0.5 truncate">
               {subtitle}
             </div>
           )}
         </div>
-        <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -185,7 +185,7 @@ export function ReadGroupCard({
                       onClick={() =>
                         setPreviewIdx(previewIdx === i ? null : i)
                       }
-                      className="w-full flex items-center gap-2 text-[12px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+                      className="w-full flex items-center gap-2 text-content py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                     >
                       <svg
                         width="10"
@@ -268,28 +268,28 @@ export function EditGroupCard({
           {getToolIcon("edit", "#ffcc44")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-[#ffcc44]">
+          <div className="text-title font-medium text-[#ffcc44]">
             Edited {uniqueFiles} file{uniqueFiles !== 1 ? "s" : ""} (
             {edits.length} changes)
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             {totalAdded > 0 && (
-              <span className="text-[10px] text-[#00ff88]/80 tabular-nums">
+              <span className="text-caption text-[#00ff88]/80 tabular-nums">
                 +{totalAdded}
               </span>
             )}
             {totalRemoved > 0 && (
-              <span className="text-[10px] text-[#ff4444]/80 tabular-nums">
+              <span className="text-caption text-[#ff4444]/80 tabular-nums">
                 -{totalRemoved}
               </span>
             )}
           </div>
         </div>
-        <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -309,7 +309,7 @@ export function EditGroupCard({
                   onClick={() =>
                     setExpandedFile(expandedFile === i ? null : i)
                   }
-                  className="w-full flex items-center gap-2 px-4 py-2 text-[12px] hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-content hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
                 >
                   <svg
                     width="10"

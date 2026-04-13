@@ -46,7 +46,7 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
             role="tab"
             aria-selected={activeTab === "changes"}
             onClick={() => onTabChange("changes")}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-meta font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "changes"
                 ? "bg-border text-text shadow-sm"
                 : "text-text-secondary hover:text-accent-hover"
@@ -59,7 +59,7 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
             role="tab"
             aria-selected={activeTab === "logs"}
             onClick={() => onTabChange("logs")}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-meta font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "logs"
                 ? "bg-border text-text shadow-sm"
                 : "text-text-secondary hover:text-accent-hover"

@@ -28,7 +28,7 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
         {icon}
         {badge != null && badge > 0 && (
           <span
-            className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] leading-none flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-[10px] font-bold px-0.5"
+            className="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] leading-none flex items-center justify-center rounded-full bg-[#00ff88]/20 text-[#00ff88] text-caption font-bold px-0.5"
             aria-label={`${badge > 99 ? "99+" : badge} new items`}
           >
             {badge > 99 ? "99+" : badge}
@@ -36,7 +36,7 @@ export function MobileTab({ icon, label, active, onClick, badge }: MobileTabProp
         )}
       </div>
 
-      <span className="text-[12px] font-medium">{label}</span>
+      <span className="text-content font-medium">{label}</span>
     </button>
   );
 }

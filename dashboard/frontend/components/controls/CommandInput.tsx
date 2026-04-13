@@ -146,7 +146,7 @@ export function CommandInput({
             }}
             onClick={() => handlePresetClick(p.text)}
             aria-label={`Quick prompt: ${p.label}`}
-            className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-text-dim hover:bg-white/[0.06] hover:text-accent-hover transition-colors border border-border"
+            className="text-caption px-2 py-1 rounded bg-white/[0.03] text-text-dim hover:bg-white/[0.06] hover:text-accent-hover transition-colors border border-border"
           >
             {p.label}
           </button>
@@ -163,7 +163,7 @@ export function CommandInput({
           placeholder={placeholder}
           rows={2}
           disabled={!runId}
-          className="w-full bg-black/40 border border-border rounded-lg px-3 py-3 text-[12px] text-accent-hover placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#88ccff]/40 focus-visible:ring-1 focus-visible:ring-[#88ccff]/40 focus-visible:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6 overflow-hidden"
+          className="w-full bg-black/40 border border-border rounded-lg px-3 py-3 text-content text-accent-hover placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#88ccff]/40 focus-visible:ring-1 focus-visible:ring-[#88ccff]/40 focus-visible:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6 overflow-hidden"
           style={{ minHeight: "60px" }}
         />
       </div>

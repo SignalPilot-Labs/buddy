@@ -70,7 +70,7 @@ export function KeyboardShortcuts({ open, onClose }: KeyboardShortcutsProps) {
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[14px] font-bold text-[var(--color-text)] tracking-wide uppercase">
+              <h2 className="text-title font-bold text-[var(--color-text)] tracking-wide uppercase">
                 Keyboard Shortcuts
               </h2>
               <button
@@ -110,15 +110,15 @@ function ShortcutList({ shortcuts }: { shortcuts: ShortcutRow[] }) {
 function ShortcutRow({ row }: { row: ShortcutRow }) {
   return (
     <div className="flex items-center justify-between gap-3 py-1.5 border-b border-[var(--color-border)]/60 last:border-0">
-      <span className="text-[11px] text-[var(--color-text-muted)]">{row.description}</span>
+      <span className="text-meta text-[var(--color-text-muted)]">{row.description}</span>
       <div className="flex items-center gap-1 shrink-0">
         {row.keys.map((key, i) => (
           <span key={i} className="flex items-center gap-1">
-            <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium text-[var(--color-accent-hover)] bg-[var(--color-border)] border border-[var(--color-border-hover)] min-w-[20px]">
+            <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-caption font-medium text-[var(--color-accent-hover)] bg-[var(--color-border)] border border-[var(--color-border-hover)] min-w-[20px]">
               {key}
             </kbd>
             {i < row.keys.length - 1 && (
-              <span className="text-[10px] text-[var(--color-text-dim)]">+</span>
+              <span className="text-caption text-[var(--color-text-dim)]">+</span>
             )}
           </span>
         ))}

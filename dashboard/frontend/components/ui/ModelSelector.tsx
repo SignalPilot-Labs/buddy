@@ -55,18 +55,18 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
           >
             <div
               className={clsx(
-                "text-[12px] font-medium leading-tight",
+                "text-content font-medium leading-tight",
                 selected ? "text-text" : "text-accent-hover"
               )}
             >
               {spec.label}
             </div>
-            <div className="text-[13px] text-text-muted mt-0.5 leading-tight">
+            <div className="text-body text-text-muted mt-0.5 leading-tight">
               {spec.description}
             </div>
             <div
               className={clsx(
-                "text-[10px] mt-1.5 font-mono",
+                "text-caption mt-1.5 font-mono",
                 selected ? "text-[#00ff88]/70" : "text-text-dim"
               )}
             >

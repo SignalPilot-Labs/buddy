@@ -55,7 +55,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
 
   if (!runId) {
     return (
-      <div className="flex items-center justify-center h-full text-[11px] text-text-dim">
+      <div className="flex items-center justify-center h-full text-meta text-text-dim">
         Select a run to view logs
       </div>
     );
@@ -70,10 +70,10 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           <path d="M3 4l2 2-2 2" />
           <line x1="6" y1="8" x2="9" y2="8" />
         </svg>
-        <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-text-muted">
+        <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">
           Sandbox Logs
         </span>
-        <span className="text-[11px] text-text-dim tabular-nums ml-auto">
+        <span className="text-meta text-text-dim tabular-nums ml-auto">
           {filtered.length} lines
         </span>
       </div>
@@ -85,7 +85,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter logs..."
-          className="w-full bg-transparent text-[12px] text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
+          className="w-full bg-transparent text-content text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
         />
       </div>
 
@@ -93,7 +93,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto font-mono text-[11px] leading-[16px] px-2 py-1"
+        className="flex-1 overflow-y-auto font-mono text-meta leading-[16px] px-2 py-1"
       >
         {loading && lines.length === 0 && (
           <div className="flex items-center justify-center py-8">
@@ -124,7 +124,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
             setAutoScroll(true);
             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-[11px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-meta text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
         >
           Scroll to bottom
         </button>

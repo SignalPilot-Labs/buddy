@@ -102,8 +102,8 @@ function MonitorPageInner() {
         </div>
 
         <div>
-          <h1 className="text-[14px] font-bold text-text tracking-tight">AutoFyn</h1>
-          <p className="text-[11px] text-text-dim tracking-[0.1em] uppercase -mt-0.5">Monitor</p>
+          <h1 className="text-title font-bold text-text tracking-tight">AutoFyn</h1>
+          <p className="text-meta text-text-dim tracking-[0.1em] uppercase -mt-0.5">Monitor</p>
         </div>
 
         <div className="flex-1" />

@@ -45,20 +45,20 @@ export function BashGroupCard({
           {getToolIcon("bash", "#00ff88")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-[#00ff88]">
+          <div className="text-title font-medium text-[#00ff88]">
             Terminal · {commands.length} command
             {commands.length !== 1 ? "s" : ""}
           </div>
-          <div className="text-[13px] text-text-secondary mt-0.5 truncate">
+          <div className="text-body text-text-secondary mt-0.5 truncate">
             {commands[0]?.cmd}
             {commands.length > 1 ? ` + ${commands.length - 1} more` : ""}
           </div>
         </div>
-        <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -76,9 +76,9 @@ export function BashGroupCard({
               <span className="h-2 w-2 rounded-full bg-[#ff4444]/30" />
               <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
               <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
-              <span className="text-[10px] text-text-dim ml-2">bash</span>
+              <span className="text-caption text-text-dim ml-2">bash</span>
             </div>
-            <div className="bg-black/40 p-3 space-y-3 max-h-[500px] overflow-y-auto font-mono text-[10px]">
+            <div className="bg-black/40 p-3 space-y-3 max-h-[500px] overflow-y-auto font-mono text-caption">
               {commands.map((cmd, i) => (
                 <div key={i}>
                   <div className="flex items-center gap-1.5">
@@ -133,10 +133,10 @@ export function PlaywrightGroupCard({
           {getToolIcon("playwright_navigate", "#66bbff")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-[#66bbff]">
+          <div className="text-title font-medium text-[#66bbff]">
             Browser · {tools.length} action{tools.length !== 1 ? "s" : ""}
           </div>
-          <div className="text-[13px] text-text-secondary mt-0.5 truncate">
+          <div className="text-body text-text-secondary mt-0.5 truncate">
             {tools
               .map((t) =>
                 getToolCategory(t.tool_name).replace("playwright_", "")
@@ -144,11 +144,11 @@ export function PlaywrightGroupCard({
               .join(" → ")}
           </div>
         </div>
-        <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(ts)}
         </span>
         {totalDuration > 0 && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(totalDuration)}
           </span>
         )}
@@ -168,7 +168,7 @@ export function PlaywrightGroupCard({
               return (
                 <div
                   key={i}
-                  className="flex items-center gap-2 text-[10px] py-1 px-2 rounded hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center gap-2 text-caption py-1 px-2 rounded hover:bg-white/[0.02] transition-colors"
                 >
                   <span className="opacity-50 shrink-0">
                     {getToolIcon(cat, "#66bbff")}
@@ -277,30 +277,30 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
         </span>
         <span
           className={clsx(
-            "text-[12px] font-semibold shrink-0",
+            "text-content font-semibold shrink-0",
             denied ? "text-[#ff4444]" : colors.text
           )}
         >
           {tool.tool_name}
         </span>
         {denied && (
-          <span className="text-[10px] font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">
+          <span className="text-caption font-bold text-[#ff4444] bg-[#ff4444]/8 rounded px-1 py-0.5">
             DENIED
           </span>
         )}
         {isPending && (
-          <span className="text-[10px] text-[#ffaa00] animate-pulse">
+          <span className="text-caption text-[#ffaa00] animate-pulse">
             running
           </span>
         )}
-        <span className="text-[12px] text-text-secondary truncate flex-1">
+        <span className="text-content text-text-secondary truncate flex-1">
           {denied ? tool.deny_reason : summary}
         </span>
-        <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+        <span className="text-caption text-text-dim tabular-nums shrink-0">
           {fmtTime(tool.ts)}
         </span>
         {tool.duration_ms != null && (
-          <span className="text-[10px] text-text-dim tabular-nums shrink-0">
+          <span className="text-caption text-text-dim tabular-nums shrink-0">
             {fmtDuration(tool.duration_ms)}
           </span>
         )}
@@ -317,10 +317,10 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
             <StyledToolOutput tool={tool} />
             {tool.input_data && cat !== "bash" && cat !== "todo" && (
               <details className="group">
-                <summary className="text-[10px] text-text-dim cursor-pointer hover:text-accent-hover transition-colors">
+                <summary className="text-caption text-text-dim cursor-pointer hover:text-accent-hover transition-colors">
                   raw input
                 </summary>
-                <pre className="mt-1 text-[10px] text-text-secondary bg-black/20 rounded p-2 border border-border whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
+                <pre className="mt-1 text-caption text-text-secondary bg-black/20 rounded p-2 border border-border whitespace-pre-wrap break-all max-h-[200px] overflow-y-auto">
                   {JSON.stringify(tool.input_data, null, 2)}
                 </pre>
               </details>

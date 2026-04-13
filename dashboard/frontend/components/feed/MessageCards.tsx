@@ -71,19 +71,19 @@ export function LLMMessageCard({
         </div>
         <span
           className={clsx(
-            "text-[14px] font-semibold",
+            "text-title font-semibold",
             isPlanner ? "text-[#ff8844]" : "text-accent-hover"
           )}
         >
           {isPlanner ? "Planner" : "AutoFyn"}
         </span>
-        <span className="text-[10px] text-text-dim tabular-nums">
+        <span className="text-caption text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
         {thinking && (
           <button
             onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[10px] text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
+            className="ml-auto text-caption text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
           >
             <svg
               width="10"
@@ -109,10 +109,10 @@ export function LLMMessageCard({
           transition={{ duration: 0.25, ease: "easeOut" }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
         >
-          <div className="text-[12px] text-text-secondary uppercase tracking-wider font-semibold mb-1">
+          <div className="text-content text-text-secondary uppercase tracking-wider font-semibold mb-1">
             Reasoning
           </div>
-          <div className="text-[11px] text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
+          <div className="text-meta text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
             {thinking}
           </div>
         </motion.div>
@@ -123,7 +123,7 @@ export function LLMMessageCard({
           <MarkdownContent
             content={text}
             className={clsx(
-              "text-[13px]",
+              "text-body",
               isPlanner ? "text-[#cc9966]" : "text-accent-hover"
             )}
           />
@@ -152,7 +152,7 @@ export function ControlMessage({ text, ts, retryAction }: { text: string; ts: st
       className="flex items-center gap-2 px-4 py-2"
     >
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-      <div className="flex items-center gap-1.5 text-[12px] text-[#ffaa00]/80">
+      <div className="flex items-center gap-1.5 text-content text-[#ffaa00]/80">
         <svg
           width="10"
           height="10"
@@ -196,21 +196,21 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
     >
       <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
         <div className="flex items-center justify-between gap-4 mb-1">
-          <span className="text-[12px] font-semibold uppercase tracking-wider text-[#88ccff]">
+          <span className="text-content font-semibold uppercase tracking-wider text-[#88ccff]">
             You
           </span>
-          <span className="text-[10px] text-text-dim tabular-nums flex items-center gap-1.5">
+          <span className="text-caption text-text-dim tabular-nums flex items-center gap-1.5">
             {pending && (
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor} animate-pulse`} />
             )}
             {failed && !pending && (
-              <span className="text-[#ff4444] text-[10px]">not delivered</span>
+              <span className="text-[#ff4444] text-caption">not delivered</span>
             )}
             {fmtTime(ts)}
           </span>
         </div>
         <div className="max-h-[300px] overflow-y-auto">
-          <MarkdownContent content={prompt} className="text-[13px] text-[#cce8ff]" />
+          <MarkdownContent content={prompt} className="text-body text-[#cce8ff]" />
         </div>
       </div>
     </motion.div>
@@ -244,7 +244,7 @@ export function MilestoneCard({
           className="h-1.5 w-1.5 rounded-full"
           style={{ background: color }}
         />
-        <span className="text-[12px] font-semibold" style={{ color }}>
+        <span className="text-content font-semibold" style={{ color }}>
           {label}
         </span>
         {detail &&
@@ -253,16 +253,16 @@ export function MilestoneCard({
               href={detail}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] text-text-secondary max-w-[300px] truncate hover:text-accent-hover underline underline-offset-2"
+              className="text-caption text-text-secondary max-w-[300px] truncate hover:text-accent-hover underline underline-offset-2"
             >
               {detail}
             </a>
           ) : (
-            <span className="text-[10px] text-text-secondary max-w-[300px] truncate">
+            <span className="text-caption text-text-secondary max-w-[300px] truncate">
               {detail}
             </span>
           ))}
-        <span className="text-[10px] text-text-dim tabular-nums">
+        <span className="text-caption text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
       </div>
@@ -276,7 +276,7 @@ export function DividerCard({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <div className="flex-1 terminal-hr" />
-      <span className="text-[12px] text-text-dim uppercase tracking-wider">
+      <span className="text-content text-text-dim uppercase tracking-wider">
         {label}
       </span>
       <div className="flex-1 terminal-hr" />

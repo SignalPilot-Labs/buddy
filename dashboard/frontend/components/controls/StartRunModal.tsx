@@ -56,12 +56,12 @@ function BranchPicker({
 
   return (
     <div ref={containerRef} className="relative">
-      <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+      <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
         Branch from
       </label>
       <button
         onClick={() => setOpen(!open)}
-        className="mt-1.5 w-full flex items-center justify-between px-3 py-2 bg-black/30 border border-border rounded text-[12px] text-left hover:border-border-hover transition-colors"
+        className="mt-1.5 w-full flex items-center justify-between px-3 py-2 bg-black/30 border border-border rounded text-content text-left hover:border-border-hover transition-colors"
       >
         <span className="font-mono text-text">{selected}</span>
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#999" strokeWidth="1.5" strokeLinecap="round">
@@ -85,7 +85,7 @@ function BranchPicker({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search branches..."
-              className="w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-[12px] text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
+              className="w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-content text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
               onKeyDown={(e) => {
                 if (e.key === "Escape") { setOpen(false); setQuery(""); }
                 if (e.key === "Enter" && sorted.length > 0) {
@@ -98,14 +98,14 @@ function BranchPicker({
           </div>
           <div className="max-h-48 overflow-y-auto">
             {sorted.length === 0 ? (
-              <div className="px-3 py-2 text-[12px] text-text-secondary">No branches match</div>
+              <div className="px-3 py-2 text-content text-text-secondary">No branches match</div>
             ) : (
               sorted.map((b) => (
                 <button
                   key={b}
                   onClick={() => { onSelect(b); setOpen(false); setQuery(""); }}
                   className={clsx(
-                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-[12px] font-mono transition-colors",
+                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-content font-mono transition-colors",
                     b === selected
                       ? "bg-[#00ff88]/[0.06] text-[#00ff88]"
                       : "text-text-secondary hover:bg-white/[0.03] hover:text-accent-hover"
@@ -303,10 +303,10 @@ export function StartRunModal({
                     <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
                   </div>
                   <div>
-                    <h2 className="text-[14px] font-semibold text-text">
+                    <h2 className="text-title font-semibold text-text">
                       New Run
                     </h2>
-                    <p className="text-[12px] text-text-muted mt-0.5">
+                    <p className="text-content text-text-muted mt-0.5">
                       Spawns an isolated container with its own sandbox
                     </p>
                   </div>
@@ -330,7 +330,7 @@ export function StartRunModal({
 
                 {/* Quick prompts */}
                 <div>
-                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                     Quick Start
                   </label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
@@ -342,7 +342,7 @@ export function StartRunModal({
                           setCustomPrompt("");
                         }}
                         className={clsx(
-                          "text-left p-3 rounded border transition-all text-[12px]",
+                          "text-left p-3 rounded border transition-all text-content",
                           selectedQuick === i
                             ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
                             : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
@@ -364,7 +364,7 @@ export function StartRunModal({
 
                 {/* Custom prompt */}
                 <div>
-                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                     Custom Prompt
                   </label>
                   <textarea
@@ -377,13 +377,13 @@ export function StartRunModal({
                     onKeyDown={handleKeyDown}
                     placeholder="Describe what the agent should focus on..."
                     rows={3}
-                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-[12px] text-accent-hover placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
                   />
                 </div>
 
                 {/* Model Selector */}
                 <div>
-                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                     Model
                   </label>
                   <div className="mt-2">
@@ -393,10 +393,10 @@ export function StartRunModal({
 
                 {/* Duration lock */}
                 <div>
-                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                     Session Duration
                   </label>
-                  <p className="text-[12px] text-text-secondary mt-0.5 mb-2">
+                  <p className="text-content text-text-secondary mt-0.5 mb-2">
                     Agent cannot call end_session until this time expires
                   </p>
                   <div className="flex gap-1.5 flex-wrap">
@@ -405,7 +405,7 @@ export function StartRunModal({
                         key={d.minutes}
                         onClick={() => setDuration(d.minutes)}
                         className={clsx(
-                          "text-[12px] px-2 py-1.5 rounded border transition-all",
+                          "text-content px-2 py-1.5 rounded border transition-all",
                           duration === d.minutes
                             ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88]"
                             : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
@@ -419,7 +419,7 @@ export function StartRunModal({
 
                 {/* Environment Variables */}
                 <div>
-                  <label className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                     Environment Variables
                   </label>
                   <textarea
@@ -427,20 +427,20 @@ export function StartRunModal({
                     onChange={(e) => setEnvText(e.target.value)}
                     placeholder={"API_KEY=your-value\nDATABASE_URL=postgres://..."}
                     rows={3}
-                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-[12px] text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  <p className="mt-1 text-[12px] text-text-secondary">
+                  <p className="mt-1 text-content text-text-secondary">
                     KEY=value per line. Encrypted and injected into sandbox.
                   </p>
-                  {envError && <p className="mt-1 text-[12px] text-[#ff4444]">{envError}</p>}
+                  {envError && <p className="mt-1 text-content text-[#ff4444]">{envError}</p>}
                 </div>
 
                 {/* Budget */}
                 <div>
                   <label
-                    className="text-[12px] uppercase tracking-[0.15em] text-text-muted font-semibold flex items-center gap-2 cursor-pointer select-none"
+                    className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold flex items-center gap-2 cursor-pointer select-none"
                     onClick={() => setBudgetEnabled(!budgetEnabled)}
                   >
                     <span
@@ -475,7 +475,7 @@ export function StartRunModal({
                         onChange={(e) => setBudget(Number(e.target.value))}
                         className="flex-1 accent-[#00ff88]"
                       />
-                      <span className="text-[12px] font-semibold text-text tabular-nums w-16 text-right">
+                      <span className="text-content font-semibold text-text tabular-nums w-16 text-right">
                         ${budget}
                       </span>
                     </div>
@@ -485,7 +485,7 @@ export function StartRunModal({
 
               {/* Footer */}
               <div className="flex items-center justify-between px-5 py-3 border-t border-border">
-                <span className="text-[12px] text-text-secondary">
+                <span className="text-content text-text-secondary">
                   Ctrl+Enter to start
                 </span>
                 <div className="flex gap-2">
