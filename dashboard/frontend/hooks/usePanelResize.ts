@@ -46,6 +46,11 @@ export function usePanelResize({
     currentWidthRef.current = width;
   }, [width]);
 
+  const clamp = useCallback(
+    (v: number): number => Math.min(maxWidth, Math.max(minWidth, v)),
+    [minWidth, maxWidth],
+  );
+
   const handleMouseMove = useCallback(
     (e: MouseEvent): void => {
       const delta = e.clientX - startXRef.current;
@@ -53,22 +58,24 @@ export function usePanelResize({
         direction === "left"
           ? startWidthRef.current + delta
           : startWidthRef.current - delta;
-      const clamped = Math.min(maxWidth, Math.max(minWidth, newWidth));
+      const clamped = clamp(newWidth);
       currentWidthRef.current = clamped;
-      // Direct DOM mutation — skip React re-render during drag.
       if (panelRef.current) {
         panelRef.current.style.width = `${clamped}px`;
       }
     },
-    [direction, minWidth, maxWidth],
+    [direction, clamp],
   );
 
   const handleMouseUp = useCallback((): void => {
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
+    // Restore transition before committing final width.
+    if (panelRef.current) {
+      panelRef.current.style.transition = "";
+    }
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
-    // Commit final width to React state (single re-render).
     setWidth(currentWidthRef.current);
     setIsDragging(false);
     localStorage.setItem(
@@ -89,6 +96,10 @@ export function usePanelResize({
       e.preventDefault();
       startXRef.current = e.clientX;
       startWidthRef.current = currentWidthRef.current;
+      // Kill transition immediately — don't wait for React re-render.
+      if (panelRef.current) {
+        panelRef.current.style.transition = "none";
+      }
       setIsDragging(true);
       document.body.style.userSelect = "none";
       document.body.style.cursor = "col-resize";
