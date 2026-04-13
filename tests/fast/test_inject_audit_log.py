@@ -51,7 +51,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
+            await send_control_signal("run-1", "inject", {"running"}, "fix the bug", None)
 
         added_types = [type(obj).__name__ for obj in session_mock.added]
         assert "ControlSignal" in added_types
@@ -66,7 +66,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
+            await send_control_signal("run-1", "inject", {"running"}, "fix the bug", None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert len(audit_entries) == 1
@@ -83,7 +83,7 @@ class TestInjectWritesAuditLog:
         ):
             await send_control_signal(
                 "run-1", "inject", {"running"}, "use 10px minimum"
-            )
+            , None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert audit_entries[0].details["prompt"] == "use 10px minimum"
@@ -97,7 +97,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-42", "inject", {"running"}, "hello")
+            await send_control_signal("run-42", "inject", {"running"}, "hello", None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert audit_entries[0].run_id == "run-42"
@@ -112,7 +112,7 @@ class TestInjectWritesAuditLog:
                 patch("backend.utils.session", context),
                 patch("backend.utils.agent_request", new_callable=AsyncMock),
             ):
-                await send_control_signal("run-1", signal, {"running"}, "payload")
+                await send_control_signal("run-1", signal, {"running"}, "payload", None)
 
             audit_entries = [
                 obj for obj in session_mock.added if isinstance(obj, AuditLog)
@@ -130,7 +130,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, None)
+            await send_control_signal("run-1", "inject", {"running"}, None, None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert len(audit_entries) == 0
