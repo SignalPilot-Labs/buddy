@@ -196,6 +196,7 @@ class AgentServer:
             )
             log.info("Run %s: round loop returned %s", run_id, terminal_status)
 
+            bootstrap.run.skip_pr = active.skip_pr
             await finalize_run(
                 sandbox=sandbox,
                 run=bootstrap.run,

@@ -20,6 +20,7 @@ import {
   fmtDuration,
   shortPath,
 } from "@/components/feed/eventCardHelpers";
+import { TOOL_CATEGORIES_DEFAULT_EXPANDED } from "@/lib/constants";
 
 /* ── Child Tool Row (expandable) ── */
 export function ChildToolRow({
@@ -29,8 +30,8 @@ export function ChildToolRow({
   tool: ToolCall;
   isLast: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const cat = getToolCategory(tool.tool_name);
+  const [open, setOpen] = useState(TOOL_CATEGORIES_DEFAULT_EXPANDED.has(cat));
   const colors = TOOL_COLORS[cat];
   const inp = tool.input_data || {};
   const fp = (inp.file_path as string) || "";
@@ -338,17 +339,34 @@ export function EditGroupCard({
                   )}
                   <Chevron open={expandedFile === i} size={8} />
                 </button>
-                {expandedFile === i &&
-                  !!tools[i]?.output_data?.structuredPatch && (
+                {expandedFile === i && (() => {
+                  const patch = tools[i]?.output_data?.structuredPatch;
+                  const hasPatch = Array.isArray(patch) && (patch as unknown[]).length > 0;
+                  const content = tools[i]?.output_data?.content ?? tools[i]?.input_data?.content;
+                  const hasContent = typeof content === "string" && content.length > 0;
+                  if (!hasPatch && !hasContent) return null;
+                  const filePath =
+                    typeof tools[i]?.output_data?.filePath === "string"
+                      ? (tools[i].output_data!.filePath as string)
+                      : typeof tools[i]?.input_data?.file_path === "string"
+                        ? (tools[i].input_data!.file_path as string)
+                        : "";
+                  return (
                     <div className="px-4 pb-3">
-                      <DiffBlock
-                        patch={
-                          tools[i].output_data!
-                            .structuredPatch as Array<Record<string, unknown>>
-                        }
-                      />
+                      {hasPatch ? (
+                        <DiffBlock
+                          patch={patch as Array<Record<string, unknown>>}
+                        />
+                      ) : (
+                        <FileContentPreview
+                          content={content as string}
+                          totalLines={(content as string).split("\n").length}
+                          filePath={filePath}
+                        />
+                      )}
                     </div>
-                  )}
+                  );
+                })()}
               </div>
             ))}
           </div>

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { RunStatus } from "@/lib/types";
-import { fetchBranches, pauseAgent, resumeAgent, stopAgentInstant, killAgent, unlockAgent } from "@/lib/api";
+import { fetchBranches, pauseAgent, resumeAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useToast } from "@/hooks/useToast";
 import { RunList } from "@/components/sidebar/RunList";
@@ -20,6 +20,7 @@ import { DashboardHeader } from "@/components/header/DashboardHeader";
 import { RightPanel } from "@/components/layout/RightPanel";
 import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
 import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
+import { StopConfirmDialog } from "@/components/ui/StopConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
@@ -49,7 +50,7 @@ function MonitorPageInner() {
     historyLoading,
     activeRepoFilter,
     startModalOpen,
-    showKillConfirm,
+    showStopDialog,
     onboardingOpen,
     settingsStatus,
     sidebarCollapsed,
@@ -65,7 +66,9 @@ function MonitorPageInner() {
     handleStartRun,
     handleInject,
     handleRestart,
-    handleHeaderKill,
+    handleStopClick,
+    handleStopConfirm,
+    handleStopCancel,
     setStartModalOpen,
     setOnboardingOpen,
     setMobilePanel,
@@ -143,9 +146,7 @@ function MonitorPageInner() {
         isConfigured={isConfigured}
         atCapacity={atCapacity}
         busy={busy}
-        showKillConfirm={showKillConfirm}
-        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
-        onKill={handleHeaderKill}
+        onStop={handleStopClick}
         onNewRun={() => {
           if (!activeRepoFilter) {
             showToast("Select a repo first", "error");
@@ -210,7 +211,7 @@ function MonitorPageInner() {
       {!isMobile && (
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar */}
-          <div className={`desktop-sidebar overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
+          <div className={`desktop-sidebar h-full overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
             <RunList
               runs={runs}
               activeId={selectedRunId}
@@ -299,8 +300,7 @@ function MonitorPageInner() {
         status={runStatus}
         onPause={() => { void toastControlAction("Pause", pauseAgent); }}
         onResume={() => { void toastControlAction("Resume", resumeAgent); }}
-        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
-        onKill={() => { void toastControlAction("Kill", killAgent); }}
+        onStop={handleStopClick}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
         onToggleInject={() => setMobilePanel("feed")}
         busy={busy}
@@ -318,6 +318,13 @@ function MonitorPageInner() {
           setStartModalOpen(true);
         }}
         isConfigured={isConfigured}
+      />
+
+      {/* Stop Confirm Dialog */}
+      <StopConfirmDialog
+        open={showStopDialog}
+        onConfirm={handleStopConfirm}
+        onCancel={handleStopCancel}
       />
 
       {/* Keyboard Shortcuts Panel */}

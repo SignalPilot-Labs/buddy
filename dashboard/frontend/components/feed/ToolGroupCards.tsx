@@ -17,6 +17,7 @@ import {
   fmtDuration,
   shortPath,
 } from "@/components/feed/eventCardHelpers";
+import { TOOL_CATEGORIES_DEFAULT_EXPANDED } from "@/lib/constants";
 
 /* ── Bash Group ── */
 export function BashGroupCard({
@@ -203,8 +204,8 @@ export function PlaywrightGroupCard({
 
 /* ── Single Tool ── */
 export function SingleToolCard({ tool }: { tool: ToolCall }) {
-  const [expanded, setExpanded] = useState(false);
   const cat = getToolCategory(tool.tool_name);
+  const [expanded, setExpanded] = useState(TOOL_CATEGORIES_DEFAULT_EXPANDED.has(cat));
   const colors = TOOL_COLORS[cat];
   const denied = !tool.permitted;
   const isPending = tool.phase === "pre" && !tool.output_data;

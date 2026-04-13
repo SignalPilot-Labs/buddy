@@ -194,7 +194,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
       exit={{ opacity: 0, x: 10 }}
       className="flex justify-end px-4 py-1.5"
     >
-      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
+      <div className={`max-w-[75%] min-w-0 rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5 overflow-hidden`}>
         <div className="flex items-center justify-between gap-4 mb-1">
           <span className="text-content font-semibold uppercase tracking-wider text-[#88ccff]">
             You
@@ -209,8 +209,8 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
             {fmtTime(ts)}
           </span>
         </div>
-        <div className="max-h-[300px] overflow-y-auto">
-          <MarkdownContent content={prompt} className="text-body text-[#cce8ff]" />
+        <div className="max-h-[300px] overflow-y-auto text-body text-[#cce8ff] whitespace-pre-wrap break-words leading-relaxed">
+          {prompt}
         </div>
       </div>
     </motion.div>

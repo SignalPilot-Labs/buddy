@@ -15,7 +15,6 @@ interface MobileControlSheetProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
-  onKill: () => void;
   onUnlock: () => void;
   onToggleInject: () => void;
   busy: boolean;
@@ -35,7 +34,6 @@ export function MobileControlSheet({
   onPause,
   onResume,
   onStop,
-  onKill,
   onUnlock,
   onToggleInject,
   busy,
@@ -191,22 +189,6 @@ export function MobileControlSheet({
                       }
                     >
                       Stop
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="md"
-                      disabled={!isActive || busy}
-                      onClick={() => { onKill(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="5" cy="5" r="4" />
-                          <line x1="3" y1="3" x2="7" y2="7" />
-                          <line x1="7" y1="3" x2="3" y2="7" />
-                        </svg>
-                      }
-                    >
-                      Kill
                     </Button>
                     <Button
                       variant="warning"

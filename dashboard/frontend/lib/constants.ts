@@ -44,6 +44,7 @@ export const TOAST_DURATION_MS = 3000;
 export const MAX_VISIBLE_TOASTS = 3;
 
 // Event feed
+export const TOOL_CATEGORIES_DEFAULT_EXPANDED: ReadonlySet<string> = new Set(["todo"]);
 export const SCROLL_BOTTOM_THRESHOLD = 20;
 export const AGENT_IDLE_TIMER_INTERVAL_MS = 5000;
 

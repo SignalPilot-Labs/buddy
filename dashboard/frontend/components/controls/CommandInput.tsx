@@ -81,7 +81,9 @@ export function CommandInput({
     if (!el) return;
     el.style.height = "auto";
     const maxHeight = TEXTAREA_LINE_HEIGHT * MAX_TEXTAREA_ROWS + TEXTAREA_VERTICAL_PADDING;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    const clamped = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${clamped}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   }, []);
 
   useEffect(() => {
@@ -168,7 +170,7 @@ export function CommandInput({
           placeholder={placeholder}
           rows={2}
           disabled={!runId}
-          className="w-full bg-black/40 border border-border rounded-lg px-3 py-3 text-content text-accent-hover placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#88ccff]/40 focus-visible:ring-1 focus-visible:ring-[#88ccff]/40 focus-visible:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6 overflow-hidden"
+          className="w-full bg-black/40 border border-border rounded-lg px-3 py-3 text-content text-accent-hover placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#88ccff]/40 focus-visible:ring-1 focus-visible:ring-[#88ccff]/40 focus-visible:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
           style={{ minHeight: "60px" }}
         />
       </div>

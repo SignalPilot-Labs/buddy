@@ -43,7 +43,7 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            result = await send_control_signal("run-1", "pause", {"running"}, None)
+            result = await send_control_signal("run-1", "pause", {"running"}, None, None)
             assert result["ok"] is True
             mock_agent.assert_called_once()
             args = mock_agent.call_args
@@ -60,7 +60,7 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
             result = await send_control_signal(
-                "run-1", "inject", {"running"}, "focus on tests"
+                "run-1", "inject", {"running"}, "focus on tests", None
             )
             assert result["ok"] is True
             mock_agent.assert_called_once()
@@ -75,7 +75,7 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            await send_control_signal("run-1", "stop", {"running"}, "user stop")
+            await send_control_signal("run-1", "stop", {"running"}, "user stop", None)
             mock_agent.assert_called_once()
             assert mock_agent.call_args[0][1] == "/stop"
 
@@ -86,20 +86,9 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            await send_control_signal("run-1", "resume", {"paused"}, None)
+            await send_control_signal("run-1", "resume", {"paused"}, None, None)
             mock_agent.assert_called_once()
             assert mock_agent.call_args[0][1] == "/resume"
-
-    @pytest.mark.asyncio
-    async def test_forwards_kill_to_agent(self):
-        run = _mock_run("running")
-        with (
-            patch("backend.utils.session", _mock_session(run)),
-            patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
-        ):
-            await send_control_signal("run-1", "kill", {"running"}, None)
-            mock_agent.assert_called_once()
-            assert mock_agent.call_args[0][1] == "/kill"
 
     @pytest.mark.asyncio
     async def test_rejects_wrong_status(self):
@@ -108,7 +97,7 @@ class TestSendControlSignalForwardsToAgent:
             from fastapi import HTTPException
 
             with pytest.raises(HTTPException) as exc_info:
-                await send_control_signal("run-1", "pause", {"running"}, None)
+                await send_control_signal("run-1", "pause", {"running"}, None, None)
             assert exc_info.value.status_code == 409
 
     @pytest.mark.asyncio
@@ -117,7 +106,7 @@ class TestSendControlSignalForwardsToAgent:
             from fastapi import HTTPException
 
             with pytest.raises(HTTPException) as exc_info:
-                await send_control_signal("nonexistent", "pause", {"running"}, None)
+                await send_control_signal("nonexistent", "pause", {"running"}, None, None)
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -129,7 +118,7 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
             result = await send_control_signal(
-                "run-1", "inject", {"running", "paused"}, "do this"
+                "run-1", "inject", {"running", "paused"}, "do this", None
             )
             assert result["ok"] is True
             assert mock_agent.call_args[0][3] == {"payload": "do this"}
@@ -147,6 +136,7 @@ class TestSendControlSignalForwardsToAgent:
                 "inject",
                 {"running", "paused", "rate_limited"},
                 "retry",
+                None,
             )
             assert result["ok"] is True
             mock_agent.assert_called_once()
@@ -177,7 +167,7 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", mock_agent),
         ):
-            await send_control_signal("run-1", "stop", {"running"}, "bye")
+            await send_control_signal("run-1", "stop", {"running"}, "bye", None)
 
         assert call_order == ["db_add", "db_commit", "agent_forward"]
 
@@ -191,7 +181,7 @@ class TestSendControlSignalForwardsToAgent:
         ):
             mock_agent.side_effect = Exception("agent down")
             with pytest.raises(Exception, match="agent down"):
-                await send_control_signal("run-1", "pause", {"running"}, None)
+                await send_control_signal("run-1", "pause", {"running"}, None, None)
             # agent_request was called (it raised), so DB write already happened
             mock_agent.assert_called_once()
 
@@ -204,26 +194,37 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
             result = await send_control_signal(
-                "run-1", "custom_signal", {"running"}, None
+                "run-1", "custom_signal", {"running"}, None, None
             )
             assert result["ok"] is True
             mock_agent.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_stop_forwards_no_json_body(self):
-        """Stop signal should NOT send payload as json body — agent ignores it."""
+    async def test_stop_forwards_extra_body(self):
+        """Stop signal forwards extra_body to agent when provided."""
         run = _mock_run("running")
         with (
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            await send_control_signal("run-1", "stop", {"running"}, "reason text")
-            assert mock_agent.call_args[0][3] is None  # json_body is None for stop
+            await send_control_signal("run-1", "stop", {"running"}, "reason text", {"skip_pr": True})
+            assert mock_agent.call_args[0][3] == {"skip_pr": True}
+
+    @pytest.mark.asyncio
+    async def test_stop_without_extra_body_sends_none(self):
+        """Stop signal sends no json body when extra_body is None."""
+        run = _mock_run("running")
+        with (
+            patch("backend.utils.session", _mock_session(run)),
+            patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
+        ):
+            await send_control_signal("run-1", "stop", {"running"}, "reason text", None)
+            assert mock_agent.call_args[0][3] is None
 
     @pytest.mark.asyncio
     async def test_all_signals_pass_run_id_as_param(self):
         """Every signal type must pass run_id in params dict."""
-        for signal in ("pause", "resume", "stop", "unlock", "inject", "kill"):
+        for signal in ("pause", "resume", "stop", "unlock", "inject"):
             run = _mock_run("running")
             valid = {"running", "paused"}
             with (
@@ -232,7 +233,7 @@ class TestSendControlSignalForwardsToAgent:
                     "backend.utils.agent_request", new_callable=AsyncMock
                 ) as mock_agent,
             ):
-                await send_control_signal("run-42", signal, valid, "payload")
+                await send_control_signal("run-42", signal, valid, "payload", None)
                 assert mock_agent.call_args[0][4] == {
                     "run_id": "run-42"
                 }, f"{signal} missing run_id"

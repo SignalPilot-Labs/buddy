@@ -26,6 +26,7 @@ from utils.models import (
     HealthRunEntry,
     InjectRequest,
     StartRequest,
+    StopRequest,
 )
 
 if TYPE_CHECKING:
@@ -118,10 +119,11 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
     # ── Control Signals ────────────────────────────────────────────────
 
     @app.post("/stop")
-    async def stop(run_id: str | None = None):
+    async def stop(body: StopRequest, run_id: str | None = None):
         r = server.get_run_or_first(run_id)
         if not r.inbox:
             raise HTTPException(status_code=409, detail="Run not accepting signals")
+        r.skip_pr = body.skip_pr
         r.inbox.push("stop", "User stop via API")
         return {"ok": True, "event": "stop", "run_id": r.run_id}
 
@@ -159,13 +161,6 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         if r.inbox:
             r.inbox.push("unlock", "")
         return {"ok": True, "event": "unlock", "run_id": r.run_id}
-
-    @app.post("/kill")
-    async def kill(run_id: str | None = None):
-        r = server.get_run_or_first(run_id)
-        if r.task and not r.task.done():
-            r.task.cancel()
-        return {"ok": True, "event": "kill", "run_id": r.run_id}
 
     @app.post("/cleanup")
     async def cleanup():

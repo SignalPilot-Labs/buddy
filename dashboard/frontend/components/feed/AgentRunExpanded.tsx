@@ -45,6 +45,31 @@ export function AgentRunExpanded({
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="border-t border-white/[0.04] overflow-hidden"
     >
+      {prompt && (
+        <div className="border-b border-white/[0.03]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPrompt(!showPrompt);
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2 text-body text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+          >
+            <Chevron open={showPrompt} size={8} />
+            Prompt
+          </button>
+          {showPrompt && (
+            <div className="px-4 pb-3">
+              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[250px] overflow-y-auto">
+                <MarkdownContent
+                  content={prompt}
+                  className="text-content text-accent-hover"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {childTools.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] bg-black/10">
           <span className="text-body text-text-secondary uppercase tracking-wider">
@@ -81,28 +106,6 @@ export function AgentRunExpanded({
         </div>
       )}
 
-      {prompt && (
-        <div className="border-t border-white/[0.03]">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowPrompt(!showPrompt);
-            }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-body text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
-          >
-            <Chevron open={showPrompt} size={8} />
-            Prompt
-          </button>
-          {showPrompt && (
-            <div className="px-4 pb-3">
-              <div className="text-content text-accent-hover whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
-                {prompt}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {finalText && (
         <div className="border-t border-white/[0.03]">
           <button
@@ -117,7 +120,7 @@ export function AgentRunExpanded({
           </button>
           {showFinalText && (
             <div className="px-4 pb-3">
-              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
+              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[250px] overflow-y-auto">
                 <MarkdownContent
                   content={finalText}
                   className="text-content text-accent-hover"

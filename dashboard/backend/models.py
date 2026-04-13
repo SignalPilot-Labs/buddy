@@ -15,6 +15,13 @@ class ControlSignalRequest(BaseModel):
     payload: str | None = None
 
 
+class StopRunRequest(BaseModel):
+    """Request body for the stop endpoint."""
+
+    payload: str | None = None
+    skip_pr: bool
+
+
 class StartRunRequest(BaseModel):
     """Request body for starting a new run."""
 
