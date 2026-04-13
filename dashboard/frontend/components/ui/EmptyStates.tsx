@@ -85,7 +85,7 @@ export function EmptyRuns() {
         <line x1="33" y1="36" x2="39" y2="36" stroke="rgba(0,255,136,0.3)" strokeWidth="1" />
       </svg>
       <div className="text-center space-y-1">
-        <p className="text-[11px] text-accent-hover">No runs yet</p>
+        <p className="text-[12px] text-accent-hover">No runs yet</p>
         <p className="text-[10px] text-text-dim">Start an improvement run to begin</p>
       </div>
     </div>
