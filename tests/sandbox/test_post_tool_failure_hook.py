@@ -30,6 +30,7 @@ class TestPostToolUseFailureHook:
     async def test_failure_hook_logs_error_as_post(self) -> None:
         """PostToolUseFailure should log phase=post with output_data containing error."""
         session = Session("test-sess", dict(BASE_SESSION_OPTS))
+        hooks = session._hooks
 
         hook_input = {
             "tool_name": "Read",
@@ -39,9 +40,9 @@ class TestPostToolUseFailureHook:
             "tool_input": {"file_path": "/nonexistent.ts"},
         }
 
-        with patch("session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
+        with patch("session.hooks.log_tool_call", new_callable=AsyncMock) as mock_log:
             ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
-            await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
+            await hooks._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             mock_log.assert_awaited_once()
             args = mock_log.call_args[0]
@@ -57,8 +58,8 @@ class TestPostToolUseFailureHook:
     async def test_failure_hook_tracks_duration(self) -> None:
         """PostToolUseFailure should calculate duration from pre_tool_times."""
         session = Session("test-sess", dict(BASE_SESSION_OPTS))
-        # Simulate pre_tool having been called
-        session._pre_tool_times["tu-abc"] = time.time() - 0.1  # 100ms ago
+        hooks = session._hooks
+        hooks._pre_tool_times["tu-abc"] = time.time() - 0.1  # 100ms ago
 
         hook_input = {
             "tool_name": "Read",
@@ -67,12 +68,12 @@ class TestPostToolUseFailureHook:
             "session_id": "sess-1",
         }
 
-        with patch("session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
+        with patch("session.hooks.log_tool_call", new_callable=AsyncMock) as mock_log:
             ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
-            await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
+            await hooks._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             args = mock_log.call_args[0]
             ctx_arg = args[2]  # ToolContext
             assert ctx_arg.duration_ms is not None
             assert ctx_arg.duration_ms >= 90  # at least ~100ms
-            assert "tu-abc" not in session._pre_tool_times  # cleaned up
+            assert "tu-abc" not in hooks._pre_tool_times  # cleaned up
