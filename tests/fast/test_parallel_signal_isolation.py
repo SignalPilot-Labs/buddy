@@ -85,8 +85,8 @@ class TestParallelSignalIsolation:
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
             pause_result = await send_control_signal(
-                "run-2", "pause", {"running"}, None
-            , None)
+                "run-2", "pause", {"running"}, None, None
+            )
 
         assert pause_result["ok"] is True
         args = mock_agent.call_args[0]

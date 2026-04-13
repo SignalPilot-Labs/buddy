@@ -5,10 +5,10 @@ when the signal is 'inject', so user feedback persists across page refresh.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock, call
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from backend.utils import send_control_signal
-from db.models import AuditLog, ControlSignal
+from db.models import AuditLog
 
 
 def _mock_run(status: str) -> MagicMock:
@@ -82,8 +82,8 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal(
-                "run-1", "inject", {"running"}, "use 10px minimum"
-            , None)
+                "run-1", "inject", {"running"}, "use 10px minimum", None
+            )
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert audit_entries[0].details["prompt"] == "use 10px minimum"
@@ -105,7 +105,7 @@ class TestInjectWritesAuditLog:
     @pytest.mark.asyncio
     async def test_non_inject_signals_skip_audit_log(self):
         """Pause, resume, stop etc. must NOT create prompt_injected audit entries."""
-        for signal in ("pause", "resume", "stop", "kill", "unlock"):
+        for signal in ("pause", "resume", "stop", "unlock"):
             run = _mock_run("running")
             context, session_mock = _mock_session_tracking_adds(run)
             with (

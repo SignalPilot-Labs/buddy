@@ -385,7 +385,7 @@ class InjectRequest(BaseModel):
 class StopRequest(BaseModel):
     """POST /stop request body."""
 
-    skip_pr: bool = False
+    skip_pr: bool
 
 
 class HealthRunEntry(BaseModel):

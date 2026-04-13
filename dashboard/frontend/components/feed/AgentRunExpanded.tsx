@@ -59,7 +59,7 @@ export function AgentRunExpanded({
           </button>
           {showPrompt && (
             <div className="px-4 pb-3">
-              <div className="text-content text-accent-hover whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-white/[0.03]">
+              <div className="text-content text-accent-hover whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[400px] overflow-y-auto">
                 {prompt}
               </div>
             </div>
