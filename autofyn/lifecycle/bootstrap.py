@@ -77,6 +77,9 @@ async def bootstrap_run(
     else:
         await db.update_run_branch(run_id, branch_name)
 
+    # On resume, seed cost/token accumulators from the DB so teardown
+    # doesn't overwrite the previous run's totals with zeros.
+    prior = await db.get_run_for_resume(run_id) if existing_branch else None
     run = RunContext(
         run_id=run_id,
         agent_role=DEFAULT_AGENT_ROLE,
@@ -84,6 +87,11 @@ async def bootstrap_run(
         base_branch=base_branch,
         duration_minutes=duration_minutes,
         github_repo=github_repo,
+        total_cost=prior["total_cost_usd"] if prior else 0.0,
+        total_input_tokens=prior["total_input_tokens"] if prior else 0,
+        total_output_tokens=prior["total_output_tokens"] if prior else 0,
+        cache_creation_input_tokens=prior["cache_creation_input_tokens"] if prior else 0,
+        cache_read_input_tokens=prior["cache_read_input_tokens"] if prior else 0,
     )
     inbox = UserInbox()
     time_lock = TimeLock(duration_minutes)

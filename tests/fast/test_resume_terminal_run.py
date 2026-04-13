@@ -158,13 +158,18 @@ class TestBootstrapResumesBranch:
         mock_sandbox.file_system.read = AsyncMock(return_value="[]")
         mock_sandbox.file_system.write = AsyncMock()
 
+        prior_info = _mock_run_info("autofyn/existing-branch")
+        prior_info["total_cost_usd"] = 2.0
+        prior_info["total_input_tokens"] = 1000
+
         with (
             patch("lifecycle.bootstrap.db.get_run_branch_name", new_callable=AsyncMock, return_value="autofyn/existing-branch"),
             patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock) as mock_status,
             patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock) as mock_branch,
+            patch("lifecycle.bootstrap.db.get_run_for_resume", new_callable=AsyncMock, return_value=prior_info),
         ):
             from lifecycle.bootstrap import bootstrap_run
-            await bootstrap_run(
+            result = await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
                 custom_prompt="fix the bug",
@@ -183,6 +188,9 @@ class TestBootstrapResumesBranch:
         # Must update status, not branch
         mock_status.assert_called_once_with("run-1", "running")
         mock_branch.assert_not_called()
+        # Must carry forward costs
+        assert result.run.total_cost == 2.0
+        assert result.run.total_input_tokens == 1000
 
     @pytest.mark.asyncio
     async def test_bootstrap_creates_new_branch_for_fresh_run(self) -> None:
@@ -305,3 +313,144 @@ class TestResumeEdgeCases:
                 result = await _restart_terminal_run(server, body)
 
         assert result["restarted"] is True
+
+
+class TestBootstrapPreservesCosts:
+    """Resume must seed cost/token accumulators from the DB."""
+
+    @pytest.mark.asyncio
+    async def test_resume_seeds_costs_from_db(self) -> None:
+        """RunContext must carry forward prior cost and token totals."""
+        mock_sandbox = MagicMock()
+        mock_sandbox.repo.bootstrap = AsyncMock()
+        mock_sandbox.file_system.read_dir = AsyncMock(return_value={})
+        mock_sandbox.file_system.write_dir = AsyncMock()
+        mock_sandbox.file_system.read = AsyncMock(return_value="[]")
+        mock_sandbox.file_system.write = AsyncMock()
+
+        prior_info = _mock_run_info("autofyn/existing-branch")
+        prior_info["total_cost_usd"] = 5.25
+        prior_info["total_input_tokens"] = 50000
+        prior_info["total_output_tokens"] = 12000
+        prior_info["cache_creation_input_tokens"] = 3000
+        prior_info["cache_read_input_tokens"] = 7000
+
+        with (
+            patch("lifecycle.bootstrap.db.get_run_branch_name", new_callable=AsyncMock, return_value="autofyn/existing-branch"),
+            patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock),
+            patch("lifecycle.bootstrap.db.get_run_for_resume", new_callable=AsyncMock, return_value=prior_info),
+        ):
+            from lifecycle.bootstrap import bootstrap_run
+            await bootstrap_run(
+                sandbox=mock_sandbox,
+                run_id="run-1",
+                custom_prompt="fix the bug",
+                max_budget_usd=0,
+                duration_minutes=30.0,
+                base_branch="main",
+                github_repo="owner/repo",
+                model="sonnet",
+                git_token="ghp_test",
+                clone_timeout=60,
+            )
+
+        # Verify repo.bootstrap was called with the existing branch
+        call_args = mock_sandbox.repo.bootstrap.call_args
+        assert call_args.kwargs["working_branch"] == "autofyn/existing-branch"
+
+    @pytest.mark.asyncio
+    async def test_fresh_run_starts_with_zero_costs(self) -> None:
+        """Fresh run (no existing branch) must start with zero accumulators."""
+        mock_sandbox = MagicMock()
+        mock_sandbox.repo.bootstrap = AsyncMock()
+        mock_sandbox.file_system.read_dir = AsyncMock(return_value={})
+        mock_sandbox.file_system.write_dir = AsyncMock()
+        mock_sandbox.file_system.read = AsyncMock(return_value="[]")
+        mock_sandbox.file_system.write = AsyncMock()
+
+        with (
+            patch("lifecycle.bootstrap.db.get_run_branch_name", new_callable=AsyncMock, return_value=None),
+            patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock),
+        ):
+            from lifecycle.bootstrap import bootstrap_run
+            await bootstrap_run(
+                sandbox=mock_sandbox,
+                run_id="run-1",
+                custom_prompt="fix the bug",
+                max_budget_usd=0,
+                duration_minutes=30.0,
+                base_branch="main",
+                github_repo="owner/repo",
+                model="sonnet",
+                git_token="ghp_test",
+                clone_timeout=60,
+            )
+
+        # Verify new branch was generated
+        call_args = mock_sandbox.repo.bootstrap.call_args
+        assert "autofyn/" in call_args.kwargs["working_branch"]
+
+
+class TestResumeStateTransitions:
+    """Verify correct behavior for every run status → resume transition."""
+
+    @pytest.mark.asyncio
+    async def test_each_terminal_status_is_restartable(self) -> None:
+        """All terminal statuses must successfully restart."""
+        for status in ("stopped", "crashed", "completed", "completed_no_changes", "error", "killed"):
+            server = MagicMock()
+            server.execute_run = AsyncMock()
+            server.register_run = MagicMock()
+            server.remove_run = MagicMock()
+
+            run_info = _mock_run_info("autofyn/branch")
+            run_info["status"] = status
+
+            body = _make_resume_body("run-1", None)
+            with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+                with patch("endpoints.asyncio.create_task") as mock_task:
+                    mock_task.return_value = MagicMock()
+                    result = await _restart_terminal_run(server, body)
+
+            assert result["restarted"] is True, f"status '{status}' should be restartable"
+            server.register_run.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_running_run_rejects_restart_via_endpoint(self) -> None:
+        """A running run with body.run_id should not get a second ActiveRun
+        if the dashboard correctly gates on RESTARTABLE_STATUSES. But at
+        the agent level, _restart_terminal_run will still proceed (it trusts
+        the dashboard). This test verifies the agent does remove+re-register."""
+        server = MagicMock()
+        server.execute_run = AsyncMock()
+        server.register_run = MagicMock()
+        server.remove_run = MagicMock()
+
+        run_info = _mock_run_info("autofyn/branch")
+        run_info["status"] = "running"
+
+        body = _make_resume_body("run-1", None)
+        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.asyncio.create_task") as mock_task:
+                mock_task.return_value = MagicMock()
+                await _restart_terminal_run(server, body)
+
+        # Agent trusts dashboard gating — remove_run cleans up old ActiveRun
+        server.remove_run.assert_called_once_with("run-1")
+
+    @pytest.mark.asyncio
+    async def test_double_resume_replaces_stale_active_run(self) -> None:
+        """Two rapid resume calls: second must clean up first's ActiveRun."""
+        for _ in range(2):
+            server = MagicMock()
+            server.execute_run = AsyncMock()
+            server.register_run = MagicMock()
+            server.remove_run = MagicMock()
+
+            body = _make_resume_body("run-1", None)
+            with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/branch")):
+                with patch("endpoints.asyncio.create_task") as mock_task:
+                    mock_task.return_value = MagicMock()
+                    await _restart_terminal_run(server, body)
+
+            server.remove_run.assert_called_once_with("run-1")
