@@ -4,16 +4,16 @@
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
 
   /* Typography scale — 5-tier hierarchy */
-  --font-size-title: 14px;
-  --font-size-title--line-height: 1.3;
-  --font-size-body: 13px;
-  --font-size-body--line-height: 1.4;
-  --font-size-content: 12px;
-  --font-size-content--line-height: 1.4;
-  --font-size-meta: 11px;
-  --font-size-meta--line-height: 1.45;
-  --font-size-caption: 10px;
-  --font-size-caption--line-height: 1.5;
+  --text-title: 14px;
+  --text-title--line-height: 1.3;
+  --text-body: 13px;
+  --text-body--line-height: 1.4;
+  --text-content: 12px;
+  --text-content--line-height: 1.4;
+  --text-meta: 11px;
+  --text-meta--line-height: 1.45;
+  --text-caption: 10px;
+  --text-caption--line-height: 1.5;
 
   /* SignalPilot Design System */
   --color-bg: #050505;
