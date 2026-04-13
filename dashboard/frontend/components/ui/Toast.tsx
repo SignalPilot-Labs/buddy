@@ -40,7 +40,7 @@ function ToastRow({ toast, onDismiss }: { toast: ToastItemData; onDismiss: (id: 
       transition={{ duration: 0.2, ease: "easeOut" }}
       className={[
         "flex items-center gap-2 px-3 py-2 rounded border frosted-glass",
-        "text-[11px] font-medium cursor-pointer select-none min-w-[160px] max-w-[280px]",
+        "text-[12px] font-medium cursor-pointer select-none min-w-[160px] max-w-[280px]",
         VARIANT_STYLES[toast.variant],
         VARIANT_BG[toast.variant],
       ].join(" ")}

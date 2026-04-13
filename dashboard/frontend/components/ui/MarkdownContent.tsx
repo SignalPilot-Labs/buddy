@@ -13,10 +13,10 @@ interface MarkdownContentProps {
 
 const MARKDOWN_COMPONENTS: Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  h1: ({ children }) => <h1 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[14px]">{children}</h1>,
-  h2: ({ children }) => <h2 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[13px]">{children}</h2>,
-  h3: ({ children }) => <h3 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[12px]">{children}</h3>,
-  h4: ({ children }) => <h4 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[11px]">{children}</h4>,
+  h1: ({ children }) => <h1 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[18px]">{children}</h1>,
+  h2: ({ children }) => <h2 className="font-medium leading-tight mb-1.5 mt-3 first:mt-0 text-[15px]">{children}</h2>,
+  h3: ({ children }) => <h3 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[14px]">{children}</h3>,
+  h4: ({ children }) => <h4 className="font-semibold leading-tight mb-1.5 mt-3 first:mt-0 text-[13px]">{children}</h4>,
   strong: ({ children }) => <strong className="font-semibold text-[#ddd]">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   del: ({ children }) => <del className="opacity-60">{children}</del>,

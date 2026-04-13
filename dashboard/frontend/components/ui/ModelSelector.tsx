@@ -55,13 +55,13 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
           >
             <div
               className={clsx(
-                "text-[10px] font-medium leading-tight",
+                "text-[12px] font-medium leading-tight",
                 selected ? "text-text" : "text-accent-hover"
               )}
             >
               {spec.label}
             </div>
-            <div className="text-[10px] text-text-muted mt-0.5 leading-tight">
+            <div className="text-[11px] text-text-muted mt-0.5 leading-tight">
               {spec.description}
             </div>
             <div

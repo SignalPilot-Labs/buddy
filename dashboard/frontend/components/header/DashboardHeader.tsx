@@ -137,7 +137,7 @@ export function DashboardHeader({
         >
           <div className="w-px h-4 bg-border" />
           <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-          <span className="text-[10px] text-text-secondary font-medium">
+          <span className="text-[11px] text-text-secondary font-medium">
             {selectedRun.branch_name.replace("autofyn/", "")}
           </span>
         </motion.div>
@@ -161,7 +161,7 @@ export function DashboardHeader({
           }`}
           style={!agentIdle && !agentBootstrapping && agentReachable ? { boxShadow: "0 0 4px rgba(0,255,136,0.3)" } : undefined}
         />
-        <span className="text-[10px] text-text-secondary">{healthLabel}</span>
+        <span className="text-[11px] text-text-secondary">{healthLabel}</span>
       </div>
 
       {/* Mobile Access QR */}
@@ -217,7 +217,7 @@ export function DashboardHeader({
           </Button>
         )}
         {sessionLocked && activeRunHealth?.time_remaining && (
-          <span className="text-[10px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
+          <span className="text-[11px] text-[#ffaa00]/80 tabular-nums mr-1 flex items-center gap-1">
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#ffaa00" strokeWidth="1" opacity="0.5">
               <rect x="1.5" y="4" width="5" height="3" rx="0.5" />
               <path d="M2.5 4V3a1.5 1.5 0 013 0v1" />
