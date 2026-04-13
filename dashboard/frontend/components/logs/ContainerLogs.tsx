@@ -73,7 +73,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
         <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-text-muted">
           Sandbox Logs
         </span>
-        <span className="text-[10px] text-text-dim tabular-nums ml-auto">
+        <span className="text-[11px] text-text-dim tabular-nums ml-auto">
           {filtered.length} lines
         </span>
       </div>
@@ -93,7 +93,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto font-mono text-[10px] leading-[16px] px-2 py-1"
+        className="flex-1 overflow-y-auto font-mono text-[11px] leading-[16px] px-2 py-1"
       >
         {loading && lines.length === 0 && (
           <div className="flex items-center justify-center py-8">
@@ -109,7 +109,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
         ))}
 
         {!loading && lines.length === 0 && (
-          <div className="text-[10px] text-text-dim px-2 py-6 text-center">
+          <div className="text-[11px] text-text-dim px-2 py-6 text-center">
             No logs available
           </div>
         )}
@@ -124,7 +124,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
             setAutoScroll(true);
             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-[10px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
+          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-[11px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
         >
           Scroll to bottom
         </button>
