@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { ToolCall } from "@/lib/types";
 import { type ToolCategory } from "@/lib/types";
@@ -38,6 +39,7 @@ export function AgentRunExpanded({
   setShowFinalText: (v: boolean) => void;
   isFinalizing: boolean;
 }) {
+  const [showTools, setShowTools] = useState(false);
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
@@ -71,30 +73,39 @@ export function AgentRunExpanded({
       )}
 
       {childTools.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] bg-black/10">
-          <span className="text-body text-text-secondary uppercase tracking-wider">
-            {childTools.length} tool calls
-          </span>
-          {totalChildDuration > 0 && (
-            <span className="text-caption text-text-dim tabular-nums">
-              {fmtDuration(totalChildDuration)}
+        <div className="border-b border-white/[0.03]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTools(!showTools);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 bg-black/10 hover:bg-white/[0.02] transition-colors text-left"
+          >
+            <Chevron open={showTools} size={8} />
+            <span className="text-body text-text-secondary uppercase tracking-wider">
+              {childTools.length} tool calls
             </span>
-          )}
-          <div className="flex items-center gap-2 ml-auto">
-            {childSummary.map(({ cat, count }) => (
-              <span
-                key={cat}
-                className="flex items-center gap-1 text-caption text-text-dim"
-              >
-                <span className="opacity-50">{getToolIcon(cat, "#888")}</span>
-                <span className="tabular-nums">{count}</span>
+            {totalChildDuration > 0 && (
+              <span className="text-caption text-text-dim tabular-nums">
+                {fmtDuration(totalChildDuration)}
               </span>
-            ))}
-          </div>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {childSummary.map(({ cat, count }) => (
+                <span
+                  key={cat}
+                  className="flex items-center gap-1 text-caption text-text-dim"
+                >
+                  <span className="opacity-50">{getToolIcon(cat, "#888")}</span>
+                  <span className="tabular-nums">{count}</span>
+                </span>
+              ))}
+            </div>
+          </button>
         </div>
       )}
 
-      {childTools.length > 0 && (
+      {showTools && childTools.length > 0 && (
         <div className="max-h-[150px] overflow-y-auto">
           {childTools.map((ct, idx) => (
             <ChildToolRow
