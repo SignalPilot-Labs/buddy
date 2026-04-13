@@ -79,7 +79,7 @@ export function RateLimitBanner({
                   resets {formatResetTime(resetsAt)} ({formatCountdown(remaining)})
                 </span>
               </div>
-              <p className="mt-1 text-[11px] text-text-secondary leading-relaxed">
+              <p className="mt-1 text-[13px] text-text-secondary leading-relaxed">
                 Your Claude account has hit its usage limit.
                 {" "}
                 <a

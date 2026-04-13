@@ -35,7 +35,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         "active:scale-[0.97]",
         "focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[var(--color-success)]",
         variantStyles[variant],
-        size === "sm" ? "px-2 py-1 text-[10px]" : size === "md" ? "px-3 py-1.5 text-[11px]" : size === "pill" ? "rounded-full px-3 py-1 text-[11px]" : "px-4 py-2.5 text-[13px] min-h-[44px]",
+        size === "sm" ? "px-2 py-1 text-[10px]" : size === "md" ? "px-3 py-1.5 text-[12px]" : size === "pill" ? "rounded-full px-3 py-1 text-[11px]" : "px-4 py-2.5 text-[13px] min-h-[44px]",
         className
       )}
       {...props}

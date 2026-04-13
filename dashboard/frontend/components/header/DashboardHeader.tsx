@@ -117,7 +117,7 @@ export function DashboardHeader({
           </svg>
           <Image src="/logo.svg" alt="AutoFyn" width={18} height={18} className="relative z-[1]" />
         </div>
-        <h1 className="text-[12px] font-bold text-text tracking-tight">AutoFyn</h1>
+        <h1 className="text-[14px] font-bold text-text tracking-tight">AutoFyn</h1>
       </div>
 
       {/* Repo Selector */}

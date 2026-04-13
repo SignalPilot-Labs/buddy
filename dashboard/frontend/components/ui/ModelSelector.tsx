@@ -61,7 +61,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
             >
               {spec.label}
             </div>
-            <div className="text-[11px] text-text-muted mt-0.5 leading-tight">
+            <div className="text-[13px] text-text-muted mt-0.5 leading-tight">
               {spec.description}
             </div>
             <div

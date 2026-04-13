@@ -71,7 +71,7 @@ export function CredentialField({
             value={editValue || ""}
             onChange={(e) => onEditChange(e.target.value)}
             placeholder={field.placeholder}
-            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[11px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
+            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-[12px] text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
             autoComplete="off"
             spellCheck={false}
           />

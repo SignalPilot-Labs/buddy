@@ -70,7 +70,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           <path d="M3 4l2 2-2 2" />
           <line x1="6" y1="8" x2="9" y2="8" />
         </svg>
-        <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-muted">
+        <span className="text-[13px] font-bold uppercase tracking-[0.15em] text-text-muted">
           Sandbox Logs
         </span>
         <span className="text-[10px] text-text-dim tabular-nums ml-auto">
@@ -85,7 +85,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter logs..."
-          className="w-full bg-transparent text-[10px] text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
+          className="w-full bg-transparent text-[12px] text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
         />
       </div>
 

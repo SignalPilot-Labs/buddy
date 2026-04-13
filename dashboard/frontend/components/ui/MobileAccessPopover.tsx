@@ -68,7 +68,7 @@ export function MobileAccessPopover() {
             className="absolute top-full right-0 mt-1 z-50 w-[260px] bg-bg-card border border-border rounded-lg shadow-xl shadow-black/50 overflow-hidden"
           >
             <div className="px-3 py-2 border-b border-border">
-              <span className="text-[10px] uppercase tracking-[0.1em] text-text-secondary font-semibold">
+              <span className="text-[12px] uppercase tracking-[0.1em] text-text-secondary font-semibold">
                 Mobile Access
               </span>
             </div>
@@ -102,12 +102,12 @@ export function MobileAccessPopover() {
                     </button>
                   </div>
 
-                  <p className="text-[10px] text-text-secondary leading-relaxed">
+                  <p className="text-[12px] text-text-secondary leading-relaxed">
                     Scan from your phone on the same WiFi network.
                   </p>
                 </>
               ) : (
-                <p className="text-[10px] text-text-secondary leading-relaxed">
+                <p className="text-[12px] text-text-secondary leading-relaxed">
                   Could not detect local network IP. Start with{" "}
                   <span className="font-mono text-text-secondary">./start.sh</span> or set{" "}
                   <span className="font-mono text-text-secondary">HOST_IP</span> env var.

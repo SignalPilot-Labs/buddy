@@ -28,7 +28,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return this.props.fallback ?? (
-        <div className="text-[10px] text-text-secondary p-2 rounded border border-border">
+        <div className="text-[12px] text-text-secondary p-2 rounded border border-border">
           Display error — data may be malformed
         </div>
       );

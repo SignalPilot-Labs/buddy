@@ -70,7 +70,7 @@ export function KeyboardShortcuts({ open, onClose }: KeyboardShortcutsProps) {
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[12px] font-bold text-[var(--color-text)] tracking-wide uppercase">
+              <h2 className="text-[14px] font-bold text-[var(--color-text)] tracking-wide uppercase">
                 Keyboard Shortcuts
               </h2>
               <button
