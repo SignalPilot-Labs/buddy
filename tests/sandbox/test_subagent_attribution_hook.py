@@ -37,7 +37,7 @@ def _make_session() -> Session:
     return Session("test-sess", dict(BASE_SESSION_OPTS))
 
 
-def _hook_ctx() -> HookContext:
+def _hook_context() -> HookContext:
     return cast(HookContext, {"cwd": "/tmp", "session_id": "s", "transcript_path": ""})
 
 
@@ -48,14 +48,21 @@ class TestAgentPreToolUseEnqueue:
     async def test_agent_pre_enqueues_tool_use_id(self) -> None:
         session = _make_session()
         hooks = session._hooks
-        hook_input = cast(PreToolUseHookInput, {
-            "tool_name": "Agent",
-            "tool_input": {"subagent_type": "builder", "description": "d", "prompt": "p"},
-            "agent_id": None,
-            "session_id": "s",
-        })
+        hook_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Agent",
+                "tool_input": {
+                    "subagent_type": "builder",
+                    "description": "d",
+                    "prompt": "p",
+                },
+                "agent_id": None,
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(hook_input, "toolu_parent_1", _hook_ctx())
+            await hooks._hook_pre_tool(hook_input, "toolu_parent_1", _hook_context())
         assert list(hooks._pending_task_tool_use_ids) == ["toolu_parent_1"]
 
     @pytest.mark.asyncio
@@ -63,14 +70,17 @@ class TestAgentPreToolUseEnqueue:
         """Regular tools (Bash, Read, etc.) must not pollute the queue."""
         session = _make_session()
         hooks = session._hooks
-        hook_input = cast(PreToolUseHookInput, {
-            "tool_name": "Bash",
-            "tool_input": {"command": "echo hi"},
-            "agent_id": None,
-            "session_id": "s",
-        })
+        hook_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Bash",
+                "tool_input": {"command": "echo hi"},
+                "agent_id": None,
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(hook_input, "toolu_bash_1", _hook_ctx())
+            await hooks._hook_pre_tool(hook_input, "toolu_bash_1", _hook_context())
         assert list(hooks._pending_task_tool_use_ids) == []
 
     @pytest.mark.asyncio
@@ -78,15 +88,18 @@ class TestAgentPreToolUseEnqueue:
         """Fail-fast: Agent PreToolUse must always have a tool_use_id."""
         session = _make_session()
         hooks = session._hooks
-        hook_input = cast(PreToolUseHookInput, {
-            "tool_name": "Agent",
-            "tool_input": {"subagent_type": "builder"},
-            "agent_id": None,
-            "session_id": "s",
-        })
+        hook_input = cast(
+            PreToolUseHookInput,
+            {
+                "tool_name": "Agent",
+                "tool_input": {"subagent_type": "builder"},
+                "agent_id": None,
+                "session_id": "s",
+            },
+        )
         with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="without tool_use_id"):
-                await hooks._hook_pre_tool(hook_input, None, _hook_ctx())
+                await hooks._hook_pre_tool(hook_input, None, _hook_context())
 
 
 class TestSubagentStartPopsQueue:
@@ -98,16 +111,21 @@ class TestSubagentStartPopsQueue:
         session = _make_session()
         hooks = session._hooks
         hooks._pending_task_tool_use_ids.append("toolu_parent_A")
-        hook_input = cast(SubagentStartHookInput, {
-            "agent_id": "aAgentA",
-            "agent_type": "builder",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStart",
-        })
+        hook_input = cast(
+            SubagentStartHookInput,
+            {
+                "agent_id": "aAgentA",
+                "agent_type": "builder",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStart",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock) as mock_audit:
-            await hooks._hook_subagent_start(hook_input, "unrelated_hook_uuid", _hook_ctx())
+            await hooks._hook_subagent_start(
+                hook_input, "unrelated_hook_uuid", _hook_context()
+            )
         assert list(hooks._pending_task_tool_use_ids) == []
         assert hooks._subagent_parent_tuids == {"aAgentA": "toolu_parent_A"}
         mock_audit.assert_awaited_once()
@@ -133,15 +151,18 @@ class TestSubagentStartPopsQueue:
                 ("aB", "reviewer"),
                 ("aC", "planner"),
             ]:
-                hook_input = cast(SubagentStartHookInput, {
-                    "agent_id": agent_id,
-                    "agent_type": agent_type,
-                    "session_id": "s",
-                    "transcript_path": "",
-                    "cwd": "/tmp",
-                    "hook_event_name": "SubagentStart",
-                })
-                await hooks._hook_subagent_start(hook_input, "uuid", _hook_ctx())
+                hook_input = cast(
+                    SubagentStartHookInput,
+                    {
+                        "agent_id": agent_id,
+                        "agent_type": agent_type,
+                        "session_id": "s",
+                        "transcript_path": "",
+                        "cwd": "/tmp",
+                        "hook_event_name": "SubagentStart",
+                    },
+                )
+                await hooks._hook_subagent_start(hook_input, "uuid", _hook_context())
 
         assert hooks._subagent_parent_tuids == {
             "aA": "toolu_A",
@@ -150,7 +171,9 @@ class TestSubagentStartPopsQueue:
         }
         audit_details = [c[0][2] for c in mock_audit.await_args_list]
         assert [d["parent_tool_use_id"] for d in audit_details] == [
-            "toolu_A", "toolu_B", "toolu_C",
+            "toolu_A",
+            "toolu_B",
+            "toolu_C",
         ]
 
     @pytest.mark.asyncio
@@ -159,17 +182,20 @@ class TestSubagentStartPopsQueue:
         has been lost (SDK contract violation). Raise so it's visible."""
         session = _make_session()
         hooks = session._hooks
-        hook_input = cast(SubagentStartHookInput, {
-            "agent_id": "aX",
-            "agent_type": "builder",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStart",
-        })
+        hook_input = cast(
+            SubagentStartHookInput,
+            {
+                "agent_id": "aX",
+                "agent_type": "builder",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStart",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="no pending Agent"):
-                await hooks._hook_subagent_start(hook_input, "uuid", _hook_ctx())
+                await hooks._hook_subagent_start(hook_input, "uuid", _hook_context())
 
     @pytest.mark.asyncio
     async def test_start_missing_agent_id_raises(self) -> None:
@@ -177,17 +203,20 @@ class TestSubagentStartPopsQueue:
         session = _make_session()
         hooks = session._hooks
         hooks._pending_task_tool_use_ids.append("toolu_x")
-        hook_input = cast(SubagentStartHookInput, {
-            "agent_id": "",
-            "agent_type": "builder",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStart",
-        })
+        hook_input = cast(
+            SubagentStartHookInput,
+            {
+                "agent_id": "",
+                "agent_type": "builder",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStart",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="missing agent_id"):
-                await hooks._hook_subagent_start(hook_input, "uuid", _hook_ctx())
+                await hooks._hook_subagent_start(hook_input, "uuid", _hook_context())
 
 
 class TestSubagentStopWritesFinalText:
@@ -201,19 +230,22 @@ class TestSubagentStopWritesFinalText:
         hooks._subagent_start_times["aAgentA"] = 0.0
         hooks._subagent_types["aAgentA"] = "builder"
 
-        hook_input = cast(SubagentStopHookInput, {
-            "agent_id": "aAgentA",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStop",
-            "stop_hook_active": False,
-            "agent_transcript_path": "",
-            "agent_type": "builder",
-            "last_assistant_message": "done.",
-        })
+        hook_input = cast(
+            SubagentStopHookInput,
+            {
+                "agent_id": "aAgentA",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStop",
+                "stop_hook_active": False,
+                "agent_transcript_path": "",
+                "agent_type": "builder",
+                "last_assistant_message": "done.",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock) as mock_audit:
-            await hooks._hook_subagent_stop(hook_input, "uuid", _hook_ctx())
+            await hooks._hook_subagent_stop(hook_input, "uuid", _hook_context())
 
         details = mock_audit.call_args[0][2]
         assert details["agent_id"] == "aAgentA"
@@ -229,16 +261,19 @@ class TestSubagentStopWritesFinalText:
         recorded at SubagentStart, the session state is corrupt."""
         session = _make_session()
         hooks = session._hooks
-        hook_input = cast(SubagentStopHookInput, {
-            "agent_id": "aGhost",
-            "session_id": "s",
-            "transcript_path": "",
-            "cwd": "/tmp",
-            "hook_event_name": "SubagentStop",
-            "stop_hook_active": False,
-            "agent_transcript_path": "",
-            "agent_type": "builder",
-        })
+        hook_input = cast(
+            SubagentStopHookInput,
+            {
+                "agent_id": "aGhost",
+                "session_id": "s",
+                "transcript_path": "",
+                "cwd": "/tmp",
+                "hook_event_name": "SubagentStop",
+                "stop_hook_active": False,
+                "agent_transcript_path": "",
+                "agent_type": "builder",
+            },
+        )
         with patch("session.hooks.log_audit", new_callable=AsyncMock):
             with pytest.raises(RuntimeError, match="no recorded parent"):
-                await hooks._hook_subagent_stop(hook_input, "uuid", _hook_ctx())
+                await hooks._hook_subagent_stop(hook_input, "uuid", _hook_context())

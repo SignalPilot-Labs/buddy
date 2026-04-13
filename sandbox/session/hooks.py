@@ -61,17 +61,17 @@ class SessionHooks:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log pre-tool to DB. Emit tool_use event for agent stuck tracking."""
-        ctx = self._resolve_tool_context(hook_input, tool_use_id, False)
+        tool_context = self._resolve_tool_context(hook_input, tool_use_id, False)
 
-        if ctx.agent_id:
-            self._subagent_last_tool[ctx.agent_id] = time.time()
+        if tool_context.agent_id:
+            self._subagent_last_tool[tool_context.agent_id] = time.time()
 
-        self._pre_tool_times[ctx.tool_use_id] = time.time()
+        self._pre_tool_times[tool_context.tool_use_id] = time.time()
         tool_input = hook_input.get("tool_input", {})
         await log_tool_call(
             self._run_id,
             "pre",
-            ctx,
+            tool_context,
             summarize(tool_input),
             None,
         )
@@ -79,13 +79,13 @@ class SessionHooks:
         # fire next. The SDK has no direct payload link between Agent
         # PreToolUse and SubagentStart, but it serializes them 1:1 even
         # for parallel Task calls (verified empirically).
-        if ctx.tool_name == TASK_TOOL_NAME:
+        if tool_context.tool_name == TASK_TOOL_NAME:
             if tool_use_id is None:
                 raise RuntimeError(
                     f"PreToolUse for {TASK_TOOL_NAME} fired without tool_use_id"
                 )
             self._pending_task_tool_use_ids.append(tool_use_id)
-        self._emit({"event": "tool_use", "data": {"agent_id": ctx.agent_id}})
+        self._emit({"event": "tool_use", "data": {"agent_id": tool_context.agent_id}})
         return SyncHookJSONOutput()
 
     async def _hook_post_tool(
@@ -95,11 +95,11 @@ class SessionHooks:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log post-tool to DB with duration."""
-        ctx = self._resolve_tool_context(hook_input, tool_use_id, True)
+        tool_context = self._resolve_tool_context(hook_input, tool_use_id, True)
         response = hook_input.get("tool_response")
         out = summarize(response) if response is not None else None
-        await log_tool_call(self._run_id, "post", ctx, None, out)
-        self._emit({"event": "tool_done", "data": {"agent_id": ctx.agent_id}})
+        await log_tool_call(self._run_id, "post", tool_context, None, out)
+        self._emit({"event": "tool_done", "data": {"agent_id": tool_context.agent_id}})
         return SyncHookJSONOutput()
 
     async def _hook_post_tool_failure(
@@ -109,10 +109,10 @@ class SessionHooks:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log failed tool to DB with error. Fires instead of PostToolUse on failure."""
-        ctx = self._resolve_tool_context(hook_input, tool_use_id, True)
+        tool_context = self._resolve_tool_context(hook_input, tool_use_id, True)
         error = hook_input.get("error", "unknown error")
-        await log_tool_call(self._run_id, "post", ctx, None, {"error": error})
-        self._emit({"event": "tool_done", "data": {"agent_id": ctx.agent_id}})
+        await log_tool_call(self._run_id, "post", tool_context, None, {"error": error})
+        self._emit({"event": "tool_done", "data": {"agent_id": tool_context.agent_id}})
         return SyncHookJSONOutput()
 
     def _resolve_tool_context(

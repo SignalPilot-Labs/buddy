@@ -327,7 +327,7 @@ def get_run(
 
 
 @app.callback(invoke_without_command=True)
-def run_callback(ctx: typer.Context) -> None:
+def run_callback(context: typer.Context) -> None:
     """Manage agent runs — start, list, inspect, and control runs.
 
     \b
@@ -340,7 +340,7 @@ def run_callback(ctx: typer.Context) -> None:
       autofyn run list                        List recent runs
       autofyn run get <run_id>                Inspect a specific run
     """
-    if ctx.invoked_subcommand is not None:
+    if context.invoked_subcommand is not None:
         return
 
     run = _select_run()

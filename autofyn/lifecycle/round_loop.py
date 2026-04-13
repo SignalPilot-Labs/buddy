@@ -76,17 +76,25 @@ async def run_rounds(
         prior_reports = (
             await reports.list_round(round_number - 1) if round_number > 1 else []
         )
-        user_messages = inbox.take_pending_messages()
+        # Drain in-memory inbox so buffered messages don't re-deliver
+        # via send_message at the next subagent boundary. The DB is now
+        # the source of truth for the full user activity timeline.
+        inbox.take_pending_messages()
+        try:
+            user_activity = await db.get_user_activity(run.run_id)
+        except Exception as exc:
+            log.warning("[%s] Failed to load user activity: %s", rid, exc)
+            user_activity = []
 
-        round_ctx = RoundContext(
+        round_context = RoundContext(
             round_number=round_number,
             duration_minutes=run.duration_minutes,
             time_remaining_minutes=time_lock.remaining_minutes(),
             metadata=prior_metadata,
             previous_round_reports=prior_reports,
-            user_messages=user_messages,
+            user_activity=user_activity,
         )
-        system_prompt = build_round_system_prompt(round_ctx)
+        system_prompt = build_round_system_prompt(round_context)
 
         options = dict(bootstrap.base_session_options)
         options["agents"] = build_agent_defs(
@@ -122,7 +130,10 @@ async def run_rounds(
             await archiver.archive_round(round_number)
         except Exception as exc:
             log.warning(
-                "[%s] archive_round(%d) failed: %s", rid, round_number, exc,
+                "[%s] archive_round(%d) failed: %s",
+                rid,
+                round_number,
+                exc,
             )
         if terminal is not None:
             return terminal
@@ -151,11 +162,17 @@ async def _handle_round_outcome(
 
     if result.status == "session_error":
         consecutive_session_errors += 1
-        backoff_sec = SESSION_ERROR_BASE_BACKOFF_SEC * (2 ** (consecutive_session_errors - 1))
+        backoff_sec = SESSION_ERROR_BASE_BACKOFF_SEC * (
+            2 ** (consecutive_session_errors - 1)
+        )
         log.warning(
             "[%s] Round %d session error (%d/%d): %s — retrying in %ds",
-            rid, round_number, consecutive_session_errors,
-            SESSION_ERROR_MAX_RETRIES, result.error, backoff_sec,
+            rid,
+            round_number,
+            consecutive_session_errors,
+            SESSION_ERROR_MAX_RETRIES,
+            result.error,
+            backoff_sec,
         )
         await db.log_audit(
             run.run_id,
@@ -170,7 +187,8 @@ async def _handle_round_outcome(
         if consecutive_session_errors >= SESSION_ERROR_MAX_RETRIES:
             log.error(
                 "[%s] %d consecutive session errors — giving up",
-                rid, consecutive_session_errors,
+                rid,
+                consecutive_session_errors,
             )
             return "error", consecutive_session_errors
         await asyncio.sleep(backoff_sec)
@@ -293,7 +311,9 @@ async def _commit_and_push_round(
 
     if not result.pushed:
         log.warning(
-            "Round %d push failed: %s", round_number, result.push_error,
+            "Round %d push failed: %s",
+            round_number,
+            result.push_error,
         )
         await db.log_audit(
             run.run_id,

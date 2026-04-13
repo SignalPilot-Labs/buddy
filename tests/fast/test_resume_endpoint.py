@@ -32,10 +32,10 @@ def _mock_session(run: MagicMock | None):
     session_mock.commit = AsyncMock()
 
     @asynccontextmanager
-    async def ctx():
+    async def context():
         yield session_mock
 
-    return ctx
+    return context
 
 
 @pytest.fixture(autouse=True)
@@ -50,12 +50,14 @@ def _patch_auth():
 def _import_resume_run():
     """Import resume_run after auth is patched."""
     from backend.endpoints.runs import resume_run
+
     return resume_run
 
 
 def _make_body(payload: str | None = None):
     """Create a ControlSignalRequest."""
     from backend.models import ControlSignalRequest
+
     return ControlSignalRequest(payload=payload)
 
 
@@ -69,14 +71,21 @@ class TestResumePausedRun:
         run = _mock_run("paused")
         with (
             patch("backend.endpoints.runs.session", _mock_session(run)),
-            patch("backend.endpoints.runs.send_control_signal", new_callable=AsyncMock) as mock_signal,
+            patch(
+                "backend.endpoints.runs.send_control_signal", new_callable=AsyncMock
+            ) as mock_signal,
         ):
             mock_signal.return_value = {"ok": True, "signal": "resume", "run_id": "r-1"}
-            result = await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
+            result = await resume_run(
+                "00000000-0000-0000-0000-000000000001", _make_body()
+            )
 
             assert result["ok"] is True
             mock_signal.assert_called_once_with(
-                "00000000-0000-0000-0000-000000000001", "resume", {"paused"}, None,
+                "00000000-0000-0000-0000-000000000001",
+                "resume",
+                {"paused"},
+                None,
             )
 
     @pytest.mark.asyncio
@@ -96,7 +105,9 @@ class TestResumePausedRun:
 
         with (
             patch("backend.endpoints.runs.session", _mock_session(run)),
-            patch("backend.endpoints.runs.send_control_signal", side_effect=track_signal),
+            patch(
+                "backend.endpoints.runs.send_control_signal", side_effect=track_signal
+            ),
         ):
             await resume_run(
                 "00000000-0000-0000-0000-000000000001",
@@ -115,13 +126,18 @@ class TestResumePausedRun:
         run = _mock_run("paused")
         with (
             patch("backend.endpoints.runs.session", _mock_session(run)),
-            patch("backend.endpoints.runs.send_control_signal", new_callable=AsyncMock) as mock_signal,
+            patch(
+                "backend.endpoints.runs.send_control_signal", new_callable=AsyncMock
+            ) as mock_signal,
         ):
             mock_signal.return_value = {"ok": True, "signal": "resume", "run_id": "r-1"}
             await resume_run("00000000-0000-0000-0000-000000000001", _make_body("   "))
 
             mock_signal.assert_called_once_with(
-                "00000000-0000-0000-0000-000000000001", "resume", {"paused"}, None,
+                "00000000-0000-0000-0000-000000000001",
+                "resume",
+                {"paused"},
+                None,
             )
 
     @pytest.mark.asyncio
@@ -134,11 +150,11 @@ class TestResumePausedRun:
         session_mock.commit = AsyncMock()
 
         @asynccontextmanager
-        async def ctx():
+        async def context():
             yield session_mock
 
         with (
-            patch("backend.endpoints.runs.session", ctx),
+            patch("backend.endpoints.runs.session", context),
             patch(
                 "backend.endpoints.runs._resume_completed_run",
                 new_callable=AsyncMock,

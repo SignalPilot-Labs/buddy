@@ -27,10 +27,10 @@ def _mock_session(run: MagicMock | None):
     from contextlib import asynccontextmanager
 
     @asynccontextmanager
-    async def ctx():
+    async def context():
         yield session_mock
 
-    return ctx
+    return context
 
 
 class TestSendControlSignalForwardsToAgent:
@@ -59,7 +59,9 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            result = await send_control_signal("run-1", "inject", {"running"}, "focus on tests")
+            result = await send_control_signal(
+                "run-1", "inject", {"running"}, "focus on tests"
+            )
             assert result["ok"] is True
             mock_agent.assert_called_once()
             args = mock_agent.call_args
@@ -104,6 +106,7 @@ class TestSendControlSignalForwardsToAgent:
         run = _mock_run("completed")
         with patch("backend.utils.session", _mock_session(run)):
             from fastapi import HTTPException
+
             with pytest.raises(HTTPException) as exc_info:
                 await send_control_signal("run-1", "pause", {"running"}, None)
             assert exc_info.value.status_code == 409
@@ -112,6 +115,7 @@ class TestSendControlSignalForwardsToAgent:
     async def test_rejects_missing_run(self):
         with patch("backend.utils.session", _mock_session(None)):
             from fastapi import HTTPException
+
             with pytest.raises(HTTPException) as exc_info:
                 await send_control_signal("nonexistent", "pause", {"running"}, None)
             assert exc_info.value.status_code == 404
@@ -124,7 +128,9 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            result = await send_control_signal("run-1", "inject", {"running", "paused"}, "do this")
+            result = await send_control_signal(
+                "run-1", "inject", {"running", "paused"}, "do this"
+            )
             assert result["ok"] is True
             assert mock_agent.call_args[0][3] == {"payload": "do this"}
 
@@ -137,7 +143,10 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
             result = await send_control_signal(
-                "run-1", "inject", {"running", "paused", "rate_limited"}, "retry",
+                "run-1",
+                "inject",
+                {"running", "paused", "rate_limited"},
+                "retry",
             )
             assert result["ok"] is True
             mock_agent.assert_called_once()
@@ -151,19 +160,21 @@ class TestSendControlSignalForwardsToAgent:
         session_mock = AsyncMock()
         session_mock.get = AsyncMock(return_value=run)
         session_mock.add = MagicMock(side_effect=lambda _: call_order.append("db_add"))
-        session_mock.commit = AsyncMock(side_effect=lambda: call_order.append("db_commit"))
+        session_mock.commit = AsyncMock(
+            side_effect=lambda: call_order.append("db_commit")
+        )
 
         from contextlib import asynccontextmanager
 
         @asynccontextmanager
-        async def ctx():
+        async def context():
             yield session_mock
 
         async def mock_agent(*args, **kwargs):
             call_order.append("agent_forward")
 
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", mock_agent),
         ):
             await send_control_signal("run-1", "stop", {"running"}, "bye")
@@ -192,7 +203,9 @@ class TestSendControlSignalForwardsToAgent:
             patch("backend.utils.session", _mock_session(run)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            result = await send_control_signal("run-1", "custom_signal", {"running"}, None)
+            result = await send_control_signal(
+                "run-1", "custom_signal", {"running"}, None
+            )
             assert result["ok"] is True
             mock_agent.assert_not_called()
 
@@ -215,7 +228,11 @@ class TestSendControlSignalForwardsToAgent:
             valid = {"running", "paused"}
             with (
                 patch("backend.utils.session", _mock_session(run)),
-                patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
+                patch(
+                    "backend.utils.agent_request", new_callable=AsyncMock
+                ) as mock_agent,
             ):
                 await send_control_signal("run-42", signal, valid, "payload")
-                assert mock_agent.call_args[0][4] == {"run_id": "run-42"}, f"{signal} missing run_id"
+                assert mock_agent.call_args[0][4] == {
+                    "run_id": "run-42"
+                }, f"{signal} missing run_id"
