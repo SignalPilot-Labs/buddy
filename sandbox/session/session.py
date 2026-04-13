@@ -27,10 +27,10 @@ from constants import (
     EARLY_EXIT_THRESHOLD_MIN,
     SECONDS_PER_MINUTE,
     SESSION_EVENT_QUEUE_SIZE,
-    SUBAGENT_TIMEOUT_SEC,
     TASK_TOOL_NAME,
 )
 from db.constants import resolve_sdk_model
+from models import ToolContext
 from session.security import SecurityGate
 from session.utils import (
     log_audit,
@@ -194,75 +194,56 @@ class Session:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log pre-tool to DB. Emit tool_use event for agent stuck tracking."""
-        tool_name = hook_input.get("tool_name", "unknown")
+        ctx = self._resolve_tool_context(hook_input, tool_use_id, False)
+
+        if ctx.agent_id:
+            self._subagent_last_tool[ctx.agent_id] = time.time()
+
+        self._pre_tool_times[ctx.tool_use_id] = time.time()
         tool_input = hook_input.get("tool_input", {})
-        agent_id = hook_input.get("agent_id")
-        tid = tool_use_id or ""
-        sid = hook_input.get("session_id")
-
-        if agent_id:
-            self._subagent_last_tool[agent_id] = time.time()
-            # Check timeout
-            if agent_id in self._subagent_start_times:
-                elapsed = time.time() - self._subagent_start_times[agent_id]
-                if elapsed > SUBAGENT_TIMEOUT_SEC:
-                    await log_audit(
-                        self._run_id,
-                        "subagent_timeout",
-                        {
-                            "agent_id": agent_id,
-                            "elapsed_seconds": int(elapsed),
-                        },
-                    )
-                    return SyncHookJSONOutput(
-                        decision="block",
-                        reason=f"Subagent timed out after {int(elapsed)}s",
-                    )
-
-        self._pre_tool_times[tid] = time.time()
-        role = self._subagent_types.get(agent_id, "worker") if agent_id else "worker"
         await log_tool_call(
             self._run_id,
             "pre",
-            tool_name,
+            ctx,
             summarize(tool_input),
             None,
-            None,
-            True,
-            None,
-            role,
-            tid,
-            sid,
-            agent_id,
         )
         # Queue parent Task tool_use_id for the SubagentStart that will
         # fire next. The SDK has no direct payload link between Agent
         # PreToolUse and SubagentStart, but it serializes them 1:1 even
         # for parallel Task calls (verified empirically).
-        if tool_name == TASK_TOOL_NAME:
+        if ctx.tool_name == TASK_TOOL_NAME:
             if tool_use_id is None:
                 raise RuntimeError(
                     f"PreToolUse for {TASK_TOOL_NAME} fired without tool_use_id"
                 )
             self._pending_task_tool_use_ids.append(tool_use_id)
-        self._emit({"event": "tool_use", "data": {"agent_id": agent_id}})
+        self._emit({"event": "tool_use", "data": {"agent_id": ctx.agent_id}})
         return SyncHookJSONOutput()
 
-    def _resolve_post_tool_context(
+    def _resolve_tool_context(
         self,
         hook_input: HookInput,
         tool_use_id: str | None,
-    ) -> tuple[str, str, str, str | None, int | None]:
-        """Extract common fields and compute duration for post-tool hooks."""
+        compute_duration: bool,
+    ) -> ToolContext:
+        """Extract shared fields from hook_input into a ToolContext."""
         tool_name = hook_input.get("tool_name", "unknown")
         agent_id = hook_input.get("agent_id")
         tid = tool_use_id or ""
         sid = hook_input.get("session_id")
         duration_ms = None
-        if tid in self._pre_tool_times:
+        if compute_duration and tid in self._pre_tool_times:
             duration_ms = int((time.time() - self._pre_tool_times.pop(tid)) * 1000)
         role = self._subagent_types.get(agent_id, "worker") if agent_id else "worker"
-        return tool_name, tid, role, sid, duration_ms
+        return ToolContext(
+            tool_name=tool_name,
+            tool_use_id=tid,
+            agent_id=agent_id,
+            session_id=sid,
+            role=role,
+            duration_ms=duration_ms,
+        )
 
     async def _hook_post_tool(
         self,
@@ -271,26 +252,11 @@ class Session:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log post-tool to DB with duration."""
-        tool_name, tid, role, sid, duration_ms = self._resolve_post_tool_context(
-            hook_input, tool_use_id
-        )
-        agent_id = hook_input.get("agent_id")
+        ctx = self._resolve_tool_context(hook_input, tool_use_id, True)
         response = hook_input.get("tool_response")
         out = summarize(response) if response is not None else None
-        await log_tool_call(
-            self._run_id,
-            "post",
-            tool_name,
-            None,
-            out,
-            duration_ms,
-            True,
-            None,
-            role,
-            tid,
-            sid,
-            agent_id,
-        )
+        await log_tool_call(self._run_id, "post", ctx, None, out)
+        self._emit({"event": "tool_done", "data": {"agent_id": ctx.agent_id}})
         return SyncHookJSONOutput()
 
     async def _hook_post_tool_failure(
@@ -300,25 +266,10 @@ class Session:
         context: HookContext,
     ) -> SyncHookJSONOutput:
         """Log failed tool to DB with error. Fires instead of PostToolUse on failure."""
-        tool_name, tid, role, sid, duration_ms = self._resolve_post_tool_context(
-            hook_input, tool_use_id
-        )
-        agent_id = hook_input.get("agent_id")
+        ctx = self._resolve_tool_context(hook_input, tool_use_id, True)
         error = hook_input.get("error", "unknown error")
-        await log_tool_call(
-            self._run_id,
-            "post",
-            tool_name,
-            None,
-            {"error": error},
-            duration_ms,
-            True,
-            None,
-            role,
-            tid,
-            sid,
-            agent_id,
-        )
+        await log_tool_call(self._run_id, "post", ctx, None, {"error": error})
+        self._emit({"event": "tool_done", "data": {"agent_id": ctx.agent_id}})
         return SyncHookJSONOutput()
 
     async def _hook_subagent_start(

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from claude_agent_sdk.types import HookContext, PostToolUseFailureHookInput
-from sandbox.session.session import Session
+from session.session import Session
 
 
 BASE_SESSION_OPTS = {
@@ -39,7 +39,7 @@ class TestPostToolUseFailureHook:
             "tool_input": {"file_path": "/nonexistent.ts"},
         }
 
-        with patch("sandbox.session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
+        with patch("session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
             ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
             await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
@@ -47,10 +47,11 @@ class TestPostToolUseFailureHook:
             args = mock_log.call_args[0]
             assert args[0] == "run-1"  # run_id
             assert args[1] == "post"  # phase
-            assert args[2] == "Read"  # tool_name
+            ctx_arg = args[2]  # ToolContext
+            assert ctx_arg.tool_name == "Read"
+            assert ctx_arg.tool_use_id == "tu-abc"
             assert args[3] is None  # input_data (post doesn't repeat input)
             assert args[4] == {"error": "File not found: /nonexistent.ts"}  # output_data
-            assert args[9] == "tu-abc"  # tool_use_id
 
     @pytest.mark.asyncio
     async def test_failure_hook_tracks_duration(self) -> None:
@@ -66,12 +67,12 @@ class TestPostToolUseFailureHook:
             "session_id": "sess-1",
         }
 
-        with patch("sandbox.session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
+        with patch("session.session.log_tool_call", new_callable=AsyncMock) as mock_log:
             ctx = cast(HookContext, {"cwd": "/tmp", "session_id": "sess-1", "transcript_path": ""})
             await session._hook_post_tool_failure(cast(PostToolUseFailureHookInput, hook_input), "tu-abc", ctx)
 
             args = mock_log.call_args[0]
-            duration_ms = args[5]
-            assert duration_ms is not None
-            assert duration_ms >= 90  # at least ~100ms
+            ctx_arg = args[2]  # ToolContext
+            assert ctx_arg.duration_ms is not None
+            assert ctx_arg.duration_ms >= 90  # at least ~100ms
             assert "tu-abc" not in session._pre_tool_times  # cleaned up
