@@ -145,11 +145,11 @@ export function ReadGroupCard({
           {getToolIcon(cat, iconColor)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium" style={{ color: iconColor }}>
+          <div className="text-[14px] font-medium" style={{ color: iconColor }}>
             {label}
           </div>
           {subtitle && (
-            <div className="text-[10px] text-text-secondary mt-0.5 truncate">
+            <div className="text-[13px] text-text-secondary mt-0.5 truncate">
               {subtitle}
             </div>
           )}
@@ -268,7 +268,7 @@ export function EditGroupCard({
           {getToolIcon("edit", "#ffcc44")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#ffcc44]">
+          <div className="text-[14px] font-medium text-[#ffcc44]">
             Edited {uniqueFiles} file{uniqueFiles !== 1 ? "s" : ""} (
             {edits.length} changes)
           </div>

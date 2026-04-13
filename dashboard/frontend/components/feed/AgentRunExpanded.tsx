@@ -47,7 +47,7 @@ export function AgentRunExpanded({
     >
       {childTools.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] bg-black/10">
-          <span className="text-[12px] text-text-secondary uppercase tracking-wider">
+          <span className="text-[13px] text-text-secondary uppercase tracking-wider">
             {childTools.length} tool calls
           </span>
           {totalChildDuration > 0 && (
@@ -88,7 +88,7 @@ export function AgentRunExpanded({
               e.stopPropagation();
               setShowPrompt(!showPrompt);
             }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+            className="w-full flex items-center gap-2 px-4 py-2 text-[13px] text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
           >
             <Chevron open={showPrompt} size={8} />
             Prompt
@@ -110,7 +110,7 @@ export function AgentRunExpanded({
               e.stopPropagation();
               setShowFinalText(!showFinalText);
             }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-[#cc88ff]/80 hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#cc88ff]"
+            className="w-full flex items-center gap-2 px-4 py-2 text-[13px] text-[#cc88ff]/80 hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#cc88ff]"
           >
             <Chevron open={showFinalText} size={8} />
             Agent Summary
@@ -139,7 +139,7 @@ export function AgentRunExpanded({
 
       {tool.output_data && !finalText && extractResultText(tool.output_data) && (
         <div className="border-t border-white/[0.03] px-4 py-3">
-          <div className="text-[10px] uppercase tracking-[0.15em] text-[#00ff88]/70 mb-1.5">
+          <div className="text-[12px] uppercase tracking-[0.15em] text-[#00ff88]/70 mb-1.5">
             Result
           </div>
           <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">

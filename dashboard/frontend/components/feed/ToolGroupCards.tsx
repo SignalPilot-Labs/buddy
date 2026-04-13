@@ -45,11 +45,11 @@ export function BashGroupCard({
           {getToolIcon("bash", "#00ff88")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#00ff88]">
+          <div className="text-[14px] font-medium text-[#00ff88]">
             Terminal · {commands.length} command
             {commands.length !== 1 ? "s" : ""}
           </div>
-          <div className="text-[10px] text-text-secondary mt-0.5 truncate">
+          <div className="text-[13px] text-text-secondary mt-0.5 truncate">
             {commands[0]?.cmd}
             {commands.length > 1 ? ` + ${commands.length - 1} more` : ""}
           </div>
@@ -133,10 +133,10 @@ export function PlaywrightGroupCard({
           {getToolIcon("playwright_navigate", "#66bbff")}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-medium text-[#66bbff]">
+          <div className="text-[14px] font-medium text-[#66bbff]">
             Browser · {tools.length} action{tools.length !== 1 ? "s" : ""}
           </div>
-          <div className="text-[10px] text-text-secondary mt-0.5 truncate">
+          <div className="text-[13px] text-text-secondary mt-0.5 truncate">
             {tools
               .map((t) =>
                 getToolCategory(t.tool_name).replace("playwright_", "")
@@ -277,7 +277,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
         </span>
         <span
           className={clsx(
-            "text-[10px] font-semibold shrink-0",
+            "text-[12px] font-semibold shrink-0",
             denied ? "text-[#ff4444]" : colors.text
           )}
         >
@@ -293,7 +293,7 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
             running
           </span>
         )}
-        <span className="text-[10px] text-text-secondary truncate flex-1">
+        <span className="text-[12px] text-text-secondary truncate flex-1">
           {denied ? tool.deny_reason : summary}
         </span>
         <span className="text-[10px] text-text-dim tabular-nums shrink-0">

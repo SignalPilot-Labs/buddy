@@ -185,13 +185,13 @@ function AgentRunCardInner({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-[11px] font-medium"
+              className="text-[14px] font-medium"
               style={{ color: isPending ? hexToRgba(phaseColor, 0.8) : phaseColor }}
             >
               {description}
             </span>
             <span
-              className="text-[10px] rounded px-1 py-0.5 uppercase tracking-wider"
+              className="text-[12px] rounded px-1 py-0.5 uppercase tracking-wider"
               style={{
                 color: hexToRgba(phaseColor, 0.75),
                 background: hexToRgba(phaseColor, 0.08),
@@ -260,7 +260,7 @@ function AgentRunCardInner({
             </div>
           )}
           {!expanded && childTools.length === 0 && prompt && (
-            <div className="text-[10px] text-text-secondary mt-0.5 truncate">
+            <div className="text-[13px] text-text-secondary mt-0.5 truncate">
               {prompt.slice(0, 100)}
             </div>
           )}
