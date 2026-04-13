@@ -341,7 +341,7 @@ class TestBootstrapPreservesCosts:
             patch("lifecycle.bootstrap.db.get_run_for_resume", new_callable=AsyncMock, return_value=prior_info),
         ):
             from lifecycle.bootstrap import bootstrap_run
-            await bootstrap_run(
+            result = await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
                 custom_prompt="fix the bug",
@@ -354,9 +354,12 @@ class TestBootstrapPreservesCosts:
                 clone_timeout=60,
             )
 
-        # Verify repo.bootstrap was called with the existing branch
-        call_args = mock_sandbox.repo.bootstrap.call_args
-        assert call_args.kwargs["working_branch"] == "autofyn/existing-branch"
+        # Verify costs were seeded from DB
+        assert result.run.total_cost == 5.25
+        assert result.run.total_input_tokens == 50000
+        assert result.run.total_output_tokens == 12000
+        assert result.run.cache_creation_input_tokens == 3000
+        assert result.run.cache_read_input_tokens == 7000
 
     @pytest.mark.asyncio
     async def test_fresh_run_starts_with_zero_costs(self) -> None:

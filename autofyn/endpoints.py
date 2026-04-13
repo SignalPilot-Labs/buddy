@@ -59,15 +59,26 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
     if not run_info["branch_name"]:
         raise HTTPException(status_code=409, detail="Run has no branch — cannot resume")
 
-    # Build a StartRequest from the DB state + incoming credentials.
+    # Validate required fields — fail fast instead of hiding broken DB state.
+    prompt = body.prompt or run_info["custom_prompt"]
+    if not prompt:
+        raise HTTPException(status_code=409, detail="Run has no prompt and none provided")
+    github_repo = body.github_repo or run_info["github_repo"]
+    if not github_repo:
+        raise HTTPException(status_code=409, detail="Run has no github_repo")
+    if not run_info["model_name"]:
+        raise HTTPException(status_code=409, detail="Run has no model_name in DB")
+    if not run_info["base_branch"]:
+        raise HTTPException(status_code=409, detail="Run has no base_branch in DB")
+
     merged_env = _merge_tokens_into_env(body.env, body.claude_token, body.git_token)
     start_body = StartRequest(
-        prompt=body.prompt or run_info["custom_prompt"],
+        prompt=prompt,
         max_budget_usd=0,
-        duration_minutes=run_info["duration_minutes"] or 0,
-        base_branch=run_info["base_branch"] or "main",
-        model=run_info["model_name"] or "claude-sonnet-4-20250514",
-        github_repo=body.github_repo or run_info["github_repo"],
+        duration_minutes=run_info["duration_minutes"],
+        base_branch=run_info["base_branch"],
+        model=run_info["model_name"],
+        github_repo=github_repo,
         env=merged_env,
     )
 
