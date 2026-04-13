@@ -1,0 +1,98 @@
+Hit:1 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+curl is already the newest version (8.5.0-2ubuntu10.8).
+primer3 is already the newest version (2.6.1-4).
+0 upgraded, 0 newly installed, 0 to remove and 2 not upgraded.
+downloading uv 0.9.5 x86_64-unknown-linux-gnu
+no checksums to verify
+installing to /root/.local/bin
+  uv
+  uvx
+everything's installed!
+/tests/test.sh: line 10: /root/.local/bin/env: No such file or directory
+Downloading cpython-3.13.9-linux-x86_64-gnu (download) (32.0MiB)
+ Downloading cpython-3.13.9-linux-x86_64-gnu (download)
+Downloading pygments (1.2MiB)
+ Downloading pygments
+Installed 6 packages in 16ms
+============================= test session starts ==============================
+platform linux -- Python 3.13.9, pytest-8.4.1, pluggy-1.6.0
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 1 item
+
+../tests/test_outputs.py F                                               [100%]
+
+=================================== FAILURES ===================================
+_________________________________ test_primers _________________________________
+
+    def test_primers():
+        """Test that the generated primers will successfully amplify the input DNA and
+        contain the required overhangs that will result in the output sequence.
+        """
+    
+        primers_path = Path("/app/primers.fasta")
+        assert primers_path.exists(), f"File {primers_path} does not exist."
+    
+        with open(primers_path, "r") as f:
+            lines = [line.rstrip() for line in f]
+    
+        # This task needs one primer pair per insert/vector to solve each primer takes up
+        # two lines so the fasta file should have 16 lines in total.
+        assert len(lines) == 16, "Invalid number of lines in primers.fasta."
+    
+        primers = {}
+        for i in range(0, len(lines), 2):
+            primer = lines[i + 1].lower()
+            # Check that the header and primer are formatted correctly.
+            assert lines[i].startswith(">"), "Headers must start with >."
+            assert re.fullmatch(r"[atcg]+", primer), "Primer must contain only A, T, C, G."
+            primers[lines[i][1:]] = lines[i + 1].lower()
+    
+        # Check that all required primers are present.
+        assert all(
+            k in primers
+            for k in [
+                "input_fwd",
+                "input_rev",
+                "egfp_fwd",
+                "egfp_rev",
+                "flag_fwd",
+                "flag_rev",
+                "snap_fwd",
+                "snap_rev",
+            ]
+        ), "primers.fasta file is missing a primer for a valid solution."
+    
+>       vector_left, vector_internal, vector_right = make_fragment(
+            vector, primers["input_fwd"], primers["input_rev"], circular=True
+        )
+
+/tests/test_outputs.py:163: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/tests/test_outputs.py:61: in make_fragment
+    f_oh, f_bind = parse_bsai_primer(fwd_primer)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+primer = 'ggtctcataatgaggatcccgggaattctcg'
+
+    def parse_bsai_primer(primer):
+        """Primer (5'→3'): [clamp] ggtctc [oooo] [binding]"""
+        site = "ggtctc"
+        i = primer.find(site)
+        assert i != -1, "BsaI site ggtctc not found in primer"
+>       assert i >= 1, "Primer must have clamp of at least 1 nucleotide before BsaI site."
+E       AssertionError: Primer must have clamp of at least 1 nucleotide before BsaI site.
+E       assert 0 >= 1
+
+/tests/test_outputs.py:49: AssertionError
+=========================== short test summary info ============================
+FAILED ../tests/test_outputs.py::test_primers - AssertionError: Primer must h...
+============================== 1 failed in 0.07s ===============================

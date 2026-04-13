@@ -1,0 +1,13 @@
+{"event": "tool_use", "tool": "Bash", "input": {"command": "ls -la"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "file trunc.db && wc -c trunc.db"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "xxd trunc.db | head -20"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "od -A x -t x1z -v trunc.db | head -40"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "python3 -c \"\nwith open('trunc.db','rb') as f:\n    data = f.read()\nprint(f'Size: {len(data)} bytes')\nprint(f'Header: {data[:16]}')\nprint(f'Page size bytes 16-17: {int.from_bytes(data[16:18], \\\"big\\\")}')\nprint(f'First 100 bytes hex: {data[:100].hex()}')\n\""}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "sqlite3 trunc.db \".schema\" 2>&1; echo \"---\"; sqlite3 trunc.db \"SELECT * FROM sqlite_master;\" 2>&1"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "git init && git add . && git commit -m \"init: task snapshot\""}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "python3 -c \"\nwith open('/app/trunc.db','rb') as f:\n    data = f.read()\n\n# Parse B-tree leaf page header\npage_type = data[0]\nprint(f'Page type: {page_type} (13=leaf table)')\nfirst_freeblock = int.from_bytes(data[1:3], 'big')\nnum_cells = int.from_bytes(data[3:5], 'big')\ncell_content_start = int.from_bytes(data[5:7], 'big')\nfrag_free = data[7]\nprint(f'Num cells: {num_cells}')\nprint(f'Cell content start: {cell_content_start}')\nprint(f'First freeblock: {first_freeblock}')\nprint(f'Fragmented free byte..."}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "which git 2>&1 || apt-get install -y git 2>&1 | tail -5"}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "python3 -c \"import struct; print(struct.unpack('>d', bytes.fromhex('4058ff5c28f5c28f'))[0]); print(struct.unpack('>d', bytes.fromhex('3fe0000000000000'))[0])\""}}
+{"event": "tool_use", "tool": "Bash", "input": {"command": "python3 << 'PYEOF'\nimport struct\nimport json\n\nwith open('/app/trunc.db', 'rb') as f:\n    data = f.read()\n\ndef read_varint(buf, offset):\n    \"\"\"Read a SQLite varint (1-9 bytes).\"\"\"\n    result = 0\n    for i in range(9):\n        byte = buf[offset + i]\n        if i < 8:\n            result = (result << 7) | (byte & 0x7F)\n            if byte < 0x80:\n                return result, offset + i + 1\n        else:\n            result = (result << 8) | byte\n            return result, offset + i + 1\n    raise ..."}}
+{"event": "tool_use", "tool": "Read", "input": {"file_path": "/app/recover.json"}}
+{"event": "session_complete", "total_cost_usd": 0.369949, "num_turns": 13, "input_tokens": 8, "output_tokens": 5593}

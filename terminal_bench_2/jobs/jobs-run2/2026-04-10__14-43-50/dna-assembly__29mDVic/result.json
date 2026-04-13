@@ -1,0 +1,101 @@
+{
+    "id": "cf8e40f9-3f9c-45a2-826f-0c554cbd0773",
+    "task_name": "terminal-bench/dna-assembly",
+    "trial_name": "dna-assembly__29mDVic",
+    "trial_uri": "file:///Users/lfnandoo/Documents/sagebook/Buddy/jobs/2026-04-10__14-43-50/dna-assembly__29mDVic",
+    "task_id": {
+        "path": "tasks-run2/dna-assembly"
+    },
+    "source": "tasks-run2",
+    "task_checksum": "6f98da82c38f048fe39f9d25988e8b90a65e4f50126be4a260ae5a8eff3c071c",
+    "config": {
+        "task": {
+            "path": "tasks-run2/dna-assembly",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks-run2"
+        },
+        "trial_name": "dna-assembly__29mDVic",
+        "trials_dir": "jobs/2026-04-10__14-43-50",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "terminal_bench.agent:AutoFynAgent",
+            "model_name": "anthropic/claude-opus-4-5",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "daytona",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "98a6b1f8-1289-4f1c-bc86-08f11a4df769"
+    },
+    "agent_info": {
+        "name": "autofyn",
+        "version": "0.1.0",
+        "model_info": {
+            "name": "claude-opus-4-5",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 114,
+        "n_cache_tokens": null,
+        "n_output_tokens": 6767,
+        "cost_usd": 3.62675145,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 1.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-10T17:43:54.899666Z",
+    "finished_at": "2026-04-10T18:09:10.076416Z",
+    "environment_setup": {
+        "started_at": "2026-04-10T17:43:54.901178Z",
+        "finished_at": "2026-04-10T17:43:59.220296Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-10T17:43:59.220308Z",
+        "finished_at": "2026-04-10T17:44:00.274901Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-10T17:44:00.274962Z",
+        "finished_at": "2026-04-10T18:08:59.426906Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-10T18:09:00.976200Z",
+        "finished_at": "2026-04-10T18:09:09.386299Z"
+    }
+}

@@ -1,0 +1,116 @@
+{
+    "id": "0563e256-c11b-4087-8a2b-d9881325212c",
+    "started_at": "2026-04-10T18:02:16.990403",
+    "finished_at": "2026-04-10T18:48:44.435076",
+    "n_total_trials": 64,
+    "stats": {
+        "n_trials": 64,
+        "n_errors": 25,
+        "evals": {
+            "autofyn__claude-opus-4-5__tasks-run2": {
+                "n_trials": 56,
+                "n_errors": 25,
+                "metrics": [
+                    {
+                        "mean": 0.4375
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "1.0": [
+                            "dna-assembly__uQpwkWh",
+                            "regex-log__8H4az8X",
+                            "cancel-async-tasks__WXewoTf",
+                            "cobol-modernization__rNxjrS7",
+                            "sqlite-db-truncate__zEvHcHF",
+                            "overfull-hbox__corGT39",
+                            "fix-git__822hpai",
+                            "prove-plus-comm__AeXDJuw",
+                            "regex-log__Z2BGu7N",
+                            "cancel-async-tasks__fJdFz3u",
+                            "cobol-modernization__aZx5pxC",
+                            "sqlite-db-truncate__SLnD5ft",
+                            "fix-git__6zVZDSS",
+                            "prove-plus-comm__wfBP4D4",
+                            "dna-assembly__4onz2ca",
+                            "regex-log__nXQE8bY",
+                            "cobol-modernization__D839muR",
+                            "sqlite-db-truncate__GuwpkX3",
+                            "fix-git__K9K5C8F",
+                            "prove-plus-comm__7W4Xs2B",
+                            "regex-log__ohPY5yg",
+                            "cancel-async-tasks__j88t8Xs",
+                            "cobol-modernization__QJJBoSL",
+                            "sqlite-db-truncate__oHvKxpH",
+                            "overfull-hbox__CM9mAuR",
+                            "raman-fitting__rBcV9fG",
+                            "fix-git__826LtRg",
+                            "prove-plus-comm__XXun7Yf"
+                        ],
+                        "0.0": [
+                            "gpt2-codegolf__Lx3Z3gt",
+                            "mteb-retrieve__wRkHpWb",
+                            "write-compressor__LCYgk3H",
+                            "fix-code-vulnerability__YWoKgB9",
+                            "filter-js-from-html__cd9eurQ",
+                            "raman-fitting__J9fcqRR",
+                            "dna-assembly__qk3dkTC",
+                            "overfull-hbox__JhghftG",
+                            "gpt2-codegolf__SbtgkbZ",
+                            "mteb-retrieve__4pLaZXi",
+                            "write-compressor__sEKefbi",
+                            "fix-code-vulnerability__7M8UkGC",
+                            "filter-js-from-html__qJqfad6",
+                            "raman-fitting__BgjcGFm",
+                            "cancel-async-tasks__bJdsD8M",
+                            "overfull-hbox__MiZ7Xaa",
+                            "gpt2-codegolf__jjK7vhk",
+                            "mteb-retrieve__zt6kvcm",
+                            "write-compressor__5wxUnz3",
+                            "fix-code-vulnerability__XYs324g",
+                            "filter-js-from-html__4KBNVMg",
+                            "raman-fitting__QaLv48C",
+                            "dna-assembly__SZjAvbU",
+                            "gpt2-codegolf__3E3Fne3",
+                            "mteb-retrieve__syPCgkU",
+                            "write-compressor__RwpjoiT",
+                            "fix-code-vulnerability__eoZs3JG",
+                            "filter-js-from-html__9hPCrTn"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "RewardFileNotFoundError": [
+                        "hello-world-2__epr5unG",
+                        "hello-world__4rKcwWN",
+                        "hello-world-2__j5eYheq",
+                        "hello-world__THCNNa3",
+                        "hello-world-2__JaxZffZ",
+                        "hello-world__GxZseFX",
+                        "hello-world-2__KR6XMRY",
+                        "hello-world__B75jgLV"
+                    ],
+                    "AgentTimeoutError": [
+                        "overfull-hbox__corGT39",
+                        "gpt2-codegolf__Lx3Z3gt",
+                        "mteb-retrieve__wRkHpWb",
+                        "write-compressor__LCYgk3H",
+                        "fix-code-vulnerability__YWoKgB9",
+                        "gpt2-codegolf__SbtgkbZ",
+                        "mteb-retrieve__4pLaZXi",
+                        "write-compressor__sEKefbi",
+                        "fix-code-vulnerability__7M8UkGC",
+                        "gpt2-codegolf__jjK7vhk",
+                        "mteb-retrieve__zt6kvcm",
+                        "write-compressor__5wxUnz3",
+                        "fix-code-vulnerability__XYs324g",
+                        "gpt2-codegolf__3E3Fne3",
+                        "mteb-retrieve__syPCgkU",
+                        "write-compressor__RwpjoiT",
+                        "fix-code-vulnerability__eoZs3JG"
+                    ]
+                }
+            }
+        }
+    }
+}

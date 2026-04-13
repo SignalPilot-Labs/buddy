@@ -1,0 +1,3935 @@
+{
+  "meta": {
+    "benchmark": "terminal-bench@2.0",
+    "total_entries": 123,
+    "total_tasks": 89,
+    "scraped_entries": 123
+  },
+  "entries": [
+    {
+      "agent": "ForgeCode",
+      "agent_type": "full_agent",
+      "agent_description": "Full multi-step coding agent with planning and iterative execution",
+      "agent_url": "https://forgecode.dev",
+      "verified": false,
+      "accuracy": 0.8179775280898877,
+      "stderr": 0.010297922910013123,
+      "date": "2026-03-12",
+      "org": "ForgeCode",
+      "models": [
+        {
+          "model_key": "gpt-5.4",
+          "display": "gpt-5.4",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.4"
+      ]
+    },
+    {
+      "agent": "ForgeCode",
+      "agent_type": "full_agent",
+      "agent_description": "Full multi-step coding agent with planning and iterative execution",
+      "agent_url": "https://forgecode.dev",
+      "verified": false,
+      "accuracy": 0.8179775280898877,
+      "stderr": 0.008703333362263858,
+      "date": "2026-03-12",
+      "org": "ForgeCode",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "TongAgents",
+      "agent_type": "full_agent",
+      "agent_description": "Multi-agent framework from Beijing Institute of AI (BIGAI)",
+      "agent_url": "https://www.bigai.ai/",
+      "verified": false,
+      "accuracy": 0.802247191011236,
+      "stderr": 0.013389185716643803,
+      "date": "2026-03-13",
+      "org": "BIGAI",
+      "models": [
+        {
+          "model_key": "gemini-3.1-pro-preview",
+          "display": "gemini-3.1-pro-preview",
+          "family": "Gemini 3.1",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3.1 Pro"
+      ]
+    },
+    {
+      "agent": "SageAgent",
+      "agent_type": "full_agent",
+      "agent_description": "Open-source multi-step coding agent with tool use",
+      "agent_url": "https://github.com/opensage-agent",
+      "verified": false,
+      "accuracy": 0.7842696629213484,
+      "stderr": 0.011235955056179775,
+      "date": "2026-03-13",
+      "org": "OpenSage",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "ForgeCode",
+      "agent_type": "full_agent",
+      "agent_description": "Full multi-step coding agent with planning and iterative execution",
+      "agent_url": "https://forgecode.dev",
+      "verified": false,
+      "accuracy": 0.7842696629213484,
+      "stderr": 0.009265405900264406,
+      "date": "2026-03-02",
+      "org": "ForgeCode",
+      "models": [
+        {
+          "model_key": "gemini-3.1-pro-preview",
+          "display": "gemini-3.1-pro-preview",
+          "family": "Gemini 3.1",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3.1 Pro"
+      ]
+    },
+    {
+      "agent": "Droid",
+      "agent_type": "full_agent",
+      "agent_description": "Factory.ai coding agent with repo-level understanding",
+      "agent_url": "https://factory.ai/",
+      "verified": false,
+      "accuracy": 0.7730337078651686,
+      "stderr": 0.011008942664194058,
+      "date": "2026-02-24",
+      "org": "Factory",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "Capy",
+      "agent_type": "full_agent",
+      "agent_description": "Agentic coding system from Capy.ai",
+      "agent_url": "https://capy.ai",
+      "verified": false,
+      "accuracy": 0.7528089887640449,
+      "stderr": 0.01220537133842721,
+      "date": "2026-03-12",
+      "org": "Capy",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Simple Codex",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex minimal API wrapper \u2014 lightest scaffolding on the board (verified by OpenAI)",
+      "agent_url": "https://openai.com/codex",
+      "verified": true,
+      "accuracy": 0.750561797752809,
+      "stderr": 0.01220537133842721,
+      "date": "2026-02-06",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "Terminus-KIRA",
+      "agent_type": "full_agent",
+      "agent_description": "KRAFTON AI coding agent with multi-step terminal task execution",
+      "agent_url": "https://www.krafton.ai/",
+      "verified": false,
+      "accuracy": 0.748314606741573,
+      "stderr": 0.013103262685045618,
+      "date": "2026-02-23",
+      "org": "KRAFTON AI",
+      "models": [
+        {
+          "model_key": "gemini-3.1-pro-preview",
+          "display": "gemini-3.1-pro-preview",
+          "family": "Gemini 3.1",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3.1 Pro"
+      ]
+    },
+    {
+      "agent": "Terminus-KIRA",
+      "agent_type": "full_agent",
+      "agent_description": "KRAFTON AI coding agent with multi-step terminal task execution",
+      "agent_url": "https://www.krafton.ai/",
+      "verified": false,
+      "accuracy": 0.7471910112359551,
+      "stderr": 0.0132469956433164,
+      "date": "2026-02-22",
+      "org": "KRAFTON AI",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Mux",
+      "agent_type": "full_agent",
+      "agent_description": "Coder.com multi-agent orchestration system",
+      "agent_url": "https://github.com/coder/mux",
+      "verified": false,
+      "accuracy": 0.7460674157303371,
+      "stderr": 0.012810959832574584,
+      "date": "2026-03-06",
+      "org": "Coder",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "MAYA-V2",
+      "agent_type": "full_agent",
+      "agent_description": "ADYA multi-agent coding assistant v2",
+      "agent_url": "https://adya.ai/maya",
+      "verified": false,
+      "accuracy": 0.7207865168539326,
+      "stderr": 0.011268678938824257,
+      "date": "2026-03-12",
+      "org": "ADYA",
+      "models": [
+        {
+          "model_key": "claude-4.6-opus",
+          "display": "claude-4.6-opus",
+          "family": "claude-4.6-opus",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude 4.6 Opus"
+      ]
+    },
+    {
+      "agent": "TongAgents",
+      "agent_type": "full_agent",
+      "agent_description": "Multi-agent framework from Beijing Institute of AI (BIGAI)",
+      "agent_url": "https://www.bigai.ai/",
+      "verified": false,
+      "accuracy": 0.7191011235955056,
+      "stderr": 0.013669129281569032,
+      "date": "2026-02-22",
+      "org": "Bigai",
+      "models": [
+        {
+          "model_key": "claude-opus-4.6",
+          "display": "claude-opus-4.6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Junie CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "JetBrains CLI agent wrapping multiple frontier models",
+      "agent_url": "https://junie.jetbrains.com",
+      "verified": false,
+      "accuracy": 0.7101123595505618,
+      "stderr": 0.014649893045399211,
+      "date": "2026-03-07",
+      "org": "JetBrains",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gemini-3-flash-preview",
+          "display": "gemini-3-flash-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "mid",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gemini-3.1-pro-preview",
+          "display": "gemini-3.1-pro-preview",
+          "family": "Gemini 3.1",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6",
+        "Gemini 3 Flash",
+        "Gemini 3.1 Pro",
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "CodeBrain-1",
+      "agent_type": "full_agent",
+      "agent_description": "Feeling AI full coding agent with iterative refinement",
+      "agent_url": "https://feeling-ai.com",
+      "verified": false,
+      "accuracy": 0.7033707865168539,
+      "stderr": 0.013103262685045618,
+      "date": "2026-02-10",
+      "org": "Feeling AI",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "Droid",
+      "agent_type": "full_agent",
+      "agent_description": "Factory.ai coding agent with repo-level understanding",
+      "agent_url": "https://factory.ai/",
+      "verified": false,
+      "accuracy": 0.698876404494382,
+      "stderr": 0.012612328270024521,
+      "date": "2026-02-05",
+      "org": "Factory",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Ante",
+      "agent_type": "full_agent",
+      "agent_description": "Antigma Labs coding agent (verified submission)",
+      "agent_url": "https://antigma.ai",
+      "verified": true,
+      "accuracy": 0.6942571785268414,
+      "stderr": 0.010656438118788164,
+      "date": "2026-01-06",
+      "org": "Antigma Labs",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "IndusAGI Coding Agent",
+      "agent_type": "full_agent",
+      "agent_description": "IndusAGI enterprise coding agent",
+      "agent_url": "https://www.indusagi.com",
+      "verified": false,
+      "accuracy": 0.6913857677902622,
+      "stderr": 0.011628595278097396,
+      "date": "2026-03-18",
+      "org": "Varun Israni (SoloVpx)",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "Crux",
+      "agent_type": "full_agent",
+      "agent_description": "Roam open-source multi-step terminal agent",
+      "agent_url": "https://github.com/0xDarkMatter/crux-agent",
+      "verified": false,
+      "accuracy": 0.6687265917602996,
+      "stderr": null,
+      "date": "2026-02-23",
+      "org": "Roam",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Deep Agents",
+      "agent_type": "full_agent",
+      "agent_description": "LangChain deep-research style coding agents",
+      "agent_url": "https://github.com/langchain-ai/deepagents",
+      "verified": false,
+      "accuracy": 0.6651685393258427,
+      "stderr": 0.015622961509074315,
+      "date": "2026-02-12",
+      "org": "LangChain",
+      "models": [
+        {
+          "model_key": "gpt-5.2-codex",
+          "display": "gpt-5.2-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.2-Codex"
+      ]
+    },
+    {
+      "agent": "Mux",
+      "agent_type": "full_agent",
+      "agent_description": "Coder.com multi-agent orchestration system",
+      "agent_url": "https://github.com/coder/mux",
+      "verified": false,
+      "accuracy": 0.6651685393258427,
+      "stderr": 0.012909129542782087,
+      "date": "2026-02-13",
+      "org": "Coder",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "SageAgent",
+      "agent_type": "full_agent",
+      "agent_description": "Open-source multi-step coding agent with tool use",
+      "agent_url": "https://github.com/opensage-agent",
+      "verified": false,
+      "accuracy": 0.651685393258427,
+      "stderr": 0.010540260134434673,
+      "date": "2026-02-23",
+      "org": "OpenSage",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Droid",
+      "agent_type": "full_agent",
+      "agent_description": "Factory.ai coding agent with repo-level understanding",
+      "agent_url": "https://factory.ai/",
+      "verified": false,
+      "accuracy": 0.6494382022471911,
+      "stderr": 0.014123376505591612,
+      "date": "2025-12-24",
+      "org": "Factory",
+      "models": [
+        {
+          "model_key": "gpt-5.2",
+          "display": "gpt-5.2",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.2"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.647191011235955,
+      "stderr": 0.013852615737008935,
+      "date": "2026-02-05",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5.3-codex",
+          "display": "gpt-5.3-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.3-Codex"
+      ]
+    },
+    {
+      "agent": "Junie CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "JetBrains CLI agent wrapping multiple frontier models",
+      "agent_url": "https://junie.jetbrains.com",
+      "verified": false,
+      "accuracy": 0.6426966292134831,
+      "stderr": 0.0142124838659253,
+      "date": "2025-12-23",
+      "org": "JetBrains",
+      "models": [
+        {
+          "model_key": "gemini-3-flash-preview",
+          "display": "gemini-3-flash-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Flash"
+      ]
+    },
+    {
+      "agent": "Droid",
+      "agent_type": "full_agent",
+      "agent_description": "Factory.ai coding agent with repo-level understanding",
+      "agent_url": "https://factory.ai/",
+      "verified": false,
+      "accuracy": 0.6314606741573033,
+      "stderr": 0.013761178330242574,
+      "date": "2025-12-11",
+      "org": "Factory",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5-20251101",
+          "display": "claude-opus-4-5-20251101",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.6292134831460674,
+      "stderr": 0.013576456150106261,
+      "date": "2026-02-06",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.6292134831460674,
+      "stderr": 0.015323799659534669,
+      "date": "2025-12-18",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5.2",
+          "display": "gpt-5.2",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.2"
+      ]
+    },
+    {
+      "agent": "CodeBrain-1",
+      "agent_type": "full_agent",
+      "agent_description": "Feeling AI full coding agent with iterative refinement",
+      "agent_url": "https://feeling-ai.com",
+      "verified": false,
+      "accuracy": 0.6224719101123596,
+      "stderr": 0.013294561310336217,
+      "date": "2026-02-05",
+      "org": "Feeling AI",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "II-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Intelligent Internet full coding agent",
+      "agent_url": "https://agent.ii.inc/",
+      "verified": false,
+      "accuracy": 0.6179775280898876,
+      "stderr": 0.014389043230186176,
+      "date": "2025-12-23",
+      "org": "Intelligent Internet",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Warp",
+      "agent_type": "full_agent",
+      "agent_description": "Warp terminal AI agent with multi-model ensemble",
+      "agent_url": "https://www.warp.dev/",
+      "verified": false,
+      "accuracy": 0.6123595505617978,
+      "stderr": 0.015419617116283821,
+      "date": "2025-12-12",
+      "org": "Warp",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5",
+          "display": "claude-haiku-4-5",
+          "family": "claude-haiku-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gpt-5.2",
+          "display": "gpt-5.2",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5",
+        "GPT-5.2"
+      ]
+    },
+    {
+      "agent": "Droid",
+      "agent_type": "full_agent",
+      "agent_description": "Factory.ai coding agent with repo-level understanding",
+      "agent_url": "https://factory.ai/",
+      "verified": false,
+      "accuracy": 0.6112359550561798,
+      "stderr": 0.0142124838659253,
+      "date": "2025-12-24",
+      "org": "Factory",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Mux",
+      "agent_type": "full_agent",
+      "agent_description": "Coder.com multi-agent orchestration system",
+      "agent_url": "https://github.com/coder/mux",
+      "verified": false,
+      "accuracy": 0.6067415730337079,
+      "stderr": null,
+      "date": "2026-01-17",
+      "org": "Coder",
+      "models": [
+        {
+          "model_key": "gpt-5.2",
+          "display": "gpt-5.2",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.2"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.604494382022472,
+      "stderr": 0.013576456150106261,
+      "date": "2025-11-24",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5.1-codex-max",
+          "display": "gpt-5.1-codex-max",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1-Codex-Max"
+      ]
+    },
+    {
+      "agent": "Letta Code",
+      "agent_type": "full_agent",
+      "agent_description": "Letta (MemGPT successor) agent with persistent memory and tool use",
+      "agent_url": "https://www.letta.com/",
+      "verified": false,
+      "accuracy": 0.5910112359550562,
+      "stderr": 0.012308372078767778,
+      "date": "2025-12-17",
+      "org": "Letta",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5",
+          "display": "claude-opus-4-5",
+          "family": "claude-opus-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "Warp",
+      "agent_type": "full_agent",
+      "agent_description": "Warp terminal AI agent with multi-model ensemble",
+      "agent_url": "https://www.warp.dev/",
+      "verified": false,
+      "accuracy": 0.5910112359550562,
+      "stderr": 0.014033703367187412,
+      "date": "2025-11-20",
+      "org": "Warp",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5",
+        "Gemini 3 Pro",
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "Mux",
+      "agent_type": "full_agent",
+      "agent_description": "Coder.com multi-agent orchestration system",
+      "agent_url": "https://github.com/coder/mux",
+      "verified": false,
+      "accuracy": 0.5842696629213483,
+      "stderr": null,
+      "date": "2026-01-17",
+      "org": "Coder",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5",
+          "display": "claude-opus-4-5",
+          "family": "claude-opus-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "Abacus AI Desktop",
+      "agent_type": "full_agent",
+      "agent_description": "Abacus.AI desktop agent combining multiple frontier models",
+      "agent_url": "https://deepagent-desktop.abacus.ai/",
+      "verified": false,
+      "accuracy": 0.5842696629213483,
+      "stderr": 0.014033703367187412,
+      "date": "2025-12-11",
+      "org": "Abacus.AI",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5",
+          "display": "claude-haiku-4-5",
+          "family": "claude-haiku-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5",
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Claude Code",
+      "agent_type": "cli_agent",
+      "agent_description": "Anthropic's official CLI coding agent (verified by Anthropic)",
+      "agent_url": "https://www.claude.com/product/claude-code",
+      "verified": true,
+      "accuracy": 0.5797752808988764,
+      "stderr": 0.014821242649744854,
+      "date": "2026-02-07",
+      "org": "Anthropic",
+      "models": [
+        {
+          "model_key": "claude-opus-4-6",
+          "display": "claude-opus-4-6",
+          "family": "Claude 4.6",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.6"
+      ]
+    },
+    {
+      "agent": "Crux",
+      "agent_type": "full_agent",
+      "agent_description": "Roam open-source multi-step terminal agent",
+      "agent_url": "https://github.com/0xDarkMatter/crux-agent",
+      "verified": true,
+      "accuracy": 0.5775280898876405,
+      "stderr": 0.01499063377991723,
+      "date": "2025-11-16",
+      "org": "Roam",
+      "models": [
+        {
+          "model_key": "gpt-5.1-codex",
+          "display": "gpt-5.1-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1-Codex"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.5775280898876405,
+      "stderr": 0.012909129542782087,
+      "date": "2025-11-22",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5-20251101",
+          "display": "claude-opus-4-5-20251101",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "grok-cli",
+      "agent_type": "cli_agent",
+      "agent_description": "Community Grok CLI agent wrapping xAI Grok reasoning model",
+      "agent_url": "https://github.com/superagent-ai/grok-cli",
+      "verified": false,
+      "accuracy": 0.5730337078651685,
+      "stderr": null,
+      "date": "2026-04-02",
+      "org": "Vibe Kit",
+      "models": [
+        {
+          "model_key": "grok-4.20-0309-reasoning",
+          "display": "grok-4.20-0309-reasoning",
+          "family": "grok-4.20-0309-reasoning",
+          "provider": "xai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Grok 4.20 Reasoning"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.5685393258426966,
+      "stderr": 0.012612328270024521,
+      "date": "2025-11-21",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Letta Code",
+      "agent_type": "full_agent",
+      "agent_description": "Letta (MemGPT successor) agent with persistent memory and tool use",
+      "agent_url": "https://www.letta.com/",
+      "verified": false,
+      "accuracy": 0.5595505617977528,
+      "stderr": 0.015158132093519149,
+      "date": "2025-12-17",
+      "org": "Letta",
+      "models": [
+        {
+          "model_key": "gemini-3-pro-preview",
+          "display": "gemini-3-pro-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Pro"
+      ]
+    },
+    {
+      "agent": "Goose",
+      "agent_type": "cli_agent",
+      "agent_description": "Block (Square) open-source CLI coding agent",
+      "agent_url": "https://block.github.io/goose/",
+      "verified": false,
+      "accuracy": 0.5432584269662921,
+      "stderr": 0.013400966788625351,
+      "date": "2025-12-11",
+      "org": "Block",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5",
+          "display": "claude-opus-4-5",
+          "family": "claude-opus-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.5404494382022472,
+      "stderr": 0.014750088889524508,
+      "date": "2025-12-12",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5.2",
+          "display": "gpt-5.2",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.2"
+      ]
+    },
+    {
+      "agent": "Letta Code",
+      "agent_type": "full_agent",
+      "agent_description": "Letta (MemGPT successor) agent with persistent memory and tool use",
+      "agent_url": "https://www.letta.com/",
+      "verified": false,
+      "accuracy": 0.5348314606741573,
+      "stderr": 0.014476515423286658,
+      "date": "2025-12-17",
+      "org": "Letta",
+      "models": [
+        {
+          "model_key": "gpt-5.1-codex",
+          "display": "gpt-5.1-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1-Codex"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": false,
+      "accuracy": 0.5241573033707865,
+      "stderr": 0.013400966788625351,
+      "date": "2026-02-23",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "glm-5",
+          "display": "glm-5",
+          "family": "GLM 5",
+          "provider": "Zhipu AI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GLM 5"
+      ]
+    },
+    {
+      "agent": "Claude Code",
+      "agent_type": "cli_agent",
+      "agent_description": "Anthropic's official CLI coding agent (verified by Anthropic)",
+      "agent_url": "https://www.claude.com/product/claude-code",
+      "verified": true,
+      "accuracy": 0.5213483146067416,
+      "stderr": 0.012909129542782087,
+      "date": "2025-12-18",
+      "org": "Anthropic",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5-20251101",
+          "display": "claude-opus-4-5-20251101",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.5191011235955056,
+      "stderr": 0.014735816908543822,
+      "date": "2026-01-04",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5-20251101",
+          "display": "claude-opus-4-5-20251101",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "OpenCode",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenCode.ai open-source CLI coding agent",
+      "agent_url": "https://opencode.ai",
+      "verified": false,
+      "accuracy": 0.5168539325842697,
+      "stderr": null,
+      "date": "2026-01-12",
+      "org": "Anomaly Innovations",
+      "models": [
+        {
+          "model_key": "claude-opus-4-5",
+          "display": "claude-opus-4-5",
+          "family": "claude-opus-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.5168539325842697,
+      "stderr": 0.015969292588260558,
+      "date": "2026-01-07",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gemini-3-flash-preview",
+          "display": "gemini-3-flash-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Flash"
+      ]
+    },
+    {
+      "agent": "Warp",
+      "agent_type": "full_agent",
+      "agent_description": "Warp terminal AI agent with multi-model ensemble",
+      "agent_url": "https://www.warp.dev/",
+      "verified": false,
+      "accuracy": 0.501123595505618,
+      "stderr": 0.013576456150106261,
+      "date": "2025-11-11",
+      "org": "Warp",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        },
+        {
+          "model_key": "claude-sonnet-4-5-20250929",
+          "display": "claude-sonnet-4-5-20250929",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "mid",
+          "specialty": "general"
+        },
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5",
+        "Claude Sonnet 4.5",
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.4960674157303371,
+      "stderr": 0.014782150465817143,
+      "date": "2025-11-04",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5",
+          "display": "gpt-5",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.47584269662921347,
+      "stderr": 0.014089815959533092,
+      "date": "2025-11-16",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5.1",
+          "display": "gpt-5.1",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1"
+      ]
+    },
+    {
+      "agent": "Gemini CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "Google's official Gemini CLI agent (verified by Google)",
+      "agent_url": "https://github.com/google-gemini/gemini-cli",
+      "verified": false,
+      "accuracy": 0.47415730337078654,
+      "stderr": 0.015487695227067664,
+      "date": "2026-03-06",
+      "org": "Google",
+      "models": [
+        {
+          "model_key": "gemini-3-flash-preview",
+          "display": "gemini-3-flash-preview",
+          "family": "Gemini 3",
+          "provider": "Google",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 3 Flash"
+      ]
+    },
+    {
+      "agent": "CAMEL-AI",
+      "agent_type": "full_agent",
+      "agent_description": "CAMEL communicative agents framework for role-playing multi-agent coding",
+      "agent_url": "https://www.camel-ai.org/",
+      "verified": false,
+      "accuracy": 0.4651685393258427,
+      "stderr": 0.011996717137113833,
+      "date": "2025-12-24",
+      "org": "CAMEL-AI",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5",
+          "display": "claude-sonnet-4-5",
+          "family": "claude-sonnet-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.44325842696629214,
+      "stderr": 0.01380316233061452,
+      "date": "2025-11-04",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5-codex",
+          "display": "gpt-5-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Codex"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.43820224719101125,
+      "stderr": 0.01524119097331521,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "gpt-5",
+          "display": "gpt-5",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.43426966292134833,
+      "stderr": 0.014660661068202121,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5-codex",
+          "display": "gpt-5-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Codex"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.43202247191011234,
+      "stderr": 0.01468217342176627,
+      "date": "2026-02-04",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "kimi-k2.5",
+          "display": "kimi-k2.5",
+          "family": "Kimi K2",
+          "provider": "Moonshot",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Kimi K2.5"
+      ]
+    },
+    {
+      "agent": "Goose",
+      "agent_type": "cli_agent",
+      "agent_description": "Block (Square) open-source CLI coding agent",
+      "agent_url": "https://block.github.io/goose/",
+      "verified": false,
+      "accuracy": 0.4314606741573034,
+      "stderr": 0.013199258566821045,
+      "date": "2025-12-11",
+      "org": "Block",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5",
+          "display": "claude-sonnet-4-5",
+          "family": "claude-sonnet-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "Crux",
+      "agent_type": "full_agent",
+      "agent_description": "Roam open-source multi-step terminal agent",
+      "agent_url": "https://github.com/0xDarkMatter/crux-agent",
+      "verified": true,
+      "accuracy": 0.4314606741573034,
+      "stderr": 0.015323799659534669,
+      "date": "2025-11-17",
+      "org": "Roam",
+      "models": [
+        {
+          "model_key": "gpt-5.1-codex-mini",
+          "display": "gpt-5.1-codex-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1-Codex-Mini"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.4280898876404494,
+      "stderr": 0.014227280833874591,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5-20250929",
+          "display": "claude-sonnet-4-5-20250929",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "MAYA-V2",
+      "agent_type": "full_agent",
+      "agent_description": "ADYA multi-agent coding assistant v2",
+      "agent_url": "https://adya.ai/maya",
+      "verified": false,
+      "accuracy": 0.42696629213483145,
+      "stderr": null,
+      "date": "2026-01-04",
+      "org": "ADYA",
+      "models": [
+        {
+          "model_key": "claude-4.5-sonnet",
+          "display": "claude-4.5-sonnet",
+          "family": "claude-4.5-sonnet",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude 4.5 Sonnet"
+      ]
+    },
+    {
+      "agent": "cchuter",
+      "agent_type": "cli_agent",
+      "agent_description": "Community blobfish CLI agent wrapping minimax-m2.5",
+      "agent_url": "https://github.com/cchuter/blobfish",
+      "verified": false,
+      "accuracy": 0.42696629213483145,
+      "stderr": 0.014410961054360292,
+      "date": "2026-03-30",
+      "org": "teamblobfish.com",
+      "models": [
+        {
+          "model_key": "minimax-m2.5",
+          "display": "minimax-m2.5",
+          "family": "MiniMax M2",
+          "provider": "MiniMax",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "minimax-m2.5"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.4258426966292135,
+      "stderr": 0.01413826673271676,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5-20250929",
+          "display": "claude-sonnet-4-5-20250929",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.42528089887640447,
+      "stderr": 0.014312066520064042,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5-20250929",
+          "display": "claude-sonnet-4-5-20250929",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": false,
+      "accuracy": 0.42247191011235957,
+      "stderr": 0.013389185716643803,
+      "date": "2026-02-23",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "minimax-m2.5",
+          "display": "minimax-m2.5",
+          "family": "MiniMax M2",
+          "provider": "MiniMax",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Minimax m2.5"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.4134831460674157,
+      "stderr": 0.014123376505591612,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gpt-5-codex",
+          "display": "gpt-5-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Codex"
+      ]
+    },
+    {
+      "agent": "Claude Code",
+      "agent_type": "cli_agent",
+      "agent_description": "Anthropic's official CLI coding agent (verified by Anthropic)",
+      "agent_url": "https://www.claude.com/product/claude-code",
+      "verified": true,
+      "accuracy": 0.400561797752809,
+      "stderr": 0.014874384600981715,
+      "date": "2025-11-04",
+      "org": "Anthropic",
+      "models": [
+        {
+          "model_key": "claude-sonnet-4-5-20250929",
+          "display": "claude-sonnet-4-5-20250929",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Sonnet 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": false,
+      "accuracy": 0.3955056179775281,
+      "stderr": 0.014033703367187412,
+      "date": "2026-02-10",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "deepseek-v3.2",
+          "display": "deepseek-v3.2",
+          "family": "DeepSeek-V3",
+          "provider": "DeepSeek",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "DeepSeek-V3.2"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.3797752808988764,
+      "stderr": 0.013389185716643803,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "claude-opus-4-1-20250805",
+          "display": "claude-opus-4-1-20250805",
+          "family": "claude-opus-4-1-20250805",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.1"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.3685393258426966,
+      "stderr": 0.013761178330242574,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "claude-opus-4-1-20250805",
+          "display": "claude-opus-4-1-20250805",
+          "family": "claude-opus-4-1-20250805",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.1"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.3685393258426966,
+      "stderr": 0.01651341399629109,
+      "date": "2025-11-17",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5.1-codex",
+          "display": "gpt-5.1-codex",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "GPT-5.1-Codex"
+      ]
+    },
+    {
+      "agent": "Crux",
+      "agent_type": "full_agent",
+      "agent_description": "Roam open-source multi-step terminal agent",
+      "agent_url": "https://github.com/0xDarkMatter/crux-agent",
+      "verified": true,
+      "accuracy": 0.36629213483146067,
+      "stderr": 0.014735816908543822,
+      "date": "2025-12-22",
+      "org": "Roam",
+      "models": [
+        {
+          "model_key": "minimax-m2.1",
+          "display": "minimax-m2.1",
+          "family": "MiniMax M2",
+          "provider": "MiniMax",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "MiniMax M2.1"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.35730337078651686,
+      "stderr": 0.014389043230186176,
+      "date": "2025-11-11",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "moonshotai/kimi-k2-thinking",
+          "display": "moonshotai/Kimi-K2-Thinking",
+          "family": "moonshotai/Kimi-K2-Thinking",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Kimi K2 Thinking"
+      ]
+    },
+    {
+      "agent": "Goose",
+      "agent_type": "cli_agent",
+      "agent_description": "Block (Square) open-source CLI coding agent",
+      "agent_url": "https://block.github.io/goose/",
+      "verified": false,
+      "accuracy": 0.3550561797752809,
+      "stderr": 0.014735816908543822,
+      "date": "2025-12-11",
+      "org": "Block",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5",
+          "display": "claude-haiku-4-5",
+          "family": "claude-haiku-4-5",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.35168539325842696,
+      "stderr": 0.015589254972484952,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5",
+          "display": "gpt-5",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.350561797752809,
+      "stderr": 0.012810959832574584,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "claude-opus-4-1-20250805",
+          "display": "claude-opus-4-1-20250805",
+          "family": "claude-opus-4-1-20250805",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.1"
+      ]
+    },
+    {
+      "agent": "spoox-m",
+      "agent_type": "cli_agent",
+      "agent_description": "TUM community agent (spoox) wrapping GPT-5-Mini",
+      "agent_url": "https://github.com/plaume8/spoox",
+      "verified": false,
+      "accuracy": 0.34831460674157305,
+      "stderr": 0.013852615737008935,
+      "date": "2025-12-24",
+      "org": "TUM",
+      "models": [
+        {
+          "model_key": "gpt-5-mini",
+          "display": "gpt-5-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Mini"
+      ]
+    },
+    {
+      "agent": "Claude Code",
+      "agent_type": "cli_agent",
+      "agent_description": "Anthropic's official CLI coding agent (verified by Anthropic)",
+      "agent_url": "https://www.claude.com/product/claude-code",
+      "verified": true,
+      "accuracy": 0.34831460674157305,
+      "stderr": 0.014792822215828838,
+      "date": "2025-11-04",
+      "org": "Anthropic",
+      "models": [
+        {
+          "model_key": "claude-opus-4-1-20250805",
+          "display": "claude-opus-4-1-20250805",
+          "family": "claude-opus-4-1-20250805",
+          "provider": "anthropic",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Opus 4.1"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.3393258426966292,
+      "stderr": 0.014821242649744854,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gpt-5",
+          "display": "gpt-5",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.3338951310861423,
+      "stderr": 0.01449709156027109,
+      "date": "2026-01-28",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "glm-4.7",
+          "display": "glm-4.7",
+          "family": "GLM 4",
+          "provider": "Zhipu AI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GLM 4.7"
+      ]
+    },
+    {
+      "agent": "Crux",
+      "agent_type": "full_agent",
+      "agent_description": "Roam open-source multi-step terminal agent",
+      "agent_url": "https://github.com/0xDarkMatter/crux-agent",
+      "verified": false,
+      "accuracy": 0.3325842696629214,
+      "stderr": 0.01251183002883151,
+      "date": "2026-02-08",
+      "org": "Roam",
+      "models": [
+        {
+          "model_key": "glm-4.7",
+          "display": "GLM-4.7",
+          "family": "GLM 4",
+          "provider": "Zhipu AI",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GLM 4.7"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.32640449438202246,
+      "stderr": 0.015416205319114881,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gemini-2.5-pro",
+          "display": "gemini-2.5-pro",
+          "family": "gemini-2.5-pro",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Pro"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.3185393258426966,
+      "stderr": 0.015299751534052615,
+      "date": "2025-11-04",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5-mini",
+          "display": "gpt-5-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Mini"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.300374531835206,
+      "stderr": 0.013983636481344172,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "accounts/fireworks/models/minimax-m2",
+          "display": "accounts/fireworks/models/minimax-m2",
+          "family": "accounts/fireworks/models/minimax-m2",
+          "provider": "fireworks_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "MiniMax M2"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.298314606741573,
+      "stderr": 0.012823272146644188,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.29213483146067415,
+      "stderr": 0.014821242649744854,
+      "date": "2025-12-23",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "minimax-m2.1",
+          "display": "minimax-m2.1",
+          "family": "MiniMax M2",
+          "provider": "MiniMax",
+          "tier": "frontier",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "MiniMax M2.1"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.29213483146067415,
+      "stderr": 0.014033703367187412,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "gpt-5-mini",
+          "display": "gpt-5-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Mini"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.28314606741573034,
+      "stderr": 0.014671421187865838,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.27790262172284647,
+      "stderr": 0.012865591039189264,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "moonshotai/kimi-k2-instruct-0905",
+          "display": "moonshotai/Kimi-K2-Instruct-0905",
+          "family": "moonshotai/Kimi-K2-Instruct-0905",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Kimi K2 Instruct"
+      ]
+    },
+    {
+      "agent": "Claude Code",
+      "agent_type": "cli_agent",
+      "agent_description": "Anthropic's official CLI coding agent (verified by Anthropic)",
+      "agent_url": "https://www.claude.com/product/claude-code",
+      "verified": true,
+      "accuracy": 0.2752808988764045,
+      "stderr": 0.014160572715662595,
+      "date": "2025-11-04",
+      "org": "Anthropic",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5"
+      ]
+    },
+    {
+      "agent": "Dakou Agent",
+      "agent_type": "full_agent",
+      "agent_description": "iflow Dakou full coding agent using Qwen 3 Coder 480B",
+      "agent_url": "https://dakou.iflow.cn/",
+      "verified": false,
+      "accuracy": 0.27191011235955054,
+      "stderr": 0.013103262685045618,
+      "date": "2025-12-28",
+      "org": "iflow",
+      "models": [
+        {
+          "model_key": "qwen/qwen3-coder-480b-a35b-instruct-fp8",
+          "display": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "family": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "provider": "modelscope",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Qwen 3 Coder 480B"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.27191011235955054,
+      "stderr": 0.015568996023091032,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "grok-4-0709",
+          "display": "grok-4-0709",
+          "family": "grok-4-0709",
+          "provider": "xai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Grok 4"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.26741573033707866,
+      "stderr": 0.013761178330242574,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "moonshotai/kimi-k2-instruct-0905",
+          "display": "moonshotai/Kimi-K2-Instruct-0905",
+          "family": "moonshotai/Kimi-K2-Instruct-0905",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Kimi K2 Instruct"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.2606741573033708,
+      "stderr": 0.013006558317741826,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gemini-2.5-pro",
+          "display": "gemini-2.5-pro",
+          "family": "gemini-2.5-pro",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Pro"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.25842696629213485,
+      "stderr": 0.013389185716643803,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "grok-code-fast-1",
+          "display": "grok-code-fast-1",
+          "family": "Grok Code",
+          "provider": "xAI",
+          "tier": "mid",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "Grok Code Fast 1"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.2539325842696629,
+      "stderr": 0.013199258566821045,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "qwen/qwen3-coder-480b-a35b-instruct-fp8",
+          "display": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "family": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Qwen 3 Coder 480B"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.2539325842696629,
+      "stderr": 0.014906178833057978,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "grok-4-0709",
+          "display": "grok-4-0709",
+          "family": "grok-4-0709",
+          "provider": "xai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Grok 4"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.24531835205992508,
+      "stderr": 0.012472528693143605,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "accounts/fireworks/models/glm-4p6",
+          "display": "accounts/fireworks/models/glm-4p6",
+          "family": "accounts/fireworks/models/glm-4p6",
+          "provider": "fireworks_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GLM 4.6"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.24044943820224718,
+      "stderr": 0.012909129542782087,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5-mini",
+          "display": "gpt-5-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Mini"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.2389513108614232,
+      "stderr": 0.014291223991265103,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "qwen/qwen3-coder-480b-a35b-instruct-fp8",
+          "display": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "family": "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Qwen 3 Coder 480B"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.23146067415730337,
+      "stderr": 0.014821242649744854,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "grok-4-0709",
+          "display": "grok-4-0709",
+          "family": "grok-4-0709",
+          "provider": "xai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Grok 4"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.22247191011235956,
+      "stderr": 0.013389185716643803,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gpt-5-mini",
+          "display": "gpt-5-mini",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "mid",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Mini"
+      ]
+    },
+    {
+      "agent": "Gemini CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "Google's official Gemini CLI agent (verified by Google)",
+      "agent_url": "https://github.com/google-gemini/gemini-cli",
+      "verified": true,
+      "accuracy": 0.19550561797752808,
+      "stderr": 0.014585117961513674,
+      "date": "2025-11-04",
+      "org": "Google",
+      "models": [
+        {
+          "model_key": "gemini-2.5-pro",
+          "display": "gemini-2.5-pro",
+          "family": "gemini-2.5-pro",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Pro"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.18689138576779027,
+      "stderr": 0.013571289087635535,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "openai/gpt-oss-120b",
+          "display": "openai/gpt-oss-120b",
+          "family": "openai/gpt-oss-120b",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-OSS-120B"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.1707865168539326,
+      "stderr": 0.012712032021331192,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gemini-2.5-flash",
+          "display": "gemini-2.5-flash",
+          "family": "gemini-2.5-flash",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Flash"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": false,
+      "accuracy": 0.1702247191011236,
+      "stderr": 0.012524436409892108,
+      "date": "2026-03-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-oss-20b-rl",
+          "display": "gpt-oss-20b-rl",
+          "family": "gpt-oss-20b-rl",
+          "provider": "afterquery",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "AfterQuery-GPT-OSS-20B"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.16853932584269662,
+      "stderr": 0.012101493948616864,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gemini-2.5-flash",
+          "display": "gemini-2.5-flash",
+          "family": "gemini-2.5-flash",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Flash"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.16404494382022472,
+      "stderr": 0.01220537133842721,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "gemini-2.5-flash",
+          "display": "gemini-2.5-flash",
+          "family": "gemini-2.5-flash",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Flash"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.16404494382022472,
+      "stderr": 0.014033703367187412,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "gemini-2.5-pro",
+          "display": "gemini-2.5-pro",
+          "family": "gemini-2.5-pro",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Pro"
+      ]
+    },
+    {
+      "agent": "Gemini CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "Google's official Gemini CLI agent (verified by Google)",
+      "agent_url": "https://github.com/google-gemini/gemini-cli",
+      "verified": true,
+      "accuracy": 0.1544943820224719,
+      "stderr": 0.011815574198013,
+      "date": "2025-11-04",
+      "org": "Google",
+      "models": [
+        {
+          "model_key": "gemini-2.5-flash",
+          "display": "gemini-2.5-flash",
+          "family": "gemini-2.5-flash",
+          "provider": "gemini",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Gemini 2.5 Flash"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.14157303370786517,
+      "stderr": 0.013006558317741826,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "grok-code-fast-1",
+          "display": "grok-code-fast-1",
+          "family": "Grok Code",
+          "provider": "xAI",
+          "tier": "mid",
+          "specialty": "code-specialized"
+        }
+      ],
+      "model_display": [
+        "Grok Code Fast 1"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.14157303370786517,
+      "stderr": 0.011568123753917978,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "openai/gpt-oss-120b",
+          "display": "openai/gpt-oss-120b",
+          "family": "openai/gpt-oss-120b",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-OSS-120B"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.1393258426966292,
+      "stderr": 0.013943453534821187,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "claude-haiku-4-5-20251001",
+          "display": "claude-haiku-4-5-20251001",
+          "family": "Claude 4.5",
+          "provider": "Anthropic",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "Claude Haiku 4.5"
+      ]
+    },
+    {
+      "agent": "Codex CLI",
+      "agent_type": "cli_agent",
+      "agent_description": "OpenAI Codex command-line agent (verified by OpenAI)",
+      "agent_url": "https://developers.openai.com/codex/cli/",
+      "verified": true,
+      "accuracy": 0.1146067415730337,
+      "stderr": 0.011568123753917978,
+      "date": "2025-11-04",
+      "org": "OpenAI",
+      "models": [
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "OpenHands",
+      "agent_type": "full_agent",
+      "agent_description": "OpenHands (formerly OpenDevin) open-source SWE agent; verified",
+      "agent_url": "https://github.com/OpenHands/OpenHands",
+      "verified": true,
+      "accuracy": 0.09887640449438202,
+      "stderr": 0.01077714949059038,
+      "date": "2025-11-02",
+      "org": "OpenHands",
+      "models": [
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.07865168539325842,
+      "stderr": 0.009534024015998394,
+      "date": "2025-10-31",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.0696629213483146,
+      "stderr": 0.009795278524810502,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "gpt-5-nano",
+          "display": "gpt-5-nano",
+          "family": "GPT-5",
+          "provider": "OpenAI",
+          "tier": "small",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-5-Nano"
+      ]
+    },
+    {
+      "agent": "Mini-SWE-Agent",
+      "agent_type": "full_agent",
+      "agent_description": "Princeton SWE-agent minimal variant; verified by original SWE-bench team",
+      "agent_url": "https://github.com/SWE-agent/mini-swe-agent",
+      "verified": true,
+      "accuracy": 0.033707865168539325,
+      "stderr": 0.006926307868504468,
+      "date": "2025-11-03",
+      "org": "Princeton",
+      "models": [
+        {
+          "model_key": "openai/gpt-oss-20b",
+          "display": "openai/gpt-oss-20b",
+          "family": "openai/gpt-oss-20b",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-OSS-20B"
+      ]
+    },
+    {
+      "agent": "Terminus 2",
+      "agent_type": "full_agent",
+      "agent_description": "TBench reference agent \u2014 used to evaluate many models; verified by TBench team",
+      "agent_url": "https://www.tbench.ai/terminus",
+      "verified": true,
+      "accuracy": 0.030711610486891385,
+      "stderr": 0.007748374856021424,
+      "date": "2025-11-01",
+      "org": "AfterQuery",
+      "models": [
+        {
+          "model_key": "openai/gpt-oss-20b",
+          "display": "openai/gpt-oss-20b",
+          "family": "openai/gpt-oss-20b",
+          "provider": "together_ai",
+          "tier": "unknown",
+          "specialty": "general"
+        }
+      ],
+      "model_display": [
+        "GPT-OSS-20B"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "task": "modernize-scientific-stack",
+      "category": "legacy-modernization",
+      "avg_pass_rate": 0.9424,
+      "global_pass_rate": 0.9414,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 580,
+      "total_successes": 546
+    },
+    {
+      "task": "constraints-scheduling",
+      "category": "algorithms",
+      "avg_pass_rate": 0.9107,
+      "global_pass_rate": 0.9074,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 529
+    },
+    {
+      "task": "multi-source-data-merger",
+      "category": "data-processing",
+      "avg_pass_rate": 0.9051,
+      "global_pass_rate": 0.9039,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 527
+    },
+    {
+      "task": "fix-git",
+      "category": "devops",
+      "avg_pass_rate": 0.8983,
+      "global_pass_rate": 0.8974,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 585,
+      "total_successes": 525
+    },
+    {
+      "task": "prove-plus-comm",
+      "category": "formal-verification",
+      "avg_pass_rate": 0.8949,
+      "global_pass_rate": 0.8981,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 520
+    },
+    {
+      "task": "git-leak-recovery",
+      "category": "devops",
+      "avg_pass_rate": 0.8831,
+      "global_pass_rate": 0.8802,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 576,
+      "total_successes": 507
+    },
+    {
+      "task": "cobol-modernization",
+      "category": "legacy-modernization",
+      "avg_pass_rate": 0.852,
+      "global_pass_rate": 0.8486,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 588,
+      "total_successes": 499
+    },
+    {
+      "task": "portfolio-optimization",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.841,
+      "global_pass_rate": 0.8377,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 485
+    },
+    {
+      "task": "nginx-request-logging",
+      "category": "devops",
+      "avg_pass_rate": 0.8339,
+      "global_pass_rate": 0.8316,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 484
+    },
+    {
+      "task": "vulnerable-secret",
+      "category": "security",
+      "avg_pass_rate": 0.7864,
+      "global_pass_rate": 0.7839,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 457
+    },
+    {
+      "task": "headless-terminal",
+      "category": "devops",
+      "avg_pass_rate": 0.7616,
+      "global_pass_rate": 0.7719,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 450
+    },
+    {
+      "task": "custom-memory-heap-crash",
+      "category": "systems",
+      "avg_pass_rate": 0.7602,
+      "global_pass_rate": 0.7612,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 443
+    },
+    {
+      "task": "git-multibranch",
+      "category": "devops",
+      "avg_pass_rate": 0.7441,
+      "global_pass_rate": 0.7366,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 425
+    },
+    {
+      "task": "log-summary-date-ranges",
+      "category": "data-processing",
+      "avg_pass_rate": 0.7407,
+      "global_pass_rate": 0.7376,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 430
+    },
+    {
+      "task": "regex-log",
+      "category": "data-processing",
+      "avg_pass_rate": 0.7381,
+      "global_pass_rate": 0.7331,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 423
+    },
+    {
+      "task": "code-from-image",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.7195,
+      "global_pass_rate": 0.7145,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 585,
+      "total_successes": 418
+    },
+    {
+      "task": "hf-model-inference",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.7182,
+      "global_pass_rate": 0.7172,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 580,
+      "total_successes": 416
+    },
+    {
+      "task": "distribution-search",
+      "category": "algorithms",
+      "avg_pass_rate": 0.7144,
+      "global_pass_rate": 0.7082,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 586,
+      "total_successes": 415
+    },
+    {
+      "task": "pypi-server",
+      "category": "devops",
+      "avg_pass_rate": 0.7034,
+      "global_pass_rate": 0.7052,
+      "difficulty_tier": "easy",
+      "entries_evaluated": 118,
+      "total_trials": 580,
+      "total_successes": 409
+    },
+    {
+      "task": "merge-diff-arc-agi-task",
+      "category": "data-processing",
+      "avg_pass_rate": 0.6966,
+      "global_pass_rate": 0.6898,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 398
+    },
+    {
+      "task": "sqlite-with-gcov",
+      "category": "build-systems",
+      "avg_pass_rate": 0.6945,
+      "global_pass_rate": 0.688,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 397
+    },
+    {
+      "task": "build-pmars",
+      "category": "build-systems",
+      "avg_pass_rate": 0.675,
+      "global_pass_rate": 0.6735,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 392
+    },
+    {
+      "task": "fix-code-vulnerability",
+      "category": "security",
+      "avg_pass_rate": 0.6695,
+      "global_pass_rate": 0.6649,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 387
+    },
+    {
+      "task": "openssl-selfsigned-cert",
+      "category": "security",
+      "avg_pass_rate": 0.6552,
+      "global_pass_rate": 0.6627,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 385
+    },
+    {
+      "task": "crack-7z-hash",
+      "category": "security",
+      "avg_pass_rate": 0.6212,
+      "global_pass_rate": 0.6106,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 356
+    },
+    {
+      "task": "build-pov-ray",
+      "category": "build-systems",
+      "avg_pass_rate": 0.616,
+      "global_pass_rate": 0.606,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 571,
+      "total_successes": 346
+    },
+    {
+      "task": "kv-store-grpc",
+      "category": "distributed-systems",
+      "avg_pass_rate": 0.6136,
+      "global_pass_rate": 0.6089,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 355
+    },
+    {
+      "task": "mcmc-sampling-stan",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.6038,
+      "global_pass_rate": 0.6111,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 576,
+      "total_successes": 352
+    },
+    {
+      "task": "fix-ocaml-gc",
+      "category": "systems",
+      "avg_pass_rate": 0.603,
+      "global_pass_rate": 0.5982,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 570,
+      "total_successes": 341
+    },
+    {
+      "task": "qemu-startup",
+      "category": "virtualization",
+      "avg_pass_rate": 0.6006,
+      "global_pass_rate": 0.6021,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 351
+    },
+    {
+      "task": "bn-fit-modify",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.589,
+      "global_pass_rate": 0.5779,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 571,
+      "total_successes": 330
+    },
+    {
+      "task": "large-scale-text-editing",
+      "category": "data-processing",
+      "avg_pass_rate": 0.5727,
+      "global_pass_rate": 0.5648,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 327
+    },
+    {
+      "task": "pytorch-model-cli",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.5669,
+      "global_pass_rate": 0.5601,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 326
+    },
+    {
+      "task": "sqlite-db-truncate",
+      "category": "databases",
+      "avg_pass_rate": 0.5373,
+      "global_pass_rate": 0.531,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 580,
+      "total_successes": 308
+    },
+    {
+      "task": "reshard-c4-data",
+      "category": "ml-data",
+      "avg_pass_rate": 0.5347,
+      "global_pass_rate": 0.5312,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 576,
+      "total_successes": 306
+    },
+    {
+      "task": "configure-git-webserver",
+      "category": "devops",
+      "avg_pass_rate": 0.5311,
+      "global_pass_rate": 0.5324,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 586,
+      "total_successes": 312
+    },
+    {
+      "task": "pytorch-model-recovery",
+      "category": "ml-systems",
+      "avg_pass_rate": 0.5064,
+      "global_pass_rate": 0.5147,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 298
+    },
+    {
+      "task": "llm-inference-batching-scheduler",
+      "category": "ml-systems",
+      "avg_pass_rate": 0.487,
+      "global_pass_rate": 0.4812,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 584,
+      "total_successes": 281
+    },
+    {
+      "task": "mailman",
+      "category": "devops",
+      "avg_pass_rate": 0.4856,
+      "global_pass_rate": 0.4974,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 573,
+      "total_successes": 285
+    },
+    {
+      "task": "password-recovery",
+      "category": "security",
+      "avg_pass_rate": 0.4822,
+      "global_pass_rate": 0.478,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 569,
+      "total_successes": 272
+    },
+    {
+      "task": "extract-elf",
+      "category": "reverse-engineering",
+      "avg_pass_rate": 0.4753,
+      "global_pass_rate": 0.4844,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 280
+    },
+    {
+      "task": "count-dataset-tokens",
+      "category": "ml-data",
+      "avg_pass_rate": 0.4708,
+      "global_pass_rate": 0.4676,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 586,
+      "total_successes": 274
+    },
+    {
+      "task": "tune-mjcf",
+      "category": "simulation",
+      "avg_pass_rate": 0.4585,
+      "global_pass_rate": 0.4509,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 262
+    },
+    {
+      "task": "cancel-async-tasks",
+      "category": "concurrency",
+      "avg_pass_rate": 0.4492,
+      "global_pass_rate": 0.4521,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 584,
+      "total_successes": 264
+    },
+    {
+      "task": "compile-compcert",
+      "category": "compilers",
+      "avg_pass_rate": 0.4453,
+      "global_pass_rate": 0.4387,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 254
+    },
+    {
+      "task": "largest-eigenval",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.4362,
+      "global_pass_rate": 0.4347,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 253
+    },
+    {
+      "task": "sparql-university",
+      "category": "databases",
+      "avg_pass_rate": 0.4331,
+      "global_pass_rate": 0.4273,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 247
+    },
+    {
+      "task": "build-cython-ext",
+      "category": "build-systems",
+      "avg_pass_rate": 0.4322,
+      "global_pass_rate": 0.4211,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 243
+    },
+    {
+      "task": "feal-differential-cryptanalysis",
+      "category": "security",
+      "avg_pass_rate": 0.4254,
+      "global_pass_rate": 0.4185,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 244
+    },
+    {
+      "task": "rstan-to-pystan",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.4089,
+      "global_pass_rate": 0.4119,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 573,
+      "total_successes": 236
+    },
+    {
+      "task": "overfull-hbox",
+      "category": "document-processing",
+      "avg_pass_rate": 0.4008,
+      "global_pass_rate": 0.4028,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 576,
+      "total_successes": 232
+    },
+    {
+      "task": "feal-linear-cryptanalysis",
+      "category": "security",
+      "avg_pass_rate": 0.3847,
+      "global_pass_rate": 0.3927,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 227
+    },
+    {
+      "task": "sanitize-git-repo",
+      "category": "devops",
+      "avg_pass_rate": 0.3746,
+      "global_pass_rate": 0.3722,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 217
+    },
+    {
+      "task": "adaptive-rejection-sampler",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.3718,
+      "global_pass_rate": 0.3543,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 573,
+      "total_successes": 203
+    },
+    {
+      "task": "circuit-fibsqrt",
+      "category": "hardware-simulation",
+      "avg_pass_rate": 0.3623,
+      "global_pass_rate": 0.3508,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 573,
+      "total_successes": 201
+    },
+    {
+      "task": "query-optimize",
+      "category": "databases",
+      "avg_pass_rate": 0.3568,
+      "global_pass_rate": 0.372,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 215
+    },
+    {
+      "task": "winning-avg-corewars",
+      "category": "simulation",
+      "avg_pass_rate": 0.3568,
+      "global_pass_rate": 0.3591,
+      "difficulty_tier": "medium",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 209
+    },
+    {
+      "task": "break-filter-js-from-html",
+      "category": "web-dev",
+      "avg_pass_rate": 0.3479,
+      "global_pass_rate": 0.3516,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 205
+    },
+    {
+      "task": "schemelike-metacircular-eval",
+      "category": "compilers",
+      "avg_pass_rate": 0.3404,
+      "global_pass_rate": 0.3328,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 194
+    },
+    {
+      "task": "qemu-alpine-ssh",
+      "category": "virtualization",
+      "avg_pass_rate": 0.3373,
+      "global_pass_rate": 0.3322,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 192
+    },
+    {
+      "task": "financial-document-processor",
+      "category": "data-processing",
+      "avg_pass_rate": 0.3186,
+      "global_pass_rate": 0.3161,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 579,
+      "total_successes": 183
+    },
+    {
+      "task": "protein-assembly",
+      "category": "bioinformatics",
+      "avg_pass_rate": 0.2398,
+      "global_pass_rate": 0.2496,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 145
+    },
+    {
+      "task": "write-compressor",
+      "category": "systems",
+      "avg_pass_rate": 0.2381,
+      "global_pass_rate": 0.2487,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 575,
+      "total_successes": 143
+    },
+    {
+      "task": "path-tracing",
+      "category": "graphics",
+      "avg_pass_rate": 0.2189,
+      "global_pass_rate": 0.2283,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 565,
+      "total_successes": 129
+    },
+    {
+      "task": "path-tracing-reverse",
+      "category": "graphics",
+      "avg_pass_rate": 0.2186,
+      "global_pass_rate": 0.2095,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 568,
+      "total_successes": 119
+    },
+    {
+      "task": "chess-best-move",
+      "category": "algorithms",
+      "avg_pass_rate": 0.2081,
+      "global_pass_rate": 0.2093,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 121
+    },
+    {
+      "task": "polyglot-c-py",
+      "category": "programming-languages",
+      "avg_pass_rate": 0.1847,
+      "global_pass_rate": 0.1899,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 574,
+      "total_successes": 109
+    },
+    {
+      "task": "polyglot-rust-c",
+      "category": "programming-languages",
+      "avg_pass_rate": 0.178,
+      "global_pass_rate": 0.1871,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 572,
+      "total_successes": 107
+    },
+    {
+      "task": "model-extraction-relu-logits",
+      "category": "ml-security",
+      "avg_pass_rate": 0.147,
+      "global_pass_rate": 0.1515,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 88
+    },
+    {
+      "task": "db-wal-recovery",
+      "category": "databases",
+      "avg_pass_rate": 0.1458,
+      "global_pass_rate": 0.1318,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 584,
+      "total_successes": 77
+    },
+    {
+      "task": "torch-tensor-parallelism",
+      "category": "ml-systems",
+      "avg_pass_rate": 0.139,
+      "global_pass_rate": 0.1438,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 83
+    },
+    {
+      "task": "regex-chess",
+      "category": "algorithms",
+      "avg_pass_rate": 0.1321,
+      "global_pass_rate": 0.1341,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 574,
+      "total_successes": 77
+    },
+    {
+      "task": "gcode-to-text",
+      "category": "data-processing",
+      "avg_pass_rate": 0.1242,
+      "global_pass_rate": 0.1291,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 75
+    },
+    {
+      "task": "mteb-leaderboard",
+      "category": "ml-data",
+      "avg_pass_rate": 0.1204,
+      "global_pass_rate": 0.1146,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 576,
+      "total_successes": 66
+    },
+    {
+      "task": "make-mips-interpreter",
+      "category": "compilers",
+      "avg_pass_rate": 0.1014,
+      "global_pass_rate": 0.1053,
+      "difficulty_tier": "hard",
+      "entries_evaluated": 118,
+      "total_trials": 570,
+      "total_successes": 60
+    },
+    {
+      "task": "dna-assembly",
+      "category": "bioinformatics",
+      "avg_pass_rate": 0.0983,
+      "global_pass_rate": 0.0979,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 582,
+      "total_successes": 57
+    },
+    {
+      "task": "dna-insert",
+      "category": "bioinformatics",
+      "avg_pass_rate": 0.0966,
+      "global_pass_rate": 0.0986,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 57
+    },
+    {
+      "task": "mteb-retrieve",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.0952,
+      "global_pass_rate": 0.1026,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 575,
+      "total_successes": 59
+    },
+    {
+      "task": "torch-pipeline-parallelism",
+      "category": "ml-systems",
+      "avg_pass_rate": 0.0831,
+      "global_pass_rate": 0.0848,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 49
+    },
+    {
+      "task": "video-processing",
+      "category": "multimedia",
+      "avg_pass_rate": 0.0712,
+      "global_pass_rate": 0.0757,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 44
+    },
+    {
+      "task": "extract-moves-from-video",
+      "category": "multimedia",
+      "avg_pass_rate": 0.0415,
+      "global_pass_rate": 0.0364,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 21
+    },
+    {
+      "task": "gpt2-codegolf",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.0356,
+      "global_pass_rate": 0.0363,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 21
+    },
+    {
+      "task": "caffe-cifar-10",
+      "category": "ml-training",
+      "avg_pass_rate": 0.0326,
+      "global_pass_rate": 0.0314,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 573,
+      "total_successes": 18
+    },
+    {
+      "task": "raman-fitting",
+      "category": "scientific-computing",
+      "avg_pass_rate": 0.0309,
+      "global_pass_rate": 0.031,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 581,
+      "total_successes": 18
+    },
+    {
+      "task": "sam-cell-seg",
+      "category": "ml-inference",
+      "avg_pass_rate": 0.0305,
+      "global_pass_rate": 0.0311,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 18
+    },
+    {
+      "task": "install-windows-3.11",
+      "category": "virtualization",
+      "avg_pass_rate": 0.0301,
+      "global_pass_rate": 0.0312,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 577,
+      "total_successes": 18
+    },
+    {
+      "task": "train-fasttext",
+      "category": "ml-training",
+      "avg_pass_rate": 0.028,
+      "global_pass_rate": 0.0294,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 578,
+      "total_successes": 17
+    },
+    {
+      "task": "filter-js-from-html",
+      "category": "web-dev",
+      "avg_pass_rate": 0.0102,
+      "global_pass_rate": 0.0103,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 580,
+      "total_successes": 6
+    },
+    {
+      "task": "make-doom-for-mips",
+      "category": "compilers",
+      "avg_pass_rate": 0.0,
+      "global_pass_rate": 0.0,
+      "difficulty_tier": "very-hard",
+      "entries_evaluated": 118,
+      "total_trials": 583,
+      "total_successes": 0
+    }
+  ]
+}

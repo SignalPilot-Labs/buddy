@@ -1,0 +1,30 @@
+Traceback (most recent call last):
+  File "/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/trial/trial.py", line 533, in run
+    await self._setup_agent()
+  File "/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/trial/trial.py", line 266, in _setup_agent
+    await asyncio.wait_for(
+    ...<2 lines>...
+    )
+  File "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py", line 488, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/agents/installed/base.py", line 384, in setup
+    await self.install(environment)
+  File "/Users/lfnandoo/Documents/sagebook/Buddy/terminal_bench/agent.py", line 53, in install
+    await self.exec_as_agent(
+    ...<9 lines>...
+    )
+  File "/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/agents/installed/base.py", line 358, in exec_as_agent
+    return await self._exec(
+           ^^^^^^^^^^^^^^^^^
+        environment, command, env=env, cwd=cwd, timeout_sec=timeout_sec
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/agents/installed/base.py", line 321, in _exec
+    raise NonZeroAgentExitCodeError(
+    ...<3 lines>...
+    )
+harbor.agents.installed.base.NonZeroAgentExitCodeError: Command failed (exit 124): if command -v apk &>/dev/null; then  npm install -g @anthropic-ai/claude-code; else  curl -fsSL https://claude.ai/install.sh | bash; fi && export PATH="$HOME/.local/bin:$PATH" && claude --version
+stdout: None
+stderr: None

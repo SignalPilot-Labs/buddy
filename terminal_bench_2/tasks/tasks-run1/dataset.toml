@@ -1,0 +1,66 @@
+# Dataset manifest for autofyn/terminal-bench-run1
+# Add tasks using: harbor add <org>/<name>
+# Publish using: harbor publish
+
+[dataset]
+name = "autofyn/terminal-bench-run1"
+description = "Terminal-Bench run 1 with Claude Code pre-baked"
+authors = []
+keywords = []
+
+[[tasks]]
+name = "terminal-bench/cobol-modernization"
+digest = "sha256:328a387580910d76cb58de5ad0ea88703210791043975eb1b98d7d80fb10bb17"
+
+[[tasks]]
+name = "terminal-bench/dna-assembly"
+digest = "sha256:d6ce86d2946ebfa30568366af5ece8f9614fe00ae95c8f8e0936fe7d96ae1e0f"
+
+[[tasks]]
+name = "terminal-bench/filter-js-from-html"
+digest = "sha256:582df59b188b088b8694f4b97a9073ebb33d9f75597140e1e91e3991abb28178"
+
+[[tasks]]
+name = "terminal-bench/fix-git"
+digest = "sha256:738bfc88f227dbc720372161e6c1459709f0d768002f19b24a9a1f4f03e7924b"
+
+[[tasks]]
+name = "terminal-bench/gpt2-codegolf"
+digest = "sha256:f6041c8d5512b362369e7f6ed60e692cc5333f661922e0c58858dda154201eff"
+
+[[tasks]]
+name = "terminal-bench/mteb-retrieve"
+digest = "sha256:5a805373c8e1b6b73a66e6e1a94d2181270e16210ea602c92068d8744a2afff3"
+
+[[tasks]]
+name = "terminal-bench/overfull-hbox"
+digest = "sha256:eb0a9a780dcd53aff618f43dda8c498169bb29f9745538d9971e610311da890d"
+
+[[tasks]]
+name = "terminal-bench/prove-plus-comm"
+digest = "sha256:42378e2429526c89b535a7e647b9344f0572a2651d54796715603372982a933d"
+
+[[tasks]]
+name = "terminal-bench/raman-fitting"
+digest = "sha256:ca91fa48e2baa6d95cd62b866c05ca22665c85608adc987c0310a6d290f8db0e"
+
+[[tasks]]
+name = "terminal-bench/regex-log"
+digest = "sha256:41d747c7ff03f992e66651397b1644180a46f6bd117ee0e429b0c2ec5ff62a8a"
+
+[[tasks]]
+name = "terminal-bench/sam-cell-seg"
+digest = "sha256:11b2d42dba43a060875d298d23fe64f31c1e94a0a1e0f783e45c8c1a041d69d0"
+
+[[tasks]]
+name = "terminal-bench/sqlite-db-truncate"
+digest = "sha256:8ed2267d99fa893f2f93422cbae979aed0ddfd86d1602e4b13ed7ae59bd1c77d"
+
+[[tasks]]
+name = "terminal-bench/train-fasttext"
+digest = "sha256:e52c4613223531bff0b215108a02fdc06edd9af482fa4ec6c43adc05e1dd77af"
+
+[[tasks]]
+name = "terminal-bench/video-processing"
+digest = "sha256:d74fae79e5211b470590d11dd004d5bdf09c1dca5bb85ff1426ddb7535fcfa3b"
+

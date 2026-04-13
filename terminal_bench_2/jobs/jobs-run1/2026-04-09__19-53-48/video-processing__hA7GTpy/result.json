@@ -1,0 +1,101 @@
+{
+    "id": "142e7898-5ac4-44e8-9923-2784c4228633",
+    "task_name": "terminal-bench/video-processing",
+    "trial_name": "video-processing__hA7GTpy",
+    "trial_uri": "file:///Users/lfnandoo/Documents/sagebook/Buddy/jobs/2026-04-09__19-53-48/video-processing__hA7GTpy",
+    "task_id": {
+        "path": "tasks/video-processing"
+    },
+    "source": "tasks",
+    "task_checksum": "f8ae4db5102ef43cab640b1bd064281ed351839c56325c02fd60720f1a5bcf6b",
+    "config": {
+        "task": {
+            "path": "tasks/video-processing",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "video-processing__hA7GTpy",
+        "trials_dir": "jobs/2026-04-09__19-53-48",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "terminal_bench.agent:AutoFynAgent",
+            "model_name": "anthropic/claude-opus-4-6",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "daytona",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "c232bf99-cde2-4655-8f1c-46fc8399159c"
+    },
+    "agent_info": {
+        "name": "autofyn",
+        "version": "0.1.0",
+        "model_info": {
+            "name": "claude-opus-4-6",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 27,
+        "n_cache_tokens": null,
+        "n_output_tokens": 7394,
+        "cost_usd": 5.1685484,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-09T23:53:02.403440Z",
+    "finished_at": "2026-04-10T00:28:53.757411Z",
+    "environment_setup": {
+        "started_at": "2026-04-09T23:53:02.409228Z",
+        "finished_at": "2026-04-09T23:53:04.482966Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-09T23:53:04.482989Z",
+        "finished_at": "2026-04-09T23:53:12.764024Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-09T23:53:12.764088Z",
+        "finished_at": "2026-04-10T00:28:39.982106Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-10T00:28:41.640346Z",
+        "finished_at": "2026-04-10T00:28:53.016895Z"
+    }
+}

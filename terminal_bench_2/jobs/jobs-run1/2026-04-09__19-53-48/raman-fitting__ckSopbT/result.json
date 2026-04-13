@@ -1,0 +1,101 @@
+{
+    "id": "297c9f33-2ef4-494f-bce2-1f990c65a801",
+    "task_name": "terminal-bench/raman-fitting",
+    "trial_name": "raman-fitting__ckSopbT",
+    "trial_uri": "file:///Users/lfnandoo/Documents/sagebook/Buddy/jobs/2026-04-09__19-53-48/raman-fitting__ckSopbT",
+    "task_id": {
+        "path": "tasks/raman-fitting"
+    },
+    "source": "tasks",
+    "task_checksum": "74ca0490e794169756a05b3880de2ea575d7b5a1f438e78e95351d67efbf1287",
+    "config": {
+        "task": {
+            "path": "tasks/raman-fitting",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "raman-fitting__ckSopbT",
+        "trials_dir": "jobs/2026-04-09__19-53-48",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "terminal_bench.agent:AutoFynAgent",
+            "model_name": "anthropic/claude-opus-4-6",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "daytona",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "c232bf99-cde2-4655-8f1c-46fc8399159c"
+    },
+    "agent_info": {
+        "name": "autofyn",
+        "version": "0.1.0",
+        "model_info": {
+            "name": "claude-opus-4-6",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 67,
+        "n_cache_tokens": null,
+        "n_output_tokens": 18744,
+        "cost_usd": 1.3619972000000002,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": null,
+    "started_at": "2026-04-10T01:19:21.110642Z",
+    "finished_at": "2026-04-10T01:29:07.604625Z",
+    "environment_setup": {
+        "started_at": "2026-04-10T01:19:21.120273Z",
+        "finished_at": "2026-04-10T01:19:25.387457Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-10T01:19:25.387537Z",
+        "finished_at": "2026-04-10T01:19:33.857592Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-10T01:19:33.857794Z",
+        "finished_at": "2026-04-10T01:29:00.596456Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-10T01:29:01.831864Z",
+        "finished_at": "2026-04-10T01:29:06.819478Z"
+    }
+}

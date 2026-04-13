@@ -1,0 +1,127 @@
+{
+    "id": "6b07457b-428c-4a4c-8cb0-afaf564e698f",
+    "started_at": "2026-04-10T16:08:51.939096",
+    "finished_at": "2026-04-10T16:56:28.040780",
+    "n_total_trials": 64,
+    "stats": {
+        "n_trials": 64,
+        "n_errors": 34,
+        "evals": {
+            "autofyn__claude-opus-4-6__tasks-run2": {
+                "n_trials": 56,
+                "n_errors": 34,
+                "metrics": [
+                    {
+                        "mean": 0.328125
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "dna-assembly__Pc4ar7U",
+                            "cancel-async-tasks__uCVhLj6",
+                            "overfull-hbox__MGxabRG",
+                            "gpt2-codegolf__o9dvZzc",
+                            "mteb-retrieve__Yi5Jz3N",
+                            "write-compressor__WJvpkuY",
+                            "fix-code-vulnerability__Qk4EBqz",
+                            "filter-js-from-html__4cvf8D5",
+                            "raman-fitting__9icSSgA",
+                            "prove-plus-comm__esyXJxn",
+                            "dna-assembly__TKfEiUy",
+                            "cancel-async-tasks__hf2DVkd",
+                            "gpt2-codegolf__4Ymsaig",
+                            "mteb-retrieve__utFBwsU",
+                            "write-compressor__MeUWL3L",
+                            "fix-code-vulnerability__VgfdeqF",
+                            "filter-js-from-html__XpJw5qf",
+                            "raman-fitting__kcqRYyT",
+                            "prove-plus-comm__TDmJXH3",
+                            "dna-assembly__GjkwKTh",
+                            "overfull-hbox__Ky4b3Kh",
+                            "gpt2-codegolf__MewZo9E",
+                            "mteb-retrieve__JubkMxK",
+                            "fix-code-vulnerability__2apFpxt",
+                            "filter-js-from-html__tTUZTXL",
+                            "raman-fitting__2Jhji3G",
+                            "prove-plus-comm__VNigRh2",
+                            "dna-assembly__btZNqAt",
+                            "gpt2-codegolf__9tiF2Ck",
+                            "mteb-retrieve__sSGhaRm",
+                            "write-compressor__Y4siEmW",
+                            "fix-code-vulnerability__Nuax5dW",
+                            "filter-js-from-html__gxXPepr",
+                            "raman-fitting__STQRcxj",
+                            "prove-plus-comm__PZ7nsxN"
+                        ],
+                        "1.0": [
+                            "regex-log__f5jeGv8",
+                            "cobol-modernization__rUhJhQH",
+                            "sqlite-db-truncate__vhJaqNF",
+                            "fix-git__fqqrqrf",
+                            "regex-log__JL9t3ej",
+                            "cobol-modernization__QTLDxfd",
+                            "sqlite-db-truncate__NjU4Twx",
+                            "overfull-hbox__aEjyy9n",
+                            "fix-git__DPGVT3N",
+                            "regex-log__X3rWpSo",
+                            "cancel-async-tasks__nje5y6E",
+                            "cobol-modernization__9BNmne6",
+                            "sqlite-db-truncate__28YftF8",
+                            "write-compressor__drocC7b",
+                            "fix-git__fMU9SRY",
+                            "regex-log__e3hWGpX",
+                            "cancel-async-tasks__ZSeYWRz",
+                            "cobol-modernization__8r3FB6d",
+                            "sqlite-db-truncate__nFPZiPX",
+                            "overfull-hbox__DKBFq6n",
+                            "fix-git__YTkgTPm"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "RewardFileNotFoundError": [
+                        "hello-world-2__XWQtdXw",
+                        "hello-world__6iZdFwT",
+                        "hello-world-2__X5NkmoC",
+                        "hello-world__iD83S9E",
+                        "hello-world-2__ykvRUY6",
+                        "hello-world__g4Xhhdx",
+                        "hello-world-2__xSoCy6N",
+                        "hello-world__bisGYYx"
+                    ],
+                    "AgentTimeoutError": [
+                        "dna-assembly__Pc4ar7U",
+                        "gpt2-codegolf__o9dvZzc",
+                        "mteb-retrieve__Yi5Jz3N",
+                        "write-compressor__WJvpkuY",
+                        "fix-code-vulnerability__Qk4EBqz",
+                        "raman-fitting__9icSSgA",
+                        "dna-assembly__TKfEiUy",
+                        "gpt2-codegolf__4Ymsaig",
+                        "mteb-retrieve__utFBwsU",
+                        "write-compressor__MeUWL3L",
+                        "fix-code-vulnerability__VgfdeqF",
+                        "dna-assembly__GjkwKTh",
+                        "cobol-modernization__9BNmne6",
+                        "gpt2-codegolf__MewZo9E",
+                        "mteb-retrieve__JubkMxK",
+                        "fix-code-vulnerability__2apFpxt",
+                        "raman-fitting__2Jhji3G",
+                        "dna-assembly__btZNqAt",
+                        "gpt2-codegolf__9tiF2Ck",
+                        "mteb-retrieve__sSGhaRm",
+                        "write-compressor__Y4siEmW",
+                        "fix-code-vulnerability__Nuax5dW"
+                    ],
+                    "NonZeroAgentExitCodeError": [
+                        "prove-plus-comm__esyXJxn",
+                        "prove-plus-comm__TDmJXH3",
+                        "prove-plus-comm__VNigRh2",
+                        "prove-plus-comm__PZ7nsxN"
+                    ]
+                }
+            }
+        }
+    }
+}

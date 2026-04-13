@@ -1,0 +1,102 @@
+{
+    "id": "c232bf99-cde2-4655-8f1c-46fc8399159c",
+    "started_at": "2026-04-09T19:53:51.322193",
+    "finished_at": "2026-04-09T23:37:51.256796",
+    "n_total_trials": 56,
+    "stats": {
+        "n_trials": 56,
+        "n_errors": 24,
+        "evals": {
+            "autofyn__claude-opus-4-6__tasks": {
+                "n_trials": 41,
+                "n_errors": 24,
+                "metrics": [
+                    {
+                        "mean": 0.32142857142857145
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "video-processing__ngQXrJW",
+                            "mteb-retrieve__k8FVzaB",
+                            "filter-js-from-html__FziTGD3",
+                            "raman-fitting__auRPNtn",
+                            "sam-cell-seg__jZFXpAj",
+                            "prove-plus-comm__P5b4Kkd",
+                            "video-processing__hA7GTpy",
+                            "gpt2-codegolf__GxnjJvd",
+                            "mteb-retrieve__cSbFgcr",
+                            "filter-js-from-html__2kAAmKc",
+                            "raman-fitting__xw9gVua",
+                            "sam-cell-seg__TbKAZWT",
+                            "prove-plus-comm__vmvG3m2",
+                            "video-processing__2sCXKa5",
+                            "mteb-retrieve__RWj9SHZ",
+                            "filter-js-from-html__Ag2s4Na",
+                            "raman-fitting__ckSopbT",
+                            "sam-cell-seg__gcpCid7",
+                            "video-processing__ZBT8un7",
+                            "mteb-retrieve__F3dtFSf",
+                            "filter-js-from-html__yZqPdZp",
+                            "sam-cell-seg__TV3VuaL",
+                            "prove-plus-comm__qsXhUyq"
+                        ],
+                        "1.0": [
+                            "dna-assembly__LhTT4yK",
+                            "regex-log__caLkV5p",
+                            "cobol-modernization__D36fgR8",
+                            "sqlite-db-truncate__wAqejQf",
+                            "overfull-hbox__izj9rsh",
+                            "fix-git__wHsdayi",
+                            "regex-log__oZdBWSf",
+                            "cobol-modernization__zTf8tSG",
+                            "sqlite-db-truncate__prgaBWE",
+                            "fix-git__aG9Dmhj",
+                            "regex-log__nvFjptJ",
+                            "cobol-modernization__rCAKAZF",
+                            "sqlite-db-truncate__mzkbqtL",
+                            "fix-git__Eixe5js",
+                            "regex-log__Agrdrph",
+                            "cobol-modernization__9dZ8drZ",
+                            "overfull-hbox__d5sYYwH",
+                            "fix-git__JTKjxnP"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "NonZeroAgentExitCodeError": [
+                        "train-fasttext__2M5KgYP",
+                        "prove-plus-comm__P5b4Kkd",
+                        "train-fasttext__M3VeSod",
+                        "prove-plus-comm__vmvG3m2",
+                        "train-fasttext__4eBkmJv",
+                        "train-fasttext__pUdNftz",
+                        "prove-plus-comm__qsXhUyq"
+                    ],
+                    "DaytonaError": [
+                        "gpt2-codegolf__ykwJcyd",
+                        "dna-assembly__jztqbYn",
+                        "overfull-hbox__vBJCsDR",
+                        "dna-assembly__Byn2jzv",
+                        "overfull-hbox__YxyWQ3k",
+                        "gpt2-codegolf__otsEuGS",
+                        "prove-plus-comm__tsBjTqX",
+                        "dna-assembly__aswVfuq",
+                        "sqlite-db-truncate__SYXpZG9",
+                        "gpt2-codegolf__JzqtMmg",
+                        "raman-fitting__hVaGwNF"
+                    ],
+                    "AgentTimeoutError": [
+                        "mteb-retrieve__k8FVzaB",
+                        "raman-fitting__auRPNtn",
+                        "gpt2-codegolf__GxnjJvd",
+                        "mteb-retrieve__cSbFgcr",
+                        "mteb-retrieve__RWj9SHZ",
+                        "mteb-retrieve__F3dtFSf"
+                    ]
+                }
+            }
+        }
+    }
+}

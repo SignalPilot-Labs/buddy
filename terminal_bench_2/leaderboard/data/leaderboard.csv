@@ -1,0 +1,124 @@
+rank,agent,agent_type,model,model_provider,model_tier,model_specialty,accuracy_pct,date,org,verified,agent_url
+1,ForgeCode,full_agent,gpt-5.4,OpenAI,frontier,general,81.8%,2026-03-12,ForgeCode,False,https://forgecode.dev
+2,ForgeCode,full_agent,claude-opus-4-6,Anthropic,frontier,general,81.8%,2026-03-12,ForgeCode,False,https://forgecode.dev
+3,TongAgents,full_agent,gemini-3.1-pro-preview,Google,frontier,general,80.2%,2026-03-13,BIGAI,False,https://www.bigai.ai/
+4,SageAgent,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,78.4%,2026-03-13,OpenSage,False,https://github.com/opensage-agent
+5,ForgeCode,full_agent,gemini-3.1-pro-preview,Google,frontier,general,78.4%,2026-03-02,ForgeCode,False,https://forgecode.dev
+6,Droid,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,77.3%,2026-02-24,Factory,False,https://factory.ai/
+7,Capy,full_agent,claude-opus-4-6,Anthropic,frontier,general,75.3%,2026-03-12,Capy,False,https://capy.ai
+8,Simple Codex,cli_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,75.1%,2026-02-06,OpenAI,True,https://openai.com/codex
+9,Terminus-KIRA,full_agent,gemini-3.1-pro-preview,Google,frontier,general,74.8%,2026-02-23,KRAFTON AI,False,https://www.krafton.ai/
+10,Terminus-KIRA,full_agent,claude-opus-4-6,Anthropic,frontier,general,74.7%,2026-02-22,KRAFTON AI,False,https://www.krafton.ai/
+11,Mux,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,74.6%,2026-03-06,Coder,False,https://github.com/coder/mux
+12,MAYA-V2,full_agent,claude-4.6-opus,anthropic,unknown,general,72.1%,2026-03-12,ADYA,False,https://adya.ai/maya
+13,TongAgents,full_agent,claude-opus-4.6,Anthropic,frontier,general,71.9%,2026-02-22,Bigai,False,https://www.bigai.ai/
+14,Junie CLI,cli_agent,claude-opus-4-6,Anthropic,frontier,general,71.0%,2026-03-07,JetBrains,False,https://junie.jetbrains.com
+15,CodeBrain-1,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,70.3%,2026-02-10,Feeling AI,False,https://feeling-ai.com
+16,Droid,full_agent,claude-opus-4-6,Anthropic,frontier,general,69.9%,2026-02-05,Factory,False,https://factory.ai/
+17,Ante,full_agent,gemini-3-pro-preview,Google,frontier,general,69.4%,2026-01-06,Antigma Labs,True,https://antigma.ai
+18,IndusAGI Coding Agent,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,69.1%,2026-03-18,Varun Israni (SoloVpx),False,https://www.indusagi.com
+19,Crux,full_agent,claude-opus-4-6,Anthropic,frontier,general,66.9%,2026-02-23,Roam,False,https://github.com/0xDarkMatter/crux-agent
+20,Deep Agents,full_agent,gpt-5.2-codex,OpenAI,frontier,code-specialized,66.5%,2026-02-12,LangChain,False,https://github.com/langchain-ai/deepagents
+21,Mux,full_agent,claude-opus-4-6,Anthropic,frontier,general,66.5%,2026-02-13,Coder,False,https://github.com/coder/mux
+22,SageAgent,full_agent,gemini-3-pro-preview,Google,frontier,general,65.2%,2026-02-23,OpenSage,False,https://github.com/opensage-agent
+23,Droid,full_agent,gpt-5.2,OpenAI,frontier,general,64.9%,2025-12-24,Factory,False,https://factory.ai/
+24,Terminus 2,full_agent,gpt-5.3-codex,OpenAI,frontier,code-specialized,64.7%,2026-02-05,AfterQuery,True,https://www.tbench.ai/terminus
+25,Junie CLI,cli_agent,gemini-3-flash-preview,Google,mid,general,64.3%,2025-12-23,JetBrains,False,https://junie.jetbrains.com
+26,Droid,full_agent,claude-opus-4-5-20251101,Anthropic,frontier,general,63.1%,2025-12-11,Factory,False,https://factory.ai/
+27,Terminus 2,full_agent,claude-opus-4-6,Anthropic,frontier,general,62.9%,2026-02-06,AfterQuery,True,https://www.tbench.ai/terminus
+28,Codex CLI,cli_agent,gpt-5.2,OpenAI,frontier,general,62.9%,2025-12-18,OpenAI,True,https://developers.openai.com/codex/cli/
+29,CodeBrain-1,full_agent,gemini-3-pro-preview,Google,frontier,general,62.2%,2026-02-05,Feeling AI,False,https://feeling-ai.com
+30,II-Agent,full_agent,gemini-3-pro-preview,Google,frontier,general,61.8%,2025-12-23,Intelligent Internet,False,https://agent.ii.inc/
+31,Warp,full_agent,claude-haiku-4-5,anthropic,unknown,general,61.2%,2025-12-12,Warp,False,https://www.warp.dev/
+32,Droid,full_agent,gemini-3-pro-preview,Google,frontier,general,61.1%,2025-12-24,Factory,False,https://factory.ai/
+33,Mux,full_agent,gpt-5.2,OpenAI,frontier,general,60.7%,2026-01-17,Coder,False,https://github.com/coder/mux
+34,Codex CLI,cli_agent,gpt-5.1-codex-max,OpenAI,frontier,code-specialized,60.4%,2025-11-24,OpenAI,True,https://developers.openai.com/codex/cli/
+35,Letta Code,full_agent,claude-opus-4-5,anthropic,unknown,general,59.1%,2025-12-17,Letta,False,https://www.letta.com/
+36,Warp,full_agent,claude-haiku-4-5-20251001,Anthropic,small,general,59.1%,2025-11-20,Warp,False,https://www.warp.dev/
+37,Mux,full_agent,claude-opus-4-5,anthropic,unknown,general,58.4%,2026-01-17,Coder,False,https://github.com/coder/mux
+38,Abacus AI Desktop,full_agent,claude-haiku-4-5,anthropic,unknown,general,58.4%,2025-12-11,Abacus.AI,False,https://deepagent-desktop.abacus.ai/
+39,Claude Code,cli_agent,claude-opus-4-6,Anthropic,frontier,general,58.0%,2026-02-07,Anthropic,True,https://www.claude.com/product/claude-code
+40,Crux,full_agent,gpt-5.1-codex,OpenAI,frontier,code-specialized,57.8%,2025-11-16,Roam,True,https://github.com/0xDarkMatter/crux-agent
+41,Terminus 2,full_agent,claude-opus-4-5-20251101,Anthropic,frontier,general,57.8%,2025-11-22,AfterQuery,True,https://www.tbench.ai/terminus
+42,grok-cli,cli_agent,grok-4.20-0309-reasoning,xai,unknown,general,57.3%,2026-04-02,Vibe Kit,False,https://github.com/superagent-ai/grok-cli
+43,Terminus 2,full_agent,gemini-3-pro-preview,Google,frontier,general,56.9%,2025-11-21,AfterQuery,True,https://www.tbench.ai/terminus
+44,Letta Code,full_agent,gemini-3-pro-preview,Google,frontier,general,56.0%,2025-12-17,Letta,False,https://www.letta.com/
+45,Goose,cli_agent,claude-opus-4-5,anthropic,unknown,general,54.3%,2025-12-11,Block,False,https://block.github.io/goose/
+46,Terminus 2,full_agent,gpt-5.2,OpenAI,frontier,general,54.0%,2025-12-12,AfterQuery,True,https://www.tbench.ai/terminus
+47,Letta Code,full_agent,gpt-5.1-codex,OpenAI,frontier,code-specialized,53.5%,2025-12-17,Letta,False,https://www.letta.com/
+48,Terminus 2,full_agent,glm-5,Zhipu AI,frontier,general,52.4%,2026-02-23,AfterQuery,False,https://www.tbench.ai/terminus
+49,Claude Code,cli_agent,claude-opus-4-5-20251101,Anthropic,frontier,general,52.1%,2025-12-18,Anthropic,True,https://www.claude.com/product/claude-code
+50,OpenHands,full_agent,claude-opus-4-5-20251101,Anthropic,frontier,general,51.9%,2026-01-04,OpenHands,True,https://github.com/OpenHands/OpenHands
+51,OpenCode,cli_agent,claude-opus-4-5,anthropic,unknown,general,51.7%,2026-01-12,Anomaly Innovations,False,https://opencode.ai
+52,Terminus 2,full_agent,gemini-3-flash-preview,Google,mid,general,51.7%,2026-01-07,AfterQuery,True,https://www.tbench.ai/terminus
+53,Warp,full_agent,claude-haiku-4-5-20251001,Anthropic,small,general,50.1%,2025-11-11,Warp,False,https://www.warp.dev/
+54,Codex CLI,cli_agent,gpt-5,OpenAI,frontier,general,49.6%,2025-11-04,OpenAI,True,https://developers.openai.com/codex/cli/
+55,Terminus 2,full_agent,gpt-5.1,OpenAI,frontier,general,47.6%,2025-11-16,AfterQuery,True,https://www.tbench.ai/terminus
+56,Gemini CLI,cli_agent,gemini-3-flash-preview,Google,mid,general,47.4%,2026-03-06,Google,False,https://github.com/google-gemini/gemini-cli
+57,CAMEL-AI,full_agent,claude-sonnet-4-5,anthropic,unknown,general,46.5%,2025-12-24,CAMEL-AI,False,https://www.camel-ai.org/
+58,Codex CLI,cli_agent,gpt-5-codex,OpenAI,frontier,code-specialized,44.3%,2025-11-04,OpenAI,True,https://developers.openai.com/codex/cli/
+59,OpenHands,full_agent,gpt-5,OpenAI,frontier,general,43.8%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+60,Terminus 2,full_agent,gpt-5-codex,OpenAI,frontier,code-specialized,43.4%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+61,Terminus 2,full_agent,kimi-k2.5,Moonshot,frontier,general,43.2%,2026-02-04,AfterQuery,True,https://www.tbench.ai/terminus
+62,Goose,cli_agent,claude-sonnet-4-5,anthropic,unknown,general,43.1%,2025-12-11,Block,False,https://block.github.io/goose/
+63,Crux,full_agent,gpt-5.1-codex-mini,OpenAI,frontier,code-specialized,43.1%,2025-11-17,Roam,True,https://github.com/0xDarkMatter/crux-agent
+64,Terminus 2,full_agent,claude-sonnet-4-5-20250929,Anthropic,mid,general,42.8%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+65,MAYA-V2,full_agent,claude-4.5-sonnet,anthropic,unknown,general,42.7%,2026-01-04,ADYA,False,https://adya.ai/maya
+66,cchuter,cli_agent,minimax-m2.5,MiniMax,frontier,general,42.7%,2026-03-30,teamblobfish.com,False,https://github.com/cchuter/blobfish
+67,OpenHands,full_agent,claude-sonnet-4-5-20250929,Anthropic,mid,general,42.6%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+68,Mini-SWE-Agent,full_agent,claude-sonnet-4-5-20250929,Anthropic,mid,general,42.5%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+69,Terminus 2,full_agent,minimax-m2.5,MiniMax,frontier,general,42.2%,2026-02-23,AfterQuery,False,https://www.tbench.ai/terminus
+70,Mini-SWE-Agent,full_agent,gpt-5-codex,OpenAI,frontier,code-specialized,41.3%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+71,Claude Code,cli_agent,claude-sonnet-4-5-20250929,Anthropic,mid,general,40.1%,2025-11-04,Anthropic,True,https://www.claude.com/product/claude-code
+72,Terminus 2,full_agent,deepseek-v3.2,DeepSeek,frontier,general,39.6%,2026-02-10,AfterQuery,False,https://www.tbench.ai/terminus
+73,Terminus 2,full_agent,claude-opus-4-1-20250805,anthropic,unknown,general,38.0%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+74,OpenHands,full_agent,claude-opus-4-1-20250805,anthropic,unknown,general,36.9%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+75,Terminus 2,full_agent,gpt-5.1-codex,OpenAI,frontier,code-specialized,36.9%,2025-11-17,AfterQuery,True,https://www.tbench.ai/terminus
+76,Crux,full_agent,minimax-m2.1,MiniMax,frontier,general,36.6%,2025-12-22,Roam,True,https://github.com/0xDarkMatter/crux-agent
+77,Terminus 2,full_agent,moonshotai/Kimi-K2-Thinking,together_ai,unknown,general,35.7%,2025-11-11,AfterQuery,True,https://www.tbench.ai/terminus
+78,Goose,cli_agent,claude-haiku-4-5,anthropic,unknown,general,35.5%,2025-12-11,Block,False,https://block.github.io/goose/
+79,Terminus 2,full_agent,gpt-5,OpenAI,frontier,general,35.2%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+80,Mini-SWE-Agent,full_agent,claude-opus-4-1-20250805,anthropic,unknown,general,35.1%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+81,spoox-m,cli_agent,gpt-5-mini,OpenAI,mid,general,34.8%,2025-12-24,TUM,False,https://github.com/plaume8/spoox
+82,Claude Code,cli_agent,claude-opus-4-1-20250805,anthropic,unknown,general,34.8%,2025-11-04,Anthropic,True,https://www.claude.com/product/claude-code
+83,Mini-SWE-Agent,full_agent,gpt-5,OpenAI,frontier,general,33.9%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+84,Terminus 2,full_agent,glm-4.7,Zhipu AI,frontier,general,33.4%,2026-01-28,AfterQuery,True,https://www.tbench.ai/terminus
+85,Crux,full_agent,GLM-4.7,Zhipu AI,frontier,general,33.3%,2026-02-08,Roam,False,https://github.com/0xDarkMatter/crux-agent
+86,Terminus 2,full_agent,gemini-2.5-pro,gemini,unknown,general,32.6%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+87,Codex CLI,cli_agent,gpt-5-mini,OpenAI,mid,general,31.9%,2025-11-04,OpenAI,True,https://developers.openai.com/codex/cli/
+88,Terminus 2,full_agent,accounts/fireworks/models/minimax-m2,fireworks_ai,unknown,general,30.0%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus
+89,Mini-SWE-Agent,full_agent,claude-haiku-4-5-20251001,Anthropic,small,general,29.8%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+90,Terminus 2,full_agent,minimax-m2.1,MiniMax,frontier,general,29.2%,2025-12-23,AfterQuery,True,https://www.tbench.ai/terminus
+91,OpenHands,full_agent,gpt-5-mini,OpenAI,mid,general,29.2%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+92,Terminus 2,full_agent,claude-haiku-4-5-20251001,Anthropic,small,general,28.3%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+93,Terminus 2,full_agent,moonshotai/Kimi-K2-Instruct-0905,together_ai,unknown,general,27.8%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus
+94,Claude Code,cli_agent,claude-haiku-4-5-20251001,Anthropic,small,general,27.5%,2025-11-04,Anthropic,True,https://www.claude.com/product/claude-code
+95,Dakou Agent,full_agent,Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8,modelscope,unknown,general,27.2%,2025-12-28,iflow,False,https://dakou.iflow.cn/
+96,OpenHands,full_agent,grok-4-0709,xai,unknown,general,27.2%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+97,OpenHands,full_agent,moonshotai/Kimi-K2-Instruct-0905,together_ai,unknown,general,26.7%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+98,Mini-SWE-Agent,full_agent,gemini-2.5-pro,gemini,unknown,general,26.1%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+99,Mini-SWE-Agent,full_agent,grok-code-fast-1,xAI,mid,code-specialized,25.8%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+100,OpenHands,full_agent,Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8,together_ai,unknown,general,25.4%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+101,Mini-SWE-Agent,full_agent,grok-4-0709,xai,unknown,general,25.4%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+102,Terminus 2,full_agent,accounts/fireworks/models/glm-4p6,fireworks_ai,unknown,general,24.5%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus
+103,Terminus 2,full_agent,gpt-5-mini,OpenAI,mid,general,24.0%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+104,Terminus 2,full_agent,Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8,together_ai,unknown,general,23.9%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus
+105,Terminus 2,full_agent,grok-4-0709,xai,unknown,general,23.1%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+106,Mini-SWE-Agent,full_agent,gpt-5-mini,OpenAI,mid,general,22.2%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+107,Gemini CLI,cli_agent,gemini-2.5-pro,gemini,unknown,general,19.6%,2025-11-04,Google,True,https://github.com/google-gemini/gemini-cli
+108,Terminus 2,full_agent,openai/gpt-oss-120b,together_ai,unknown,general,18.7%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus
+109,Mini-SWE-Agent,full_agent,gemini-2.5-flash,gemini,unknown,general,17.1%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+110,Terminus 2,full_agent,gpt-oss-20b-rl,afterquery,unknown,general,17.0%,2026-03-31,AfterQuery,False,https://www.tbench.ai/terminus
+111,Terminus 2,full_agent,gemini-2.5-flash,gemini,unknown,general,16.9%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+112,OpenHands,full_agent,gemini-2.5-flash,gemini,unknown,general,16.4%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+113,OpenHands,full_agent,gemini-2.5-pro,gemini,unknown,general,16.4%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+114,Gemini CLI,cli_agent,gemini-2.5-flash,gemini,unknown,general,15.4%,2025-11-04,Google,True,https://github.com/google-gemini/gemini-cli
+115,Terminus 2,full_agent,grok-code-fast-1,xAI,mid,code-specialized,14.2%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+116,Mini-SWE-Agent,full_agent,openai/gpt-oss-120b,together_ai,unknown,general,14.2%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+117,OpenHands,full_agent,claude-haiku-4-5-20251001,Anthropic,small,general,13.9%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+118,Codex CLI,cli_agent,gpt-5-nano,OpenAI,small,general,11.5%,2025-11-04,OpenAI,True,https://developers.openai.com/codex/cli/
+119,OpenHands,full_agent,gpt-5-nano,OpenAI,small,general,9.9%,2025-11-02,OpenHands,True,https://github.com/OpenHands/OpenHands
+120,Terminus 2,full_agent,gpt-5-nano,OpenAI,small,general,7.9%,2025-10-31,AfterQuery,True,https://www.tbench.ai/terminus
+121,Mini-SWE-Agent,full_agent,gpt-5-nano,OpenAI,small,general,7.0%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+122,Mini-SWE-Agent,full_agent,openai/gpt-oss-20b,together_ai,unknown,general,3.4%,2025-11-03,Princeton,True,https://github.com/SWE-agent/mini-swe-agent
+123,Terminus 2,full_agent,openai/gpt-oss-20b,together_ai,unknown,general,3.1%,2025-11-01,AfterQuery,True,https://www.tbench.ai/terminus

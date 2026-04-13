@@ -1,0 +1,2 @@
+{"event": "tool_use", "tool": "Write", "input": {"file_path": "/app/hello.txt", "content": "hello world"}}
+{"event": "session_complete", "total_cost_usd": 0.05203800000000001, "num_turns": 2, "input_tokens": 3, "output_tokens": 125}

@@ -1,0 +1,86 @@
+{
+    "id": "c7f4ea64-f92d-4fbb-a169-b399482bfa86",
+    "task_name": "terminal-bench/gpt2-codegolf",
+    "trial_name": "gpt2-codegolf__otsEuGS",
+    "trial_uri": "file:///Users/lfnandoo/Documents/sagebook/Buddy/jobs/2026-04-09__19-53-48/gpt2-codegolf__otsEuGS",
+    "task_id": {
+        "path": "tasks/gpt2-codegolf"
+    },
+    "source": "tasks",
+    "task_checksum": "7266c559c68180a84e646a0245e91d72791415e26f3293387b2b753ad46c72d8",
+    "config": {
+        "task": {
+            "path": "tasks/gpt2-codegolf",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "gpt2-codegolf__otsEuGS",
+        "trials_dir": "jobs/2026-04-09__19-53-48",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "terminal_bench.agent:AutoFynAgent",
+            "model_name": "anthropic/claude-opus-4-6",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "daytona",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "c232bf99-cde2-4655-8f1c-46fc8399159c"
+    },
+    "agent_info": {
+        "name": "autofyn",
+        "version": "0.1.0",
+        "model_info": {
+            "name": "claude-opus-4-6",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": null,
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "DaytonaError",
+        "exception_message": "Failed to create sandbox: Total memory limit exceeded. Maximum allowed: 10GiB.\nTo increase concurrency limits, upgrade your organization's Tier by visiting https://app.daytona.io/dashboard/limits.",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/trial/trial.py\", line 531, in run\n    await self._setup_environment()\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/trial/trial.py\", line 238, in _setup_environment\n    await self._start_environment_with_retry()\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/__init__.py\", line 393, in <lambda>\n    self._add_action_func(lambda rs: rs.outcome.result())\n                                     ~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py\", line 443, in result\n    return self.__get_result()\n           ~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py\", line 395, in __get_result\n    raise self._exception\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/trial/trial.py\", line 250, in _start_environment_with_retry\n    await asyncio.wait_for(\n    ...<4 lines>...\n    )\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py\", line 488, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/environments/daytona.py\", line 1132, in start\n    return await self._strategy.start(force_build)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/environments/daytona.py\", line 229, in start\n    await env._create_sandbox(params=params)\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ~~~~~~~~~~~~~~~~~^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py\", line 443, in result\n    return self.__get_result()\n           ~~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py\", line 395, in __get_result\n    raise self._exception\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/harbor/environments/daytona.py\", line 902, in _create_sandbox\n    self._sandbox = await asyncio.shield(create_task)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/daytona/_utils/errors.py\", line 89, in async_wrapper\n    process_n_raise_exception(e)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~^^^\n  File \"/Users/lfnandoo/.local/share/uv/tools/harbor/lib/python3.14/site-packages/daytona/_utils/errors.py\", line 67, in process_n_raise_exception\n    raise DaytonaError(f\"{message_prefix}{msg}\", status_code=status_code, headers=headers) from None\ndaytona.common.errors.DaytonaError: Failed to create sandbox: Total memory limit exceeded. Maximum allowed: 10GiB.\nTo increase concurrency limits, upgrade your organization's Tier by visiting https://app.daytona.io/dashboard/limits.\n",
+        "occurred_at": "2026-04-09T22:16:28.216030"
+    },
+    "started_at": "2026-04-10T01:16:25.773181Z",
+    "finished_at": "2026-04-10T01:16:29.226142Z",
+    "environment_setup": {
+        "started_at": "2026-04-10T01:16:25.777769Z",
+        "finished_at": "2026-04-10T01:16:27.207787Z"
+    },
+    "agent_setup": null,
+    "agent_execution": null,
+    "verifier": null
+}
