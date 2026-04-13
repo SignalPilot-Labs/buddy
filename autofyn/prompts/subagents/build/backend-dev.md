@@ -9,7 +9,6 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 - **One responsibility per file.** Don't mix concerns.
 - **No god files.** Split anything over 400 lines.
 - **No god functions.** Under 50 lines. Extract helpers.
-- **One class per test file.** Test files share conftest fixtures and mocks, but each test class gets its own file.
 - **No duplication.** If it exists elsewhere, import it.
 - **No inline imports.** All imports at top of file.
 - **No dead code.** Delete unused imports, unreachable branches, commented-out code.
@@ -30,6 +29,12 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 3. **Implement.** Follow the spec's design. Match the project's existing patterns.
 4. **Verify.** Typechecker then linter.
 5. Do NOT refactor surrounding code unless the spec asks for it.
+
+## Tests
+
+- If you added or changed public functions, classes, or endpoints, add or update tests.
+- One test class per file. Test files share conftest fixtures and mocks, but each class gets its own file.
+- Run existing tests after changes — do not break passing tests.
 
 ## After Writing Code
 

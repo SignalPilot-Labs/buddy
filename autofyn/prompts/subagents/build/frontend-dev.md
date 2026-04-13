@@ -22,12 +22,17 @@ If something in the spec feels wrong — a design that creates coupling, a bad i
 - Match the project's existing frontend stack (React, Vue, Svelte, etc.)
 - One component per file
 - Export types alongside components when they're part of the public API
-- Test that pages render without errors after changes
 - Keep each logical UI change in a separate set of files
 - No inline imports — all imports at the top of the file
 - No magic values — colors, sizes, delays in constants or theme config
 - No `any` types — use `unknown` where the type is genuinely unknown
 - **Fail fast — no layered fallbacks.** Never write `value ?? fallback1 ?? fallback2 ?? default` chains or optional-chaining cascades that mask real errors. If a required prop / API response / store value can be missing, surface the error (throw, render an explicit error state, log) — do NOT substitute a silent default. Distinct failure modes must render distinctly: `$0.00` for "no data yet", "really zero", and "pipeline broken" hides bugs. Render `—` for missing and `$0.00` only when confirmed.
+
+## Tests
+
+- If you added or changed props, hooks, or state logic, add or update tests.
+- One test class per file. Test files share fixtures but each class gets its own file.
+- Run existing tests after changes — do not break passing tests.
 
 ## After Writing Code
 
