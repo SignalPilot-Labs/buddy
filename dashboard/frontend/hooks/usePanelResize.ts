@@ -15,6 +15,7 @@ export interface UsePanelResizeResult {
   width: number;
   isDragging: boolean;
   handleMouseDown: (e: React.MouseEvent) => void;
+  panelRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function usePanelResize({
@@ -35,13 +36,12 @@ export function usePanelResize({
   });
 
   const [isDragging, setIsDragging] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // Refs avoid stale closures in event listeners registered once on mousedown.
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const currentWidthRef = useRef<number>(width);
 
-  // Keep currentWidthRef in sync so handleMouseUp can persist the latest value.
   useEffect(() => {
     currentWidthRef.current = width;
   }, [width]);
@@ -55,21 +55,26 @@ export function usePanelResize({
           : startWidthRef.current - delta;
       const clamped = Math.min(maxWidth, Math.max(minWidth, newWidth));
       currentWidthRef.current = clamped;
-      setWidth(clamped);
+      // Direct DOM mutation — skip React re-render during drag.
+      if (panelRef.current) {
+        panelRef.current.style.width = `${clamped}px`;
+      }
     },
     [direction, minWidth, maxWidth],
   );
 
   const handleMouseUp = useCallback((): void => {
-    setIsDragging(false);
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
+    document.removeEventListener("mousemove", handleMouseMove);
+    document.removeEventListener("mouseup", handleMouseUp);
+    // Commit final width to React state (single re-render).
+    setWidth(currentWidthRef.current);
+    setIsDragging(false);
     localStorage.setItem(
       PANEL_WIDTH_STORAGE_PREFIX + storageKey,
       String(currentWidthRef.current),
     );
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
   }, [storageKey, handleMouseMove]);
 
   useEffect(() => {
@@ -93,5 +98,5 @@ export function usePanelResize({
     [handleMouseMove, handleMouseUp],
   );
 
-  return { width, isDragging, handleMouseDown };
+  return { width, isDragging, handleMouseDown, panelRef };
 }

@@ -239,6 +239,7 @@ function MonitorPageInner() {
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar */}
           <div
+            ref={sidebarCollapsed ? undefined : sidebarResize.panelRef}
             className={`desktop-sidebar h-full overflow-hidden flex-shrink-0 ${sidebarResize.isDragging ? "" : "transition-[width] duration-200"}`}
             style={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarResize.width }}
           >
@@ -298,7 +299,7 @@ function MonitorPageInner() {
                 onMouseDown={rightPanelResize.handleMouseDown}
                 isDragging={rightPanelResize.isDragging}
               />
-              <div className="flex-shrink-0 h-full" style={{ width: rightPanelResize.width }}>
+              <div ref={rightPanelResize.panelRef} className="flex-shrink-0 h-full" style={{ width: rightPanelResize.width }}>
                 <RightPanel
                   runId={selectedRunId}
                   events={allEvents}
