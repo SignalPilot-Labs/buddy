@@ -20,6 +20,7 @@ import {
   fmtDuration,
   shortPath,
 } from "@/components/feed/eventCardHelpers";
+import { TOOL_CATEGORIES_DEFAULT_EXPANDED } from "@/lib/constants";
 
 /* ── Child Tool Row (expandable) ── */
 export function ChildToolRow({
@@ -29,8 +30,8 @@ export function ChildToolRow({
   tool: ToolCall;
   isLast: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const cat = getToolCategory(tool.tool_name);
+  const [open, setOpen] = useState(TOOL_CATEGORIES_DEFAULT_EXPANDED.has(cat));
   const colors = TOOL_COLORS[cat];
   const inp = tool.input_data || {};
   const fp = (inp.file_path as string) || "";
