@@ -46,14 +46,14 @@ export function ConnectionBanner({ connectionState, runStatus, showToast }: Conn
           {connectionState === "reconnecting" ? (
             <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-4 py-1.5 bg-[var(--color-warning)]/10 border-b border-[var(--color-warning)]/20 frosted-glass">
               <span className="h-1.5 w-1.5 rounded-full border border-[var(--color-warning)] border-t-transparent animate-spin shrink-0" />
-              <span className="text-[10px] text-[var(--color-warning)] font-medium">
+              <span className="text-meta text-[var(--color-warning)] font-medium">
                 Reconnecting...
               </span>
             </div>
           ) : (
             <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-center gap-2 px-4 py-1.5 bg-[#ff4444]/10 border-b border-[#ff4444]/20 frosted-glass">
               <span className="h-1.5 w-1.5 rounded-full bg-[#ff4444] shrink-0" />
-              <span className="text-[10px] text-[#ff4444] font-medium">
+              <span className="text-meta text-[#ff4444] font-medium">
                 Disconnected — events may be delayed
               </span>
             </div>

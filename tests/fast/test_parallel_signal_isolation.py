@@ -36,10 +36,10 @@ def _mock_session_multi(
     session_mock.commit = AsyncMock()
 
     @asynccontextmanager
-    async def ctx():
+    async def context():
         yield session_mock
 
-    return ctx
+    return context
 
 
 class TestParallelSignalIsolation:
@@ -84,7 +84,9 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            pause_result = await send_control_signal("run-2", "pause", {"running"}, None)
+            pause_result = await send_control_signal(
+                "run-2", "pause", {"running"}, None
+            )
 
         assert pause_result["ok"] is True
         args = mock_agent.call_args[0]

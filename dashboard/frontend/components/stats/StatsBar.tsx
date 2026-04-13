@@ -48,7 +48,7 @@ export function formatCostStat(
   if (liveCost > 0) {
     return { value: `~$${liveCost.toFixed(2)}`, accent: "text-[#00ff88]/70" };
   }
-  return { value: NO_DATA, accent: "text-[#666]" };
+  return { value: NO_DATA, accent: "text-text-dim" };
 }
 
 export function formatToolStat(settled: number | null | undefined, liveCount: number): string {
@@ -78,9 +78,9 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-      <span className="text-[#777]">{icon}</span>
-      <span className="text-[10px] text-[#777]">{label}</span>
-      <span className={`text-[10px] font-semibold tabular-nums truncate ${accent ?? "text-[#e8e8e8]"}`}>
+      <span className="text-text-dim">{icon}</span>
+      <span className="text-caption text-text-dim">{label}</span>
+      <span className={`text-content font-semibold tabular-nums truncate ${accent ?? "text-text"}`}>
         {value}
       </span>
     </div>
@@ -106,7 +106,7 @@ export function StatsRow({
   if (!run) {
     return (
       <div className="h-7 flex items-center px-1">
-        <span className="text-[10px] text-[#777]">No run selected</span>
+        <span className="text-caption text-text-dim">No run selected</span>
       </div>
     );
   }
@@ -120,11 +120,11 @@ export function StatsRow({
       <div className="flex items-center gap-1.5">
         <span
           className={`h-1.5 w-1.5 rounded-full ${
-            connected ? "bg-[#00ff88]" : "bg-[#444]"
+            connected ? "bg-[#00ff88]" : "bg-bg-indicator"
           }`}
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
-        <span className="text-[10px] text-[#888]">
+        <span className="text-caption text-text-secondary">
           {connected ? "Live" : "Disconnected"}
         </span>
       </div>
@@ -165,7 +165,7 @@ export function StatsRow({
           href={run.pr_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
+          className="flex items-center gap-1 text-caption text-[#88ccff] hover:text-[#aaddff] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="3" cy="3" r="1.5" />
@@ -187,7 +187,7 @@ export function StatsBar({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   return (
-    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-border bg-bg">
       <StatsRow run={run} connected={connected} events={events} />
     </div>
   );

@@ -2,15 +2,17 @@
 
 from pathlib import Path
 
-# ── Subagent Timeouts ──
+# ── Timeouts ──
+TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call
 SUBAGENT_IDLE_KILL_SEC = 10 * 60  # 10 min idle — trigger interrupt+recovery
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
 RATE_LIMIT_MAX_WAIT_SEC = (
-    600  # Max seconds to wait for rate limit reset before stopping
+    1800  # Max seconds to wait for rate limit reset before stopping
 )
-SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
+SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge orchestrator if no SSE events
+IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
 # Backstop for runs without a time lock. 128 rounds is enough for a
 # very long autonomous session (~8h at ~4 min/round) while still stopping
 # a runaway orchestrator that never judges the task done.

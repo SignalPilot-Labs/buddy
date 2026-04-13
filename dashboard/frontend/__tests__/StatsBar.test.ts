@@ -34,7 +34,7 @@ describe("formatCostStat", () => {
   it("renders no-data when both are missing", () => {
     expect(formatCostStat(null, 0)).toEqual({
       value: NO_DATA,
-      accent: "text-[#666]",
+      accent: "text-text-dim",
     });
   });
 

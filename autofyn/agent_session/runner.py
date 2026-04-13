@@ -18,20 +18,22 @@ pulse task that pushes a synthetic stop event.
 """
 
 import asyncio
-import json
 import logging
 from collections.abc import AsyncIterator
 
+from prompts.loader import render_idle_nudge, render_stuck_recovery, render_tool_timeout
 from sandbox_client.client import SandboxClient
 from user.control import UserControl
 from user.inbox import UserInbox
-from session.stream import StreamDispatcher, StreamSignal
-from session.time_lock import TimeLock
-from session.tracker import SubagentTracker
+from agent_session.stream import StreamDispatcher, StreamSignal
+from agent_session.time_lock import TimeLock
+from agent_session.tracker import SubagentTracker
 from utils import db
 from utils.constants import (
+    IDLE_NUDGE_MAX_ATTEMPTS,
     PULSE_CHECK_INTERVAL_SEC,
     SESSION_IDLE_TIMEOUT_SEC,
+    SUBAGENT_IDLE_KILL_SEC,
 )
 from utils.models import RoundResult, RunContext
 
@@ -80,7 +82,7 @@ class RoundRunner:
             )
             control = UserControl(self._sandbox, session_id, self._inbox)
             pulse = asyncio.create_task(
-                self._pulse_loop(tracker),
+                self._pulse_loop(tracker, session_id),
             )
             try:
                 return await self._drive_stream(
@@ -141,14 +143,20 @@ class RoundRunner:
 
         sse_task = asyncio.create_task(_next_event(stream_iter))
         op_task = asyncio.create_task(self._inbox.next_event())
-        idle_task = asyncio.create_task(
+        idle_task: asyncio.Task[None] | None = asyncio.create_task(
             asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
         )
+        nudge_count = 0
+        idle_since: float = asyncio.get_event_loop().time()
 
         try:
             while True:
+                wait_set: set[asyncio.Task] = {sse_task, op_task}
+                if idle_task is not None:
+                    wait_set.add(idle_task)
+
                 done, _ = await asyncio.wait(
-                    {sse_task, op_task, idle_task},
+                    wait_set,
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
@@ -175,11 +183,25 @@ class RoundRunner:
                             session_id=session_id,
                         )
                     sse_task = asyncio.create_task(_next_event(stream_iter))
-                    idle_task.cancel()
-                    idle_task = asyncio.create_task(
-                        asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
-                    )
                     signal = await dispatcher.dispatch(sse_event)
+                    # Only run the idle timer when no tools are executing
+                    # and no subagents are active. Tools in-flight means a
+                    # command is running; active subagents are the pulse
+                    # loop's responsibility.
+                    if idle_task is not None:
+                        idle_task.cancel()
+                    if (
+                        dispatcher.has_tools_in_flight()
+                        or dispatcher.has_active_subagents()
+                    ):
+                        idle_task = None
+                    else:
+                        idle_task = asyncio.create_task(
+                            asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
+                        )
+                    # Any real SSE activity resets the nudge counter and timer.
+                    nudge_count = 0
+                    idle_since = asyncio.get_event_loop().time()
                     terminal = await self._apply_signal(
                         signal,
                         session_id,
@@ -189,29 +211,60 @@ class RoundRunner:
                     if terminal is not None:
                         return terminal
 
-                if idle_task in done:
+                if idle_task is not None and idle_task in done:
+                    nudge_count += 1
+                    if nudge_count > IDLE_NUDGE_MAX_ATTEMPTS:
+                        log.info(
+                            "[%s] Round %d idle after %d nudges — ending",
+                            self._rid,
+                            round_number,
+                            IDLE_NUDGE_MAX_ATTEMPTS,
+                        )
+                        await db.log_audit(
+                            self._run.run_id,
+                            "idle_timeout",
+                            {
+                                "round_number": round_number,
+                                "nudge_attempts": IDLE_NUDGE_MAX_ATTEMPTS,
+                            },
+                        )
+                        return RoundResult(
+                            status="complete",
+                            session_id=session_id,
+                        )
+                    # Nudge: interrupt + inject, then backoff exponentially.
+                    backoff = SESSION_IDLE_TIMEOUT_SEC * (2 ** (nudge_count - 1))
+                    idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
                     log.info(
-                        "[%s] Round %d idle %ds — ending round",
+                        "[%s] Round %d idle nudge %d/%d — next in %ds",
                         self._rid,
                         round_number,
-                        SESSION_IDLE_TIMEOUT_SEC,
+                        nudge_count,
+                        IDLE_NUDGE_MAX_ATTEMPTS,
+                        backoff,
                     )
                     await db.log_audit(
                         self._run.run_id,
-                        "idle_timeout",
+                        "idle_nudge",
                         {
                             "round_number": round_number,
-                            "idle_seconds": SESSION_IDLE_TIMEOUT_SEC,
+                            "nudge_count": nudge_count,
+                            "idle_seconds": idle_seconds,
                         },
                     )
-                    return RoundResult(
-                        status="complete",
-                        session_id=session_id,
+                    await self._sandbox.session.interrupt(session_id)
+                    self._inbox.push(
+                        "inject",
+                        render_idle_nudge(idle_seconds),
+                    )
+                    idle_task = asyncio.create_task(
+                        asyncio.sleep(backoff),
                     )
         finally:
             sse_task.cancel()
             op_task.cancel()
-            idle_task.cancel()
+            if idle_task is not None:
+                idle_task.cancel()
 
     async def _apply_signal(
         self,
@@ -266,15 +319,49 @@ class RoundRunner:
 
     # ── Stuck-subagent pulse ───────────────────────────────────────────
 
-    async def _pulse_loop(self, tracker: SubagentTracker) -> None:
-        """Periodically push a synthetic stop if a subagent is stuck."""
+    async def _pulse_loop(self, tracker: SubagentTracker, session_id: str) -> None:
+        """Periodic watchdog for stuck subagents and timed-out tool calls.
+
+        Two checks each cycle:
+        1. Stuck subagents (idle > SUBAGENT_IDLE_KILL_SEC) — interrupt + inject recovery.
+        2. Timed-out tool calls (running > TOOL_CALL_TIMEOUT_SEC) — interrupt + inject timeout.
+
+        Both interrupt the session and inject context so the orchestrator
+        can adapt. Neither kills the round.
+        """
         while True:
             await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
-            stuck = tracker.stuck_subagents()
-            if not stuck:
+            # Only fire one recovery per cycle to avoid double-interrupting.
+            if await self._check_stuck_subagents(tracker, session_id):
                 continue
-            payload = json.dumps(
-                [
+            await self._check_timed_out_tools(tracker, session_id)
+
+    async def _check_stuck_subagents(
+        self,
+        tracker: SubagentTracker,
+        session_id: str,
+    ) -> bool:
+        """Interrupt stuck subagents and notify the orchestrator.
+
+        Returns True if any recovery was triggered.
+        """
+        stuck = tracker.stuck_subagents()
+        if not stuck:
+            return False
+        descriptions = [
+            f"{s.agent_type} ({s.agent_id[:8]}, idle {s.idle_seconds}s)"
+            for s in stuck
+        ]
+        log.warning(
+            "[%s] Stuck subagent(s) — interrupting: %s",
+            self._rid,
+            ", ".join(descriptions),
+        )
+        await db.log_audit(
+            self._run.run_id,
+            "stuck_recovery",
+            {
+                "stuck": [
                     {
                         "agent_id": s.agent_id,
                         "agent_type": s.agent_type,
@@ -282,22 +369,48 @@ class RoundRunner:
                         "total_seconds": s.total_seconds,
                     }
                     for s in stuck
-                ]
-            )
+                ],
+            },
+        )
+        for s in stuck:
+            tracker.record_stop(s.agent_id)
+        await self._sandbox.session.interrupt(session_id)
+        agent_names = ", ".join(s.agent_type for s in stuck)
+        self._inbox.push(
+            "inject",
+            render_stuck_recovery(agent_names, SUBAGENT_IDLE_KILL_SEC // 60),
+        )
+        return True
+
+    async def _check_timed_out_tools(
+        self,
+        tracker: SubagentTracker,
+        session_id: str,
+    ) -> None:
+        """Interrupt tool calls that exceeded TOOL_CALL_TIMEOUT_SEC."""
+        timed_out = tracker.timed_out_tools()
+        if not timed_out:
+            return
+        for key, elapsed in timed_out:
             log.warning(
-                "[%s] Stuck subagent(s) detected — stopping round: %s",
+                "[%s] Tool call timed out (%s, %ds) — interrupting",
                 self._rid,
-                payload,
+                key[:8],
+                elapsed,
             )
             await db.log_audit(
                 self._run.run_id,
-                "stuck_recovery",
-                {
-                    "stuck": payload,
-                },
+                "tool_timeout",
+                {"agent_key": key, "elapsed_seconds": elapsed},
             )
-            self._inbox.push("stop", f"stuck subagents: {payload}")
-            return
+        for key, _ in timed_out:
+            tracker.clear_tool_state(key)
+        max_elapsed = max(e for _, e in timed_out)
+        await self._sandbox.session.interrupt(session_id)
+        self._inbox.push(
+            "inject",
+            render_tool_timeout(max_elapsed // 60),
+        )
 
     # ── Teardown ───────────────────────────────────────────────────────
 

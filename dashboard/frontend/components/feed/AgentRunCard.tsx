@@ -150,7 +150,7 @@ function AgentRunCardInner({
 
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         <div
           className="relative flex items-center justify-center h-8 w-8 rounded-md shrink-0"
@@ -185,13 +185,13 @@ function AgentRunCardInner({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span
-              className="text-[11px] font-medium"
+              className="text-title font-medium"
               style={{ color: isPending ? hexToRgba(phaseColor, 0.8) : phaseColor }}
             >
               {description}
             </span>
             <span
-              className="text-[9px] rounded px-1 py-0.5 uppercase tracking-wider"
+              className="text-content rounded px-1 py-0.5 uppercase tracking-wider"
               style={{
                 color: hexToRgba(phaseColor, 0.75),
                 background: hexToRgba(phaseColor, 0.08),
@@ -200,7 +200,7 @@ function AgentRunCardInner({
               {subType}
             </span>
             {childTools.length > 0 && (
-              <span className="text-[9px] text-[#888] tabular-nums">
+              <span className="text-caption text-text-secondary tabular-nums">
                 {childTools.length} tools
               </span>
             )}
@@ -212,7 +212,7 @@ function AgentRunCardInner({
                   key={lastChild.id}
                   initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="flex items-center gap-1 text-[9px] text-[#ccc]"
+                  className="flex items-center gap-1 text-caption text-accent-hover"
                 >
                   <span className="opacity-60 shrink-0">
                     {getToolIcon(
@@ -223,12 +223,12 @@ function AgentRunCardInner({
                   <span className="truncate max-w-[220px]">
                     {lastChild.tool_name}
                     {lastChild.input_data?.file_path ? (
-                      <span className="text-[#888] ml-1">
+                      <span className="text-text-secondary ml-1">
                         {shortPath(String(lastChild.input_data.file_path))}
                       </span>
                     ) : null}
                     {lastChild.input_data?.command ? (
-                      <span className="text-[#888] ml-1">
+                      <span className="text-text-secondary ml-1">
                         {String(lastChild.input_data.command).slice(0, 40)}
                       </span>
                     ) : null}
@@ -239,14 +239,14 @@ function AgentRunCardInner({
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="flex items-center gap-1.5 text-[9px] text-[#cc88ff]"
+                  className="flex items-center gap-1.5 text-caption text-[#cc88ff]"
                 >
                   <SpinnerIcon color="#cc88ff" />
                   writing response...
                 </motion.span>
               )}
               {!isPending && (
-                <span className="flex items-center gap-1.5 text-[9px] text-[#777]">
+                <span className="flex items-center gap-1.5 text-caption text-text-dim">
                   {childSummary.slice(0, 4).map(({ cat, count }) => (
                     <span key={cat} className="flex items-center gap-0.5">
                       <span className="opacity-40">
@@ -260,17 +260,17 @@ function AgentRunCardInner({
             </div>
           )}
           {!expanded && childTools.length === 0 && prompt && (
-            <div className="text-[9px] text-[#888] mt-0.5 truncate">
+            <div className="text-body text-text-secondary mt-0.5 truncate">
               {prompt.slice(0, 100)}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[9px] text-[#777] tabular-nums">
+          <span className="text-caption text-text-dim tabular-nums">
             {fmtTime(ts)}
           </span>
           {!!tool.duration_ms && (
-            <span className="text-[9px] text-[#888] tabular-nums">
+            <span className="text-caption text-text-dim tabular-nums">
               {fmtDuration(tool.duration_ms)}
             </span>
           )}

@@ -47,27 +47,27 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps): React.Re
             onClick={() => selectById(id)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
             className={clsx(
-              "text-left p-3 rounded border transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/60",
+              "text-left p-3 rounded border transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#00ff88]/60",
               selected
                 ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]"
-                : "border-[#1a1a1a] bg-white/[0.01] hover:bg-white/[0.03]"
+                : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
             )}
           >
             <div
               className={clsx(
-                "text-[10px] font-medium leading-tight",
-                selected ? "text-[#e8e8e8]" : "text-[#ccc]"
+                "text-content font-medium leading-tight",
+                selected ? "text-text" : "text-accent-hover"
               )}
             >
               {spec.label}
             </div>
-            <div className="text-[9px] text-[#999] mt-0.5 leading-tight">
+            <div className="text-body text-text-muted mt-0.5 leading-tight">
               {spec.description}
             </div>
             <div
               className={clsx(
-                "text-[8px] mt-1.5 font-mono",
-                selected ? "text-[#00ff88]/70" : "text-[#555]"
+                "text-caption mt-1.5 font-mono",
+                selected ? "text-[#00ff88]/70" : "text-text-dim"
               )}
             >
               {spec.context}

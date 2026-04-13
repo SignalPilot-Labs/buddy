@@ -30,14 +30,16 @@ AGENTS_WITH_VERIFICATION: tuple[str, ...] = (
 )
 
 # Which subagents should see prior-round reports (only when round > 1).
-# Builders, debugger, code-explorer, and security-reviewer work off the
-# CURRENT round only. The architect plans the next step off prior rounds;
-# spec/code/ui reviewers benefit from catching repeated issues.
+# Builders and code-explorer work off the CURRENT round only. Planners
+# need prior context to avoid re-diagnosing or re-planning shipped work;
+# reviewers benefit from calibration lessons and prior findings.
 AGENTS_WITH_PRIOR_CONTEXT: tuple[str, ...] = (
     "plan/architect",
+    "plan/debugger",
     "review/spec-reviewer",
     "review/code-reviewer",
     "review/ui-reviewer",
+    "review/security-reviewer",
 )
 
 

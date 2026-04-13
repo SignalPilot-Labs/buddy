@@ -33,10 +33,10 @@ def _mock_session_tracking_adds(run: MagicMock | None):
     from contextlib import asynccontextmanager
 
     @asynccontextmanager
-    async def ctx():
+    async def context():
         yield session_mock
 
-    return ctx, session_mock
+    return context, session_mock
 
 
 class TestInjectWritesAuditLog:
@@ -46,9 +46,9 @@ class TestInjectWritesAuditLog:
     async def test_inject_creates_audit_log_entry(self):
         """Inject signal must add both ControlSignal and AuditLog rows."""
         run = _mock_run("running")
-        ctx, session_mock = _mock_session_tracking_adds(run)
+        context, session_mock = _mock_session_tracking_adds(run)
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
@@ -61,9 +61,9 @@ class TestInjectWritesAuditLog:
     async def test_inject_audit_has_correct_event_type(self):
         """The AuditLog entry must have event_type='prompt_injected'."""
         run = _mock_run("running")
-        ctx, session_mock = _mock_session_tracking_adds(run)
+        context, session_mock = _mock_session_tracking_adds(run)
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
@@ -76,12 +76,14 @@ class TestInjectWritesAuditLog:
     async def test_inject_audit_contains_prompt_text(self):
         """The AuditLog details must include the user's prompt."""
         run = _mock_run("running")
-        ctx, session_mock = _mock_session_tracking_adds(run)
+        context, session_mock = _mock_session_tracking_adds(run)
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "use 10px minimum")
+            await send_control_signal(
+                "run-1", "inject", {"running"}, "use 10px minimum"
+            )
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert audit_entries[0].details["prompt"] == "use 10px minimum"
@@ -90,9 +92,9 @@ class TestInjectWritesAuditLog:
     async def test_inject_audit_has_correct_run_id(self):
         """The AuditLog entry must reference the correct run."""
         run = _mock_run("running")
-        ctx, session_mock = _mock_session_tracking_adds(run)
+        context, session_mock = _mock_session_tracking_adds(run)
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal("run-42", "inject", {"running"}, "hello")
@@ -105,23 +107,27 @@ class TestInjectWritesAuditLog:
         """Pause, resume, stop etc. must NOT create prompt_injected audit entries."""
         for signal in ("pause", "resume", "stop", "kill", "unlock"):
             run = _mock_run("running")
-            ctx, session_mock = _mock_session_tracking_adds(run)
+            context, session_mock = _mock_session_tracking_adds(run)
             with (
-                patch("backend.utils.session", ctx),
+                patch("backend.utils.session", context),
                 patch("backend.utils.agent_request", new_callable=AsyncMock),
             ):
                 await send_control_signal("run-1", signal, {"running"}, "payload")
 
-            audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
-            assert len(audit_entries) == 0, f"signal '{signal}' should not create AuditLog"
+            audit_entries = [
+                obj for obj in session_mock.added if isinstance(obj, AuditLog)
+            ]
+            assert (
+                len(audit_entries) == 0
+            ), f"signal '{signal}' should not create AuditLog"
 
     @pytest.mark.asyncio
     async def test_inject_with_none_payload_skips_audit(self):
         """Inject with no payload should not create an audit entry."""
         run = _mock_run("running")
-        ctx, session_mock = _mock_session_tracking_adds(run)
+        context, session_mock = _mock_session_tracking_adds(run)
         with (
-            patch("backend.utils.session", ctx),
+            patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal("run-1", "inject", {"running"}, None)

@@ -22,7 +22,7 @@ from memory.metadata import MetadataStore
 from memory.report import ReportStore
 from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
-from session.time_lock import TimeLock
+from agent_session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,

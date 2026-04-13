@@ -28,12 +28,12 @@ export function RepoListSection({
   onSetActive,
 }: RepoListSectionProps) {
   return (
-    <div className="p-4 bg-white/[0.01] border border-[#1a1a1a] rounded-lg">
+    <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="flex items-center justify-between mb-3">
-        <label className="text-[10px] font-semibold text-[#ccc]">
+        <label className="text-content font-semibold text-accent-hover">
           Repositories
         </label>
-        <span className="text-[9px] text-[#666]">
+        <span className="text-content text-text-secondary">
           {repos.length} configured
         </span>
       </div>
@@ -48,25 +48,25 @@ export function RepoListSection({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                className="flex items-center gap-2 px-2.5 py-2 bg-black/30 rounded border border-[#1a1a1a] group"
+                className="flex items-center gap-2 px-2.5 py-2 bg-black/30 rounded border border-border group"
               >
                 <svg
                   width="12" height="12" viewBox="0 0 16 16" fill="currentColor"
-                  className="text-[#666] shrink-0"
+                  className="text-text-secondary shrink-0"
                 >
                   <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" />
                 </svg>
 
-                <span className="text-[10px] font-mono text-[#ccc] flex-1 min-w-0 truncate">
+                <span className="text-content font-mono text-accent-hover flex-1 min-w-0 truncate">
                   {r.repo}
                 </span>
 
-                <span className="text-[9px] text-[#666] shrink-0">
+                <span className="text-content text-text-secondary shrink-0">
                   {r.run_count} run{r.run_count !== 1 ? "s" : ""}
                 </span>
 
                 {isActive ? (
-                  <span className="flex items-center gap-1 text-[9px] text-[#00ff88]/60 shrink-0">
+                  <span className="flex items-center gap-1 text-content text-[#00ff88]/60 shrink-0">
                     <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                       <polyline points="2 5 4 7 8 3" />
                     </svg>
@@ -75,7 +75,7 @@ export function RepoListSection({
                 ) : (
                   <button
                     onClick={() => onSetActive(r.repo)}
-                    className="text-[9px] text-[#888] hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                    className="text-content text-text-secondary hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                   >
                     Set Active
                   </button>
@@ -83,7 +83,7 @@ export function RepoListSection({
 
                 <button
                   onClick={() => onRemoveRepo(r.repo)}
-                  className="text-[#666] hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#ff4444]"
                   title="Remove repository"
                 >
                   <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -97,7 +97,7 @@ export function RepoListSection({
         </AnimatePresence>
 
         {repos.length === 0 && (
-          <div className="px-2.5 py-3 text-[10px] text-[#666] text-center">
+          <div className="px-2.5 py-3 text-content text-text-secondary text-center">
             No repositories configured yet
           </div>
         )}
@@ -116,7 +116,7 @@ export function RepoListSection({
               }
             }}
             placeholder="owner/repo"
-            className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all"
+            className="w-full bg-black/30 border border-border rounded px-3 py-2 text-content text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
             autoComplete="off"
             spellCheck={false}
           />
@@ -132,11 +132,11 @@ export function RepoListSection({
       </div>
 
       {repoError && (
-        <p className="mt-1.5 text-[9px] text-[#ff4444]">{repoError}</p>
+        <p className="mt-1.5 text-content text-[#ff4444]">{repoError}</p>
       )}
 
-      <p className="mt-2 text-[9px] text-[#999] leading-relaxed">
-        Add repositories in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[9px]">owner/repo</code> format.
+      <p className="mt-2 text-body text-text-muted leading-relaxed">
+        Add repositories in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-content">owner/repo</code> format.
         The active repo is used when starting new runs. Switch between repos using the selector in the dashboard header.
       </p>
     </div>

@@ -23,6 +23,31 @@ def load_markdown(name: str) -> str:
     raise FileNotFoundError(f"prompt file not found: {name}.md")
 
 
+def render_tool_timeout(elapsed_minutes: int) -> str:
+    """Render `query/tool-timeout.md` with the elapsed duration."""
+    template = load_markdown("query/tool-timeout")
+    return template.replace("{ELAPSED_MINUTES}", str(elapsed_minutes))
+
+
+def render_idle_nudge(idle_seconds: int) -> str:
+    """Render `query/idle-nudge.md` with the idle duration."""
+    template = load_markdown("query/idle-nudge")
+    return template.replace("{IDLE_SECONDS}", str(idle_seconds))
+
+
+def render_stuck_recovery(
+    agent_names: str,
+    idle_threshold_min: int,
+) -> str:
+    """Render `query/stuck-recovery.md` with subagent details."""
+    template = load_markdown("query/stuck-recovery")
+    return (
+        template
+        .replace("{AGENT_NAMES}", agent_names)
+        .replace("{IDLE_THRESHOLD_MIN}", str(idle_threshold_min))
+    )
+
+
 def render_time_status(
     duration_minutes: float,
     time_remaining_minutes: float,

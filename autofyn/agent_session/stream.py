@@ -8,7 +8,7 @@ runner. The StreamSignal dataclass lives in utils.models.
 
 import logging
 
-from session.tracker import SubagentTracker
+from agent_session.tracker import SubagentTracker
 from utils import db
 from utils.constants import (
     COST_PER_CACHE_READ,
@@ -50,6 +50,15 @@ class StreamDispatcher:
         self._cache_read_baseline: int = run.cache_read_input_tokens
         self._message_count: int = 0
         self._latest_context_tokens: int = 0
+        self._tools_in_flight: int = 0
+
+    def has_tools_in_flight(self) -> bool:
+        """True if any tool call is currently executing."""
+        return self._tools_in_flight > 0 or self._tracker.has_tools_in_flight()
+
+    def has_active_subagents(self) -> bool:
+        """True if any subagents are currently tracked as active."""
+        return self._tracker.active_count() > 0
 
     async def dispatch(self, event: dict) -> StreamSignal:
         """Handle one SSE event. Mutates RoundState, returns a signal."""
@@ -62,6 +71,10 @@ class StreamDispatcher:
 
         if kind == "tool_use":
             self._handle_tool_use(data)
+            return StreamSignal(kind="continue")
+
+        if kind == "tool_done":
+            self._handle_tool_done(data)
             return StreamSignal(kind="continue")
 
         if kind == "subagent_start":
@@ -161,10 +174,16 @@ class StreamDispatcher:
             self._tracker.record_stop(agent_id)
 
     def _handle_tool_use(self, data: dict) -> None:
-        """Reset the tracker idle timer on any tool call."""
-        agent_id = data.get("agent_id")
-        if agent_id:
-            self._tracker.record_tool_use(agent_id)
+        """Track tool start for both subagents and orchestrator."""
+        self._tools_in_flight += 1
+        agent_id: str | None = data.get("agent_id")
+        self._tracker.record_tool_use(agent_id)
+
+    def _handle_tool_done(self, data: dict) -> None:
+        """Track tool completion for both subagents and orchestrator."""
+        self._tools_in_flight = max(0, self._tools_in_flight - 1)
+        agent_id: str | None = data.get("agent_id")
+        self._tracker.record_tool_done(agent_id)
 
     async def _handle_result(self, data: dict) -> None:
         """Persist the SDK session id, settle cost, log round_complete.
