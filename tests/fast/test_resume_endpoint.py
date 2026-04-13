@@ -86,6 +86,7 @@ class TestResumePausedRun:
                 "resume",
                 {"paused"},
                 None,
+                None,
             )
 
     @pytest.mark.asyncio
@@ -99,7 +100,7 @@ class TestResumePausedRun:
         run = _mock_run("paused")
         signals_sent: list[str] = []
 
-        async def track_signal(run_id, signal, valid_statuses, payload):
+        async def track_signal(run_id, signal, valid_statuses, payload, extra_body):
             signals_sent.append(signal)
             return {"ok": True, "signal": signal, "run_id": run_id}
 
@@ -137,6 +138,7 @@ class TestResumePausedRun:
                 "00000000-0000-0000-0000-000000000001",
                 "resume",
                 {"paused"},
+                None,
                 None,
             )
 
@@ -181,6 +183,48 @@ class TestResumePausedRun:
             with pytest.raises(HTTPException) as exc_info:
                 await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
             assert exc_info.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_resume_rate_limited_injects_not_restarts(self):
+        """Rate-limited run should inject the prompt, not restart the run."""
+        resume_run = _import_resume_run()
+        run = _mock_run("rate_limited")
+        signals_sent: list[str] = []
+
+        async def track_signal(run_id, signal, valid_statuses, payload, extra_body):
+            signals_sent.append(signal)
+            return {"ok": True, "signal": signal, "run_id": run_id}
+
+        with (
+            patch("backend.endpoints.runs.session", _mock_session(run)),
+            patch("backend.endpoints.runs.send_control_signal", side_effect=track_signal),
+            patch("backend.endpoints.runs._resume_completed_run", new_callable=AsyncMock) as mock_restart,
+        ):
+            result = await resume_run(
+                "00000000-0000-0000-0000-000000000001",
+                _make_body("keep going"),
+            )
+
+            assert result["ok"] is True
+            assert signals_sent == ["inject"]
+            mock_restart.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_resume_rate_limited_no_prompt_returns_ok(self):
+        """Rate-limited run with no prompt should return ok without sending signals."""
+        resume_run = _import_resume_run()
+        run = _mock_run("rate_limited")
+        with (
+            patch("backend.endpoints.runs.session", _mock_session(run)),
+            patch("backend.endpoints.runs.send_control_signal", new_callable=AsyncMock) as mock_signal,
+        ):
+            result = await resume_run(
+                "00000000-0000-0000-0000-000000000001",
+                _make_body(),
+            )
+
+            assert result["ok"] is True
+            mock_signal.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_resume_missing_run_returns_404(self):
