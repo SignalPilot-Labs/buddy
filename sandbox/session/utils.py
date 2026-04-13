@@ -21,7 +21,7 @@ from claude_agent_sdk.types import (
     StreamEvent,
 )
 
-from constants import INPUT_SUMMARY_MAX_LEN
+from constants import INPUT_CONTENT_MAX_LEN, INPUT_SUMMARY_MAX_LEN
 from db.connection import get_session_factory
 from db.models import AuditLog, ToolCall
 from models import ToolContext
@@ -90,10 +90,15 @@ def summarize(data: Any) -> dict:
         if len(raw) > INPUT_SUMMARY_MAX_LEN:
             raw = raw[:INPUT_SUMMARY_MAX_LEN] + "..."
         return {"_raw": raw}
+    CONTENT_KEYS = {"content", "prompt"}
     result: dict[str, Any] = {}
     for key, val in data.items():
-        if isinstance(val, str) and len(val) > INPUT_SUMMARY_MAX_LEN:
-            result[key] = val[:INPUT_SUMMARY_MAX_LEN] + "..."
+        if isinstance(val, str):
+            limit = INPUT_CONTENT_MAX_LEN if key in CONTENT_KEYS else INPUT_SUMMARY_MAX_LEN
+            if len(val) > limit:
+                result[key] = val[:limit] + "..."
+            else:
+                result[key] = val
         else:
             result[key] = val
     return result

@@ -194,7 +194,7 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
       exit={{ opacity: 0, x: 10 }}
       className="flex justify-end px-4 py-1.5"
     >
-      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
+      <div className={`max-w-[75%] min-w-0 rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5 overflow-hidden`}>
         <div className="flex items-center justify-between gap-4 mb-1">
           <span className="text-content font-semibold uppercase tracking-wider text-[#88ccff]">
             You
