@@ -1,0 +1,27 @@
+{
+    "id": "47dd29d7-fc16-4d01-941e-539649281ac4",
+    "started_at": "2026-04-13T21:37:31.222076",
+    "finished_at": "2026-04-13T21:37:59.083654",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 1,
+        "evals": {
+            "autofyn__claude-opus-4-6__adhoc": {
+                "n_trials": 0,
+                "n_errors": 1,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {},
+                "exception_stats": {
+                    "RewardFileNotFoundError": [
+                        "hello-world__atLSdqa"
+                    ]
+                }
+            }
+        }
+    }
+}
