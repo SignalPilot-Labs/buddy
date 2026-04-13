@@ -60,7 +60,7 @@ export function EventFeed({
     const interruptLabels = new Set(["Pause Requested", "Stop Requested", "Resumed"]);
     for (let i = grouped.length - 1; i >= 0; i--) {
       const gev = grouped[i];
-      if (gev.type === "user_prompt") return gev.ts;
+      if (gev.type === "user_prompt" && !gev.injected) return gev.ts;
       if (gev.type === "milestone" && interruptLabels.has(gev.label)) return gev.ts;
     }
     return null;

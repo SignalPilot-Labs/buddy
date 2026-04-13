@@ -109,6 +109,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Rate Limited`, type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
     }
     case "prompt_injected":
+      return { id: `up-${event.data.id}-${ts}`, type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed), injected: true };
     case "prompt_submitted":
       return { id: `up-${event.data.id}-${ts}`, type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
     case "session_resumed":

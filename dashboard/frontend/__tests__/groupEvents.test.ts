@@ -361,14 +361,96 @@ describe("groupEvents", () => {
   });
 });
 
-/* ── subagent attribution via audit-event link ── */
-
 function makeAuditEvent(id: number, eventType: string, details: Record<string, unknown>, ts: string): FeedEvent {
   return {
     _kind: "audit",
     data: { id, run_id: "r", ts, event_type: eventType, details },
   };
 }
+
+/* ── inject vs submit prompt distinction ── */
+
+describe("prompt_injected vs prompt_submitted", () => {
+  it("marks prompt_injected as injected=true on the user_prompt event", () => {
+    const ts = new Date().toISOString();
+    const events: FeedEvent[] = [
+      {
+        _kind: "audit",
+        data: { id: 1, run_id: "r", ts, event_type: "prompt_injected", details: { prompt: "use ramanujan series" } },
+      },
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("user_prompt");
+    if (result[0].type === "user_prompt") {
+      expect(result[0].injected).toBe(true);
+      expect(result[0].prompt).toBe("use ramanujan series");
+    }
+  });
+
+  it("does NOT mark prompt_submitted as injected", () => {
+    const ts = new Date().toISOString();
+    const events: FeedEvent[] = [
+      {
+        _kind: "audit",
+        data: { id: 2, run_id: "r", ts, event_type: "prompt_submitted", details: { prompt: "build a calculator" } },
+      },
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("user_prompt");
+    if (result[0].type === "user_prompt") {
+      expect(result[0].injected).toBeFalsy();
+    }
+  });
+
+  it("inject mid-subagent does not cause agent card to lose its context", () => {
+    // Regression: injecting a message while a subagent is running caused
+    // the FE to treat the inject as an interruption, which set runActive=false
+    // for the in-flight agent card, making it render as "failed".
+    const t0 = new Date("2026-04-10T13:18:45Z").toISOString();
+    const t1 = new Date("2026-04-10T13:18:50Z").toISOString();
+    const t2 = new Date("2026-04-10T13:18:55Z").toISOString();
+
+    const events: FeedEvent[] = [
+      // Subagent starts
+      makeToolEvent({
+        id: 1, tool_name: "Agent", ts: t0, tool_use_id: "toolu_arch",
+        input_data: { description: "Design pi digits script", subagent_type: "architect", prompt: "design" },
+      }),
+      makeAuditEvent(10, "subagent_start", {
+        agent_id: "aArch", agent_type: "architect", parent_tool_use_id: "toolu_arch",
+      }, t0),
+      // Subagent does some work
+      makeToolEvent({ id: 2, tool_name: "Bash", ts: t1, agent_id: "aArch" }),
+      makeToolEvent({ id: 3, tool_name: "Read", ts: t1, agent_id: "aArch" }),
+      // User injects a message WHILE subagent is running
+      {
+        _kind: "audit",
+        data: { id: 11, run_id: "r", ts: t2, event_type: "prompt_injected", details: { prompt: "use ramanujan series" } },
+      },
+    ];
+
+    const result = groupEvents(events);
+
+    // The agent_run card should still exist with its child tools
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.childTools).toHaveLength(2);
+      expect(agentRun.agentType).toBe("architect");
+    }
+
+    // The inject should be a user_prompt with injected=true
+    const userPrompt = result.find((g) => g.type === "user_prompt");
+    expect(userPrompt).toBeDefined();
+    if (userPrompt?.type === "user_prompt") {
+      expect(userPrompt.injected).toBe(true);
+    }
+  });
+});
+
+/* ── subagent attribution via audit-event link ── */
 
 describe("groupEvents subagent attribution", () => {
   it("attributes child tools to the correct Agent card via parent_tool_use_id", () => {

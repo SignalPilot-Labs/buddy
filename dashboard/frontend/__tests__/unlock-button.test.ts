@@ -35,7 +35,8 @@ describe("Unlock button visibility", () => {
   });
 
   it("hides unlock when health data is missing", () => {
-    const activeRunHealth: { session_unlocked?: boolean } | undefined = undefined;
-    expect(activeRunHealth?.session_unlocked === false).toBe(false);
+    // Mirrors: activeRunHealth?.session_unlocked === false
+    // When activeRunHealth is undefined, optional chaining yields undefined, not false.
+    expect(isSessionLocked(undefined)).toBe(false);
   });
 });
