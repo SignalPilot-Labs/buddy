@@ -223,7 +223,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
             <span className="text-[10px] text-text-dim tabular-nums ml-auto">{totalFiles} files</span>
           </>
         )}
-        {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-text-dim hover:text-accent-hover transition-colors p-0.5">
+        {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-text-dim hover:text-accent-hover transition-colors p-0.5 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]">
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             {collapsed ? <polyline points="3 2 7 5 3 8" /> : <polyline points="7 2 3 5 7 8" />}
           </svg>
@@ -245,21 +245,21 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
           <div className="flex border-b border-border/60">
             {hasGitDiff && (
               <button onClick={() => setActiveTab("tree")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
+                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "tree" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Tree
               </button>
             )}
             {hasGitDiff && (
               <button onClick={() => setActiveTab("files")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
+                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "files" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Files
               </button>
             )}
             {hasLive && (
               <button onClick={() => setActiveTab("live")}
-                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors",
+                className={clsx("flex-1 py-1.5 text-[10px] font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
                   activeTab === "live" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
                 Session
               </button>

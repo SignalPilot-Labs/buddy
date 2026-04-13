@@ -88,7 +88,7 @@ export function AgentRunExpanded({
               e.stopPropagation();
               setShowPrompt(!showPrompt);
             }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider"
+            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-text-secondary hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
           >
             <Chevron open={showPrompt} size={8} />
             Prompt
@@ -110,7 +110,7 @@ export function AgentRunExpanded({
               e.stopPropagation();
               setShowFinalText(!showFinalText);
             }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-[#cc88ff]/80 hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider"
+            className="w-full flex items-center gap-2 px-4 py-2 text-[12px] text-[#cc88ff]/80 hover:bg-white/[0.02] transition-colors text-left uppercase tracking-wider focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#cc88ff]"
           >
             <Chevron open={showFinalText} size={8} />
             Agent Summary

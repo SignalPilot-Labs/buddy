@@ -313,7 +313,7 @@ export function StartRunModal({
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-1 rounded hover:bg-white/[0.04] text-text-muted hover:text-accent-hover transition-colors"
+                  className="p-1 rounded hover:bg-white/[0.04] text-text-muted hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                 >
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <line x1="3" y1="3" x2="9" y2="9" /><line x1="9" y1="3" x2="3" y2="9" />

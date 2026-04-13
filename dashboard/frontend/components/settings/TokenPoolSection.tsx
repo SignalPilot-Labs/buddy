@@ -61,7 +61,7 @@ export function TokenPoolSection({
               )}
               <button
                 onClick={() => onRemoveToken(t.index)}
-                className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#ff4444]"
                 title="Remove token"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">

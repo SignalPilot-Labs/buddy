@@ -136,7 +136,7 @@ export function ReadGroupCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         <div
           className="flex items-center justify-center h-8 w-8 rounded-md shrink-0"
@@ -185,7 +185,7 @@ export function ReadGroupCard({
                       onClick={() =>
                         setPreviewIdx(previewIdx === i ? null : i)
                       }
-                      className="w-full flex items-center gap-2 text-[10px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left"
+                      className="w-full flex items-center gap-2 text-[10px] py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                     >
                       <svg
                         width="10"
@@ -262,7 +262,7 @@ export function EditGroupCard({
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-md bg-[#ffcc44]/8 shrink-0">
           {getToolIcon("edit", "#ffcc44")}
@@ -309,7 +309,7 @@ export function EditGroupCard({
                   onClick={() =>
                     setExpandedFile(expandedFile === i ? null : i)
                   }
-                  className="w-full flex items-center gap-2 px-4 py-2 text-[10px] hover:bg-white/[0.02] transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-4 py-2 text-[10px] hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
                 >
                   <svg
                     width="10"

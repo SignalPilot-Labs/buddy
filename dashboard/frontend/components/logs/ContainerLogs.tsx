@@ -124,7 +124,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
             setAutoScroll(true);
             bottomRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-[10px] text-text-secondary hover:text-accent-hover transition-colors"
+          className="absolute bottom-2 right-4 px-2 py-1 rounded bg-border border border-border-subtle text-[10px] text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
         >
           Scroll to bottom
         </button>

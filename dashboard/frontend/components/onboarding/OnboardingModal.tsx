@@ -244,7 +244,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-muted transition-colors"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-text-muted transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                           tabIndex={-1}
                         >
                           {showPassword ? (
