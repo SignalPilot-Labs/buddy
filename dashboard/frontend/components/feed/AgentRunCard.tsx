@@ -40,7 +40,7 @@ function AgentRunCardInner({
   runPaused: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [showPrompt, setShowPrompt] = useState(true);
+  const [showPrompt, setShowPrompt] = useState(false);
   const [showFinalText, setShowFinalText] = useState(false);
   const [now, setNow] = useState(Date.now());
   // description and subagent_type come from the Task tool input_data;
