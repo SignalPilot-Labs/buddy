@@ -56,7 +56,7 @@ function AgentRunCardInner({
     runActive && !runPaused && tool.phase === "pre" && !tool.output_data;
   const isPaused = runActive && runPaused && tool.phase === "pre" && !tool.output_data;
   const isCompleted = !isPending && !!tool.output_data;
-  const isFailed = !isPending && !isPaused && tool.phase === "pre" && !tool.output_data;
+  const isFailed = !runActive && !isPending && !isPaused && tool.phase === "pre" && !tool.output_data;
 
   const { phase, meta: phaseMeta } = resolvePhase(subType);
 

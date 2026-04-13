@@ -13,7 +13,7 @@ AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500
 
 # Pagination
 RUNS_PAGE_SIZE = 50
-QUERY_MAX_LIMIT = 1000
+QUERY_MAX_LIMIT = 5001
 
 # SSE
 SSE_POLL_INTERVAL_SEC = 0.5

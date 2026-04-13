@@ -24,7 +24,7 @@ from backend.constants import (
     SIGNAL_AGENT_PATHS,
 )
 from db.connection import get_session_factory
-from db.models import ControlSignal, Run, Setting
+from db.models import AuditLog, ControlSignal, Run, Setting
 
 _AGENT_INTERNAL_SECRET = os.environ.get("AGENT_INTERNAL_SECRET", "")
 
@@ -73,6 +73,12 @@ async def send_control_signal(
                 detail=f"Cannot send '{signal}' to run with status '{run.status}'",
             )
         s.add(ControlSignal(run_id=run_id, signal=signal, payload=payload))
+        if signal == "inject" and payload:
+            s.add(AuditLog(
+                run_id=run_id,
+                event_type="prompt_injected",
+                details={"prompt": payload},
+            ))
         await s.commit()
 
     agent_path = SIGNAL_AGENT_PATHS.get(signal)
