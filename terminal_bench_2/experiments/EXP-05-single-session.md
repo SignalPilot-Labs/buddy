@@ -189,6 +189,18 @@ Action: Keep run_experiment.sh on opus-4-6. Single-session fork is production-re
   for write-compressor class of tasks.
 ```
 
+## Cross-reference: EXP-07
+
+EXP-07 tested increasing `DEFAULT_MAX_TURNS` from 30 to 100 to give the single-session
+agent more exploration budget for raman-fitting (which uses 77-78 tool calls in passing
+multi-subagent runs). Results:
+- raman-fitting: still 0/1 — agent used only 14/100 turns, failure is approach quality
+  not turn cap. The architect's diagnosis was incorrect.
+- write-compressor: 0/1 (AgentTimeoutError) — a regression from 3/3 baseline. The
+  larger turn ceiling allowed over-iteration, consuming the 900s budget.
+
+EXP-07 verdict: NO-GO. `DEFAULT_MAX_TURNS` reverted to 30.
+
 ## STATUS
 
 - [x] Fork created: `autofyn_agent_single/`
