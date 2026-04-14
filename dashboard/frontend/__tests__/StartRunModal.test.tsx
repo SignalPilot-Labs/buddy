@@ -2,7 +2,7 @@
  * StartRunModal component tests.
  *
  * Covers: opening/closing, model selector, busy state,
- * and onStart callback wiring.
+ * collapsed sections, expand behavior, and onStart callback wiring.
  */
 
 import { render } from "@testing-library/react";
@@ -30,7 +30,6 @@ describe("StartRunModal", () => {
 
   it("renders modal content when open", () => {
     renderModal();
-    // Modal renders in portal — search whole document
     expect(document.body.textContent).toContain("New Run");
   });
 
@@ -41,7 +40,9 @@ describe("StartRunModal", () => {
 
   it("shows model selector with model options", () => {
     renderModal();
+    // "Model" label appears in CollapsibleSection header
     expect(document.body.textContent).toContain("Model");
+    // Summary text includes model label when collapsed
     expect(document.body.textContent).toContain("Claude Opus 4.6");
   });
 
@@ -57,7 +58,6 @@ describe("StartRunModal", () => {
 
   it("calls onStart when start button clicked", async () => {
     const { props } = renderModal();
-    // Find the start/submit button by text
     const buttons = document.querySelectorAll("button");
     const startBtn = Array.from(buttons).find(
       (b) => b.textContent?.includes("New Run") && !b.textContent?.includes("Starting")
@@ -66,5 +66,38 @@ describe("StartRunModal", () => {
       await userEvent.click(startBtn);
       expect(props.onStart).toHaveBeenCalledOnce();
     }
+  });
+
+  it("collapsed sections show summaries", () => {
+    renderModal();
+    // Budget section shows "Unlimited" when collapsed and budget is disabled
+    expect(document.body.textContent).toContain("Unlimited");
+    // Model section summary includes model name when collapsed
+    expect(document.body.textContent).toContain("Claude Opus 4.6");
+    // Env section summary shows "No vars" when empty
+    expect(document.body.textContent).toContain("No vars");
+  });
+
+  it("expanding a section reveals its content", async () => {
+    renderModal();
+
+    // Model section header button — find by aria-expanded=false and containing "Model"
+    const collapsibleButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")
+    );
+    const modelButton = collapsibleButtons.find((b) =>
+      b.textContent?.includes("Model")
+    );
+    expect(modelButton).toBeDefined();
+
+    // Before clicking: model radio buttons should not be visible
+    expect(document.body.querySelector('[role="radiogroup"]')).toBeNull();
+
+    if (modelButton) {
+      await userEvent.click(modelButton);
+    }
+
+    // After clicking: the ModelSelector radiogroup should now appear
+    expect(document.body.querySelector('[role="radiogroup"]')).not.toBeNull();
   });
 });

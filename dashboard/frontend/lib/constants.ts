@@ -188,3 +188,9 @@ export function getApiBase(): string {
   if (typeof window === "undefined") return `http://localhost:${API_PORT}`;
   return "";
 }
+
+/** Capitalize the first character of a string. */
+export function capitalize(s: string): string {
+  if (s.length === 0) return s;
+  return s[0].toUpperCase() + s.slice(1);
+}
