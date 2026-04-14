@@ -133,7 +133,7 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -154,6 +154,9 @@ function parseEnvText(text: string): Record<string, string> {
 function envToText(env: Record<string, string>): string {
   return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
+
+const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
+type EffortLevel = typeof EFFORT_LEVELS[number];
 
 const DURATION_PRESETS = [
   { label: "No lock", minutes: 0, desc: "Agent can end anytime" },
@@ -205,6 +208,7 @@ export function StartRunModal({
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
+  const [effort, setEffort] = useState<EffortLevel>("medium");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -258,7 +262,7 @@ export function StartRunModal({
         return;
       }
     }
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model);
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -388,6 +392,29 @@ export function StartRunModal({
                   </label>
                   <div className="mt-2">
                     <ModelSelector value={model} onChange={setModel} />
+                  </div>
+                </div>
+
+                {/* Thinking Effort */}
+                <div className="flex items-center justify-between">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
+                    Thinking Effort
+                  </label>
+                  <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5">
+                    {EFFORT_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setEffort(level)}
+                        className={clsx(
+                          "px-2.5 py-0.5 rounded-full text-content capitalize transition-all",
+                          effort === level
+                            ? "bg-[#00ff88]/[0.12] text-[#00ff88] font-medium"
+                            : "text-text-dim hover:text-text-secondary"
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

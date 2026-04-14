@@ -208,6 +208,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,
         "model": body.model,
+        "effort": body.effort,
         "claude_token": creds.get("claude_token"),
         "git_token": creds.get("git_token"),
         "github_repo": creds.get("github_repo"),

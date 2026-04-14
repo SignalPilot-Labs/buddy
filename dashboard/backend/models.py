@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from db.constants import DEFAULT_MODEL, VALID_MODELS_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -30,6 +30,7 @@ class StartRunRequest(BaseModel):
     duration_minutes: float = Field(default=0, ge=0, description="Session duration in minutes. 0 = unlimited.")
     base_branch: str = Field(default="main", min_length=1, max_length=256, description="Branch to base the work on.")
     model: str = Field(default=DEFAULT_MODEL, pattern=VALID_MODELS_PATTERN, description="Claude model to use.")
+    effort: str = Field(default=DEFAULT_EFFORT, pattern=VALID_EFFORTS_PATTERN, description="Thinking effort level.")
     repo: str | None = Field(None, description="Active repo slug for per-repo env vars lookup.")
 
 

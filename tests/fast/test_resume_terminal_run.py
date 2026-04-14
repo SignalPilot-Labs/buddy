@@ -178,6 +178,7 @@ class TestBootstrapResumesBranch:
                 base_branch="main",
                 github_repo="owner/repo",
                 model="sonnet",
+                effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
             )
@@ -217,6 +218,7 @@ class TestBootstrapResumesBranch:
                 base_branch="main",
                 github_repo="owner/repo",
                 model="sonnet",
+                effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
             )
@@ -350,6 +352,7 @@ class TestBootstrapPreservesCosts:
                 base_branch="main",
                 github_repo="owner/repo",
                 model="sonnet",
+                effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
             )
@@ -385,6 +388,7 @@ class TestBootstrapPreservesCosts:
                 base_branch="main",
                 github_repo="owner/repo",
                 model="sonnet",
+                effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
             )

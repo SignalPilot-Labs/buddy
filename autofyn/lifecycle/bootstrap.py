@@ -24,10 +24,10 @@ from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
 from agent_session.time_lock import TimeLock
 from utils import db
+from db.constants import MODELS_SUPPORTING_MAX_EFFORT
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
-    SESSION_EFFORT,
     SESSION_PERMISSION_MODE,
     WORK_DIR,
 )
@@ -50,6 +50,7 @@ async def bootstrap_run(
     base_branch: str,
     github_repo: str,
     model: str,
+    effort: str,
     git_token: str,
     clone_timeout: int,
 ) -> BootstrapResult:
@@ -116,6 +117,7 @@ async def bootstrap_run(
         model=model,
         fallback_model=fallback_model,
         max_budget_usd=max_budget_usd,
+        effort=effort,
         run_start_time=run_start_time,
     )
 
@@ -174,6 +176,7 @@ def _build_base_session_options(
     model: str,
     fallback_model: str | None,
     max_budget_usd: float,
+    effort: str,
     run_start_time: float,
 ) -> dict:
     """Return everything the sandbox /session/start body needs except prompts.
@@ -181,10 +184,13 @@ def _build_base_session_options(
     The orchestrator system prompt is rebuilt per round and spliced in by
     the round loop before starting each session.
     """
+    resolved_effort = effort
+    if effort == "max" and model not in MODELS_SUPPORTING_MAX_EFFORT:
+        resolved_effort = "high"
     return {
         "model": model,
         "fallback_model": fallback_model if fallback_model != model else None,
-        "effort": SESSION_EFFORT,
+        "effort": resolved_effort,
         "include_partial_messages": True,
         "permission_mode": SESSION_PERMISSION_MODE,
         "cwd": WORK_DIR,

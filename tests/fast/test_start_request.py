@@ -39,3 +39,16 @@ class TestStartRequestValidation:
     def test_strips_base_branch_whitespace(self):
         req = StartRequest(base_branch="  main  ")
         assert req.base_branch == "main"
+
+    def test_default_effort_is_medium(self):
+        req = StartRequest()
+        assert req.effort == "medium"
+
+    def test_accepts_valid_effort_values(self):
+        for val in ("medium", "high", "max"):
+            req = StartRequest(effort=val)
+            assert req.effort == val
+
+    def test_rejects_invalid_effort(self):
+        with pytest.raises(ValueError, match="effort must be one of"):
+            StartRequest(effort="turbo")

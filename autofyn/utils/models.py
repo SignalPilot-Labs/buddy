@@ -15,7 +15,7 @@ from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, field_validator
 
-from db.constants import DEFAULT_MODEL, VALID_MODELS
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 _FALLBACK_MAP: dict[str, str | None] = {
@@ -333,6 +333,7 @@ class StartRequest(BaseModel):
     duration_minutes: float = 0
     base_branch: str = "main"
     model: str = DEFAULT_MODEL
+    effort: str = DEFAULT_EFFORT
     claude_token: str | None = None
     git_token: str | None = None
     github_repo: str | None = None
@@ -357,6 +358,13 @@ class StartRequest(BaseModel):
     def duration_non_negative(cls, v: float) -> float:
         if v < 0:
             raise ValueError("duration_minutes must be non-negative")
+        return v
+
+    @field_validator("effort")
+    @classmethod
+    def effort_valid(cls, v: str) -> str:
+        if v not in VALID_EFFORTS:
+            raise ValueError(f"effort must be one of {VALID_EFFORTS}")
         return v
 
     @field_validator("base_branch")

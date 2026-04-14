@@ -184,6 +184,7 @@ class AgentServer:
                 base_branch=body.base_branch,
                 github_repo=github_repo,
                 model=body.model,
+                effort=body.effort,
                 git_token=git_token,
                 clone_timeout=self._clone_timeout,
             )
