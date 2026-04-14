@@ -1,0 +1,29 @@
+{
+    "id": "237b2cf3-eeb6-46e9-8bd3-602365c8bab3",
+    "started_at": "2026-04-14T05:02:47.873084",
+    "finished_at": "2026-04-14T05:15:17.687663",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 0,
+        "evals": {
+            "autofyn__claude-opus-4-5__adhoc": {
+                "n_trials": 1,
+                "n_errors": 0,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "write-compressor__J3p2yb8"
+                        ]
+                    }
+                },
+                "exception_stats": {}
+            }
+        }
+    }
+}

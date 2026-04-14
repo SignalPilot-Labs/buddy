@@ -16,7 +16,7 @@ FORKS_PREFIX="autofyn_agent_"
 ADAPTERS_DIR="${TERMINAL_BENCH_2_DIR}/adapters"
 JOBS_DIR="jobs"
 SYMLINK_BASE="/tmp/tb2"
-MODEL="anthropic/claude-opus-4-6"
+MODEL="anthropic/claude-opus-4-5"
 ENVIRONMENT="daytona"
 CONCURRENCY=1
 
