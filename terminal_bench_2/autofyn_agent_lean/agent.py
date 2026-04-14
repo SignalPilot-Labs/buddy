@@ -1,116 +1,62 @@
-"""AutoFyn Harbor agent — BaseInstalledAgent for Terminal-Bench 2.0.
+"""AutoFyn agent (lean) — AbstractInstalledAgent for Terminal-Bench 2.0."""
 
-Usage:
-    harbor run -d terminal-bench/terminal-bench-2 \\
-        --agent-import-path terminal_bench.agent:AutoFynAgent \\
-        -m anthropic/claude-opus-4-6 \\
-        --tasks dna-assembly,gpt2-codegolf,...
-"""
-
-import logging
 import os
-from typing import Any, ClassVar
+import shlex
+from pathlib import Path
 
-from harbor.agents.installed.base import BaseInstalledAgent
-from harbor.agents.base import AgentContext
-from harbor.environments.base import BaseEnvironment
+from terminal_bench.agents.installed_agents.abstract_installed_agent import AbstractInstalledAgent
+from terminal_bench.terminal.models import TerminalCommand
 
-from terminal_bench.constants import AGENT_TIMEOUT_SEC, DEFAULT_MAX_TURNS, DEFAULT_MODEL, TASK_CWD
-from terminal_bench.orchestrator import build_cli_command, parse_stream_output
-
-log = logging.getLogger("terminal_bench.agent")
+from terminal_bench.constants import DEFAULT_MAX_TURNS, DEFAULT_MODEL, TASK_CWD
+from terminal_bench.orchestrator import build_cli_command
 
 
-class AutoFynAgent(BaseInstalledAgent):
-    """AutoFyn multi-subagent orchestrator running inside Harbor's task container."""
+class AutoFynAgent(AbstractInstalledAgent):
+    """AutoFyn multi-subagent orchestrator running inside the task container."""
 
-    CLI_FLAGS: ClassVar[list] = []
-    ENV_VARS: ClassVar[list] = []
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._summary: dict[str, Any] | None = None
+    def __init__(self, model_name: str | None = None, **kwargs: object) -> None:
+        super().__init__(**kwargs)
+        self._model_name = model_name
 
     @staticmethod
     def name() -> str:
         return "autofyn"
 
-    def version(self) -> str | None:
-        return "0.1.0"
+    @property
+    def _env(self) -> dict[str, str]:
+        env: dict[str, str] = {
+            "CLAUDE_CODE_OAUTH_TOKEN": os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", ""),
+            "IS_SANDBOX": "1",
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+        }
+        if self._model_name:
+            env["ANTHROPIC_MODEL"] = self._model_name.removeprefix("anthropic/")
+        autofyn_model = os.environ.get("AUTOFYN_MODEL")
+        if autofyn_model:
+            env["AUTOFYN_MODEL"] = autofyn_model
+        autofyn_max_turns = os.environ.get("AUTOFYN_MAX_TURNS")
+        if autofyn_max_turns:
+            env["AUTOFYN_MAX_TURNS"] = autofyn_max_turns
+        return env
 
-    async def install(self, environment: BaseEnvironment) -> None:
-        """Verify Claude Code CLI is available (pre-baked in Dockerfile)."""
-        await self.exec_as_agent(
-            environment,
-            'export PATH="$HOME/.local/bin:$PATH" && claude --version',
-        )
+    @property
+    def _install_agent_script_path(self) -> Path:
+        return self._get_templated_script_path("setup.sh.j2")
 
-    async def run(
-        self,
-        instruction: str,
-        environment: BaseEnvironment,
-        context: AgentContext,
-    ) -> None:
-        """Run the AutoFyn orchestrator on the given task instruction."""
-        raw_model = self.model_name or os.environ.get("AUTOFYN_MODEL", DEFAULT_MODEL)
+    def _run_agent_commands(self, instruction: str) -> list[TerminalCommand]:
+        raw_model = self._model_name or os.environ.get("AUTOFYN_MODEL") or DEFAULT_MODEL
         model = raw_model.removeprefix("anthropic/")
-        max_turns_str = os.environ.get("AUTOFYN_MAX_TURNS", "")
+        max_turns_str = os.environ.get("AUTOFYN_MAX_TURNS")
         max_turns = int(max_turns_str) if max_turns_str else DEFAULT_MAX_TURNS
 
-        token = os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")
-        events_path = str(self.logs_dir / "events.jsonl")
-
-        run_log = "/tmp/autofyn-run.jsonl"
-        claude_bin = await self._find_claude_bin(environment)
-        claude_cmd = build_cli_command(instruction, model, max_turns, claude_bin)
-
-        # Inline token as a shell export so it's set regardless of Docker env passing
-        token_export = f'export CLAUDE_CODE_OAUTH_TOKEN="{token}"; ' if token else ""
-        # Tee to file so we can read the full output; absorb claude's exit code
-        # since non-zero can mean task failure, not infra failure.
-        cmd = (
-            f'export PATH="$HOME/.local/bin:$PATH"; '
-            f'export IS_SANDBOX=1; '
-            f'export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1; '
-            f'{token_export}'
-            f'{claude_cmd} 2>&1 | tee {run_log} || true'
-        )
-        await self.exec_as_agent(
-            environment,
-            cmd,
-            cwd=TASK_CWD,
-            timeout_sec=AGENT_TIMEOUT_SEC,
-        )
-        read_result = await self.exec_as_agent(environment, f"cat {run_log}")
-        stdout = read_result.stdout or ""
-
-        # Persist raw stream-json for debugging
-        stream_path = self.logs_dir / "claude-stream.jsonl"
-        stream_path.write_text(stdout, encoding="utf-8")
-
-        self._summary = parse_stream_output(stdout, events_path)
-
-    async def _find_claude_bin(self, environment: BaseEnvironment) -> str:
-        """Return the full path to the claude CLI binary inside the container."""
-        result = await self.exec_as_agent(
-            environment,
-            'export PATH="$HOME/.local/bin:$PATH"'
-            '; p=$(which claude 2>/dev/null)'
-            '; [ -z "$p" ] && p=$(find /root /home /usr/local/bin /usr/bin -name claude -type f 2>/dev/null | head -1)'
-            '; [ -z "$p" ] && p=$(find / -maxdepth 8 -name claude -type f 2>/dev/null | head -1)'
-            '; echo "${p:-claude}"',
-        )
-        stdout = (result.stdout or "").strip()
-        return stdout.splitlines()[0] if stdout else "claude"
-
-    def populate_context_post_run(self, context: AgentContext) -> None:
-        """Report token usage and cost to Harbor's AgentContext."""
-        if self._summary is None:
-            return
-        summary = self._summary
-        if summary.get("input_tokens") is not None:
-            context.n_input_tokens = summary["input_tokens"]
-        if summary.get("output_tokens") is not None:
-            context.n_output_tokens = summary["output_tokens"]
-        if summary.get("total_cost_usd") is not None:
-            context.cost_usd = summary["total_cost_usd"]
+        claude_cmd = build_cli_command(instruction, model, max_turns, "claude")
+        cmd = f'export PATH="$HOME/.local/bin:$PATH"; cd {shlex.quote(TASK_CWD)}; {claude_cmd} || true'
+        return [
+            TerminalCommand(
+                command=cmd,
+                block=True,
+                max_timeout_sec=float("inf"),
+                min_timeout_sec=0.0,
+                append_enter=True,
+            )
+        ]

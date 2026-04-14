@@ -1,0 +1,3 @@
+#!/bin/bash
+
+apt-get update && apt-get install -y curl && curl -fsSL https://claude.ai/install.sh | bash && export PATH="$HOME/.local/bin:$PATH" && claude --version

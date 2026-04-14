@@ -1,9 +1,4 @@
-"""AutoFyn orchestrator for Terminal-Bench — builds the claude CLI invocation.
-
-The agent runs claude CLI *inside* Harbor's container via exec_as_agent().
-This module builds the command and parses the stream-json output into
-JSONL events and AgentContext fields.
-"""
+"""AutoFyn orchestrator for Terminal-Bench — builds the claude CLI invocation."""
 
 import json
 import logging
@@ -34,55 +29,6 @@ def build_cli_command(instruction: str, model: str, max_turns: int, claude_bin: 
         "--model", model,
     ]
     return " ".join(parts)
-
-
-def parse_stream_output(stdout: str, events_path: str) -> dict[str, Any]:
-    """Parse claude stream-json output into JSONL events and summary dict."""
-    summary: dict[str, Any] = {
-        "total_cost_usd": None,
-        "num_turns": None,
-        "input_tokens": None,
-        "output_tokens": None,
-    }
-
-    with open(events_path, "a", encoding="utf-8") as f:
-        for line in stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
-            event_type = event.get("type", "")
-
-            if event_type == "assistant":
-                msg = event.get("message", {})
-                for block in msg.get("content", []):
-                    if block.get("type") == "tool_use":
-                        f.write(json.dumps({
-                            "event": "tool_use",
-                            "tool": block.get("name"),
-                            "input": _truncate(block.get("input", {})),
-                        }) + "\n")
-
-            elif event_type == "tool_result":
-                f.write(json.dumps({
-                    "event": "tool_result",
-                    "tool_use_id": event.get("tool_use_id"),
-                    "content": _truncate(event.get("content")),
-                }) + "\n")
-
-            elif event_type == "result":
-                usage = event.get("usage", {})
-                summary["total_cost_usd"] = event.get("total_cost_usd")
-                summary["num_turns"] = event.get("num_turns")
-                summary["input_tokens"] = usage.get("input_tokens")
-                summary["output_tokens"] = usage.get("output_tokens")
-                f.write(json.dumps({"event": "session_complete", **summary}) + "\n")
-
-    return summary
 
 
 def _build_agents_dict(caveman: str) -> dict[str, Any]:
@@ -116,12 +62,3 @@ def _build_agents_dict(caveman: str) -> dict[str, Any]:
             "tools": ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"],
         },
     }
-
-
-def _truncate(value: Any, limit: int = 500) -> Any:
-    """Truncate large strings in tool inputs/outputs for JSONL storage."""
-    if isinstance(value, str) and len(value) > limit:
-        return value[:limit] + "..."
-    if isinstance(value, dict):
-        return {k: _truncate(v, limit) for k, v in value.items()}
-    return value

@@ -8,7 +8,7 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-HARBOR_BIN="/home/agentuser/.local/bin/harbor"
+TB_BIN="/home/agentuser/.local/bin/tb"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TERMINAL_BENCH_2_DIR="${REPO_DIR}/terminal_bench_2"
 TASKS_DIR="tasks/tasks-run2"
@@ -16,7 +16,6 @@ FORKS_PREFIX="autofyn_agent_"
 JOBS_DIR="jobs"
 SYMLINK_BASE="/tmp/tb2"
 MODEL="anthropic/claude-opus-4-6"
-ENVIRONMENT="daytona"
 CONCURRENCY=1
 
 # ---------------------------------------------------------------------------
@@ -31,11 +30,6 @@ FORK_NAME="$1"
 shift
 TASKS=("$@")
 
-if [[ -z "${DAYTONA_API_KEY:-}" ]]; then
-    echo "Error: DAYTONA_API_KEY is not set." >&2
-    exit 1
-fi
-
 if [[ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
     echo "Error: CLAUDE_CODE_OAUTH_TOKEN is not set." >&2
     exit 1
@@ -47,14 +41,16 @@ if [[ ! -d "${FORK_DIR}" ]]; then
     exit 1
 fi
 
-TASK_PATHS=()
+DATASET_PATH="${TERMINAL_BENCH_2_DIR}/${TASKS_DIR}"
+
+TASK_IDS=()
 for TASK in "${TASKS[@]}"; do
-    TASK_DIR="${TERMINAL_BENCH_2_DIR}/${TASKS_DIR}/${TASK}"
+    TASK_DIR="${DATASET_PATH}/${TASK}"
     if [[ ! -d "${TASK_DIR}" ]]; then
         echo "Error: task directory not found: ${TASK_DIR}" >&2
         exit 1
     fi
-    TASK_PATHS+=("${TERMINAL_BENCH_2_DIR}/${TASKS_DIR}/${TASK}")
+    TASK_IDS+=("${TASK}")
 done
 
 # ---------------------------------------------------------------------------
@@ -72,37 +68,37 @@ ln -sfn "${FORK_DIR}" "${SYMLINK_PATH}"
 echo "Symlink: ${SYMLINK_PATH} -> ${FORK_DIR}"
 
 # ---------------------------------------------------------------------------
-# Build and run the harbor command
+# Build and run the tb command
 # ---------------------------------------------------------------------------
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 JOB_NAME="${FORK_NAME}-${TIMESTAMP}"
 OUTPUT_DIR="${TERMINAL_BENCH_2_DIR}/${JOBS_DIR}"
 
-HARBOR_ARGS=(
+TB_ARGS=(
     "run"
+    "-p" "${DATASET_PATH}"
 )
 
-for TASK_PATH in "${TASK_PATHS[@]}"; do
-    HARBOR_ARGS+=("-p" "${TASK_PATH}")
+for TASK_ID in "${TASK_IDS[@]}"; do
+    TB_ARGS+=("-t" "${TASK_ID}")
 done
 
-HARBOR_ARGS+=(
+TB_ARGS+=(
     "--agent-import-path" "terminal_bench.agent:AutoFynAgent"
     "-m" "${MODEL}"
-    "-e" "${ENVIRONMENT}"
-    "-y"
-    "--ae" "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}"
-    "-o" "${OUTPUT_DIR}"
-    "--job-name" "${JOB_NAME}"
-    "-n" "${CONCURRENCY}"
+    "--output-path" "${OUTPUT_DIR}"
+    "--run-id" "${JOB_NAME}"
+    "--n-concurrent" "${CONCURRENCY}"
+    "--n-attempts" "1"
+    "--global-agent-timeout-sec" "3600"
 )
 
-echo "Running harbor job: ${JOB_NAME}"
+echo "Running tb job: ${JOB_NAME}"
 echo "Tasks: ${TASKS[*]}"
 echo "Fork:  ${FORK_NAME}"
 echo ""
 
-PYTHONPATH="${SYMLINK_PARENT}" "${HARBOR_BIN}" "${HARBOR_ARGS[@]}"
+PYTHONPATH="${SYMLINK_PARENT}" "${TB_BIN}" "${TB_ARGS[@]}"
 
 echo ""
 echo "Job output directory: ${OUTPUT_DIR}/${JOB_NAME}"
