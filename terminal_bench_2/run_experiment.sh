@@ -1,21 +1,23 @@
 #!/usr/bin/env bash
 # Runs a terminal-bench experiment fork against one or more tasks.
 # Usage: ./run_experiment.sh <fork_name> <task1> [task2 ...]
-# Example: ./run_experiment.sh caveman hello-world
+# Example: ./run_experiment.sh caveman fix-git
 # Example: ./run_experiment.sh lean write-compressor overfull-hbox
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-TB_BIN="/home/agentuser/.local/bin/tb"
+HARBOR_BIN="/home/agentuser/.local/bin/harbor"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TERMINAL_BENCH_2_DIR="${REPO_DIR}/terminal_bench_2"
 TASKS_DIR="tasks/tasks-run2"
 FORKS_PREFIX="autofyn_agent_"
+ADAPTERS_DIR="${TERMINAL_BENCH_2_DIR}/adapters"
 JOBS_DIR="jobs"
 SYMLINK_BASE="/tmp/tb2"
 MODEL="anthropic/claude-opus-4-6"
+ENVIRONMENT="daytona"
 CONCURRENCY=1
 
 # ---------------------------------------------------------------------------
@@ -41,16 +43,14 @@ if [[ ! -d "${FORK_DIR}" ]]; then
     exit 1
 fi
 
-DATASET_PATH="${TERMINAL_BENCH_2_DIR}/${TASKS_DIR}"
-
-TASK_IDS=()
+TASK_PATHS=()
 for TASK in "${TASKS[@]}"; do
-    TASK_DIR="${DATASET_PATH}/${TASK}"
+    TASK_DIR="${TERMINAL_BENCH_2_DIR}/${TASKS_DIR}/${TASK}"
     if [[ ! -d "${TASK_DIR}" ]]; then
         echo "Error: task directory not found: ${TASK_DIR}" >&2
         exit 1
     fi
-    TASK_IDS+=("${TASK}")
+    TASK_PATHS+=("${TASK_DIR}")
 done
 
 # ---------------------------------------------------------------------------
@@ -59,7 +59,15 @@ done
 "${TERMINAL_BENCH_2_DIR}/setup_caveman_fixture.sh"
 
 # ---------------------------------------------------------------------------
-# Point per-fork symlink at the chosen fork (avoids race conditions)
+# Point per-fork symlink at the chosen fork (avoids race conditions).
+#
+# PYTHONPATH is set to the symlink parent so that `terminal_bench.agent` and
+# related fork modules (orchestrator, prompts, constants, etc.) resolve to the
+# fork directory.  The harbor binary imports `harbor.cli.main` (not
+# `terminal_bench.cli`), so there is no package shadowing conflict.
+#
+# The adapter (adapters/harbor_agent.py) provides the harbor.BaseInstalledAgent
+# interface while delegating to the fork's orchestrator for business logic.
 # ---------------------------------------------------------------------------
 SYMLINK_PARENT="${SYMLINK_BASE}-${FORK_NAME}"
 SYMLINK_PATH="${SYMLINK_PARENT}/terminal_bench"
@@ -67,38 +75,42 @@ mkdir -p "${SYMLINK_PARENT}"
 ln -sfn "${FORK_DIR}" "${SYMLINK_PATH}"
 echo "Symlink: ${SYMLINK_PATH} -> ${FORK_DIR}"
 
+# The adapters directory must also be on PYTHONPATH so harbor can import
+# adapters.harbor_agent:AutoFynAgent
+FULL_PYTHONPATH="${SYMLINK_PARENT}:${ADAPTERS_DIR}"
+
 # ---------------------------------------------------------------------------
-# Build and run the tb command
+# Build and run the harbor command
 # ---------------------------------------------------------------------------
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 JOB_NAME="${FORK_NAME}-${TIMESTAMP}"
 OUTPUT_DIR="${TERMINAL_BENCH_2_DIR}/${JOBS_DIR}"
 
-TB_ARGS=(
+HARBOR_ARGS=(
     "run"
-    "-p" "${DATASET_PATH}"
 )
 
-for TASK_ID in "${TASK_IDS[@]}"; do
-    TB_ARGS+=("-t" "${TASK_ID}")
+for TASK_PATH in "${TASK_PATHS[@]}"; do
+    HARBOR_ARGS+=("-p" "${TASK_PATH}")
 done
 
-TB_ARGS+=(
-    "--agent-import-path" "terminal_bench.agent:AutoFynAgent"
+HARBOR_ARGS+=(
+    "--agent-import-path" "harbor_agent:AutoFynAgent"
     "-m" "${MODEL}"
-    "--output-path" "${OUTPUT_DIR}"
-    "--run-id" "${JOB_NAME}"
-    "--n-concurrent" "${CONCURRENCY}"
-    "--n-attempts" "1"
-    "--global-agent-timeout-sec" "3600"
+    "-e" "${ENVIRONMENT}"
+    "-y"
+    "--ae" "CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN}"
+    "-o" "${OUTPUT_DIR}"
+    "--job-name" "${JOB_NAME}"
+    "-n" "${CONCURRENCY}"
 )
 
-echo "Running tb job: ${JOB_NAME}"
+echo "Running harbor job: ${JOB_NAME}"
 echo "Tasks: ${TASKS[*]}"
 echo "Fork:  ${FORK_NAME}"
 echo ""
 
-PYTHONPATH="${SYMLINK_PARENT}" "${TB_BIN}" "${TB_ARGS[@]}"
+PYTHONPATH="${FULL_PYTHONPATH}" "${HARBOR_BIN}" "${HARBOR_ARGS[@]}"
 
 echo ""
 echo "Job output directory: ${OUTPUT_DIR}/${JOB_NAME}"

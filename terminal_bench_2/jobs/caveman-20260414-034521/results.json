@@ -1,0 +1,31 @@
+{
+    "id": "085f4030-88d8-4c1c-9ab8-6f280dc8dae7",
+    "results": [
+        {
+            "id": "8cc67c83-7623-4381-802a-7960b8096b83",
+            "trial_name": "fix-git.1-of-1.caveman-20260414-034521",
+            "task_id": "fix-git",
+            "instruction": "I just made some changes to my personal site and checked out master, but now I can't find those changes. Please help me find them and merge them into master.",
+            "is_resolved": null,
+            "failure_mode": "unknown_agent_error",
+            "parser_results": null,
+            "recording_path": null,
+            "total_input_tokens": null,
+            "total_output_tokens": null,
+            "trial_started_at": null,
+            "trial_ended_at": null,
+            "agent_started_at": null,
+            "agent_ended_at": null,
+            "test_started_at": null,
+            "test_ended_at": null
+        }
+    ],
+    "pass_at_k": {},
+    "n_resolved": 0,
+    "n_unresolved": 1,
+    "resolved_ids": [],
+    "unresolved_ids": [
+        "fix-git"
+    ],
+    "accuracy": 0.0
+}
