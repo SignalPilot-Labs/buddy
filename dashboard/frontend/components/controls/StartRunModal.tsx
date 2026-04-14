@@ -155,11 +155,8 @@ function envToText(env: Record<string, string>): string {
   return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
 
-const EFFORT_OPTIONS: { value: "medium" | "high" | "max"; label: string; desc: string }[] = [
-  { value: "medium", label: "Medium", desc: "Balanced speed & quality (default)" },
-  { value: "high", label: "High", desc: "Deep reasoning" },
-  { value: "max", label: "Max", desc: "Maximum capability" },
-];
+const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
+type EffortLevel = typeof EFFORT_LEVELS[number];
 
 const DURATION_PRESETS = [
   { label: "No lock", minutes: 0, desc: "Agent can end anytime" },
@@ -211,7 +208,7 @@ export function StartRunModal({
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
-  const [effort, setEffort] = useState<"medium" | "high" | "max">("medium");
+  const [effort, setEffort] = useState<EffortLevel>("medium");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -399,24 +396,26 @@ export function StartRunModal({
                 </div>
 
                 {/* Thinking Effort */}
-                <div>
+                <div className="flex items-center justify-between">
                   <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
-                    Thinking Effort
+                    Effort
+                    <span className="normal-case tracking-normal font-normal ml-1.5 text-text-secondary">
+                      ({effort})
+                    </span>
                   </label>
-                  <div className="flex gap-1.5 mt-2">
-                    {EFFORT_OPTIONS.map((e) => (
+                  <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5">
+                    {EFFORT_LEVELS.map((level) => (
                       <button
-                        key={e.value}
-                        onClick={() => setEffort(e.value)}
+                        key={level}
+                        onClick={() => setEffort(level)}
                         className={clsx(
-                          "flex-1 text-center text-content px-2 py-1.5 rounded border transition-all",
-                          effort === e.value
-                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88]"
-                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                          "px-2.5 py-0.5 rounded-full text-content capitalize transition-all",
+                          effort === level
+                            ? "bg-[#00ff88]/[0.12] text-[#00ff88] font-medium"
+                            : "text-text-dim hover:text-text-secondary"
                         )}
                       >
-                        <div className="font-medium">{e.label}</div>
-                        <div className="text-[11px] text-text-muted mt-0.5">{e.desc}</div>
+                        {level}
                       </button>
                     ))}
                   </div>
