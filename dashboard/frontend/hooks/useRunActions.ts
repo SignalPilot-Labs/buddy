@@ -54,12 +54,14 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       durationMinutes: number,
       baseBranch: string,
       model?: string | undefined,
+      effort?: string | undefined,
     ): Promise<void> => {
       const resolvedModel = model ?? loadStoredModel();
+      const resolvedEffort = effort ?? "high";
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, activeRepoFilter);
+        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
         refreshRunsRef.current();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);

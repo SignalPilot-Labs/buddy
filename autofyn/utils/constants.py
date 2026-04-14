@@ -22,7 +22,6 @@ MAX_ROUNDS = 128
 MODEL_OPUS = "opus"
 MODEL_SONNET = "sonnet"
 DEFAULT_AGENT_ROLE = "worker"
-SESSION_EFFORT = "medium"
 SESSION_PERMISSION_MODE = "bypassPermissions"
 
 # ── Logging ──

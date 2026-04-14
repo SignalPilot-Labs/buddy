@@ -135,6 +135,7 @@ export async function startRun(
   durationMinutes: number,
   baseBranch: string,
   model: string,
+  effort: string,
   repo: string | null,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
@@ -146,6 +147,7 @@ export async function startRun(
       duration_minutes: durationMinutes,
       base_branch: baseBranch,
       model: model,
+      effort: effort,
       repo: repo || null,
     }),
   });

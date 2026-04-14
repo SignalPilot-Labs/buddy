@@ -133,7 +133,7 @@ function BranchPicker({
 interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string) => void;
+  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -154,6 +154,12 @@ function parseEnvText(text: string): Record<string, string> {
 function envToText(env: Record<string, string>): string {
   return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
+
+const EFFORT_OPTIONS: { value: "medium" | "high" | "max"; label: string; desc: string }[] = [
+  { value: "medium", label: "Medium", desc: "Balanced speed & quality" },
+  { value: "high", label: "High", desc: "Deep reasoning (default)" },
+  { value: "max", label: "Max", desc: "Maximum capability" },
+];
 
 const DURATION_PRESETS = [
   { label: "No lock", minutes: 0, desc: "Agent can end anytime" },
@@ -205,6 +211,7 @@ export function StartRunModal({
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
+  const [effort, setEffort] = useState<"medium" | "high" | "max">("high");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -258,7 +265,7 @@ export function StartRunModal({
         return;
       }
     }
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model);
+    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -388,6 +395,30 @@ export function StartRunModal({
                   </label>
                   <div className="mt-2">
                     <ModelSelector value={model} onChange={setModel} />
+                  </div>
+                </div>
+
+                {/* Thinking Effort */}
+                <div>
+                  <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
+                    Thinking Effort
+                  </label>
+                  <div className="flex gap-1.5 mt-2">
+                    {EFFORT_OPTIONS.map((e) => (
+                      <button
+                        key={e.value}
+                        onClick={() => setEffort(e.value)}
+                        className={clsx(
+                          "flex-1 text-center text-content px-2 py-1.5 rounded border transition-all",
+                          effort === e.value
+                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88]"
+                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                        )}
+                      >
+                        <div className="font-medium">{e.label}</div>
+                        <div className="text-[11px] text-text-muted mt-0.5">{e.desc}</div>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
