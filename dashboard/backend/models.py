@@ -58,6 +58,20 @@ class ResumeRunRequest(BaseModel):
     model: str | None = Field(None, pattern=VALID_MODELS_PATTERN, description="Override model for the resumed run. Defaults to the original run's model.")
 
 
+class HostMountEntry(BaseModel):
+    """A single host directory mount."""
+
+    host_path: str = Field(min_length=1, max_length=4096)
+    container_path: str = Field(min_length=1, max_length=4096)
+    mode: str = Field(pattern=r"^(ro|rw)$")
+
+
+class SaveMountsRequest(BaseModel):
+    """Request body for saving per-repo host mounts."""
+
+    mounts: list[HostMountEntry] = Field(default_factory=list)
+
+
 class AddTokenRequest(BaseModel):
     """Request body for adding a Claude token to the pool."""
 

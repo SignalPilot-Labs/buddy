@@ -17,6 +17,7 @@ from backend.constants import (
 from db.constants import validate_host_mount
 from backend.models import (
     AddTokenRequest,
+    SaveMountsRequest,
     SetActiveRepoRequest,
     UpdateSettingsRequest,
 )
@@ -151,29 +152,22 @@ async def get_repo_mounts(repo: str) -> dict:
 
 
 @router.put("/repos/{repo:path}/mounts")
-async def save_repo_mounts(repo: str, body: dict) -> dict:
-    """Save host directory mounts for a repo. Full replacement.
-
-    Each mount is: {"host_path": str, "container_path": str, "mode": "ro"|"rw"}
-    """
-    mounts: list[dict[str, str]] = body.get("mounts", [])
-    for mount in mounts:
-        error = validate_host_mount(
-            mount.get("host_path", ""),
-            mount.get("container_path", ""),
-            mount.get("mode", ""),
-        )
+async def save_repo_mounts(repo: str, body: SaveMountsRequest) -> dict:
+    """Save host directory mounts for a repo. Full replacement."""
+    for mount in body.mounts:
+        error = validate_host_mount(mount.host_path, mount.container_path, mount.mode)
         if error:
             raise HTTPException(status_code=422, detail=error)
+    serialized = [m.model_dump() for m in body.mounts]
     async with session() as s:
-        if mounts:
-            await upsert_setting(s, _host_mounts_key(repo), json.dumps(mounts), False)
+        if serialized:
+            await upsert_setting(s, _host_mounts_key(repo), json.dumps(serialized), False)
         else:
             existing = await s.get(Setting, _host_mounts_key(repo))
             if existing:
                 await s.delete(existing)
         await s.commit()
-    return {"ok": True, "repo": repo, "mount_count": len(mounts)}
+    return {"ok": True, "repo": repo, "mount_count": len(serialized)}
 
 
 @router.get("/repos")
