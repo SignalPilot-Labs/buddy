@@ -2,10 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/Button";
 
 function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return "Ready";
+  if (seconds <= 0) return "resuming...";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -23,12 +22,8 @@ function formatResetTime(epoch: number): string {
 
 export function RateLimitBanner({
   resetsAt,
-  onRetry,
-  busy,
 }: {
   resetsAt: number;
-  onRetry: () => void;
-  busy: boolean;
 }) {
   const [initialRemaining] = useState(() =>
     Math.max(1, resetsAt - Date.now() / 1000)
@@ -67,30 +62,20 @@ export function RateLimitBanner({
         <div className="flex-1 min-w-0">
           {isReady ? (
             <span className="text-meta font-semibold text-[#00ff88]">
-              Rate limit cleared — ready to retry
+              Rate limit cleared — agent resuming automatically
             </span>
           ) : (
             <>
               <div className="flex items-center gap-2 text-meta">
                 <span className="font-semibold text-[#ffaa00]">
-                  Out of credits
+                  Rate limited
                 </span>
                 <span className="text-text-secondary">
                   resets {formatResetTime(resetsAt)} ({formatCountdown(remaining)})
                 </span>
               </div>
               <p className="mt-1 text-body text-text-secondary leading-relaxed">
-                Your Claude account has hit its usage limit.
-                {" "}
-                <a
-                  href="https://claude.ai/settings/usage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#88ccff] hover:underline"
-                >
-                  Enable or increase Extra Usage
-                </a>
-                {" "}to continue before the reset.
+                The agent will resume automatically when the limit resets.
               </p>
               <div className="mt-1.5 h-[2px] bg-white/[0.04] rounded-full overflow-hidden">
                 <motion.div
@@ -103,21 +88,6 @@ export function RateLimitBanner({
             </>
           )}
         </div>
-
-        <Button
-          variant={isReady ? "success" : "warning"}
-          size="sm"
-          disabled={busy}
-          onClick={onRetry}
-          icon={
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M1 5a4 4 0 017-2" />
-              <polyline points="6 1 8 3 6 5" />
-            </svg>
-          }
-        >
-          {isReady ? "Retry Now" : "Retry"}
-        </Button>
       </div>
     </motion.div>
   );
