@@ -218,20 +218,7 @@ function MonitorPageInner() {
 
       {/* Rate Limit Banner */}
       {selectedRun?.status === "rate_limited" && selectedRun.rate_limit_resets_at && (
-        <RateLimitBanner
-          resetsAt={selectedRun.rate_limit_resets_at}
-          onRetry={() => {
-            if (!selectedRun) return;
-            handleStartRun(
-              selectedRun.custom_prompt || undefined,
-              0,
-              selectedRun.duration_minutes || 0,
-              selectedRun.base_branch || "main",
-              selectedRun.model_name || undefined,
-            );
-          }}
-          busy={busy}
-        />
+        <RateLimitBanner resetsAt={selectedRun.rate_limit_resets_at} />
       )}
 
       {/* Main Content — Desktop */}

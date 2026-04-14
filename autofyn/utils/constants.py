@@ -8,9 +8,6 @@ SUBAGENT_IDLE_KILL_SEC = 10 * 60  # 10 min idle — trigger interrupt+recovery
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
-RATE_LIMIT_MAX_WAIT_SEC = (
-    1800  # Max seconds to wait for rate limit reset before stopping
-)
 SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge orchestrator if no SSE events
 IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
 # Backstop for runs without a time lock. 128 rounds is enough for a
@@ -50,7 +47,6 @@ BRANCH_NAME_MAX_LEN = 256
 BRANCH_SLUG_MAX_LEN = 16
 GIT_RETRY_ATTEMPTS = 3
 GIT_RETRY_DELAY_SEC = 2.0
-RATE_LIMIT_SLEEP_BUFFER_SEC = 5
 
 # ── Session Error Retry ──
 SESSION_ERROR_MAX_RETRIES = 3

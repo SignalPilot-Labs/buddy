@@ -148,6 +148,7 @@ class RoundRunner:
         )
         nudge_count = 0
         idle_since: float = asyncio.get_event_loop().time()
+        is_rate_limited = False
 
         try:
             while True:
@@ -210,6 +211,13 @@ class RoundRunner:
                     )
                     if terminal is not None:
                         return terminal
+                    if signal.kind == "rate_limit_info":
+                        is_rate_limited = True
+                    elif is_rate_limited:
+                        is_rate_limited = False
+                        await db.update_run_status(
+                            self._run.run_id, "running",
+                        )
 
                 if idle_task is not None and idle_task in done:
                     nudge_count += 1
@@ -291,7 +299,10 @@ class RoundRunner:
                 session_id=session_id,
                 round_summary=signal.round_summary,
             )
-        if signal.kind == "rate_limited":
+        if signal.kind == "rate_limit_info":
+            # Informational only — the SDK handles retry internally.
+            # Log the event and update DB so the frontend can show a banner,
+            # but do NOT end the round. The stream will resume automatically.
             data = signal.rate_limit_data or {}
             resets_at = data.get("resets_at")
             await db.log_audit(
@@ -304,11 +315,12 @@ class RoundRunner:
                     "utilization": data.get("utilization"),
                 },
             )
-            return RoundResult(
-                status="rate_limited",
-                session_id=session_id,
-                rate_limit_resets_at=int(resets_at) if resets_at else None,
-            )
+            if resets_at:
+                await db.save_rate_limit_reset(
+                    self._run.run_id, int(resets_at),
+                )
+                await db.update_run_status(self._run.run_id, "rate_limited")
+            return None  # continue the round
         if signal.kind == "session_error":
             return RoundResult(
                 status="session_error",

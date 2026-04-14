@@ -87,21 +87,22 @@ class StreamDispatcher:
 
         if kind == "rate_limit":
             # The SDK emits `rate_limit` events for THREE statuses:
-            #   - "allowed"         informational — current window info, no action
-            #   - "allowed_warning" approaching the limit — warn but continue
-            #   - "rejected"        actually denied — abort round and back off
-            # Only "rejected" should trigger rate-limit handling.
+
             status = data.get("status")
             if status == "rejected":
                 log.warning(
-                    "[%s] rate limit rejected (resets_at=%s, utilization=%s)",
-                    self._rid, data.get("resets_at"), data.get("utilization"),
+                    "[%s] rate limit rejected — SDK will retry (resets_at=%s, utilization=%s)",
+                    self._rid,
+                    data.get("resets_at"),
+                    data.get("utilization"),
                 )
-                return StreamSignal(kind="rate_limited", rate_limit_data=data)
+                return StreamSignal(kind="rate_limit_info", rate_limit_data=data)
             if status == "allowed_warning":
                 log.info(
                     "[%s] rate limit warning (resets_at=%s, utilization=%s)",
-                    self._rid, data.get("resets_at"), data.get("utilization"),
+                    self._rid,
+                    data.get("resets_at"),
+                    data.get("utilization"),
                 )
             return StreamSignal(kind="continue")
 
@@ -121,7 +122,8 @@ class StreamDispatcher:
         if kind == "end_session_denied":
             log.info(
                 "[%s] end_session denied: %sm remaining",
-                self._rid, data.get("remaining_minutes", "?"),
+                self._rid,
+                data.get("remaining_minutes", "?"),
             )
             return StreamSignal(kind="continue")
 
@@ -144,18 +146,30 @@ class StreamDispatcher:
             block_type = block.get("type", "")
             if block_type == "text":
                 text = block.get("text", "")
-                log.info("[%s] %s", self._rid, text[:LOG_PREVIEW_LIMIT].replace("\n", " "))
+                log.info(
+                    "[%s] %s", self._rid, text[:LOG_PREVIEW_LIMIT].replace("\n", " ")
+                )
                 if text.strip():
-                    await db.log_audit(run_id, "llm_text", {
-                        "text": text, "agent_role": self._run.agent_role,
-                    })
+                    await db.log_audit(
+                        run_id,
+                        "llm_text",
+                        {
+                            "text": text,
+                            "agent_role": self._run.agent_role,
+                        },
+                    )
             elif block_type == "thinking":
                 thinking = block.get("thinking", "")
                 log.info("[%s] [thinking] %s...", self._rid, thinking[:100])
                 if thinking.strip():
-                    await db.log_audit(run_id, "llm_thinking", {
-                        "text": thinking, "agent_role": self._run.agent_role,
-                    })
+                    await db.log_audit(
+                        run_id,
+                        "llm_thinking",
+                        {
+                            "text": thinking,
+                            "agent_role": self._run.agent_role,
+                        },
+                    )
             elif block_type == "tool_use":
                 log.info("[%s] Tool: %s", self._rid, block.get("name", ""))
         await self._accumulate_usage(data)
@@ -204,12 +218,16 @@ class StreamDispatcher:
             self._output_baseline = self._run.total_output_tokens
             self._cache_create_baseline = self._run.cache_creation_input_tokens
             self._cache_read_baseline = self._run.cache_read_input_tokens
-        await db.log_audit(run_id, "round_complete", {
-            "round_number": self._round_number,
-            "turns": data.get("num_turns"),
-            "round_cost_usd": round_cost,
-            "total_cost_usd": self._run.total_cost,
-        })
+        await db.log_audit(
+            run_id,
+            "round_complete",
+            {
+                "round_number": self._round_number,
+                "turns": data.get("num_turns"),
+                "round_cost_usd": round_cost,
+                "total_cost_usd": self._run.total_cost,
+            },
+        )
         await self._persist_cost()
 
     async def _accumulate_usage(self, data: dict) -> None:
@@ -247,14 +265,18 @@ class StreamDispatcher:
             )
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
-            await db.log_audit(self._run.run_id, "usage", {
-                "context_tokens": self._latest_context_tokens,
-                "total_input_tokens": self._run.total_input_tokens,
-                "total_output_tokens": self._run.total_output_tokens,
-                "cache_creation_input_tokens": self._run.cache_creation_input_tokens,
-                "cache_read_input_tokens": self._run.cache_read_input_tokens,
-                "total_cost_usd": self._run.total_cost,
-            })
+            await db.log_audit(
+                self._run.run_id,
+                "usage",
+                {
+                    "context_tokens": self._latest_context_tokens,
+                    "total_input_tokens": self._run.total_input_tokens,
+                    "total_output_tokens": self._run.total_output_tokens,
+                    "cache_creation_input_tokens": self._run.cache_creation_input_tokens,
+                    "cache_read_input_tokens": self._run.cache_read_input_tokens,
+                    "total_cost_usd": self._run.total_cost,
+                },
+            )
             await self._persist_cost()
 
     async def _persist_cost(self) -> None:

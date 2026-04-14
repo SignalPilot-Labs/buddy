@@ -11,14 +11,12 @@ Round terminal states and what the loop does with them:
     ended         : orchestrator called end_session — commit, push, stop
     paused        : await resume/stop on the user inbox
     stopped       : user stopped — tear down
-    rate_limited  : back off (if fallback missing and wait < 10m), then loop
     session_error : API/SDK error — retry up to 3× with exponential backoff (2/4/8s)
     error         : log and tear down
 """
 
 import asyncio
 import logging
-import time
 
 from lifecycle.bootstrap import BootstrapResult
 from memory.metadata import MetadataStore
@@ -31,8 +29,6 @@ from agent_session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
     MAX_ROUNDS,
-    RATE_LIMIT_MAX_WAIT_SEC,
-    RATE_LIMIT_SLEEP_BUFFER_SEC,
     SESSION_ERROR_BASE_BACKOFF_SEC,
     SESSION_ERROR_MAX_RETRIES,
 )
@@ -48,8 +44,7 @@ async def run_rounds(
 ) -> str:
     """Run rounds until the orchestrator or user says stop.
 
-    Returns the terminal run status: "completed", "stopped", "rate_limited",
-    or "error".
+    Returns the terminal run status: "completed", "stopped", or "error".
     """
     run = bootstrap.run
     inbox = bootstrap.inbox
@@ -209,16 +204,6 @@ async def _handle_round_outcome(
         )
         return "stopped", 0
 
-    if result.status == "rate_limited":
-        backed_off = await _handle_rate_limit(
-            rid,
-            result,
-            inbox,
-        )
-        if not backed_off:
-            return "rate_limited", 0
-        return None, 0
-
     if result.status == "paused":
         log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
         await db.log_audit(
@@ -337,45 +322,6 @@ async def _commit_and_push_round(
 
 
 # ── Rate limit + pause helpers ───────────────────────────────────────
-
-
-async def _handle_rate_limit(
-    rid: str,
-    result: RoundResult,
-    inbox: UserInbox,
-) -> bool:
-    """Block until the rate limit resets. Returns True if the loop should retry."""
-    resets_at = result.rate_limit_resets_at
-    if not resets_at:
-        log.warning("[%s] Rate limit without resets_at — aborting", rid)
-        return False
-
-    wait_sec = max(0, resets_at - int(time.time()))
-    if wait_sec > RATE_LIMIT_MAX_WAIT_SEC:
-        log.info("[%s] Rate limit waits %ds > cap — aborting", rid, wait_sec)
-        return False
-
-    log.info("[%s] Rate limit — sleeping %ds", rid, wait_sec)
-    sleep_task = asyncio.create_task(
-        asyncio.sleep(wait_sec + RATE_LIMIT_SLEEP_BUFFER_SEC),
-    )
-    event_task = asyncio.create_task(inbox.next_event())
-    try:
-        done, _ = await asyncio.wait(
-            {sleep_task, event_task},
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        if event_task in done:
-            event = event_task.result()
-            if event.kind == "stop":
-                inbox.mark_stopped()
-                return False
-            inbox.push(event.kind, event.payload)
-    finally:
-        sleep_task.cancel()
-        event_task.cancel()
-
-    return True
 
 
 async def _await_resume(inbox: UserInbox) -> bool:

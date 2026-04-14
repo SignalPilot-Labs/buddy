@@ -126,7 +126,6 @@ RoundStatus = Literal[
     "ended",  # orchestrator called end_session — stop the whole run
     "paused",  # user paused; outer loop will await resume
     "stopped",  # user stopped; outer loop will tear down
-    "rate_limited",  # rate limit rejected; outer loop will back off or abort
     "error",  # exception during round execution
     "session_error",  # SDK/API error (e.g. 401, 500); outer loop retries with backoff
 ]
@@ -138,7 +137,6 @@ class RoundResult:
 
     status: RoundStatus
     session_id: str | None
-    rate_limit_resets_at: int | None = None
     error: str | None = None
     round_summary: str | None = None
 
@@ -265,7 +263,7 @@ SignalKind = Literal[
     "round_complete",
     "run_ended",
     "subagent_boundary",
-    "rate_limited",
+    "rate_limit_info",
     "session_error",
 ]
 
