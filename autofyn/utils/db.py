@@ -14,6 +14,7 @@ from typing import Any, TypeVar
 from sqlalchemy import func, select, update
 
 from db.connection import connect, close, get_session_factory
+from db.constants import BRANCH_PENDING_PLACEHOLDER
 from db.models import AuditLog, ControlSignal, Run, ToolCall
 from utils.models import UserAction
 
@@ -67,7 +68,7 @@ async def create_run_starting(
         s.add(
             Run(
                 id=run_id,
-                branch_name="pending",
+                branch_name=BRANCH_PENDING_PLACEHOLDER,
                 status="starting",
                 custom_prompt=custom_prompt,
                 duration_minutes=duration_minutes,

@@ -24,7 +24,7 @@ from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
 from agent_session.time_lock import TimeLock
 from utils import db
-from db.constants import MODELS_SUPPORTING_MAX_EFFORT
+from db.constants import BRANCH_PENDING_PLACEHOLDER, MODELS_SUPPORTING_MAX_EFFORT
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
@@ -63,7 +63,11 @@ async def bootstrap_run(
     fallback_model = get_fallback_model(model)
 
     # Resume: reuse existing branch if the DB already has one for this run.
+    # The placeholder "pending" is set by create_run_starting before bootstrap
+    # generates a real branch name — treat it as "no branch yet".
     existing_branch = await db.get_run_branch_name(run_id)
+    if existing_branch == BRANCH_PENDING_PLACEHOLDER:
+        existing_branch = None
     branch_name = existing_branch or _make_branch_name(custom_prompt)
     log.info("Run %s bootstrapping %s on branch %s", run_id, github_repo, branch_name)
     await sandbox.repo.bootstrap(

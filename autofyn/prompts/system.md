@@ -74,7 +74,7 @@ If a spec has both backend and frontend slices, dispatch `backend-dev` and `fron
 
 - Stay on task. Route work among subagents. Do not get distracted.
 - User messages can redirect work — the latest user message takes priority.
-- Large or structurally complex tasks should be split across multiple rounds.
+- Split large, structurally complex tasks across multiple rounds. Do not attempt them in a single round.
 - Don't copy spec or report contents into subagent prompts — give the file path and have them read it.
 - Subagents write to `/tmp/round-{ROUND_NUMBER}/<subagent-name>.md` by default. For parallel same-type, give each a distinct output filename (`code-reviewer-backend.md`, `code-reviewer-frontend.md`).
 - On failure: use subagents to understand why, fix the root cause, don't retry blindly.
