@@ -76,7 +76,7 @@ class SandboxPool:
             for mount in host_mounts:
                 host_path = mount.get("host_path", "")
                 container_path = mount.get("container_path", "")
-                mode = mount.get("mode", "ro")
+                mode = mount.get("mode", "ro")  # default read-only
                 error = validate_host_mount(host_path, container_path, mode)
                 if error:
                     log.warning("Skipping invalid host mount: %s", error)

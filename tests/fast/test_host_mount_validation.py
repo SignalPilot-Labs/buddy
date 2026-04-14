@@ -65,6 +65,35 @@ class TestBlockedPaths:
         assert error is not None
 
 
+class TestBlockedContainerPaths:
+    """Container paths that overwrite sandbox internals must be rejected."""
+
+    def test_repo_dir_blocked(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/repo", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
+    def test_repo_subdir_blocked(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/repo/src", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
+    def test_claude_dir_blocked(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/.claude", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
+    def test_claude_subdir_blocked(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/.claude/sessions", "ro")
+        assert error is not None
+
+    def test_other_container_path_allowed(self) -> None:
+        assert validate_host_mount("/data", "/mnt/data", "ro") is None
+
+    def test_home_agentuser_other_allowed(self) -> None:
+        assert validate_host_mount("/data", "/home/agentuser/data", "ro") is None
+
+
 class TestInvalidInputs:
     """Malformed inputs must be rejected."""
 

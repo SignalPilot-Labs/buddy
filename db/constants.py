@@ -63,9 +63,12 @@ BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
     "/usr",
 })
 VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
-DEFAULT_MOUNT_MODE: str = "ro"
-# Container-side prefix for host mounts. Each mount gets /mnt/host/<name>.
-MOUNT_CONTAINER_PREFIX: str = "/mnt/host"
+
+# Container paths that must not be overwritten by user mounts.
+BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
+    "/home/agentuser/repo",
+    "/home/agentuser/.claude",
+})
 
 
 def validate_host_mount(
@@ -78,6 +81,10 @@ def validate_host_mount(
         return f"host_path must be an absolute path, got: {host_path!r}"
     if not container_path or not container_path.startswith("/"):
         return f"container_path must be an absolute path, got: {container_path!r}"
+    resolved_container = container_path.rstrip("/") or "/"
+    for blocked in BLOCKED_CONTAINER_PATHS:
+        if resolved_container == blocked or resolved_container.startswith(blocked + "/"):
+            return f"container_path would overwrite sandbox internals: {container_path!r}"
     if mode not in VALID_MOUNT_MODES:
         return f"mode must be one of {VALID_MOUNT_MODES}, got: {mode!r}"
     if ".." in host_path.split("/"):
