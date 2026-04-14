@@ -65,9 +65,13 @@ BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
 VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
 
 # Container paths that must not be overwritten by user mounts.
+# The repo root itself is blocked (it's a Docker volume), but subdirs
+# like /home/agentuser/repo/data are allowed — users mount data there.
 BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
-    "/home/agentuser/repo",
     "/home/agentuser/.claude",
+})
+BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
+    "/home/agentuser/repo",
 })
 
 
@@ -82,6 +86,8 @@ def validate_host_mount(
     if not container_path or not container_path.startswith("/"):
         return f"container_path must be an absolute path, got: {container_path!r}"
     resolved_container = container_path.rstrip("/") or "/"
+    if resolved_container in BLOCKED_CONTAINER_EXACT_PATHS:
+        return f"container_path would overwrite sandbox internals: {container_path!r}"
     for blocked in BLOCKED_CONTAINER_PATHS:
         if resolved_container == blocked or resolved_container.startswith(blocked + "/"):
             return f"container_path would overwrite sandbox internals: {container_path!r}"

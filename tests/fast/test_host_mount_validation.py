@@ -68,15 +68,15 @@ class TestBlockedPaths:
 class TestBlockedContainerPaths:
     """Container paths that overwrite sandbox internals must be rejected."""
 
-    def test_repo_dir_blocked(self) -> None:
+    def test_repo_root_blocked(self) -> None:
+        """Cannot overwrite the repo volume root itself."""
         error = validate_host_mount("/data", "/home/agentuser/repo", "ro")
         assert error is not None
         assert "sandbox internals" in error
 
-    def test_repo_subdir_blocked(self) -> None:
-        error = validate_host_mount("/data", "/home/agentuser/repo/src", "ro")
-        assert error is not None
-        assert "sandbox internals" in error
+    def test_repo_subdir_allowed(self) -> None:
+        """Mounting into repo subdirs is the primary use case (e.g. data/)."""
+        assert validate_host_mount("/data", "/home/agentuser/repo/data", "ro") is None
 
     def test_claude_dir_blocked(self) -> None:
         error = validate_host_mount("/data", "/home/agentuser/.claude", "ro")
