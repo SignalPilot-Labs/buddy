@@ -1,4 +1,4 @@
-# AutoFyn Sandbox — execution environment (gVisor backend, no KVM required)
+# AutoFyn Sandbox — gVisor execution environment
 #
 # All code execution happens here: git, npm, Claude SDK sessions.
 # The agent container sends commands via HTTP; this container executes them.

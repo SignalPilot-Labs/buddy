@@ -1,8 +1,7 @@
 # AutoFyn — all containers
 #
 # Usage:
-#   docker compose up --build -d              # macOS / no KVM (gVisor sandbox)
-#   docker compose --profile firecracker up --build -d  # Linux with /dev/kvm
+#   docker compose up --build -d
 
 name: autofyn
 
@@ -73,7 +72,6 @@ services:
       sandbox:
         condition: service_healthy
 
-  # gVisor sandbox (default — works everywhere)
   sandbox:
     build:
       context: .
@@ -101,28 +99,9 @@ services:
       retries: 5
       start_period: 15s
 
-  # Firecracker sandbox (Linux with KVM only)
-  sandbox-firecracker:
-    build:
-      context: .
-      dockerfile: sandbox/Dockerfile.firecracker
-    container_name: autofyn-sandbox-firecracker
-    restart: unless-stopped
-    devices:
-      - "/dev/kvm:/dev/kvm"
-    cap_add:
-      - NET_ADMIN
-      - SYS_ADMIN
-    volumes:
-      - sandbox-overlays:/opt/autofyn/overlays
-      - agent-repo:/home/agentuser/repo
-      - claude-agent-sessions:/home/agentuser/.claude
-    profiles: ["firecracker"]
-
 volumes:
   autofyn-db:
   autofyn-keys:
   claude-agent-sessions:
   agent-repo:
-  sandbox-overlays:
   autofyn-rounds:
