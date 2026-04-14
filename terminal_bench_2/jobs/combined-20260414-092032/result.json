@@ -1,0 +1,29 @@
+{
+    "id": "2332914c-3a85-4eea-8262-03bbb93507bd",
+    "started_at": "2026-04-14T09:20:34.832318",
+    "finished_at": "2026-04-14T09:34:35.910813",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 0,
+        "evals": {
+            "autofyn__claude-opus-4-6__adhoc": {
+                "n_trials": 1,
+                "n_errors": 0,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "raman-fitting__HAUoGKy"
+                        ]
+                    }
+                },
+                "exception_stats": {}
+            }
+        }
+    }
+}
