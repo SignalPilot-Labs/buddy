@@ -1,0 +1,48 @@
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/agentuser/repo/terminal_bench_2/adapters/harbor_agent.py", line 85, in run
+    await self.exec_as_agent(
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/agents/installed/base.py", line 358, in exec_as_agent
+    return await self._exec(
+           ^^^^^^^^^^^^^^^^^
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/agents/installed/base.py", line 305, in _exec
+    result = await environment.exec(
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py", line 1148, in exec
+    return await self._strategy.exec(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py", line 267, in exec
+    return await self._env._sandbox_exec(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py", line 1025, in _sandbox_exec
+    result = await self._poll_response(session_id, response.cmd_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py", line 953, in _poll_response
+    await asyncio.sleep(1)
+  File "/usr/local/lib/python3.12/asyncio/tasks.py", line 665, in sleep
+    return await future
+           ^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py", line 285, in _execute_agent
+    await asyncio.wait_for(
+  File "/usr/local/lib/python3.12/asyncio/tasks.py", line 519, in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/asyncio/timeouts.py", line 115, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py", line 538, in run
+    await self._execute_agent()
+  File "/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py", line 294, in _execute_agent
+    raise AgentTimeoutError(
+harbor.trial.trial.AgentTimeoutError: Agent execution timed out after 1800.0 seconds
