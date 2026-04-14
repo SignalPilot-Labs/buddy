@@ -198,7 +198,7 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
         "flex flex-col bg-sidebar transition-all duration-200",
         mobile
           ? "flex-1"
-          : clsx("border-l border-border mr-1", collapsed ? "w-[32px]" : "w-[280px]"),
+          : clsx("border-l border-border mr-1 h-full", collapsed ? "w-[32px]" : "w-full"),
       )}>
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
