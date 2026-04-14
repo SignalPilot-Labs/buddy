@@ -1,0 +1,108 @@
+{
+    "id": "9ea9cd82-4669-4f87-bd89-a086a8fc48b9",
+    "task_name": "terminal-bench/gpt2-codegolf",
+    "trial_name": "gpt2-codegolf__hHv3AUM",
+    "trial_uri": "file:///home/agentuser/repo/terminal_bench_2/jobs/single-20260414-074907/gpt2-codegolf__hHv3AUM",
+    "task_id": {
+        "path": "/home/agentuser/repo/terminal_bench_2/tasks/tasks-run2/gpt2-codegolf"
+    },
+    "source": null,
+    "task_checksum": "e8cc396de127166a96c210df5de4401bc3f0119dcb1cc013d32a36c0e704a338",
+    "config": {
+        "task": {
+            "path": "/home/agentuser/repo/terminal_bench_2/tasks/tasks-run2/gpt2-codegolf",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": null
+        },
+        "trial_name": "gpt2-codegolf__hHv3AUM",
+        "trials_dir": "/home/agentuser/repo/terminal_bench_2/jobs/single-20260414-074907",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": null,
+            "import_path": "harbor_agent:AutoFynAgent",
+            "model_name": "anthropic/claude-opus-4-6",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {
+                "CLAUDE_CODE_OAUTH_TOKEN": "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"
+            }
+        },
+        "environment": {
+            "type": "daytona",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "d4c3c6af-b808-4f4c-aa0d-9f21602a8370"
+    },
+    "agent_info": {
+        "name": "autofyn",
+        "version": "0.1.0",
+        "model_info": {
+            "name": "claude-opus-4-6",
+            "provider": "anthropic"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": null,
+        "n_cache_tokens": null,
+        "n_output_tokens": null,
+        "cost_usd": null,
+        "rollout_details": null,
+        "metadata": null
+    },
+    "verifier_result": {
+        "rewards": {
+            "reward": 0.0
+        }
+    },
+    "exception_info": {
+        "exception_type": "AgentTimeoutError",
+        "exception_message": "Agent execution timed out after 900.0 seconds",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/usr/local/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/home/agentuser/repo/terminal_bench_2/adapters/harbor_agent.py\", line 85, in run\n    await self.exec_as_agent(\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 358, in exec_as_agent\n    return await self._exec(\n           ^^^^^^^^^^^^^^^^^\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/agents/installed/base.py\", line 305, in _exec\n    result = await environment.exec(\n             ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py\", line 1148, in exec\n    return await self._strategy.exec(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py\", line 267, in exec\n    return await self._env._sandbox_exec(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py\", line 1025, in _sandbox_exec\n    result = await self._poll_response(session_id, response.cmd_id)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/environments/daytona.py\", line 953, in _poll_response\n    await asyncio.sleep(1)\n  File \"/usr/local/lib/python3.12/asyncio/tasks.py\", line 665, in sleep\n    return await future\n           ^^^^^^^^^^^^\nasyncio.exceptions.CancelledError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py\", line 285, in _execute_agent\n    await asyncio.wait_for(\n  File \"/usr/local/lib/python3.12/asyncio/tasks.py\", line 519, in wait_for\n    async with timeouts.timeout(timeout):\n               ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/asyncio/timeouts.py\", line 115, in __aexit__\n    raise TimeoutError from exc_val\nTimeoutError\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py\", line 538, in run\n    await self._execute_agent()\n  File \"/home/agentuser/.local/lib/python3.12/site-packages/harbor/trial/trial.py\", line 294, in _execute_agent\n    raise AgentTimeoutError(\nharbor.trial.trial.AgentTimeoutError: Agent execution timed out after 900.0 seconds\n",
+        "occurred_at": "2026-04-14T08:04:13.542133"
+    },
+    "started_at": "2026-04-14T07:49:10.323024Z",
+    "finished_at": "2026-04-14T08:04:28.021424Z",
+    "environment_setup": {
+        "started_at": "2026-04-14T07:49:10.323526Z",
+        "finished_at": "2026-04-14T07:49:12.381612Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-04-14T07:49:12.381742Z",
+        "finished_at": "2026-04-14T07:49:13.548245Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-04-14T07:49:13.548594Z",
+        "finished_at": "2026-04-14T08:04:13.529739Z"
+    },
+    "verifier": {
+        "started_at": "2026-04-14T08:04:13.849987Z",
+        "finished_at": "2026-04-14T08:04:27.271005Z"
+    }
+}
