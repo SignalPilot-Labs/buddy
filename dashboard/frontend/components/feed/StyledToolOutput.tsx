@@ -65,11 +65,29 @@ export function StyledToolOutput({ tool }: { tool: ToolCall }) {
 
   if (
     (cat === "edit" || cat === "write") &&
-    tool.output_data?.structuredPatch
+    Array.isArray(tool.output_data?.structuredPatch) &&
+    (tool.output_data.structuredPatch as unknown[]).length > 0
   ) {
     return (
       <DiffBlock
         patch={output.structuredPatch as Array<Record<string, unknown>>}
+      />
+    );
+  }
+
+  if ((cat === "edit" || cat === "write") && tool.output_data?.content) {
+    const content = String(tool.output_data.content);
+    return (
+      <FileContentPreview
+        content={content}
+        totalLines={content.split("\n").length}
+        filePath={
+          typeof tool.output_data.filePath === "string"
+            ? tool.output_data.filePath
+            : typeof input.file_path === "string"
+              ? input.file_path
+              : ""
+        }
       />
     );
   }

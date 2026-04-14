@@ -33,7 +33,7 @@ async def finalize_run(
     resolved_status = status
     diff_stats: list[dict] | None = None
 
-    if status != "killed":
+    if status != "killed" and not run.skip_pr:
         result = await _run_teardown(sandbox, run, metadata_store, exec_timeout)
         if result is not None:
             pr_url = result.pr_url

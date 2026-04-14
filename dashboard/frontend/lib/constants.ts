@@ -44,6 +44,7 @@ export const TOAST_DURATION_MS = 3000;
 export const MAX_VISIBLE_TOASTS = 3;
 
 // Event feed
+export const TOOL_CATEGORIES_DEFAULT_EXPANDED: ReadonlySet<string> = new Set(["todo"]);
 export const SCROLL_BOTTOM_THRESHOLD = 20;
 export const AGENT_IDLE_TIMER_INTERVAL_MS = 5000;
 
@@ -169,6 +170,16 @@ export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
   "killed",
   "completed_no_changes",
 ]);
+
+// Panel resize
+export const SIDEBAR_DEFAULT_WIDTH = 260;
+export const SIDEBAR_MIN_WIDTH = 180;
+export const SIDEBAR_MAX_WIDTH = 400;
+export const RIGHT_PANEL_DEFAULT_WIDTH = 280;
+export const RIGHT_PANEL_MIN_WIDTH = 200;
+export const RIGHT_PANEL_MAX_WIDTH = 600;
+export const SIDEBAR_COLLAPSED_WIDTH = 48;
+export const PANEL_WIDTH_STORAGE_PREFIX = "autofyn_panel_";
 
 export function getApiBase(): string {
   // Server-side: call FastAPI directly.

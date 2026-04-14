@@ -5,10 +5,10 @@ when the signal is 'inject', so user feedback persists across page refresh.
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock, call
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from backend.utils import send_control_signal
-from db.models import AuditLog, ControlSignal
+from db.models import AuditLog
 
 
 def _mock_run(status: str) -> MagicMock:
@@ -51,7 +51,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
+            await send_control_signal("run-1", "inject", {"running"}, "fix the bug", None)
 
         added_types = [type(obj).__name__ for obj in session_mock.added]
         assert "ControlSignal" in added_types
@@ -66,7 +66,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "fix the bug")
+            await send_control_signal("run-1", "inject", {"running"}, "fix the bug", None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert len(audit_entries) == 1
@@ -82,7 +82,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
             await send_control_signal(
-                "run-1", "inject", {"running"}, "use 10px minimum"
+                "run-1", "inject", {"running"}, "use 10px minimum", None
             )
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
@@ -97,7 +97,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-42", "inject", {"running"}, "hello")
+            await send_control_signal("run-42", "inject", {"running"}, "hello", None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert audit_entries[0].run_id == "run-42"
@@ -105,14 +105,14 @@ class TestInjectWritesAuditLog:
     @pytest.mark.asyncio
     async def test_non_inject_signals_skip_audit_log(self):
         """Pause, resume, stop etc. must NOT create prompt_injected audit entries."""
-        for signal in ("pause", "resume", "stop", "kill", "unlock"):
+        for signal in ("pause", "resume", "stop", "unlock"):
             run = _mock_run("running")
             context, session_mock = _mock_session_tracking_adds(run)
             with (
                 patch("backend.utils.session", context),
                 patch("backend.utils.agent_request", new_callable=AsyncMock),
             ):
-                await send_control_signal("run-1", signal, {"running"}, "payload")
+                await send_control_signal("run-1", signal, {"running"}, "payload", None)
 
             audit_entries = [
                 obj for obj in session_mock.added if isinstance(obj, AuditLog)
@@ -130,7 +130,7 @@ class TestInjectWritesAuditLog:
             patch("backend.utils.session", context),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            await send_control_signal("run-1", "inject", {"running"}, None)
+            await send_control_signal("run-1", "inject", {"running"}, None, None)
 
         audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
         assert len(audit_entries) == 0

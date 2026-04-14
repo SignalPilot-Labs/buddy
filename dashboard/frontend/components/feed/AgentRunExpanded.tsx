@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import type { ToolCall } from "@/lib/types";
 import { type ToolCategory } from "@/lib/types";
@@ -38,6 +39,7 @@ export function AgentRunExpanded({
   setShowFinalText: (v: boolean) => void;
   isFinalizing: boolean;
 }) {
+  const [showTools, setShowTools] = useState(false);
   return (
     <motion.div
       initial={{ height: 0, opacity: 0 }}
@@ -45,44 +47,8 @@ export function AgentRunExpanded({
       transition={{ duration: 0.2, ease: "easeOut" }}
       className="border-t border-white/[0.04] overflow-hidden"
     >
-      {childTools.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-white/[0.03] bg-black/10">
-          <span className="text-body text-text-secondary uppercase tracking-wider">
-            {childTools.length} tool calls
-          </span>
-          {totalChildDuration > 0 && (
-            <span className="text-caption text-text-dim tabular-nums">
-              {fmtDuration(totalChildDuration)}
-            </span>
-          )}
-          <div className="flex items-center gap-2 ml-auto">
-            {childSummary.map(({ cat, count }) => (
-              <span
-                key={cat}
-                className="flex items-center gap-1 text-caption text-text-dim"
-              >
-                <span className="opacity-50">{getToolIcon(cat, "#888")}</span>
-                <span className="tabular-nums">{count}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {childTools.length > 0 && (
-        <div className="max-h-[400px] overflow-y-auto">
-          {childTools.map((ct, idx) => (
-            <ChildToolRow
-              key={idx}
-              tool={ct}
-              isLast={idx === childTools.length - 1}
-            />
-          ))}
-        </div>
-      )}
-
       {prompt && (
-        <div className="border-t border-white/[0.03]">
+        <div className="border-b border-white/[0.03]">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -95,11 +61,59 @@ export function AgentRunExpanded({
           </button>
           {showPrompt && (
             <div className="px-4 pb-3">
-              <div className="text-content text-accent-hover whitespace-pre-wrap break-words leading-relaxed bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
-                {prompt}
+              <div className="bg-black/20 rounded-lg p-3 border border-white/[0.03] max-h-[200px] overflow-y-auto">
+                <MarkdownContent
+                  content={prompt}
+                  className="text-content text-accent-hover"
+                />
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {childTools.length > 0 && (
+        <div className="border-b border-white/[0.03]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowTools(!showTools);
+            }}
+            className="w-full flex items-center gap-3 px-4 py-2 bg-black/10 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+          >
+            <Chevron open={showTools} size={8} />
+            <span className="text-body text-text-secondary uppercase tracking-wider">
+              {childTools.length} tool calls
+            </span>
+            {totalChildDuration > 0 && (
+              <span className="text-caption text-text-dim tabular-nums">
+                {fmtDuration(totalChildDuration)}
+              </span>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {childSummary.map(({ cat, count }) => (
+                <span
+                  key={cat}
+                  className="flex items-center gap-1 text-caption text-text-dim"
+                >
+                  <span className="opacity-50">{getToolIcon(cat, "#888")}</span>
+                  <span className="tabular-nums">{count}</span>
+                </span>
+              ))}
+            </div>
+          </button>
+        </div>
+      )}
+
+      {showTools && childTools.length > 0 && (
+        <div className="max-h-[150px] overflow-y-auto">
+          {childTools.map((ct, idx) => (
+            <ChildToolRow
+              key={idx}
+              tool={ct}
+              isLast={idx === childTools.length - 1}
+            />
+          ))}
         </div>
       )}
 
@@ -117,7 +131,7 @@ export function AgentRunExpanded({
           </button>
           {showFinalText && (
             <div className="px-4 pb-3">
-              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[300px] overflow-y-auto">
+              <div className="bg-black/20 rounded-lg p-3 border border-[#cc88ff]/10 max-h-[200px] overflow-y-auto">
                 <MarkdownContent
                   content={finalText}
                   className="text-content text-accent-hover"

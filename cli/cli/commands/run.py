@@ -23,6 +23,7 @@ from cli.constants import (
     PROMPT_SELECTOR_TRUNCATION,
     RUN_LABEL_PROMPT_WIDTH,
     RUN_LABEL_STATUS_WIDTH,
+    STOP_PR_DEFAULT,
 )
 from cli.output import (
     console,
@@ -181,7 +182,14 @@ def _dispatch_action(action: str, run: dict) -> None:
         print_success("Run resumed")
     elif action == "stop":
         reason = typer.prompt("Reason", default="User requested stop")
-        client.post(f"/api/runs/{run_id}/stop", json={"payload": reason})
+        open_pr_answer = typer.prompt(
+            "Open a Pull Request? [Y/n]", default=STOP_PR_DEFAULT,
+        )
+        skip_pr = open_pr_answer.strip().lower() not in ("y", "yes", "")
+        client.post(
+            f"/api/runs/{run_id}/stop",
+            json={"payload": reason, "skip_pr": skip_pr},
+        )
         print_success("Stop signal sent")
     elif action == "inject":
         prompt = typer.prompt("Prompt to inject")

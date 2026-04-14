@@ -104,15 +104,6 @@ class TestControlSignals:
         assert run.time_lock is not None
         run.time_lock.unlock.assert_called_once()
 
-    def test_kill_cancels_task(self, client, mock_server) -> None:
-        run, _ = self._make_running(mock_server)
-        task = MagicMock()
-        task.done.return_value = False
-        run.task = task
-        resp = client.post("/kill?run_id=run-1")
-        assert resp.status_code == 200
-        task.cancel.assert_called_once()
-
     def test_stop_without_inbox_returns_409(self, client, mock_server) -> None:
         from fastapi import HTTPException
 

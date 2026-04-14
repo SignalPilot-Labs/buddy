@@ -38,7 +38,7 @@ function TerminalIcon() {
 
 export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanelProps) {
   return (
-    <div className="flex flex-col border-l border-border w-[280px] flex-shrink-0 min-h-0">
+    <div className="flex flex-col border-l border-border min-h-0 w-full h-full">
       {/* Segmented tab bar */}
       <div className="bg-bg-card p-2 shrink-0">
         <div className="bg-bg-hover rounded-lg p-0.5 flex" role="tablist">

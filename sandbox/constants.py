@@ -28,6 +28,7 @@ EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
 SECONDS_PER_MINUTE: int = 60
 
 INPUT_SUMMARY_MAX_LEN: int = 1000
+INPUT_CONTENT_MAX_LEN: int = 3000
 
 # ── Subagent Attribution ──
 # Tool name the SDK reports for Task subagent invocations. The hook's
@@ -44,8 +45,11 @@ FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
 RETRY_MAX_ATTEMPTS: int = 3
 RETRY_BASE_DELAY_SEC: float = 2.0
 RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
-    "error connecting", "connection refused", "connection reset",
-    "timed out", "could not resolve",
+    "error connecting",
+    "connection refused",
+    "connection reset",
+    "timed out",
+    "could not resolve",
 )
 
 # ── Repo handlers ──

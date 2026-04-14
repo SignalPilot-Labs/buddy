@@ -175,21 +175,12 @@ export async function saveRepoEnv(repo: string, envVars: Record<string, string>)
   }
 }
 
-export async function stopAgentInstant(runId: string): Promise<{ ok: boolean }> {
+export async function stopRun(runId: string, skipPr: boolean): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/stop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ skip_pr: skipPr }),
   });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-export async function killAgent(runId: string): Promise<{ ok: boolean }> {
-  const res = await apiFetch(`/api/runs/${runId}/kill`, { method: "POST" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `HTTP ${res.status}`);

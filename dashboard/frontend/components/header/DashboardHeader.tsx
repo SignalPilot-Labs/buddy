@@ -22,9 +22,7 @@ export interface DashboardHeaderProps {
   isConfigured: boolean;
   atCapacity: boolean;
   busy: boolean;
-  showKillConfirm: boolean;
   onStop: () => void;
-  onKill: () => void;
   onNewRun: () => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -43,9 +41,7 @@ export function DashboardHeader({
   isConfigured,
   atCapacity,
   busy,
-  showKillConfirm,
   onStop,
-  onKill,
   onNewRun,
   sidebarCollapsed,
   onToggleSidebar,
@@ -198,7 +194,7 @@ export function DashboardHeader({
 
       <div className="w-px h-4 bg-border" />
 
-      {/* Stop / Kill icon buttons */}
+      {/* Stop button */}
       <div className="flex items-center gap-1">
         {sessionLocked && canControl && (
           <Button
@@ -238,23 +234,6 @@ export function DashboardHeader({
           }
         >
           Stop
-        </Button>
-        <Button
-          variant="danger"
-          size="sm"
-          disabled={!canControl}
-          onClick={onKill}
-          title={showKillConfirm ? "Click again to confirm kill" : "Kill run"}
-          className={showKillConfirm ? "!bg-[#ff4444]/20 !border-[#ff4444]/30 animate-pulse" : ""}
-          icon={
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <circle cx="5" cy="5" r="4" />
-              <line x1="3" y1="3" x2="7" y2="7" />
-              <line x1="7" y1="3" x2="3" y2="7" />
-            </svg>
-          }
-        >
-          {showKillConfirm ? "Confirm?" : "Kill"}
         </Button>
       </div>
     </header>

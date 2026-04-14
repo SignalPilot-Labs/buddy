@@ -60,7 +60,6 @@ SIGNAL_AGENT_PATHS: dict[str, str] = {
     "stop": "/stop",
     "unlock": "/unlock",
     "inject": "/inject",
-    "kill": "/kill",
 }
 
 # Run status sets — single source of truth for the runs endpoints. Add a new

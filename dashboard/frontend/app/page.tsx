@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { RunStatus } from "@/lib/types";
-import { fetchBranches, pauseAgent, resumeAgent, stopAgentInstant, killAgent, unlockAgent } from "@/lib/api";
+import { fetchBranches, pauseAgent, resumeAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useToast } from "@/hooks/useToast";
 import { RunList } from "@/components/sidebar/RunList";
@@ -18,11 +18,23 @@ import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
 import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { DashboardHeader } from "@/components/header/DashboardHeader";
 import { RightPanel } from "@/components/layout/RightPanel";
+import { PanelDivider } from "@/components/layout/PanelDivider";
+import { usePanelResize } from "@/hooks/usePanelResize";
 import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
 import { KeyboardShortcuts } from "@/components/ui/KeyboardShortcuts";
+import { StopConfirmDialog } from "@/components/ui/StopConfirmDialog";
 import { ToastProvider } from "@/components/ui/Toast";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { fetchRepos } from "@/lib/api";
+import {
+  SIDEBAR_DEFAULT_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_COLLAPSED_WIDTH,
+  RIGHT_PANEL_DEFAULT_WIDTH,
+  RIGHT_PANEL_MIN_WIDTH,
+  RIGHT_PANEL_MAX_WIDTH,
+} from "@/lib/constants";
 
 function MonitorPageInner() {
   const { showToast } = useToast();
@@ -49,7 +61,7 @@ function MonitorPageInner() {
     historyLoading,
     activeRepoFilter,
     startModalOpen,
-    showKillConfirm,
+    showStopDialog,
     onboardingOpen,
     settingsStatus,
     sidebarCollapsed,
@@ -65,7 +77,9 @@ function MonitorPageInner() {
     handleStartRun,
     handleInject,
     handleRestart,
-    handleHeaderKill,
+    handleStopClick,
+    handleStopConfirm,
+    handleStopCancel,
     setStartModalOpen,
     setOnboardingOpen,
     setMobilePanel,
@@ -75,6 +89,22 @@ function MonitorPageInner() {
     setSettingsStatus,
     setRepos,
   } = dashboard;
+
+  const sidebarResize = usePanelResize({
+    storageKey: "sidebar",
+    defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+    minWidth: SIDEBAR_MIN_WIDTH,
+    maxWidth: SIDEBAR_MAX_WIDTH,
+    direction: "left",
+  });
+
+  const rightPanelResize = usePanelResize({
+    storageKey: "right_panel",
+    defaultWidth: RIGHT_PANEL_DEFAULT_WIDTH,
+    minWidth: RIGHT_PANEL_MIN_WIDTH,
+    maxWidth: RIGHT_PANEL_MAX_WIDTH,
+    direction: "right",
+  });
 
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
@@ -143,9 +173,7 @@ function MonitorPageInner() {
         isConfigured={isConfigured}
         atCapacity={atCapacity}
         busy={busy}
-        showKillConfirm={showKillConfirm}
-        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
-        onKill={handleHeaderKill}
+        onStop={handleStopClick}
         onNewRun={() => {
           if (!activeRepoFilter) {
             showToast("Select a repo first", "error");
@@ -210,7 +238,11 @@ function MonitorPageInner() {
       {!isMobile && (
         <div className="flex flex-1 min-h-0">
           {/* Left sidebar */}
-          <div className={`desktop-sidebar overflow-hidden transition-all duration-200 ${sidebarCollapsed ? "w-[48px]" : "w-[260px]"}`}>
+          <div
+            ref={sidebarCollapsed ? undefined : sidebarResize.panelRef}
+            className={`desktop-sidebar h-full overflow-hidden flex-shrink-0 ${sidebarResize.isDragging ? "" : "transition-[width] duration-200"}`}
+            style={{ width: sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : sidebarResize.width }}
+          >
             <RunList
               runs={runs}
               activeId={selectedRunId}
@@ -219,6 +251,14 @@ function MonitorPageInner() {
               collapsed={sidebarCollapsed}
             />
           </div>
+
+          {/* Left panel divider */}
+          {!sidebarCollapsed && (
+            <PanelDivider
+              onMouseDown={sidebarResize.handleMouseDown}
+              isDragging={sidebarResize.isDragging}
+            />
+          )}
 
           {/* Center — Feed */}
           <main className="flex-1 flex flex-col min-h-0 min-w-0 relative">
@@ -252,14 +292,22 @@ function MonitorPageInner() {
             />
           </main>
 
-          {/* Right sidebar */}
+          {/* Right panel divider + panel */}
           {selectedRunId && (
-            <RightPanel
-              runId={selectedRunId}
-              events={allEvents}
-              activeTab={rightPanel}
-              onTabChange={setRightPanel}
-            />
+            <>
+              <PanelDivider
+                onMouseDown={rightPanelResize.handleMouseDown}
+                isDragging={rightPanelResize.isDragging}
+              />
+              <div ref={rightPanelResize.panelRef} className="flex-shrink-0 h-full" style={{ width: rightPanelResize.width }}>
+                <RightPanel
+                  runId={selectedRunId}
+                  events={allEvents}
+                  activeTab={rightPanel}
+                  onTabChange={setRightPanel}
+                />
+              </div>
+            </>
           )}
         </div>
       )}
@@ -299,8 +347,7 @@ function MonitorPageInner() {
         status={runStatus}
         onPause={() => { void toastControlAction("Pause", pauseAgent); }}
         onResume={() => { void toastControlAction("Resume", resumeAgent); }}
-        onStop={() => { void toastControlAction("Stop", stopAgentInstant); }}
-        onKill={() => { void toastControlAction("Kill", killAgent); }}
+        onStop={handleStopClick}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
         onToggleInject={() => setMobilePanel("feed")}
         busy={busy}
@@ -318,6 +365,13 @@ function MonitorPageInner() {
           setStartModalOpen(true);
         }}
         isConfigured={isConfigured}
+      />
+
+      {/* Stop Confirm Dialog */}
+      <StopConfirmDialog
+        open={showStopDialog}
+        onConfirm={handleStopConfirm}
+        onCancel={handleStopCancel}
       />
 
       {/* Keyboard Shortcuts Panel */}

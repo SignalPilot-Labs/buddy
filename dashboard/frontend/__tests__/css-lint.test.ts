@@ -119,7 +119,7 @@ describe("CSS lint", () => {
       ["components/sidebar/RunList.tsx", /h2 className="text-\w+ font-bold text-text-muted"/, "text-body", "RunList header"],
       ["components/sidebar/RunItem.tsx", /font-medium truncate flex-1/, "text-body", "RunItem title"],
       // Expanded agent sections — prompt/summary content must be text-content
-      ["components/feed/AgentRunExpanded.tsx", /text-accent-hover whitespace-pre-wrap/, "text-content", "Prompt content"],
+      ["components/feed/AgentRunExpanded.tsx", /className="text-content text-accent-hover"/, "text-content", "Prompt content"],
       ["components/feed/AgentRunExpanded.tsx", /className="text-\w+ text-accent-hover"/, "text-content", "Agent Summary content"],
       ["components/feed/AgentRunExpanded.tsx", /className="text-\w+ text-text-secondary"/, "text-content", "Result content"],
     ];

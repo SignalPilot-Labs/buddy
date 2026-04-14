@@ -28,8 +28,10 @@ export interface RunActions {
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt: string) => void;
-  handleHeaderKill: () => void;
-  showKillConfirm: boolean;
+  showStopDialog: boolean;
+  handleStopClick: () => void;
+  handleStopConfirm: (openPr: boolean) => void;
+  handleStopCancel: () => void;
 }
 
 export interface DashboardState {
@@ -58,7 +60,7 @@ export interface DashboardState {
   // UI state
   activeRepoFilter: string | null;
   startModalOpen: boolean;
-  showKillConfirm: boolean;
+  showStopDialog: boolean;
   onboardingOpen: boolean;
   settingsStatus: SettingsStatus | null;
   sidebarCollapsed: boolean;
@@ -84,7 +86,9 @@ export interface DashboardState {
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt: string) => void;
-  handleHeaderKill: () => void;
+  handleStopClick: () => void;
+  handleStopConfirm: (openPr: boolean) => void;
+  handleStopCancel: () => void;
   setStartModalOpen: (v: boolean) => void;
   setOnboardingOpen: (v: boolean) => void;
   setMobilePanel: (v: "feed" | "runs" | "changes" | "logs") => void;

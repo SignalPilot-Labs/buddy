@@ -8,8 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   startRun,
-  stopAgentInstant,
-  killAgent,
+  stopRun,
   pauseAgent,
   resumeAgent,
   unlockAgent,
@@ -60,14 +59,17 @@ describe("startRun", () => {
 });
 
 describe("control signals use /api/runs/{run_id}/* endpoints", () => {
-  it("stopAgentInstant hits /api/runs/{run_id}/stop", async () => {
-    await stopAgentInstant("abc-123");
+  it("stopRun hits /api/runs/{run_id}/stop with skip_pr in body", async () => {
+    await stopRun("abc-123", true);
     expect(fetchCalls[0].url).toContain("/api/runs/abc-123/stop");
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body.skip_pr).toBe(true);
   });
 
-  it("killAgent hits /api/runs/{run_id}/kill", async () => {
-    await killAgent("abc-123");
-    expect(fetchCalls[0].url).toContain("/api/runs/abc-123/kill");
+  it("stopRun sends skip_pr=false when opening a PR", async () => {
+    await stopRun("abc-123", false);
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body.skip_pr).toBe(false);
   });
 
   it("pauseAgent hits /api/runs/{run_id}/pause", async () => {
