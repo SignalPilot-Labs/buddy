@@ -26,7 +26,7 @@ export function RunList({
     <aside className={
       mobile
         ? "flex-1 flex flex-col min-h-0 bg-sidebar"
-        : `flex-shrink-0 flex flex-col min-h-0 border-r border-border bg-sidebar ${isCollapsed ? "w-[48px]" : "w-[260px]"}`
+        : `flex-shrink-0 flex flex-col min-h-0 border-r border-border bg-sidebar w-full h-full`
     }>
       {!isCollapsed && (
         <div className="px-4 py-3 border-b border-border shrink-0">

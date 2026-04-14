@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { PANEL_WIDTH_STORAGE_PREFIX } from "@/lib/constants";
 
 export interface UsePanelResizeOptions {
@@ -15,6 +15,7 @@ export interface UsePanelResizeResult {
   width: number;
   isDragging: boolean;
   handleMouseDown: (e: React.MouseEvent) => void;
+  panelRef: React.RefObject<HTMLDivElement | null>;
 }
 
 export function usePanelResize({
@@ -26,7 +27,9 @@ export function usePanelResize({
 }: UsePanelResizeOptions): UsePanelResizeResult {
   const [width, setWidth] = useState<number>(() => {
     if (typeof window === "undefined") return defaultWidth;
-    const stored = localStorage.getItem(PANEL_WIDTH_STORAGE_PREFIX + storageKey);
+    const stored = localStorage.getItem(
+      PANEL_WIDTH_STORAGE_PREFIX + storageKey,
+    );
     if (stored !== null) {
       const parsed = parseInt(stored, 10);
       if (!isNaN(parsed)) return Math.min(maxWidth, Math.max(minWidth, parsed));
@@ -35,63 +38,71 @@ export function usePanelResize({
   });
 
   const [isDragging, setIsDragging] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
+  const currentWidthRef = useRef(width);
 
-  // Refs avoid stale closures in event listeners registered once on mousedown.
-  const startXRef = useRef<number>(0);
-  const startWidthRef = useRef<number>(0);
-  const currentWidthRef = useRef<number>(width);
-
-  // Keep currentWidthRef in sync so handleMouseUp can persist the latest value.
+  // Keep ref in sync with state (for mouseUp to persist correct value).
   useEffect(() => {
     currentWidthRef.current = width;
   }, [width]);
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent): void => {
-      const delta = e.clientX - startXRef.current;
-      const newWidth =
-        direction === "left"
-          ? startWidthRef.current + delta
-          : startWidthRef.current - delta;
-      const clamped = Math.min(maxWidth, Math.max(minWidth, newWidth));
-      currentWidthRef.current = clamped;
-      setWidth(clamped);
-    },
-    [direction, minWidth, maxWidth],
-  );
+  // Stable handler refs — never recreated, no stale closure issues.
+  const moveRef = useRef<(e: MouseEvent) => void>(null);
+  const upRef = useRef<() => void>(null);
 
-  const handleMouseUp = useCallback((): void => {
-    setIsDragging(false);
+  moveRef.current = (e: MouseEvent): void => {
+    const delta = e.clientX - startXRef.current;
+    const raw =
+      direction === "left"
+        ? startWidthRef.current + delta
+        : startWidthRef.current - delta;
+    const clamped = Math.min(maxWidth, Math.max(minWidth, raw));
+    currentWidthRef.current = clamped;
+    if (panelRef.current) {
+      panelRef.current.style.width = `${clamped}px`;
+    }
+  };
+
+  upRef.current = (): void => {
     document.body.style.userSelect = "";
     document.body.style.cursor = "";
+    if (panelRef.current) {
+      panelRef.current.style.transition = "";
+    }
+    document.removeEventListener("mousemove", stableMove);
+    document.removeEventListener("mouseup", stableUp);
+    setWidth(currentWidthRef.current);
+    setIsDragging(false);
     localStorage.setItem(
       PANEL_WIDTH_STORAGE_PREFIX + storageKey,
       String(currentWidthRef.current),
     );
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-  }, [storageKey, handleMouseMove]);
+  };
 
-  useEffect(() => {
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [handleMouseMove, handleMouseUp]);
+  const stableMoveRef = useRef((e: MouseEvent) => {
+    moveRef.current?.(e);
+  });
+  const stableUpRef = useRef(() => {
+    upRef.current?.();
+  });
+  const stableMove = stableMoveRef.current;
+  const stableUp = stableUpRef.current;
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent): void => {
-      e.preventDefault();
-      startXRef.current = e.clientX;
-      startWidthRef.current = currentWidthRef.current;
-      setIsDragging(true);
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "col-resize";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    },
-    [handleMouseMove, handleMouseUp],
-  );
+  const handleMouseDown = (e: React.MouseEvent): void => {
+    e.preventDefault();
+    startXRef.current = e.clientX;
+    startWidthRef.current = currentWidthRef.current;
+    if (panelRef.current) {
+      panelRef.current.style.transition = "none";
+    }
+    setIsDragging(true);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    document.addEventListener("mousemove", stableMove);
+    document.addEventListener("mouseup", stableUp);
+  };
 
-  return { width, isDragging, handleMouseDown };
+  return { width, isDragging, handleMouseDown, panelRef };
 }
