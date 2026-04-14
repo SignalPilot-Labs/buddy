@@ -1,0 +1,29 @@
+{
+    "id": "c8b92664-227a-4b32-acce-922b9fa23567",
+    "started_at": "2026-04-14T04:51:23.575940",
+    "finished_at": "2026-04-14T04:57:47.614422",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 0,
+        "evals": {
+            "autofyn__claude-opus-4-6__adhoc": {
+                "n_trials": 1,
+                "n_errors": 0,
+                "metrics": [
+                    {
+                        "mean": 1.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "1.0": [
+                            "overfull-hbox__hBs8wJ3"
+                        ]
+                    }
+                },
+                "exception_stats": {}
+            }
+        }
+    }
+}
