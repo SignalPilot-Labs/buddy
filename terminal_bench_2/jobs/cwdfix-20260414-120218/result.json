@@ -1,0 +1,33 @@
+{
+    "id": "caa5256f-1ab4-4845-a917-f14a25a2a783",
+    "started_at": "2026-04-14T12:02:20.708188",
+    "finished_at": "2026-04-14T12:17:39.774793",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 1,
+        "evals": {
+            "autofyn__claude-opus-4-6__adhoc": {
+                "n_trials": 1,
+                "n_errors": 1,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "write-compressor__XGDwFrJ"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "AgentTimeoutError": [
+                        "write-compressor__XGDwFrJ"
+                    ]
+                }
+            }
+        }
+    }
+}

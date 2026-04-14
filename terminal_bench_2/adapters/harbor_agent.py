@@ -22,13 +22,21 @@ from harbor.agents.base import AgentContext
 from harbor.agents.installed.base import BaseInstalledAgent
 from harbor.environments.base import BaseEnvironment
 
-from terminal_bench.constants import DEFAULT_MAX_TURNS, DEFAULT_MODEL, TASK_CWD
+from terminal_bench.constants import DEFAULT_MAX_TURNS, DEFAULT_MODEL
 from terminal_bench.orchestrator import build_cli_command
 
 log = logging.getLogger("terminal_bench.agent")
 
 # Agent run timeout: 1 hour matches the historical harbor run configuration
 AGENT_TIMEOUT_SEC: int = 60 * 60
+
+# Ordered candidate directories to probe for the task working directory.
+# /app is listed first so that /app tasks get /app as CWD (matching prompt references).
+# For non-/app containers (e.g. WORKDIR=/workspace), /app typically does not exist
+# at all (different base image), so a simple existence check is sufficient — we do
+# NOT need to verify non-empty.  The existence check avoids the failure mode of
+# launching exec_as_agent with a cwd that the container doesn't have.
+CWD_PROBE_DIRS: list[str] = ["/app", "/workspace", "/home/user", "/root", "/"]
 
 
 class AutoFynAgent(BaseInstalledAgent):
@@ -82,10 +90,11 @@ class AutoFynAgent(BaseInstalledAgent):
             f'{token_export}'
             f'{claude_cmd} 2>&1 | tee {run_log} || true'
         )
+        resolved_cwd = await self._resolve_task_cwd(environment)
         await self.exec_as_agent(
             environment,
             cmd,
-            cwd=TASK_CWD,
+            cwd=resolved_cwd,
             timeout_sec=AGENT_TIMEOUT_SEC,
         )
         read_result = await self.exec_as_agent(environment, f"cat {run_log}")
@@ -95,6 +104,22 @@ class AutoFynAgent(BaseInstalledAgent):
         stream_path.write_text(stdout, encoding="utf-8")
 
         self._summary = _parse_stream_output(stdout, events_path)
+
+    async def _resolve_task_cwd(self, environment: BaseEnvironment) -> str:
+        """Probe the container for the first existing candidate directory.
+
+        Runs without a cwd= parameter so it uses the container's default WORKDIR.
+        This is the same pattern used by _find_claude_bin (existing precedent).
+        Uses a simple [ -d "$d" ] existence check — sufficient because /app does
+        not exist at all on /workspace containers (different base image).
+        """
+        dirs_str = " ".join(CWD_PROBE_DIRS)
+        probe_script = f'for d in {dirs_str}; do [ -d "$d" ] && echo "$d" && break; done'
+        result = await self.exec_as_agent(environment, probe_script)
+        stdout = (result.stdout or "").strip()
+        if stdout:
+            return stdout.splitlines()[0]
+        return "/"
 
     async def _find_claude_bin(self, environment: BaseEnvironment) -> str:
         """Return the full path to the claude CLI binary inside the container."""
