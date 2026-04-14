@@ -2,9 +2,7 @@
 
 <h1>autofyn</h1>
 
-**autonomous coding agent. give it a repo, get back a PR.**
-
-long-running sessions · sandboxed execution · live supervision
+**autonomous AI coder that gets better the longer it runs.**
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
@@ -16,7 +14,9 @@ long-running sessions · sandboxed execution · live supervision
 
 ---
 
-Set a task, set a time limit, walk away. Run it for 30 minutes or 8+ hours — it plans, builds, reviews, and commits until the clock runs out. Code executes in isolated Sandboxes and never on your machine.
+AutoFyn is an autonomous AI agent loop that runs Claude inside sandboxed Docker containers, round after round, until the job is done. Each round is a fresh Claude session with clean context. Memory persists across rounds via git history, round reports, and an accumulating lessons file — so the agent learns from its own mistakes mid-run.
+
+Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
 
 ## Quick start
 
