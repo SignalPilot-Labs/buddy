@@ -185,15 +185,34 @@ class RoundRunner:
                         )
                     sse_task = asyncio.create_task(_next_event(stream_iter))
                     signal = await dispatcher.dispatch(sse_event)
-                    # Only run the idle timer when no tools are executing
-                    # and no subagents are active. Tools in-flight means a
-                    # command is running; active subagents are the pulse
-                    # loop's responsibility.
+                    terminal = await self._apply_signal(
+                        signal,
+                        session_id,
+                        control,
+                        round_number,
+                    )
+                    if terminal is not None:
+                        return terminal
+
+                    # Track rate limit state for idle suppression and
+                    # DB status transitions.
+                    if signal.kind == "rate_limit_info":
+                        is_rate_limited = True
+                    elif is_rate_limited:
+                        is_rate_limited = False
+                        await db.update_run_status(
+                            self._run.run_id, "running",
+                        )
+
+                    # Only run the idle timer when nothing is actively
+                    # in progress. Tools in-flight, active subagents,
+                    # and rate-limit waits all suppress idle detection.
                     if idle_task is not None:
                         idle_task.cancel()
                     if (
                         dispatcher.has_tools_in_flight()
                         or dispatcher.has_active_subagents()
+                        or is_rate_limited
                     ):
                         idle_task = None
                     else:
@@ -203,21 +222,6 @@ class RoundRunner:
                     # Any real SSE activity resets the nudge counter and timer.
                     nudge_count = 0
                     idle_since = asyncio.get_event_loop().time()
-                    terminal = await self._apply_signal(
-                        signal,
-                        session_id,
-                        control,
-                        round_number,
-                    )
-                    if terminal is not None:
-                        return terminal
-                    if signal.kind == "rate_limit_info":
-                        is_rate_limited = True
-                    elif is_rate_limited:
-                        is_rate_limited = False
-                        await db.update_run_status(
-                            self._run.run_id, "running",
-                        )
 
                 if idle_task is not None and idle_task in done:
                     nudge_count += 1

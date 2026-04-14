@@ -321,7 +321,7 @@ async def _commit_and_push_round(
     )
 
 
-# ── Rate limit + pause helpers ───────────────────────────────────────
+# ── Pause helpers ────────────────────────────────────────────────────
 
 
 async def _await_resume(inbox: UserInbox) -> bool:
