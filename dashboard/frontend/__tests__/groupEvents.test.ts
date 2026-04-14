@@ -291,6 +291,7 @@ describe("run_started milestone detail", () => {
     ];
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
       expect(result[0].detail).toBe("opus · autofyn/fix-the-bug");
     }
@@ -311,8 +312,9 @@ describe("run_started milestone detail", () => {
     ];
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].detail).not.toContain("pending");
+      expect(result[0].detail).toBe("opus");
     }
   });
 
@@ -331,8 +333,9 @@ describe("run_started milestone detail", () => {
     ];
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].detail).not.toContain("pending");
+      expect(result[0].detail).toBe("sonnet");
     }
   });
 });

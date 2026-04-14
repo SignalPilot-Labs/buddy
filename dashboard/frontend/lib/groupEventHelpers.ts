@@ -63,6 +63,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
 
   switch (event.data.event_type) {
     case "run_started": {
+      // "pending" is the DB placeholder from BRANCH_PENDING_PLACEHOLDER (db/constants.py)
       const branch = d.branch && d.branch !== "pending" ? d.branch : "";
       const detail = branch ? `${d.model || "claude"} · ${branch}` : `${d.model || "claude"}`;
       return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail, color: "#88ccff", ts, event };
