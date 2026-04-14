@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
-import { updateSettings } from "@/lib/settings-api";
+import { updateSettings, addPoolToken } from "@/lib/settings-api";
 import type { SettingsStatus } from "@/lib/types";
 import { clsx } from "clsx";
 
@@ -24,14 +24,14 @@ const STEPS = [
     type: "password" as const,
     help: (
       <>
-        <p className="text-[10px] text-[#888] leading-relaxed">
+        <p className="text-body text-text-secondary leading-relaxed">
           This authenticates the Claude CLI inside Docker.
         </p>
-        <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
-          <p className="text-[10px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
+        <div className="mt-2 p-2.5 bg-black/40 rounded border border-border">
+          <p className="text-content text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
+          <ol className="text-body text-text-muted space-y-1 list-decimal list-inside">
             <li>
-              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-[10px]">claude setup-token</code> in your terminal
+              Run <code className="text-[#00ff88] bg-[#00ff88]/[0.06] px-1 py-0.5 rounded text-content">claude setup-token</code> in your terminal
             </li>
             <li>Follow the prompts to authenticate</li>
             <li>Copy the token that is output</li>
@@ -48,17 +48,17 @@ const STEPS = [
     type: "password" as const,
     help: (
       <>
-        <p className="text-[10px] text-[#888] leading-relaxed">
+        <p className="text-body text-text-secondary leading-relaxed">
           Used by the agent to push branches and create PRs. Never exposed to the LLM.
         </p>
-        <div className="mt-2 p-2.5 bg-black/40 rounded border border-[#1a1a1a]">
-          <p className="text-[10px] text-[#999] uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
-          <ol className="text-[10px] text-[#999] space-y-1 list-decimal list-inside">
+        <div className="mt-2 p-2.5 bg-black/40 rounded border border-border">
+          <p className="text-content text-text-muted uppercase tracking-wider font-semibold mb-1.5">How to get it</p>
+          <ol className="text-body text-text-muted space-y-1 list-decimal list-inside">
             <li>Go to GitHub Settings &rarr; Developer settings &rarr; Personal access tokens &rarr; Fine-grained tokens</li>
             <li>Click &ldquo;Generate new token&rdquo;</li>
             <li>
-              Select your repo and grant <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[10px]">Contents: Read and write</code> and{" "}
-              <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-[10px]">Pull requests: Read and write</code>
+              Select your repo and grant <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-content">Contents: Read and write</code> and{" "}
+              <code className="text-[#ffcc44] bg-[#ffcc44]/[0.06] px-1 py-0.5 rounded text-content">Pull requests: Read and write</code>
             </li>
             <li>Copy the generated token</li>
           </ol>
@@ -73,8 +73,8 @@ const STEPS = [
     placeholder: "your-org/your-repo",
     type: "text" as const,
     help: (
-      <p className="text-[10px] text-[#888] leading-relaxed">
-        The repository slug in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-[10px]">owner/repo</code> format.
+      <p className="text-body text-text-secondary leading-relaxed">
+        The repository slug in <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded text-content">owner/repo</code> format.
         The agent is gated to only operate on this repository.
       </p>
     ),
@@ -94,11 +94,12 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
     if (open) setTimeout(() => inputRef.current?.focus(), 150);
   }, [open, step]);
 
-  // Lock body scroll
+  // Lock body scroll — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
 
@@ -112,7 +113,11 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
     setError(null);
     setSaving(true);
     try {
-      await updateSettings({ [currentStep.key]: currentValue.trim() });
+      if (currentStep.key === "claude_token") {
+        await addPoolToken(currentValue.trim());
+      } else {
+        await updateSettings({ [currentStep.key]: currentValue.trim() });
+      }
       if (isLastStep) {
         onComplete();
       } else {
@@ -163,26 +168,33 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="w-[480px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
+              className="w-[480px] bg-bg-card border border-border rounded-lg shadow-2xl shadow-black/60 card-accent-top pointer-events-auto"
             >
               {/* Header */}
-              <div className="px-5 py-4 border-b border-[#1a1a1a]">
+              <div className="px-5 py-4 border-b border-border">
                 <div className="flex items-center gap-2.5">
                   <div className="flex items-center justify-center h-7 w-7 rounded bg-white/[0.04] border border-white/[0.08]">
                     <Image src="/logo.svg" alt="AutoFyn" width={16} height={16} />
                   </div>
                   <div>
-                    <h2 className="text-[12px] font-semibold text-[#e8e8e8]">
+                    <h2 className="text-title font-semibold text-text">
                       Welcome to AutoFyn
                     </h2>
-                    <p className="text-[10px] text-[#999] mt-0.5">
+                    <p className="text-content text-text-muted mt-0.5">
                       Set up your credentials to get started
                     </p>
                   </div>
                 </div>
 
                 {/* Step indicators */}
-                <div className="flex items-center gap-1.5 mt-3">
+                <div
+                  className="flex items-center gap-1.5 mt-3"
+                  role="progressbar"
+                  aria-valuenow={step + 1}
+                  aria-valuemin={1}
+                  aria-valuemax={STEPS.length}
+                  aria-label={`Setup step ${step + 1} of ${STEPS.length}`}
+                >
                   {STEPS.map((s, i) => (
                     <div key={s.key} className="flex items-center gap-1.5">
                       <div
@@ -192,7 +204,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                             ? "w-8 bg-[#00ff88]"
                             : i < step || initialStatus[s.statusKey]
                             ? "w-4 bg-[#00ff88]/30"
-                            : "w-4 bg-[#1a1a1a]"
+                            : "w-4 bg-border"
                         )}
                       />
                     </div>
@@ -210,7 +222,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     exit={{ opacity: 0, x: -20 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <label className="text-[10px] uppercase tracking-[0.15em] text-[#999] font-semibold">
+                    <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
                       Step {step + 1} of {STEPS.length} &mdash; {currentStep.label}
                     </label>
 
@@ -224,7 +236,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         }
                         onKeyDown={handleKeyDown}
                         placeholder={currentStep.placeholder}
-                        className="w-full bg-black/30 border border-[#1a1a1a] rounded px-3 py-2.5 text-[11px] text-[#ccc] font-mono placeholder-[#666] focus:outline-none focus:border-[#00ff88]/30 transition-all pr-10"
+                        className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all pr-10"
                         autoComplete="off"
                         spellCheck={false}
                       />
@@ -232,7 +244,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-[#999] hover:text-[#888] transition-colors"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-secondary hover:text-accent-hover transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                           tabIndex={-1}
                         >
                           {showPassword ? (
@@ -251,7 +263,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     </div>
 
                     {initialStatus[currentStep.statusKey] && !currentValue && (
-                      <p className="mt-2 text-[10px] text-[#00ff88]/60 flex items-center gap-1">
+                      <p className="mt-2 text-content text-[#00ff88]/60 flex items-center gap-1">
                         <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <polyline points="2 5 4 7 8 3" />
                         </svg>
@@ -260,7 +272,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                     )}
 
                     {error && (
-                      <p className="mt-2 text-[10px] text-[#ff4444]">{error}</p>
+                      <p className="mt-2 text-content text-[#ff4444]">{error}</p>
                     )}
 
                     <div className="mt-4">{currentStep.help}</div>
@@ -269,7 +281,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-3 border-t border-[#1a1a1a]">
+              <div className="flex items-center justify-between px-5 py-3 border-t border-border">
                 <div className="flex items-center gap-2">
                   {step > 0 && (
                     <Button
@@ -281,7 +293,7 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  {(initialStatus[currentStep.statusKey] || !currentValue.trim()) && (
+                  {initialStatus[currentStep.statusKey] && (
                     <Button variant="ghost" onClick={handleSkip}>
                       {isLastStep ? "Done" : "Skip"}
                     </Button>

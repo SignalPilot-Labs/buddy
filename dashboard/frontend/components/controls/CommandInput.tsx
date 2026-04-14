@@ -51,7 +51,7 @@ export interface CommandInputProps {
   events: FeedEvent[];
   busy: boolean;
   onPause: () => void;
-  onResume: () => void;
+  onResume: (prompt?: string) => void;
   onInject: (prompt: string) => void;
   onRestart: (prompt: string) => void;
 }
@@ -81,7 +81,9 @@ export function CommandInput({
     if (!el) return;
     el.style.height = "auto";
     const maxHeight = TEXTAREA_LINE_HEIGHT * MAX_TEXTAREA_ROWS + TEXTAREA_VERTICAL_PADDING;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    const clamped = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${clamped}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   }, []);
 
   useEffect(() => {
@@ -95,23 +97,28 @@ export function CommandInput({
       onPause();
       return;
     }
-    // "send" covers inject, resume, and restart depending on run status
+    if (status === "paused") {
+      // Resume — with or without a message
+      const trimmed = text.trim();
+      onResume(trimmed || undefined);
+      setText("");
+      return;
+    }
+    // "send" covers inject and restart depending on run status
     if (!hasText) return;
     const trimmed = text.trim();
-    if (status === "paused") {
-      onInject(trimmed);
-    } else if (status != null && TERMINAL_STATUSES.has(status)) {
+    if (status != null && TERMINAL_STATUSES.has(status)) {
       onRestart(trimmed);
     } else {
       onInject(trimmed);
     }
     setText("");
-  }, [buttonState, busy, hasText, text, status, onPause, onInject, onRestart]);
+  }, [buttonState, busy, hasText, text, status, onPause, onResume, onInject, onRestart]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === "Enter" && !e.shiftKey) {
-        if (!hasText) return;
+        if (!hasText && status !== "paused") return;
         e.preventDefault();
         handleAction();
         return;
@@ -121,7 +128,7 @@ export function CommandInput({
         textareaRef.current?.blur();
       }
     },
-    [hasText, handleAction],
+    [hasText, status, handleAction],
   );
 
   const handlePresetClick = useCallback(
@@ -133,7 +140,7 @@ export function CommandInput({
   );
 
   return (
-    <div className="border-t border-[#1a1a1a] bg-[#0a0a0a] flex flex-col">
+    <div className="border-t border-border bg-bg-card flex flex-col">
       {/* Preset chips — always visible */}
       <div className="flex gap-1.5 px-3 pt-2 flex-wrap">
         {PRESETS.map((p) => (
@@ -146,7 +153,7 @@ export function CommandInput({
             }}
             onClick={() => handlePresetClick(p.text)}
             aria-label={`Quick prompt: ${p.label}`}
-            className="text-[10px] px-2 py-1 rounded bg-white/[0.03] text-[#777] hover:bg-white/[0.06] hover:text-[#aaa] transition-colors border border-[#1a1a1a]"
+            className="text-caption px-2 py-1 rounded bg-white/[0.03] text-text-dim hover:bg-white/[0.06] hover:text-accent-hover transition-colors border border-border"
           >
             {p.label}
           </button>
@@ -163,7 +170,7 @@ export function CommandInput({
           placeholder={placeholder}
           rows={2}
           disabled={!runId}
-          className="w-full bg-black/40 border border-[#1a1a1a] rounded-lg px-3 py-3 text-[12px] text-[#ccc] placeholder-[#666] resize-none focus:outline-none focus:border-[#88ccff]/40 focus:ring-1 focus:ring-[#88ccff]/20 focus:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
+          className="w-full bg-black/40 border border-border rounded-lg px-3 py-3 text-content text-accent-hover placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#88ccff]/40 focus-visible:ring-1 focus-visible:ring-[#88ccff]/40 focus-visible:shadow-[0_0_8px_rgba(136,204,255,0.08)] transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed leading-6"
           style={{ minHeight: "60px" }}
         />
       </div>

@@ -36,10 +36,10 @@ def _mock_session_multi(
     session_mock.commit = AsyncMock()
 
     @asynccontextmanager
-    async def ctx():
+    async def context():
         yield session_mock
 
-    return ctx
+    return context
 
 
 class TestParallelSignalIsolation:
@@ -56,7 +56,7 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            result = await send_control_signal("run-1", "pause", {"running"}, None)
+            result = await send_control_signal("run-1", "pause", {"running"}, None, None)
 
         assert result["ok"] is True
         mock_agent.assert_called_once()
@@ -75,7 +75,7 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock),
         ):
-            stop_result = await send_control_signal("run-1", "stop", {"running"}, None)
+            stop_result = await send_control_signal("run-1", "stop", {"running"}, None, None)
 
         assert stop_result["ok"] is True
 
@@ -84,7 +84,9 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            pause_result = await send_control_signal("run-2", "pause", {"running"}, None)
+            pause_result = await send_control_signal(
+                "run-2", "pause", {"running"}, None, None
+            )
 
         assert pause_result["ok"] is True
         args = mock_agent.call_args[0]
@@ -101,7 +103,7 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            await send_control_signal("run-1", "inject", {"running"}, "focus on tests")
+            await send_control_signal("run-1", "inject", {"running"}, "focus on tests", None)
 
         first_call = mock_agent.call_args[0]
         assert first_call[1] == "/inject"
@@ -112,7 +114,7 @@ class TestParallelSignalIsolation:
             patch("backend.utils.session", _mock_session_multi(runs)),
             patch("backend.utils.agent_request", new_callable=AsyncMock) as mock_agent,
         ):
-            await send_control_signal("run-2", "inject", {"running"}, "write more docs")
+            await send_control_signal("run-2", "inject", {"running"}, "write more docs", None)
 
         second_call = mock_agent.call_args[0]
         assert second_call[1] == "/inject"
@@ -127,6 +129,6 @@ class TestParallelSignalIsolation:
 
         with patch("backend.utils.session", _mock_session_multi(runs)):
             with pytest.raises(HTTPException) as exc_info:
-                await send_control_signal("nonexistent-run", "pause", {"running"}, None)
+                await send_control_signal("nonexistent-run", "pause", {"running"}, None, None)
 
         assert exc_info.value.status_code == 404

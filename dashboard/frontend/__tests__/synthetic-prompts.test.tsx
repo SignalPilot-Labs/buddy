@@ -10,7 +10,17 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { groupEvents } from "@/lib/groupEvents";
 import { EventFeed } from "@/components/feed/EventFeed";
+import { AgentRunCard } from "@/components/feed/AgentRunCard";
 import type { FeedEvent, ToolCall, PendingMessage } from "@/lib/types";
+
+const DEFAULT_FEED_PROPS = {
+  pendingMessages: [] as PendingMessage[],
+  runActive: false,
+  runPaused: false,
+  isLoading: false,
+  historyTruncated: false,
+  hasSelectedRun: true,
+};
 
 /* ── Factories ── */
 
@@ -85,7 +95,7 @@ describe("EventFeed pending messages", () => {
     const pending: PendingMessage[] = [
       { id: -1, prompt: "fix the bug", ts: new Date().toISOString(), status: "pending" },
     ];
-    render(<EventFeed events={[]} pendingMessages={pending} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.getByText("You")).toBeInTheDocument();
     expect(screen.getByText("fix the bug")).toBeInTheDocument();
   });
@@ -94,7 +104,7 @@ describe("EventFeed pending messages", () => {
     const pending: PendingMessage[] = [
       { id: -1, prompt: "hello", ts: new Date().toISOString(), status: "pending" },
     ];
-    const { container } = render(<EventFeed events={[]} pendingMessages={pending} />);
+    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     const pulsingDots = container.querySelectorAll(".animate-pulse");
     expect(pulsingDots.length).toBeGreaterThan(0);
   });
@@ -103,7 +113,7 @@ describe("EventFeed pending messages", () => {
     const pending: PendingMessage[] = [
       { id: -2, prompt: "failed msg", ts: new Date().toISOString(), status: "failed" },
     ];
-    render(<EventFeed events={[]} pendingMessages={pending} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.getByText("not delivered")).toBeInTheDocument();
   });
 
@@ -114,7 +124,7 @@ describe("EventFeed pending messages", () => {
     const pending: PendingMessage[] = [
       { id: -1, prompt: "my message", ts: new Date().toISOString(), status: "pending" },
     ];
-    const { container } = render(<EventFeed events={events} pendingMessages={pending} />);
+    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={pending} hasSelectedRun={true} />);
     expect(container).toBeInTheDocument();
     expect(screen.getByText("my message")).toBeInTheDocument();
     expect(screen.getByText("Run Started")).toBeInTheDocument();
@@ -124,7 +134,7 @@ describe("EventFeed pending messages", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(50, "prompt_injected", { prompt: "delivered" }),
     ];
-    render(<EventFeed events={events} pendingMessages={[]} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.getByText("delivered")).toBeInTheDocument();
     // Only one "You" label from the server event
     expect(screen.getAllByText("You")).toHaveLength(1);
@@ -138,7 +148,7 @@ describe("EventFeed no duplicate user bubbles", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(50, "prompt_injected", { prompt: "hello agent" }),
     ];
-    render(<EventFeed events={events} pendingMessages={[]} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.getAllByText("You")).toHaveLength(1);
     expect(screen.getAllByText("hello agent")).toHaveLength(1);
   });
@@ -150,7 +160,7 @@ describe("EventFeed no duplicate user bubbles", () => {
     const pending: PendingMessage[] = [
       { id: -2, prompt: "second message", ts: new Date().toISOString(), status: "pending" },
     ];
-    render(<EventFeed events={events} pendingMessages={pending} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.getAllByText("You")).toHaveLength(2);
     expect(screen.getByText("first message")).toBeInTheDocument();
     expect(screen.getByText("second message")).toBeInTheDocument();
@@ -165,7 +175,7 @@ describe("EventFeed multiple pending messages", () => {
       { id: -1, prompt: "msg one", ts: "2026-01-01T10:00:00Z", status: "pending" },
       { id: -2, prompt: "msg two", ts: "2026-01-01T10:00:05Z", status: "pending" },
     ];
-    render(<EventFeed events={[]} pendingMessages={pending} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.getAllByText("You")).toHaveLength(2);
     expect(screen.getByText("msg one")).toBeInTheDocument();
     expect(screen.getByText("msg two")).toBeInTheDocument();
@@ -176,7 +186,7 @@ describe("EventFeed multiple pending messages", () => {
       { id: -1, prompt: "delivered later", ts: "2026-01-01T10:00:00Z", status: "pending" },
       { id: -2, prompt: "could not send", ts: "2026-01-01T10:00:05Z", status: "failed" },
     ];
-    const { container } = render(<EventFeed events={[]} pendingMessages={pending} />);
+    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.getByText("delivered later")).toBeInTheDocument();
     expect(screen.getByText("could not send")).toBeInTheDocument();
     expect(screen.getByText("not delivered")).toBeInTheDocument();
@@ -195,7 +205,7 @@ describe("EventFeed page refresh scenario", () => {
       makeAuditEvent(50, "prompt_injected", { prompt: "fix the bug" }),
       makeAuditEvent(51, "resumed", { via: "inject" }),
     ];
-    render(<EventFeed events={events} pendingMessages={[]} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.getByText("Run Started")).toBeInTheDocument();
     expect(screen.getByText("fix the bug")).toBeInTheDocument();
     expect(screen.getByText("Resumed")).toBeInTheDocument();
@@ -206,17 +216,23 @@ describe("EventFeed page refresh scenario", () => {
 /* ── EventFeed: empty state only when both events and pending empty ── */
 
 describe("EventFeed empty state", () => {
-  it("shows empty state when no events and no pending", () => {
-    render(<EventFeed events={[]} pendingMessages={[]} />);
+  it("shows no-run-selected empty state when no events, no pending, no run selected", () => {
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={[]} hasSelectedRun={false} />);
     expect(screen.getByText("Waiting for events")).toBeInTheDocument();
+  });
+
+  it("shows waiting-for-activity empty state when run selected but no events", () => {
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={[]} hasSelectedRun={true} />);
+    expect(screen.getByText("Waiting for agent activity")).toBeInTheDocument();
   });
 
   it("does not show empty state when pending messages exist", () => {
     const pending: PendingMessage[] = [
       { id: -1, prompt: "hello", ts: new Date().toISOString(), status: "pending" },
     ];
-    render(<EventFeed events={[]} pendingMessages={pending} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
     expect(screen.queryByText("Waiting for events")).not.toBeInTheDocument();
+    expect(screen.queryByText("Waiting for agent activity")).not.toBeInTheDocument();
     expect(screen.getByText("hello")).toBeInTheDocument();
   });
 
@@ -224,8 +240,9 @@ describe("EventFeed empty state", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
     ];
-    render(<EventFeed events={events} pendingMessages={[]} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.queryByText("Waiting for events")).not.toBeInTheDocument();
+    expect(screen.queryByText("Waiting for agent activity")).not.toBeInTheDocument();
   });
 });
 
@@ -241,7 +258,7 @@ describe("EventFeed user_prompt interruption boundary", () => {
       makeAuditEvent(5, "prompt_injected", { prompt: "stop exploring" }, t1),
     ];
 
-    render(<EventFeed events={events} runActive={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
     // Agent card before the user_prompt should NOT show "running" or "finalizing"
     expect(screen.queryAllByText("running")).toHaveLength(0);
     expect(screen.queryAllByText("finalizing")).toHaveLength(0);
@@ -257,7 +274,7 @@ describe("EventFeed user_prompt interruption boundary", () => {
     ];
 
     const { container } = render(
-      <EventFeed events={events} runActive={true} />,
+      <EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />,
     );
     expect(container).toBeInTheDocument();
   });
@@ -271,7 +288,7 @@ describe("EventFeed user_prompt interruption boundary", () => {
       makeAuditEvent(6, "pause_requested", {}, t1),
     ];
 
-    render(<EventFeed events={events} runActive={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
     expect(screen.queryAllByText("running")).toHaveLength(0);
     expect(screen.queryAllByText("finalizing")).toHaveLength(0);
   });
@@ -290,7 +307,7 @@ describe("EventFeed user_prompt interruption boundary", () => {
     ];
 
     const { container } = render(
-      <EventFeed events={events} runActive={true} />,
+      <EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />,
     );
     // Should render — the second agent card (t3) is after the last interruption (t1)
     expect(container).toBeInTheDocument();
@@ -325,5 +342,43 @@ describe("groupEvents session_resumed detail", () => {
       expect(grouped[0].label).toBe("Session Resumed");
       expect(grouped[0].detail).toBe("");
     }
+  });
+});
+
+/* ── AgentRunCard: paused badge ── */
+
+describe("AgentRunCard paused badge state", () => {
+  it("renders 'paused' badge (not 'failed') when runActive=true and runPaused=true", () => {
+    const tool: ToolCall = {
+      id: 200,
+      run_id: "run-1",
+      ts: new Date().toISOString(),
+      phase: "pre",
+      tool_name: "Agent",
+      input_data: { description: "do work", prompt: "some prompt", subagent_type: "frontend-dev" },
+      output_data: null,
+      duration_ms: null,
+      permitted: true,
+      deny_reason: null,
+      agent_role: "orchestrator",
+      tool_use_id: "tu-paused-1",
+      session_id: null,
+      agent_id: null,
+    };
+
+    render(
+      <AgentRunCard
+        tool={tool}
+        childTools={[]}
+        finalText=""
+        agentType="frontend-dev"
+        ts={tool.ts}
+        runActive={true}
+        runPaused={true}
+      />
+    );
+
+    expect(screen.getByText("paused")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
   });
 });

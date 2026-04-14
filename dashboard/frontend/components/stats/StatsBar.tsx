@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Run, FeedEvent } from "@/lib/types";
+import { ModelBadge } from "@/components/ui/ModelBadge";
 
 const EMPTY_EVENTS: FeedEvent[] = [];
 
@@ -29,6 +30,41 @@ function formatTokenCount(n: number): string {
   return String(n);
 }
 
+export const NO_DATA = "—";
+
+/**
+ * Distinct cost states — never collapse them into a single fallback chain.
+ *  - settled: DB has a real number → show `$X.XX` (no tilde)
+ *  - estimated: only in-flight live cost is available → show `~$X.XX`
+ *  - none: no data at all → show `—` so a broken pipeline is visible
+ */
+export function formatCostStat(
+  settled: number | null | undefined,
+  liveCost: number,
+): { value: string; accent: string } {
+  if (settled !== null && settled !== undefined) {
+    return { value: `$${settled.toFixed(2)}`, accent: "text-[#00ff88]" };
+  }
+  if (liveCost > 0) {
+    return { value: `~$${liveCost.toFixed(2)}`, accent: "text-[#00ff88]/70" };
+  }
+  return { value: NO_DATA, accent: "text-text-dim" };
+}
+
+export function formatToolStat(settled: number | null | undefined, liveCount: number): string {
+  if (settled !== null && settled !== undefined) return String(settled);
+  if (liveCount > 0) return String(liveCount);
+  return NO_DATA;
+}
+
+export function formatContextStat(liveTokens: number, settledTokens: number | null | undefined): string {
+  if (liveTokens > 0) return formatTokenCount(liveTokens);
+  if (settledTokens !== null && settledTokens !== undefined && settledTokens > 0) {
+    return formatTokenCount(settledTokens);
+  }
+  return NO_DATA;
+}
+
 function Stat({
   icon,
   label,
@@ -42,9 +78,9 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-1.5 min-w-0 shrink-0">
-      <span className="text-[#777]">{icon}</span>
-      <span className="text-[10px] text-[#777]">{label}</span>
-      <span className={`text-[10px] font-semibold tabular-nums truncate ${accent ?? "text-[#e8e8e8]"}`}>
+      <span className="text-text-dim">{icon}</span>
+      <span className="text-caption text-text-dim">{label}</span>
+      <span className={`text-content font-semibold tabular-nums truncate ${accent ?? "text-text"}`}>
         {value}
       </span>
     </div>
@@ -63,11 +99,14 @@ export function StatsRow({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   const live = useMemo(() => computeLiveStats(events), [events]);
+  const cost = formatCostStat(run?.total_cost_usd, live.costUsd);
+  const toolValue = run ? formatToolStat(run.total_tool_calls, live.toolCount) : NO_DATA;
+  const contextValue = run ? formatContextStat(live.contextTokens, run.context_tokens) : NO_DATA;
 
   if (!run) {
     return (
       <div className="h-7 flex items-center px-1">
-        <span className="text-[10px] text-[#777]">No run selected</span>
+        <span className="text-caption text-text-dim">No run selected</span>
       </div>
     );
   }
@@ -81,11 +120,11 @@ export function StatsRow({
       <div className="flex items-center gap-1.5">
         <span
           className={`h-1.5 w-1.5 rounded-full ${
-            connected ? "bg-[#00ff88]" : "bg-[#444]"
+            connected ? "bg-[#00ff88]" : "bg-bg-indicator"
           }`}
           style={connected ? { boxShadow: "0 0 4px rgba(0, 255, 136, 0.4)" } : undefined}
         />
-        <span className="text-[10px] text-[#888]">
+        <span className="text-caption text-text-secondary">
           {connected ? "Live" : "Disconnected"}
         </span>
       </div>
@@ -96,7 +135,7 @@ export function StatsRow({
           </svg>
         }
         label="Tools"
-        value={String(run.total_tool_calls || live.toolCount || 0)}
+        value={toolValue}
       />
       <Stat
         icon={
@@ -106,8 +145,8 @@ export function StatsRow({
           </svg>
         }
         label="Cost"
-        value={`~$${(run.total_cost_usd || live.costUsd || 0).toFixed(2)}`}
-        accent="text-[#00ff88]"
+        value={cost.value}
+        accent={cost.accent}
       />
       <Stat
         icon={
@@ -117,21 +156,16 @@ export function StatsRow({
           </svg>
         }
         label="Context"
-        value={
-          live.contextTokens > 0
-            ? formatTokenCount(live.contextTokens)
-            : (run.context_tokens ?? 0) > 0
-              ? formatTokenCount(run.context_tokens)
-              : "—"
-        }
+        value={contextValue}
         accent="text-[#88ccff]"
       />
+      <ModelBadge modelName={run.model_name} showIcon />
       {run.pr_url && (
         <a
           href={run.pr_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] text-[#88ccff] hover:text-[#aaddff] transition-colors"
+          className="flex items-center gap-1 text-caption text-[#88ccff] hover:text-[#aaddff] transition-colors"
         >
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="3" cy="3" r="1.5" />
@@ -153,7 +187,7 @@ export function StatsBar({
   events = EMPTY_EVENTS,
 }: StatsRowProps) {
   return (
-    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-[#1a1a1a] bg-[#050505]">
+    <div className="min-h-[36px] sm:h-8 flex items-center px-3 sm:px-4 border-t border-border bg-bg">
       <StatsRow run={run} connected={connected} events={events} />
     </div>
   );

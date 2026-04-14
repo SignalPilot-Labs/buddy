@@ -15,7 +15,6 @@ interface MobileControlSheetProps {
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
-  onKill: () => void;
   onUnlock: () => void;
   onToggleInject: () => void;
   busy: boolean;
@@ -35,7 +34,6 @@ export function MobileControlSheet({
   onPause,
   onResume,
   onStop,
-  onKill,
   onUnlock,
   onToggleInject,
   busy,
@@ -52,13 +50,24 @@ export function MobileControlSheet({
   const canInject = INJECTABLE_STATUSES.includes(s);
   const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
-  // Lock body scroll when open
+  // Lock body scroll when open — save and restore original value
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => { document.body.style.overflow = original; };
     }
   }, [open]);
+
+  // Close on ESC key
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   return (
     <AnimatePresence>
@@ -80,17 +89,17 @@ export function MobileControlSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 400 }}
-            className="fixed bottom-0 left-0 right-0 z-[61] bg-[#0a0a0a] border-t border-[#1a1a1a] rounded-t-2xl safe-area-bottom"
+            className="fixed bottom-0 left-0 right-0 z-[61] bg-bg-card border-t border-border rounded-t-2xl safe-area-bottom"
           >
             {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-2">
-              <div className="w-8 h-1 rounded-full bg-[#333]" />
+              <div className="w-8 h-1 rounded-full bg-border-subtle" />
             </div>
 
             <div className="px-4 pb-6 space-y-4">
               {/* Repo selector */}
               <div>
-                <label className="text-[10px] uppercase tracking-[0.15em] text-[#666] font-semibold mb-2 block">
+                <label className="text-content uppercase tracking-[0.15em] text-text-secondary font-semibold mb-2 block">
                   Repository
                 </label>
                 <RepoSelector
@@ -119,7 +128,7 @@ export function MobileControlSheet({
               {/* Run controls grid */}
               {status && (
                 <>
-                  <label className="text-[10px] uppercase tracking-[0.15em] text-[#666] font-semibold block">
+                  <label className="text-content uppercase tracking-[0.15em] text-text-secondary font-semibold block">
                     Run Controls
                   </label>
                   <div className="grid grid-cols-3 gap-2">
@@ -180,22 +189,6 @@ export function MobileControlSheet({
                       }
                     >
                       Stop
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="md"
-                      disabled={!isActive || busy}
-                      onClick={() => { onKill(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <circle cx="5" cy="5" r="4" />
-                          <line x1="3" y1="3" x2="7" y2="7" />
-                          <line x1="7" y1="3" x2="3" y2="7" />
-                        </svg>
-                      }
-                    >
-                      Kill
                     </Button>
                     <Button
                       variant="warning"

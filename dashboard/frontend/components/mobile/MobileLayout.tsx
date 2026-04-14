@@ -1,12 +1,15 @@
 "use client";
 
-import type { Run, FeedEvent, RunStatus, PendingMessage } from "@/lib/types";
+import { motion, AnimatePresence } from "framer-motion";
+import type { Run, FeedEvent, RunStatus, PendingMessage, ConnectionState } from "@/lib/types";
 import { RunList } from "@/components/sidebar/RunList";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { CommandInput } from "@/components/controls/CommandInput";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 import { MobileTab } from "@/components/mobile/MobileTab";
+import { ConnectionBanner } from "@/components/ui/ConnectionBanner";
+import type { ToastVariant } from "@/components/ui/Toast";
 
 export interface MobileLayoutProps {
   mobilePanel: "feed" | "runs" | "changes" | "logs";
@@ -19,7 +22,10 @@ export interface MobileLayoutProps {
   runStatus: RunStatus | null;
   selectedRun: Run | null;
   connected: boolean;
+  connectionState: ConnectionState;
+  historyTruncated: boolean;
   busy: boolean;
+  historyLoading: boolean;
   controlsOpen: boolean;
   setControlsOpen: (v: boolean) => void;
   onSelectRun: (id: string) => void;
@@ -27,6 +33,7 @@ export interface MobileLayoutProps {
   onResume: () => void;
   onInject: (prompt: string) => void;
   onRestart: (prompt: string) => void;
+  showToast: (message: string, variant: ToastVariant) => void;
 }
 
 function RunsIcon() {
@@ -87,7 +94,10 @@ export function MobileLayout({
   runStatus,
   selectedRun,
   connected,
+  connectionState,
+  historyTruncated,
   busy,
+  historyLoading,
   controlsOpen,
   setControlsOpen,
   onSelectRun,
@@ -95,48 +105,65 @@ export function MobileLayout({
   onResume,
   onInject,
   onRestart,
+  showToast,
 }: MobileLayoutProps) {
   return (
     <>
       {/* Mobile panel content */}
       <div className="flex-1 flex flex-col min-h-0 pb-14">
-        {mobilePanel === "runs" && (
-          <RunList
-            runs={runs}
-            activeId={selectedRunId}
-            onSelect={(id) => { onSelectRun(id); setMobilePanel("feed"); }}
-            loading={runsLoading}
-            mobile
-          />
-        )}
-        {mobilePanel === "feed" && (
-          <>
-            <EventFeed
-              events={allEvents}
-              pendingMessages={pendingMessages}
-              runActive={runActive(runStatus)}
-              runPaused={runStatus === "paused"}
-            />
-            <CommandInput
-              runId={selectedRunId}
-              status={runStatus}
-              run={selectedRun}
-              connected={connected}
-              events={allEvents}
-              busy={busy}
-              onPause={onPause}
-              onResume={onResume}
-              onInject={onInject}
-              onRestart={onRestart}
-            />
-          </>
-        )}
-        {mobilePanel === "changes" && (
-          <WorkTree events={allEvents} runId={selectedRunId} mobile />
-        )}
-        {mobilePanel === "logs" && (
-          <ContainerLogs runId={selectedRunId} />
-        )}
+        <AnimatePresence mode="wait">
+          {mobilePanel === "runs" && (
+            <motion.div key="runs" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <RunList
+                runs={runs}
+                activeId={selectedRunId}
+                onSelect={(id) => { onSelectRun(id); setMobilePanel("feed"); }}
+                loading={runsLoading}
+                mobile
+              />
+            </motion.div>
+          )}
+          {mobilePanel === "feed" && (
+            <motion.div key="feed" className="relative flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <ConnectionBanner
+                connectionState={connectionState}
+                runStatus={runStatus}
+                showToast={showToast}
+              />
+              <EventFeed
+                events={allEvents}
+                pendingMessages={pendingMessages}
+                runActive={runActive(runStatus)}
+                runPaused={runStatus === "paused"}
+                isLoading={historyLoading}
+                historyTruncated={historyTruncated}
+                hasSelectedRun={selectedRunId !== null}
+              />
+              <CommandInput
+                runId={selectedRunId}
+                status={runStatus}
+                run={selectedRun}
+                connected={connected}
+                events={allEvents}
+                busy={busy}
+                onPause={onPause}
+                onResume={onResume}
+                onInject={onInject}
+                onRestart={onRestart}
+              />
+            </motion.div>
+          )}
+          {mobilePanel === "changes" && (
+            <motion.div key="changes" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <WorkTree events={allEvents} runId={selectedRunId} mobile />
+            </motion.div>
+          )}
+          {mobilePanel === "logs" && (
+            <motion.div key="logs" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+              <ContainerLogs runId={selectedRunId} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Mobile bottom tab bar */}

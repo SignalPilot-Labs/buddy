@@ -3,6 +3,18 @@
 @theme {
   --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", ui-monospace, monospace;
 
+  /* Typography scale — 5-tier hierarchy */
+  --text-title: 14px;
+  --text-title--line-height: 1.3;
+  --text-body: 13px;
+  --text-body--line-height: 1.4;
+  --text-content: 12px;
+  --text-content--line-height: 1.4;
+  --text-meta: 11px;
+  --text-meta--line-height: 1.45;
+  --text-caption: 10px;
+  --text-caption--line-height: 1.5;
+
   /* SignalPilot Design System */
   --color-bg: #050505;
   --color-bg-card: #0a0a0a;
@@ -14,16 +26,23 @@
   --color-border: #1a1a1a;
   --color-border-hover: #2a2a2a;
   --color-border-active: #3a3a3a;
+  --color-border-subtle: #333333;
+  --color-border-muted: #555555;
+  --color-border-faint: #666666;
+
+  --color-bg-indicator: #444444;
 
   --color-text: #e8e8e8;
   --color-text-muted: #999999;
-  --color-text-dim: #666666;
+  --color-text-dim: #808080;
+  --color-text-secondary: #888888;
   --color-accent: #ffffff;
   --color-accent-hover: #cccccc;
 
   --color-success: #00ff88;
   --color-warning: #ffaa00;
   --color-error: #ff4444;
+  --color-info: #88ccff;
 
   --color-glow: rgba(255, 255, 255, 0.03);
 
@@ -544,7 +563,71 @@ input[type="number"]::-webkit-outer-spin-button {
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
   .mobile-tab-btn:active {
     transform: none;
   }
+}
+
+/* ── Sidebar scrollbar override ── */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-hover) rgba(255, 255, 255, 0.02);
+  /* Fade edges top + bottom via CSS mask */
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%
+  );
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border-hover);
+  border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-active);
+}
+
+/* ── AgentRunCard animations ── */
+@keyframes agent-shimmer {
+  0%   { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes agent-ring {
+  0%   { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0;   transform: scale(1.4); }
+}
+
+/* ── Run status flash animation ── */
+@keyframes status-flash {
+  0%   { background-color: var(--flash-color); }
+  100% { background-color: transparent; }
+}
+
+.status-flash {
+  animation: status-flash 500ms ease-out forwards;
 }

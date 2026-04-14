@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from datetime import datetime
 from typing import AsyncGenerator, NamedTuple
 
 from fastapi import APIRouter, Depends, Query, HTTPException
@@ -11,7 +12,13 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
-from backend.constants import POLL_LIMIT_DEFAULT, QUERY_MAX_LIMIT, SSE_POLL_INTERVAL_SEC
+from backend.constants import (
+    POLL_LIMIT_DEFAULT,
+    QUERY_MAX_LIMIT,
+    SSE_POLL_INTERVAL_SEC,
+    TYPE_PRIORITY_AUDIT,
+    TYPE_PRIORITY_TOOL,
+)
 from backend.models import RunId
 from backend.utils import model_to_dict, session
 from db.models import AuditLog, Run, ToolCall
@@ -22,10 +29,12 @@ router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_q
 
 _RUN_ENDED_STATUSES = frozenset({"completed", "completed_no_changes", "stopped", "killed", "crashed", "error"})
 
+# Sortable event tuple: (timestamp, type_priority, sse_string)
+_SortableEvent = tuple[datetime, int, str]
+
 
 class _PollResult(NamedTuple):
-    tool_events: list[str]
-    audit_events: list[str]
+    events: list[_SortableEvent]
     last_tool_id: int
     last_audit_id: int
     ended_payload: dict | None
@@ -41,26 +50,36 @@ async def stream_latest() -> StreamingResponse:
     return await stream_events(row)
 
 
-async def _fetch_new_tool_calls(s: AsyncSession, run_id: str, last_id: int) -> tuple[list[str], int]:
-    """Fetch new tool call SSE events since last_id."""
+async def _fetch_new_tool_calls(
+    s: AsyncSession, run_id: str, last_id: int
+) -> tuple[list[_SortableEvent], int]:
+    """Fetch new tool call events since last_id, returned as sortable tuples."""
     rows = (await s.execute(
         select(ToolCall)
         .where(ToolCall.run_id == run_id, ToolCall.id > last_id)
         .order_by(ToolCall.id)
     )).scalars().all()
-    events = [f"event: tool_call\ndata: {json.dumps(model_to_dict(tc), default=str)}\n\n" for tc in rows]
+    events: list[_SortableEvent] = [
+        (tc.ts, TYPE_PRIORITY_TOOL, f"event: tool_call\ndata: {json.dumps(model_to_dict(tc), default=str)}\n\n")
+        for tc in rows
+    ]
     new_last = rows[-1].id if rows else last_id
     return events, new_last
 
 
-async def _fetch_new_audit_events(s: AsyncSession, run_id: str, last_id: int) -> tuple[list[str], int]:
-    """Fetch new audit log SSE events since last_id."""
+async def _fetch_new_audit_events(
+    s: AsyncSession, run_id: str, last_id: int
+) -> tuple[list[_SortableEvent], int]:
+    """Fetch new audit log events since last_id, returned as sortable tuples."""
     rows = (await s.execute(
         select(AuditLog)
         .where(AuditLog.run_id == run_id, AuditLog.id > last_id)
         .order_by(AuditLog.id)
     )).scalars().all()
-    events = [f"event: audit\ndata: {json.dumps(model_to_dict(al), default=str)}\n\n" for al in rows]
+    events: list[_SortableEvent] = [
+        (al.ts, TYPE_PRIORITY_AUDIT, f"event: audit\ndata: {json.dumps(model_to_dict(al), default=str)}\n\n")
+        for al in rows
+    ]
     new_last = rows[-1].id if rows else last_id
     return events, new_last
 
@@ -100,9 +119,10 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
         tool_events, new_tool_id = await _fetch_new_tool_calls(s, run_id, last_tool_id)
         audit_events, new_audit_id = await _fetch_new_audit_events(s, run_id, last_audit_id)
 
-    found_any = bool(tool_events or audit_events)
+    merged = sorted(tool_events + audit_events, key=lambda ev: (ev[0], ev[1]))
+    found_any = bool(merged)
     ended_payload = None if found_any else await _check_run_ended(run_id)
-    return _PollResult(tool_events, audit_events, new_tool_id, new_audit_id, ended_payload)
+    return _PollResult(merged, new_tool_id, new_audit_id, ended_payload)
 
 
 @router.get("/stream/{run_id}")
@@ -123,11 +143,9 @@ async def stream_events(
         while True:
             result = await _poll_and_yield(run_id, last_tool_id, last_audit_id)
             last_tool_id, last_audit_id = result.last_tool_id, result.last_audit_id
-            for ev in result.tool_events:
-                yield ev
-            for ev in result.audit_events:
-                yield ev
-            if not (result.tool_events or result.audit_events):
+            for _ts, _priority, ev_str in result.events:
+                yield ev_str
+            if not result.events:
                 yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
             if result.ended_payload:
                 yield f"event: run_ended\ndata: {json.dumps(result.ended_payload)}\n\n"
@@ -174,4 +192,14 @@ async def poll_events(
     async with session() as s:
         tool_calls = await _query_recent_tool_calls(s, run_id, after_tool, limit)
         audit_events = await _query_recent_audit_events(s, run_id, after_audit, limit)
-    return {"tool_calls": tool_calls, "audit_events": audit_events}
+
+    for tc in tool_calls:
+        tc["_event_type"] = "tool_call"
+    for ae in audit_events:
+        ae["_event_type"] = "audit"
+
+    merged = sorted(
+        tool_calls + audit_events,
+        key=lambda ev: (str(ev.get("ts", "")), TYPE_PRIORITY_TOOL if ev["_event_type"] == "tool_call" else TYPE_PRIORITY_AUDIT),
+    )
+    return {"events": merged}

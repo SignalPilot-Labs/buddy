@@ -1,6 +1,6 @@
 "use client";
 
-import type { GroupedEvent } from "@/lib/groupEvents";
+import type { GroupedEvent } from "@/lib/groupEventTypes";
 import {
   LLMMessageCard,
   ControlMessage,
@@ -21,14 +21,14 @@ import { AgentRunCard } from "@/components/feed/AgentRunCard";
 
 export function GroupedEventCard({
   event,
-  isLast = false,
-  runActive = false,
-  runPaused = false,
+  isLast,
+  runActive,
+  runPaused,
 }: {
   event: GroupedEvent;
-  isLast?: boolean;
-  runActive?: boolean;
-  runPaused?: boolean;
+  isLast: boolean;
+  runActive: boolean;
+  runPaused: boolean;
 }) {
   switch (event.type) {
     case "llm_message":
@@ -89,7 +89,7 @@ export function GroupedEventCard({
     case "single_tool":
       return <SingleToolCard tool={event.tool} />;
     case "control":
-      return <ControlMessage text={event.text} ts={event.ts} />;
+      return <ControlMessage text={event.text} ts={event.ts} retryAction={event.retryAction} />;
     case "user_prompt":
       return <UserPromptCard prompt={event.prompt} ts={event.ts} pending={event.pending} failed={event.failed} />;
     case "milestone":
@@ -104,6 +104,10 @@ export function GroupedEventCard({
     case "divider":
       return <DividerCard label={event.label} />;
     default:
-      return null;
+      return (
+        <div className="text-caption text-text-dim px-3 py-1.5 rounded border border-border bg-white/[0.01]">
+          Unknown event: {(event as { type: string }).type}
+        </div>
+      );
   }
 }

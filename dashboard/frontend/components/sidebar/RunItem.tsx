@@ -1,12 +1,36 @@
 "use client";
 
+import { useRef, useState, useEffect } from "react";
 import { clsx } from "clsx";
 import { motion } from "framer-motion";
 import type { Run, RunStatus } from "@/lib/types";
 import { STATUS_META } from "@/lib/types";
 import { StatusBadge } from "@/components/ui/Badge";
-import { timeAgo, formatCost, formatTokens } from "@/lib/format";
-import { PROMPT_LABEL_MAX_LEN } from "@/lib/constants";
+import { timeAgo, formatCost } from "@/lib/format";
+import { PROMPT_LABEL_MAX_LEN, STATUS_FLASH_DURATION_MS } from "@/lib/constants";
+import { ModelBadge } from "@/components/ui/ModelBadge";
+
+function useStatusFlash(status: string): { flashing: boolean; flashColor: string; onAnimationEnd: () => void } {
+  const prevStatusRef = useRef<string>(status);
+  const [flashing, setFlashing] = useState(false);
+  const [flashColor, setFlashColor] = useState("");
+
+  useEffect(() => {
+    if (prevStatusRef.current !== status) {
+      prevStatusRef.current = status;
+      const meta = STATUS_META[status as RunStatus] || STATUS_META.error;
+      setFlashColor(`${meta.flashColor}26`);
+      setFlashing(true);
+      const id = setTimeout(() => setFlashing(false), STATUS_FLASH_DURATION_MS);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [status]);
+
+  const onAnimationEnd = () => setFlashing(false);
+
+  return { flashing, flashColor, onAnimationEnd };
+}
 
 export function RunItem({
   run,
@@ -24,6 +48,10 @@ export function RunItem({
     : run.branch_name.replace("autofyn/", "").slice(0, 20);
 
   const statusMeta = STATUS_META[run.status as RunStatus] || STATUS_META.error;
+  const { flashing, flashColor, onAnimationEnd } = useStatusFlash(run.status);
+
+  const durationLabel =
+    run.duration_minutes > 0 ? `${run.duration_minutes}m` : null;
 
   if (collapsed) {
     return (
@@ -31,10 +59,13 @@ export function RunItem({
         layout
         onClick={onClick}
         title={label}
+        onAnimationEnd={onAnimationEnd}
         className={clsx(
-          "group relative w-full flex items-center justify-center py-3 border-b border-[#1a1a1a]/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
-          active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]"
+          "group relative w-full flex items-center justify-center py-3 border-b border-border/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
+          active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]",
+          flashing && "status-flash"
         )}
+        style={flashing ? { "--flash-color": flashColor } as React.CSSProperties : undefined}
       >
         {active && (
           <motion.div
@@ -49,6 +80,8 @@ export function RunItem({
             statusMeta.dot,
             statusMeta.pulse && "animate-pulse"
           )}
+          role="status"
+          aria-label={`Run status: ${statusMeta.label}`}
         />
       </motion.button>
     );
@@ -58,12 +91,13 @@ export function RunItem({
     <motion.button
       layout
       onClick={onClick}
+      onAnimationEnd={onAnimationEnd}
       className={clsx(
-        "group relative w-full text-left px-4 py-3 border-b border-[#1a1a1a]/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
-        active
-          ? "bg-white/[0.03]"
-          : "hover:bg-white/[0.04]"
+        "group relative w-full text-left px-4 py-3 border-b border-border/60 transition-colors focus-visible:outline-1 focus-visible:outline-[#00ff88]",
+        active ? "bg-white/[0.03]" : "hover:bg-white/[0.04]",
+        flashing && "status-flash"
       )}
+      style={flashing ? { "--flash-color": flashColor } as React.CSSProperties : undefined}
     >
       {active && (
         <motion.div
@@ -76,42 +110,35 @@ export function RunItem({
       {/* Line 1: label + time ago */}
       <div className="flex items-center gap-2 mb-1">
         <span className={clsx(
-          "text-[12px] font-medium truncate flex-1",
-          active ? "text-[#e8e8e8]" : "text-[#ccc]"
+          "text-body font-medium truncate flex-1",
+          active ? "text-text" : "text-accent-hover"
         )}>
           {label}
         </span>
-        <span className="text-[10px] text-[#666] tabular-nums shrink-0">
+        <span className="text-meta text-text-dim tabular-nums shrink-0">
           {timeAgo(run.started_at)}
         </span>
       </div>
 
-      {/* Line 2: StatusBadge + tool count + cost */}
-      <div className="flex items-center gap-2 mb-0.5">
+      {/* Line 2: StatusBadge + model badge + cost */}
+      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
         <StatusBadge status={run.status as RunStatus} />
-        {run.total_tool_calls > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-[#888]">
-            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1">
-              <path d="M5.5 1L7 2.5 2.5 7H1V5.5L5.5 1z" />
-            </svg>
-            {run.total_tool_calls}
-          </span>
-        )}
+        <ModelBadge modelName={run.model_name} />
         {formatCost(run.total_cost_usd) && (
-          <span className="text-[10px] text-[#00ff88]/70 tabular-nums">
+          <span className="text-meta text-[#00ff88]/70 tabular-nums">
             {formatCost(run.total_cost_usd)}
           </span>
         )}
-        {(run.total_input_tokens || 0) > 0 && (
-          <span className="text-[10px] text-[#666] tabular-nums">
-            {formatTokens(run.total_input_tokens)}↓
+        {durationLabel && (
+          <span className="text-meta text-text-dim tabular-nums ml-auto">
+            {durationLabel}
           </span>
         )}
       </div>
 
       {/* Line 3: Error preview */}
       {run.error_message && (
-        <div className="mt-1 text-[10px] text-[#ff4444]/80 truncate">
+        <div className="mt-1 text-meta text-[#ff4444]/80 truncate">
           {run.error_message.slice(0, 80)}
         </div>
       )}

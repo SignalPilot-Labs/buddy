@@ -27,14 +27,17 @@ export function getButtonState(
   }
 
   if (status === "paused") {
-    return { label: "Send", variant: "primary", disabled: !hasText, icon: "send" };
+    if (hasText) {
+      return { label: "Resume & Send", variant: "primary", disabled: false, icon: "send" };
+    }
+    return { label: "Resume", variant: "success", disabled: false, icon: "send" };
   }
 
   if (status === "rate_limited") {
     if (hasText) {
       return { label: "Send", variant: "primary", disabled: false, icon: "send" };
     }
-    return { label: "Waiting...", variant: "warning", disabled: true, icon: "send" };
+    return { label: "Rate limited", variant: "warning", disabled: true, icon: "send" };
   }
 
   if (TERMINAL_STATUSES.has(status)) {

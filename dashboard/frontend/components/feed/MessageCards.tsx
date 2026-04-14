@@ -29,10 +29,10 @@ export function LLMMessageCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
       className={clsx(
-        "rounded-lg p-4",
+        "rounded-lg p-4 border-l-2 transition-all duration-150 hover:border-l-[3px]",
         isPlanner
-          ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10"
-          : "bg-white/[0.02] border border-white/[0.04]"
+          ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10 border-l-[#ff8844]"
+          : "bg-white/[0.02] border border-white/[0.04] border-l-[#00ff88]"
       )}
     >
       <div className="flex items-center gap-2 mb-2.5">
@@ -50,6 +50,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="#ff8844"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <path d="M2 9l2-4 2 2.5 2-3.5 2 5" />
               <rect x="1" y="9" width="10" height="1.5" rx="0.5" />
@@ -62,6 +63,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="#00ff88"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <path d="M6 1l1 3h3l-2.5 2 1 3L6 7.5 3.5 9l1-3L2 4h3L6 1z" />
             </svg>
@@ -69,19 +71,19 @@ export function LLMMessageCard({
         </div>
         <span
           className={clsx(
-            "text-[11px] font-semibold",
-            isPlanner ? "text-[#ff8844]" : "text-[#ccc]"
+            "text-title font-semibold",
+            isPlanner ? "text-[#ff8844]" : "text-accent-hover"
           )}
         >
           {isPlanner ? "Planner" : "AutoFyn"}
         </span>
-        <span className="text-[9px] text-[#777] tabular-nums">
+        <span className="text-caption text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
         {thinking && (
           <button
             onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-[10px] text-[#888] hover:text-[#ccc] transition-colors flex items-center gap-1"
+            className="ml-auto text-caption text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
           >
             <svg
               width="10"
@@ -90,6 +92,7 @@ export function LLMMessageCard({
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
+              aria-hidden="true"
             >
               <circle cx="5" cy="5" r="3.5" />
               <circle cx="5" cy="5" r="1" />
@@ -103,12 +106,13 @@ export function LLMMessageCard({
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
           className="mb-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
         >
-          <div className="text-[9px] text-[#888] uppercase tracking-wider font-semibold mb-1">
+          <div className="text-content text-text-secondary uppercase tracking-wider font-semibold mb-1">
             Reasoning
           </div>
-          <div className="text-[10px] text-[#666] italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
+          <div className="text-meta text-text-secondary italic leading-relaxed whitespace-pre-wrap break-words max-h-[300px] overflow-y-auto">
             {thinking}
           </div>
         </motion.div>
@@ -119,8 +123,8 @@ export function LLMMessageCard({
           <MarkdownContent
             content={text}
             className={clsx(
-              "text-[11px]",
-              isPlanner ? "text-[#cc9966]" : "text-[#bbb]"
+              "text-body",
+              isPlanner ? "text-[#cc9966]" : "text-accent-hover"
             )}
           />
           {isLast && (
@@ -139,11 +143,16 @@ export function LLMMessageCard({
 }
 
 /* ── Control ── */
-export function ControlMessage({ text, ts }: { text: string; ts: string }) {
+export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
-    <div className="flex items-center gap-2 px-4 py-2">
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="flex items-center gap-2 px-4 py-2"
+    >
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-      <div className="flex items-center gap-1.5 text-[10px] text-[#ffaa00]/70">
+      <div className="flex items-center gap-1.5 text-content text-[#ffaa00]/80">
         <svg
           width="10"
           height="10"
@@ -152,15 +161,24 @@ export function ControlMessage({ text, ts }: { text: string; ts: string }) {
           stroke="currentColor"
           strokeWidth="1.5"
           strokeLinecap="round"
+          aria-hidden="true"
         >
           <polyline points="2 4 5 7 2 10" />
           <line x1="6" y1="10" x2="9" y2="10" />
         </svg>
         {text}
-        <span className="text-[#777] tabular-nums">{fmtTime(ts)}</span>
+        {retryAction && (
+          <button
+            onClick={retryAction}
+            className="text-[#ffaa00] hover:underline ml-1"
+          >
+            Retry
+          </button>
+        )}
+        <span className="text-text-dim tabular-nums">{fmtTime(ts)}</span>
       </div>
       <div className="flex-1 h-px bg-[#ffaa00]/10" />
-    </div>
+    </motion.div>
   );
 }
 
@@ -173,25 +191,26 @@ export function UserPromptCard({ prompt, ts, pending, failed }: { prompt: string
     <motion.div
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
       className="flex justify-end px-4 py-1.5"
     >
-      <div className={`max-w-[75%] rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5`}>
+      <div className={`max-w-[75%] min-w-0 rounded-2xl rounded-tr-sm ${bgColor} border ${borderColor} px-4 py-2.5 overflow-hidden`}>
         <div className="flex items-center justify-between gap-4 mb-1">
-          <span className="text-[9px] font-semibold uppercase tracking-wider text-[#88ccff]">
+          <span className="text-content font-semibold uppercase tracking-wider text-[#88ccff]">
             You
           </span>
-          <span className="text-[9px] text-[#777] tabular-nums flex items-center gap-1.5">
+          <span className="text-caption text-text-dim tabular-nums flex items-center gap-1.5">
             {pending && (
               <span className={`inline-block h-1.5 w-1.5 rounded-full ${dotColor} animate-pulse`} />
             )}
             {failed && !pending && (
-              <span className="text-[#ff4444] text-[8px]">not delivered</span>
+              <span className="text-[#ff4444] text-caption">not delivered</span>
             )}
             {fmtTime(ts)}
           </span>
         </div>
-        <div className="max-h-[300px] overflow-y-auto">
-          <MarkdownContent content={prompt} className="text-[12px] text-[#cce8ff]" />
+        <div className="max-h-[300px] overflow-y-auto text-body text-[#cce8ff] whitespace-pre-wrap break-words leading-relaxed">
+          {prompt}
         </div>
       </div>
     </motion.div>
@@ -225,7 +244,7 @@ export function MilestoneCard({
           className="h-1.5 w-1.5 rounded-full"
           style={{ background: color }}
         />
-        <span className="text-[10px] font-semibold" style={{ color }}>
+        <span className="text-content font-semibold" style={{ color }}>
           {label}
         </span>
         {detail &&
@@ -234,16 +253,16 @@ export function MilestoneCard({
               href={detail}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[9px] text-[#666] max-w-[300px] truncate hover:text-[#aaa] underline underline-offset-2"
+              className="text-caption text-text-secondary max-w-[300px] truncate hover:text-accent-hover underline underline-offset-2"
             >
               {detail}
             </a>
           ) : (
-            <span className="text-[9px] text-[#666] max-w-[300px] truncate">
+            <span className="text-caption text-text-secondary max-w-[300px] truncate">
               {detail}
             </span>
           ))}
-        <span className="text-[9px] text-[#777] tabular-nums">
+        <span className="text-caption text-text-dim tabular-nums">
           {fmtTime(ts)}
         </span>
       </div>
@@ -257,7 +276,7 @@ export function DividerCard({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 px-4 py-1.5">
       <div className="flex-1 terminal-hr" />
-      <span className="text-[10px] text-[#777] uppercase tracking-wider">
+      <span className="text-content text-text-dim uppercase tracking-wider">
         {label}
       </span>
       <div className="flex-1 terminal-hr" />

@@ -23,6 +23,7 @@ from cli.constants import (
     PROMPT_SELECTOR_TRUNCATION,
     RUN_LABEL_PROMPT_WIDTH,
     RUN_LABEL_STATUS_WIDTH,
+    STOP_PR_DEFAULT,
 )
 from cli.output import (
     console,
@@ -145,12 +146,14 @@ def _action_menu(run: dict) -> None:
         if status in ("completed", "stopped", "error"):
             actions.append({"name": "Resume (inject + restart)", "value": "inject"})
 
-        actions.extend([
-            {"name": "Tool calls", "value": "tools"},
-            {"name": "Audit log", "value": "audit"},
-            {"name": "Diff stats", "value": "diff"},
-            {"name": "← Back", "value": "back"},
-        ])
+        actions.extend(
+            [
+                {"name": "Tool calls", "value": "tools"},
+                {"name": "Audit log", "value": "audit"},
+                {"name": "Diff stats", "value": "diff"},
+                {"name": "← Back", "value": "back"},
+            ]
+        )
 
         action = inquirer.select(
             message=f"Run {short_id(run_id)} ({status}) — choose action:",
@@ -178,8 +181,15 @@ def _dispatch_action(action: str, run: dict) -> None:
         client.post(f"/api/runs/{run_id}/resume", json={})
         print_success("Run resumed")
     elif action == "stop":
-        reason = typer.prompt("Reason", default="Operator requested stop")
-        client.post(f"/api/runs/{run_id}/stop", json={"payload": reason})
+        reason = typer.prompt("Reason", default="User requested stop")
+        open_pr_answer = typer.prompt(
+            "Open a Pull Request? [Y/n]", default=STOP_PR_DEFAULT,
+        )
+        skip_pr = open_pr_answer.strip().lower() not in ("y", "yes", "")
+        client.post(
+            f"/api/runs/{run_id}/stop",
+            json={"payload": reason, "skip_pr": skip_pr},
+        )
         print_success("Stop signal sent")
     elif action == "inject":
         prompt = typer.prompt("Prompt to inject")
@@ -206,10 +216,29 @@ def _dispatch_action(action: str, run: dict) -> None:
 
 @app.command("new")
 def start_run(
-    prompt: Optional[str] = typer.Option(None, "--prompt", "-p", metavar="<prompt>", help="Task prompt"),
-    budget: float = typer.Option(DEFAULT_RUN_BUDGET, "--budget", "-b", metavar="<amount>", help="Max budget USD (0 = unlimited)"),
-    duration: float = typer.Option(DEFAULT_RUN_DURATION, "--duration", "-d", metavar="<minutes>", help="Duration in minutes (0 = unlimited)"),
-    base_branch: str = typer.Option(DEFAULT_BASE_BRANCH, "--base-branch", metavar="<branch>", help="Branch to base work on"),
+    prompt: Optional[str] = typer.Option(
+        None, "--prompt", "-p", metavar="<prompt>", help="Task prompt"
+    ),
+    budget: float = typer.Option(
+        DEFAULT_RUN_BUDGET,
+        "--budget",
+        "-b",
+        metavar="<amount>",
+        help="Max budget USD (0 = unlimited)",
+    ),
+    duration: float = typer.Option(
+        DEFAULT_RUN_DURATION,
+        "--duration",
+        "-d",
+        metavar="<minutes>",
+        help="Duration in minutes (0 = unlimited)",
+    ),
+    base_branch: str = typer.Option(
+        DEFAULT_BASE_BRANCH,
+        "--base-branch",
+        metavar="<branch>",
+        help="Branch to base work on",
+    ),
 ) -> None:
     """Start a new agent run.
 
@@ -236,7 +265,9 @@ def start_run(
 
 @app.command("list")
 def list_runs(
-    repo: Optional[str] = typer.Option(None, "--repo", "-r", metavar="<owner/repo>", help="Filter by repo slug"),
+    repo: Optional[str] = typer.Option(
+        None, "--repo", "-r", metavar="<owner/repo>", help="Filter by repo slug"
+    ),
 ) -> None:
     """List recent runs.
 
@@ -254,26 +285,39 @@ def list_runs(
         return
     rows = []
     for r in data:
-        rows.append({
-            "id": short_id(r.get("id", "")),
-            "status": status_styled(r.get("status", "unknown")),
-            "branch": r.get("branch_name", "—"),
-            "repo": r.get("github_repo", "—"),
-            "prompt": (r.get("custom_prompt") or "—")[:PROMPT_LIST_TRUNCATION],
-            "started": relative_time(r.get("started_at")),
-            "duration": format_duration(r.get("duration_minutes")),
-            "cost": format_cost(r.get("total_cost_usd")),
-        })
-    print_table(rows, [
-        ("id", "ID"), ("status", "Status"), ("branch", "Branch"),
-        ("repo", "Repo"), ("prompt", "Prompt"), ("started", "Started"),
-        ("duration", "Duration"), ("cost", "Cost"),
-    ], title="Runs")
+        rows.append(
+            {
+                "id": short_id(r.get("id", "")),
+                "status": status_styled(r.get("status", "unknown")),
+                "branch": r.get("branch_name", "—"),
+                "repo": r.get("github_repo", "—"),
+                "prompt": (r.get("custom_prompt") or "—")[:PROMPT_LIST_TRUNCATION],
+                "started": relative_time(r.get("started_at")),
+                "duration": format_duration(r.get("duration_minutes")),
+                "cost": format_cost(r.get("total_cost_usd")),
+            }
+        )
+    print_table(
+        rows,
+        [
+            ("id", "ID"),
+            ("status", "Status"),
+            ("branch", "Branch"),
+            ("repo", "Repo"),
+            ("prompt", "Prompt"),
+            ("started", "Started"),
+            ("duration", "Duration"),
+            ("cost", "Cost"),
+        ],
+        title="Runs",
+    )
 
 
 @app.command("get")
 def get_run(
-    run_id: str = typer.Argument(metavar="<run_id>", help="Run ID (UUID from 'autofyn run list')"),
+    run_id: str = typer.Argument(
+        metavar="<run_id>", help="Run ID (UUID from 'autofyn run list')"
+    ),
 ) -> None:
     """Show run details and open an interactive action menu (pause, stop, inject, stream, etc).
 
@@ -291,7 +335,7 @@ def get_run(
 
 
 @app.callback(invoke_without_command=True)
-def run_callback(ctx: typer.Context) -> None:
+def run_callback(context: typer.Context) -> None:
     """Manage agent runs — start, list, inspect, and control runs.
 
     \b
@@ -304,7 +348,7 @@ def run_callback(ctx: typer.Context) -> None:
       autofyn run list                        List recent runs
       autofyn run get <run_id>                Inspect a specific run
     """
-    if ctx.invoked_subcommand is not None:
+    if context.invoked_subcommand is not None:
         return
 
     run = _select_run()

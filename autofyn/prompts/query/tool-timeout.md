@@ -1,0 +1,1 @@
+TOOL TIMEOUT: A tool call has been running for over {ELAPSED_MINUTES} minutes and was interrupted. This usually means a command hung or is waiting for input that will never arrive. Try a different approach or break the work into smaller steps.

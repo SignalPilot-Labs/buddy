@@ -1,20 +1,10 @@
 import type { FeedEvent, ToolCall } from "./types";
 import { getToolCategory, type ToolCategory } from "./types";
+import type { GroupedEvent } from "./groupEventTypes";
+import { milestoneFromAudit } from "./groupEventHelpers";
 
-/* ── Grouped Event Types ── */
-
-export type GroupedEvent =
-  | { type: "llm_message"; role: string; text: string; thinking: string; ts: string }
-  | { type: "tool_group"; category: ToolCategory; label: string; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "agent_run"; tool: ToolCall; childTools: ToolCall[]; finalText: string; agentType: string; ts: string }
-  | { type: "edit_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "bash_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "playwright_group"; tools: ToolCall[]; ts: string; totalDuration: number }
-  | { type: "single_tool"; tool: ToolCall; ts: string }
-  | { type: "control"; text: string; ts: string }
-  | { type: "milestone"; label: string; detail: string; color: string; ts: string; event?: FeedEvent }
-  | { type: "user_prompt"; prompt: string; ts: string; pending?: boolean; failed?: boolean }
-  | { type: "divider"; label: string; ts: string };
+export type { GroupedEvent } from "./groupEventTypes";
+export { extractReadFiles, extractReadPaths, extractEditSummary, extractBashCommands } from "./groupEventHelpers";
 
 /* ── Grouping Logic ── */
 
@@ -37,86 +27,6 @@ function getTs(e: FeedEvent): number {
   return new Date(e.ts).getTime();
 }
 
-function extractFilePath(tc: ToolCall): string {
-  const input = tc.input_data || {};
-  const output = tc.output_data || {};
-  const fp = (input.file_path as string) || (output.filePath as string) || "";
-  return fp.replace(/^\/home\/agentuser\/repo\//, "").replace(/^\/workspace\//, "");
-}
-
-function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
-  if (event._kind !== "audit") return null;
-  const d = event.data.details;
-  const ts = event.data.ts;
-
-  switch (event.data.event_type) {
-    case "run_started":
-      return { type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
-    case "round_complete":
-      return null; // Rounds are detected from git commit tool calls, not this audit event
-    case "pr_created":
-      return { type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
-    case "pr_failed":
-      return { type: "milestone", label: "PR Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
-    case "session_ended":
-      return { type: "milestone", label: "Session Ended", detail: `${d.changes_made || 0} changes · ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
-    case "killed":
-      return { type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
-    case "fatal_error":
-      return { type: "milestone", label: "Fatal Error", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
-    case "planner_invoked":
-      return { type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
-    case "end_session_denied":
-      return { type: "milestone", label: "Session Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
-    case "session_unlocked":
-      return { type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
-    case "stop_requested":
-      return { type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
-    case "pause_requested":
-      return { type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
-    case "resumed":
-      return { type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
-    case "rate_limit_paused": {
-      const resetEpoch = d.resets_at as number | undefined;
-      const resetDetail = resetEpoch
-        ? (() => {
-            const resetDate = new Date(resetEpoch * 1000);
-            const diffMs = resetEpoch * 1000 - Date.now();
-            const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-            if (diffMs <= 0) return `resets ${timeStr} (ready)`;
-            const h = Math.floor(diffMs / 3600000);
-            const m = Math.floor((diffMs % 3600000) / 60000);
-            return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
-          })()
-        : (d.reason as string) || "out of credits";
-      return { type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
-    }
-    case "prompt_injected":
-    case "prompt_submitted":
-      return { type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed) };
-    case "session_resumed":
-      return { type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
-    case "auto_commit":
-      return { type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
-    case "push_failed":
-      return { type: "milestone", label: "Push Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
-    case "permission_denied":
-      return { type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
-    case "run_ended":
-      return { type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
-    case "permission_allowed":
-    case "subagent_stuck":
-    case "subagent_timeout":
-      return null; // Skip — permission_allowed too frequent, subagent_stuck/subagent_timeout not currently emitted
-    case "sdk_config":
-      return null; // Too noisy, skip
-    case "rate_limit":
-      return null; // Skip unless it's a problem
-    default:
-      return null;
-  }
-}
-
 export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
   // ── Pass 1: Group subagent tool calls by agent_id ──
   // Tools with agent_id != null are subagent tools — they render inside their Agent card
@@ -131,51 +41,32 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     }
   }
 
-  // ── Pass 2: Match Agent tool calls to their subagent children via temporal matching ──
-  const agentCallToChildren = new Map<string, ToolCall[]>();
-  const agentCalls: { toolUseId: string; ts: number }[] = [];
-  for (const ev of events) {
-    if (ev._kind === "tool" && getToolCategory(ev.data.tool_name) === AGENT_CATEGORY && ev.data.tool_use_id) {
-      agentCalls.push({ toolUseId: ev.data.tool_use_id, ts: new Date(ev.data.ts).getTime() });
-    }
-  }
-  agentCalls.sort((a, b) => a.ts - b.ts);
-  const claimedAgentIds = new Set<string>();
-  for (const ac of agentCalls) {
-    let bestAid: string | null = null;
-    let bestDelta = Infinity;
-    for (const [aid, tools] of subagentTools) {
-      if (claimedAgentIds.has(aid)) continue;
-      const firstToolTs = new Date(tools[0].ts).getTime();
-      const delta = firstToolTs - ac.ts;
-      if (delta >= -2000 && delta < bestDelta) {
-        bestDelta = delta;
-        bestAid = aid;
-      }
-    }
-    if (bestAid) {
-      agentCallToChildren.set(ac.toolUseId, subagentTools.get(bestAid)!);
-      claimedAgentIds.add(bestAid);
-    }
-  }
-
-  // ── Pass 3: Collect subagent_complete audit events for final text ──
+  // ── Pass 2: Build deterministic agent_id → parent_tool_use_id map from audits ──
+  const agentIdToParentTuid = new Map<string, string>();
+  const subagentTypes = new Map<string, string>();
   const subagentFinalTexts = new Map<string, string>();
   for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_complete") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const text = ev.data.details?.final_text as string;
-      if (tuid && text) subagentFinalTexts.set(tuid, text);
+    if (ev._kind !== "audit") continue;
+    const details = ev.data.details;
+    if (!details) continue;
+    if (ev.data.event_type === "subagent_start") {
+      const parentTuid = details.parent_tool_use_id as string;
+      const agentId = details.agent_id as string;
+      const agentType = details.agent_type as string;
+      if (parentTuid && agentId) agentIdToParentTuid.set(agentId, parentTuid);
+      if (parentTuid && agentType) subagentTypes.set(parentTuid, agentType);
+    } else if (ev.data.event_type === "subagent_complete") {
+      const parentTuid = details.parent_tool_use_id as string;
+      const text = details.final_text as string;
+      if (parentTuid && text) subagentFinalTexts.set(parentTuid, text);
     }
   }
 
-  const subagentTypes = new Map<string, string>();
-  for (const ev of events) {
-    if (ev._kind === "audit" && ev.data.event_type === "subagent_start") {
-      const tuid = ev.data.details?.tool_use_id as string;
-      const agentType = ev.data.details?.agent_type as string;
-      if (tuid && agentType) subagentTypes.set(tuid, agentType);
-    }
+  // ── Pass 3: Attribute subagent tool groups to their parent Agent tool call ──
+  const agentCallToChildren = new Map<string, ToolCall[]>();
+  for (const [agentId, tools] of subagentTools) {
+    const parentTuid = agentIdToParentTuid.get(agentId);
+    if (parentTuid) agentCallToChildren.set(parentTuid, tools);
   }
 
   const result: GroupedEvent[] = [];
@@ -217,7 +108,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       }
 
       if (text || thinking) {
-        result.push({ type: "llm_message", role, text, thinking, ts });
+        result.push({ id: `llm-${ts}-${role}`, type: "llm_message", role, text, thinking, ts });
       }
       continue;
     }
@@ -230,7 +121,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
 
     // ── Control events ──
     if (ev._kind === "control") {
-      result.push({ type: "control", text: ev.text, ts: ev.ts });
+      result.push({ id: `ctrl-${ev.ts}-${ev.text.slice(0, 20)}`, type: "control", text: ev.text, ts: ev.ts, retryAction: ev.retryAction });
       i++;
       continue;
     }
@@ -249,19 +140,34 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       const cat = getToolCategory(tc.tool_name);
       const tsMs = getTs(ev);
 
-      // Agent calls: attach their subagent's child tools and final text
+      // Agent calls: attach their subagent's child tools and final text.
       if (cat === AGENT_CATEGORY) {
+        if (tc.phase === "post" && !tc.input_data) {
+          i++;
+          continue;
+        }
         const children = (tc.tool_use_id && agentCallToChildren.get(tc.tool_use_id)) || [];
         const finalText = (tc.tool_use_id && subagentFinalTexts.get(tc.tool_use_id)) || "";
         const agentType = (tc.tool_use_id && subagentTypes.get(tc.tool_use_id)) || "";
-        result.push({ type: "agent_run", tool: tc, childTools: children, finalText, agentType, ts: tc.ts });
+        result.push({ id: `agent-${tc.id}`, type: "agent_run", tool: tc, childTools: children, finalText, agentType, ts: tc.ts });
         i++;
         continue;
       }
 
-      // Session gate is a milestone
+      // ToolSearch exact-name lookups (select:X) are SDK plumbing — skip
+      if (cat === "tool_search" && typeof tc.input_data?.query === "string" && tc.input_data.query.startsWith("select:")) {
+        i++; continue;
+      }
+
+      // Session gate tools — render as milestones
       if (cat === "session_gate") {
-        result.push({ type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
+        const toolName = tc.tool_name.toLowerCase();
+        if (toolName.includes("end_round")) {
+          const summary = (tc.input_data?.summary as string) || "";
+          result.push({ id: `ms-${tc.ts}-End Round`, type: "milestone", label: "End Round", detail: summary, color: "#00ff88", ts: tc.ts });
+        } else {
+          result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
+        }
         i++;
         continue;
       }
@@ -283,7 +189,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `tg-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const label = cat === "read"
             ? `Read ${batch.length} files`
@@ -293,7 +199,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
                 ? `Grep ${batch.length} searches`
                 : `${batch.length} ${cat} calls`;
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `tg-${batch[0].id}`, type: "tool_group", category: cat, label, tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -311,10 +217,10 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `eg-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `eg-${batch[0].id}`, type: "edit_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -331,10 +237,10 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `bg-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `bg-${batch[0].id}`, type: "bash_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
@@ -351,16 +257,16 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         }
 
         if (batch.length === 1) {
-          result.push({ type: "single_tool", tool: batch[0], ts: batch[0].ts });
+          result.push({ id: `pg-${batch[0].id}`, type: "single_tool", tool: batch[0], ts: batch[0].ts });
         } else {
           const totalDuration = batch.reduce((sum, t) => sum + (t.duration_ms || 0), 0);
-          result.push({ type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
+          result.push({ id: `pg-${batch[0].id}`, type: "playwright_group", tools: batch, ts: batch[0].ts, totalDuration });
         }
         continue;
       }
 
       // Everything else: single tool
-      result.push({ type: "single_tool", tool: tc, ts: tc.ts });
+      result.push({ id: `st-${tc.id}`, type: "single_tool", tool: tc, ts: tc.ts });
       continue;
     }
 
@@ -368,95 +274,5 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     i++;
   }
 
-  return _insertCommitDividers(result);
-}
-
-const ROUND_PATTERN = /\[Round\s+(\d+)\]/i;
-
-function _insertCommitDividers(groups: GroupedEvent[]): GroupedEvent[] {
-  /** Insert a divider after any bash tool that runs git commit. */
-  const out: GroupedEvent[] = [];
-  for (const gev of groups) {
-    out.push(gev);
-    const commitRound = _detectGitCommit(gev);
-    if (commitRound !== null) {
-      const roundLabel = commitRound > 0 ? `Round ${commitRound}` : "Round";
-      out.push({ type: "divider", label: `${roundLabel} complete`, ts: gev.ts });
-    }
-  }
-  return out;
-}
-
-function _detectGitCommit(gev: GroupedEvent): number | null {
-  /** Check if a grouped event contains a git commit. Returns round number or 0 if unknown. */
-  const commands = _extractCommands(gev);
-  for (const cmd of commands) {
-    if (!cmd.includes("git commit") && !cmd.includes("git -c") ) continue;
-    if (!cmd.includes("commit")) continue;
-    const match = cmd.match(ROUND_PATTERN);
-    if (match) return parseInt(match[1], 10);
-    return 0;
-  }
-  return null;
-}
-
-function _extractCommands(gev: GroupedEvent): string[] {
-  /** Extract command strings from bash tools or groups. */
-  if (gev.type === "single_tool") {
-    return [(gev.tool.input_data?.command as string) || ""];
-  }
-  if (gev.type === "bash_group") {
-    return gev.tools.map((t) => (t.input_data?.command as string) || "");
-  }
-  return [];
-}
-
-/* ── Helpers for rendering ── */
-
-export function extractReadFiles(tools: ToolCall[]): string[] {
-  return tools.map(tc => {
-    const fp = extractFilePath(tc);
-    return fp.split("/").pop() || fp;
-  });
-}
-
-export function extractReadPaths(tools: ToolCall[]): string[] {
-  return tools.map(tc => extractFilePath(tc));
-}
-
-export function extractEditSummary(tools: ToolCall[]): Array<{ file: string; path: string; added: number; removed: number }> {
-  return tools.map(tc => {
-    const path = extractFilePath(tc);
-    const file = path.split("/").pop() || path;
-    const patch = tc.output_data?.structuredPatch as Array<Record<string, unknown>> | undefined;
-    let added = 0, removed = 0;
-    if (patch) {
-      for (const hunk of patch) {
-        const lines = (hunk.lines as string[]) || [];
-        for (const l of lines) {
-          if (l.startsWith("+") && !l.startsWith("+++")) added++;
-          if (l.startsWith("-") && !l.startsWith("---")) removed++;
-        }
-      }
-    }
-    return { file, path, added, removed };
-  });
-}
-
-export function extractBashCommands(tools: ToolCall[]): Array<{ cmd: string; desc: string; output: string; exitOk: boolean; duration: number }> {
-  return tools.map(tc => {
-    const input = tc.input_data || {};
-    const output = tc.output_data || {};
-    const cmd = (input.command as string) || "";
-    const desc = (input.description as string) || "";
-    const stdout = (output.stdout as string) || "";
-    const stderr = (output.stderr as string) || "";
-    return {
-      cmd: desc || cmd.slice(0, 120),
-      desc,
-      output: stderr ? `[stderr] ${stderr}\n${stdout}` : stdout,
-      exitOk: !stderr,
-      duration: tc.duration_ms || 0,
-    };
-  });
+  return result;
 }

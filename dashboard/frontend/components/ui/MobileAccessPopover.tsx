@@ -12,28 +12,42 @@ export function MobileAccessPopover() {
   const { url } = useNetworkInfo();
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
 
   const copyUrl = async () => {
     if (!url) return;
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API not available (e.g., non-HTTPS context)
+    }
   };
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="relative p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
+        className="relative p-1.5 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors"
         title="Mobile Access"
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
@@ -51,10 +65,10 @@ export function MobileAccessPopover() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full right-0 mt-1 z-50 w-[260px] bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg shadow-xl shadow-black/50 overflow-hidden"
+            className="absolute top-full right-0 mt-1 z-50 w-[260px] bg-bg-card border border-border rounded-lg shadow-xl shadow-black/50 overflow-hidden"
           >
-            <div className="px-3 py-2 border-b border-[#1a1a1a]">
-              <span className="text-[10px] uppercase tracking-[0.1em] text-[#666] font-semibold">
+            <div className="px-3 py-2 border-b border-border">
+              <span className="text-content uppercase tracking-[0.1em] text-text-secondary font-semibold">
                 Mobile Access
               </span>
             </div>
@@ -67,12 +81,12 @@ export function MobileAccessPopover() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <div className="flex-1 min-w-0 px-2 py-1.5 bg-white/[0.03] border border-[#1a1a1a] rounded text-[10px] text-[#88ccff] font-mono truncate">
+                    <div className="flex-1 min-w-0 px-2 py-1.5 bg-white/[0.03] border border-border rounded text-caption text-[#88ccff] font-mono truncate">
                       {url}
                     </div>
                     <button
                       onClick={copyUrl}
-                      className="shrink-0 p-1.5 rounded hover:bg-white/[0.04] text-[#888] hover:text-[#ccc] transition-colors"
+                      className="shrink-0 p-1.5 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors"
                       title="Copy URL"
                     >
                       {copied ? (
@@ -88,15 +102,15 @@ export function MobileAccessPopover() {
                     </button>
                   </div>
 
-                  <p className="text-[10px] text-[#666] leading-relaxed">
+                  <p className="text-content text-text-secondary leading-relaxed">
                     Scan from your phone on the same WiFi network.
                   </p>
                 </>
               ) : (
-                <p className="text-[10px] text-[#666] leading-relaxed">
+                <p className="text-content text-text-secondary leading-relaxed">
                   Could not detect local network IP. Start with{" "}
-                  <span className="font-mono text-[#888]">./start.sh</span> or set{" "}
-                  <span className="font-mono text-[#888]">HOST_IP</span> env var.
+                  <span className="font-mono text-text-secondary">./start.sh</span> or set{" "}
+                  <span className="font-mono text-text-secondary">HOST_IP</span> env var.
                 </p>
               )}
             </div>

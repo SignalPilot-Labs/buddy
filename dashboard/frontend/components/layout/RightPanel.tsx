@@ -1,8 +1,11 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import type { FeedEvent } from "@/lib/types";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
+
+const TAB_FADE_DURATION = 0.15;
 
 export interface RightPanelProps {
   runId: string | null;
@@ -35,18 +38,18 @@ function TerminalIcon() {
 
 export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanelProps) {
   return (
-    <div className="flex flex-col border-l border-[#1a1a1a] w-[280px] flex-shrink-0 min-h-0">
+    <div className="flex flex-col border-l border-border min-h-0 w-full h-full">
       {/* Segmented tab bar */}
-      <div className="bg-[#0a0a0a] p-2 shrink-0">
-        <div className="bg-[#111] rounded-lg p-0.5 flex" role="tablist">
+      <div className="bg-bg-card p-2 shrink-0">
+        <div className="bg-bg-hover rounded-lg p-0.5 flex" role="tablist">
           <button
             role="tab"
             aria-selected={activeTab === "changes"}
             onClick={() => onTabChange("changes")}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[10px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-meta font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "changes"
-                ? "bg-[#1a1a1a] text-[#e8e8e8] shadow-sm"
-                : "text-[#666] hover:text-[#999]"
+                ? "bg-border text-text shadow-sm"
+                : "text-text-secondary hover:text-accent-hover"
             }`}
           >
             <GitBranchIcon />
@@ -56,10 +59,10 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
             role="tab"
             aria-selected={activeTab === "logs"}
             onClick={() => onTabChange("logs")}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-[10px] font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
+            className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1 text-meta font-medium transition-all focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 ${
               activeTab === "logs"
-                ? "bg-[#1a1a1a] text-[#e8e8e8] shadow-sm"
-                : "text-[#666] hover:text-[#999]"
+                ? "bg-border text-text shadow-sm"
+                : "text-text-secondary hover:text-accent-hover"
             }`}
           >
             <TerminalIcon />
@@ -69,13 +72,22 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
       </div>
 
       {/* Panel content */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === "changes" ? (
-          <WorkTree events={events} runId={runId} />
-        ) : (
-          <ContainerLogs runId={runId} />
-        )}
-      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: TAB_FADE_DURATION }}
+          className="flex-1 min-h-0 overflow-hidden"
+        >
+          {activeTab === "changes" ? (
+            <WorkTree events={events} runId={runId} />
+          ) : (
+            <ContainerLogs runId={runId} />
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

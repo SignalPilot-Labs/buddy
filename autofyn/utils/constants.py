@@ -2,18 +2,42 @@
 
 from pathlib import Path
 
-# ── Subagent Timeouts ──
+# ── Timeouts ──
+TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call
 SUBAGENT_IDLE_KILL_SEC = 10 * 60  # 10 min idle — trigger interrupt+recovery
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
 RATE_LIMIT_MAX_WAIT_SEC = (
-    600  # Max seconds to wait for rate limit reset before stopping
+    1800  # Max seconds to wait for rate limit reset before stopping
 )
-SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge agent if no SSE events
+SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge orchestrator if no SSE events
+IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
+# Backstop for runs without a time lock. 128 rounds is enough for a
+# very long autonomous session (~8h at ~4 min/round) while still stopping
+# a runaway orchestrator that never judges the task done.
+MAX_ROUNDS = 128
+
+# ── Agent Models ──
+MODEL_OPUS = "opus"
+MODEL_SONNET = "sonnet"
+DEFAULT_AGENT_ROLE = "worker"
+SESSION_EFFORT = "medium"
+SESSION_PERMISSION_MODE = "bypassPermissions"
 
 # ── Logging ──
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
+RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
+ROUND_DIR_PREFIX = "/tmp/round-"
+ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
+METADATA_PATH = "/tmp/rounds.json"
+# Persistent round archive on the agent container's `autofyn-rounds`
+# volume. Sandboxes never mount this — the agent pulls/pushes reports
+# via file_system HTTP on round boundaries, keeping per-run isolation.
+# Lives under agentuser's home so no runtime root is needed — the
+# Dockerfile creates + chowns the dir at build time and Docker's named
+# volume first-mount copies that ownership into the volume.
+ROUND_ARCHIVE_AGENT_DIR = "/home/agentuser/.autofyn/rounds"
 LOG_PREVIEW_LIMIT = 200  # One-line log preview of assistant messages
 
 # ── Paths ──
@@ -28,6 +52,10 @@ BRANCH_SLUG_MAX_LEN = 16
 GIT_RETRY_ATTEMPTS = 3
 GIT_RETRY_DELAY_SEC = 2.0
 RATE_LIMIT_SLEEP_BUFFER_SEC = 5
+
+# ── Session Error Retry ──
+SESSION_ERROR_MAX_RETRIES = 3
+SESSION_ERROR_BASE_BACKOFF_SEC = 2  # Exponential: 2, 4, 8
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
@@ -58,6 +86,7 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 # ── Token env keys — passed per-run via extra_env, not os.environ ──
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
+ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"

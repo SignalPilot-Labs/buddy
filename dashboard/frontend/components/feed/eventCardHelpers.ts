@@ -17,9 +17,18 @@ export function fmtDuration(ms: number): string {
   return `${(ms / 60000).toFixed(1)}m`;
 }
 
+// Sandbox containers run all tool calls with cwd under /home/agentuser/.
+// Stripping that prefix turns `/home/agentuser/repo/pyproject.toml` into
+// `repo/pyproject.toml` (which is what users actually want to see), while
+// preserving absolute paths like `/tmp/round-1/architect.md` in full so
+// round-output files don't get confused with repo files.
+const SANDBOX_CWD_PREFIX = "/home/agentuser/";
+
 export function shortPath(p: string): string {
-  const parts = p.split("/");
-  return parts.length <= 2 ? p : parts.slice(-2).join("/");
+  if (p.startsWith(SANDBOX_CWD_PREFIX)) {
+    return p.slice(SANDBOX_CWD_PREFIX.length);
+  }
+  return p;
 }
 
 export function extractResultText(data: Record<string, unknown>): string {
