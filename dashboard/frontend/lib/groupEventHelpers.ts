@@ -62,8 +62,11 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
   const ts = event.data.ts;
 
   switch (event.data.event_type) {
-    case "run_started":
-      return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail: `${d.model || "claude"} · ${d.branch || ""}`, color: "#88ccff", ts, event };
+    case "run_started": {
+      const branch = d.branch && d.branch !== "pending" ? d.branch : "";
+      const detail = branch ? `${d.model || "claude"} · ${branch}` : `${d.model || "claude"}`;
+      return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail, color: "#88ccff", ts, event };
+    }
     case "round_complete":
       return null; // Legacy — superseded by round_ended below
     case "round_ended": {

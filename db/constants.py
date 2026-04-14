@@ -4,6 +4,11 @@ The `db` package is the only Python package imported by both `autofyn/` and
 `dashboard/backend/`, so cross-container constants that must not drift live here.
 """
 
+# Placeholder branch name for runs that haven't been bootstrapped yet.
+# The DB column is non-nullable, so we use this sentinel instead of NULL.
+# Bootstrap must treat this as "no branch" and generate a real name.
+BRANCH_PENDING_PLACEHOLDER: str = "pending"
+
 # Valid Claude model identifiers accepted at the run-start boundary.
 # Source of truth for: agent validation, dashboard Pydantic regex, fallback map.
 # "opus" and "sonnet" are Claude Code aliases resolved by the CLI to the latest

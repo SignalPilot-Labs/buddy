@@ -229,6 +229,43 @@ class TestBootstrapResumesBranch:
         mock_branch.assert_called_once()
         mock_status.assert_not_called()
 
+    @pytest.mark.asyncio
+    async def test_bootstrap_treats_pending_placeholder_as_no_branch(self) -> None:
+        """The 'pending' placeholder from create_run_starting must not be reused as a real branch."""
+        mock_sandbox = MagicMock()
+        mock_sandbox.repo.bootstrap = AsyncMock()
+        mock_sandbox.file_system.read_dir = AsyncMock(return_value={})
+        mock_sandbox.file_system.write_dir = AsyncMock()
+        mock_sandbox.file_system.read = AsyncMock(return_value="[]")
+        mock_sandbox.file_system.write = AsyncMock()
+
+        with (
+            patch("lifecycle.bootstrap.db.get_run_branch_name", new_callable=AsyncMock, return_value="pending"),
+            patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock) as mock_status,
+            patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock) as mock_branch,
+        ):
+            from lifecycle.bootstrap import bootstrap_run
+            await bootstrap_run(
+                sandbox=mock_sandbox,
+                run_id="run-1",
+                custom_prompt="fix the bug",
+                max_budget_usd=0,
+                duration_minutes=30.0,
+                base_branch="main",
+                github_repo="owner/repo",
+                model="sonnet",
+                effort="high",
+                git_token="ghp_test",
+                clone_timeout=60,
+            )
+
+        # Must generate a real branch, not reuse "pending"
+        call_args = mock_sandbox.repo.bootstrap.call_args
+        assert call_args.kwargs["working_branch"] != "pending"
+        assert "autofyn/" in call_args.kwargs["working_branch"]
+        mock_branch.assert_called_once()
+        mock_status.assert_not_called()
+
 
 class TestResumeEdgeCases:
     """Edge cases for the /resume endpoint dispatch logic."""
