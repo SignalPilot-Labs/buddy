@@ -213,6 +213,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "git_token": creds.get("git_token"),
         "github_repo": creds.get("github_repo"),
         "env": creds.get("env"),
+        "host_mounts": creds.get("host_mounts"),
     }, None, None)
 
 

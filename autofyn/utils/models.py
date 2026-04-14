@@ -336,6 +336,7 @@ class StartRequest(BaseModel):
     git_token: str | None = None
     github_repo: str | None = None
     env: dict[str, str] | None = None
+    host_mounts: list[dict[str, str]] | None = None
 
     @field_validator("model")
     @classmethod

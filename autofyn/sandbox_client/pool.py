@@ -13,6 +13,7 @@ import httpx
 import docker.errors
 from docker.models.containers import Container
 
+from db.constants import validate_host_mount
 from utils.constants import (
     DOCKER_SOCKET_PATH,
     ENV_KEY_ALLOW_DOCKER,
@@ -51,7 +52,11 @@ class SandboxPool:
         return env
 
     async def create(
-        self, run_key: str, health_timeout: int, extra_env: dict[str, str] | None,
+        self,
+        run_key: str,
+        health_timeout: int,
+        extra_env: dict[str, str] | None,
+        host_mounts: list[dict[str, str]] | None,
     ) -> SandboxClient:
         """Spin up a sandbox container for a run. Returns a connected SandboxClient."""
         container_name = f"autofyn-sandbox-{run_key}"
@@ -67,6 +72,17 @@ class SandboxPool:
         if self._allow_docker:
             volumes[DOCKER_SOCKET_PATH] = {"bind": DOCKER_SOCKET_PATH, "mode": "rw"}
             log.warning("Docker socket mounted into sandbox %s (--allow-docker)", container_name)
+        if host_mounts:
+            for mount in host_mounts:
+                host_path = mount.get("host_path", "")
+                container_path = mount.get("container_path", "")
+                mode = mount.get("mode", "ro")
+                error = validate_host_mount(host_path, container_path, mode)
+                if error:
+                    log.warning("Skipping invalid host mount: %s", error)
+                    continue
+                volumes[host_path] = {"bind": container_path, "mode": mode}
+                log.info("Host mount: %s → %s (%s)", host_path, container_path, mode)
 
         container: Container = await asyncio.to_thread(
             self._docker.containers.run,

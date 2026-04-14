@@ -41,6 +41,56 @@ VALID_EFFORTS_PATTERN: str = f"^({'|'.join(VALID_EFFORTS)})$"
 MODELS_SUPPORTING_MAX_EFFORT: frozenset[str] = frozenset({"opus", "sonnet"})
 
 
+# ── Host Mounts ──
+# Paths that must never be mounted into a sandbox, regardless of user config.
+# Prevents credential leaks, system damage, and container escapes.
+BLOCKED_MOUNT_PREFIXES: tuple[str, ...] = (
+    "/etc",
+    "/proc",
+    "/sys",
+    "/dev",
+    "/var/run",
+    "/root",
+    "/boot",
+    "/sbin",
+    "/usr/sbin",
+)
+BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
+    "/",
+    "/home",
+    "/tmp",
+    "/var",
+    "/usr",
+})
+VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
+DEFAULT_MOUNT_MODE: str = "ro"
+# Container-side prefix for host mounts. Each mount gets /mnt/host/<name>.
+MOUNT_CONTAINER_PREFIX: str = "/mnt/host"
+
+
+def validate_host_mount(
+    host_path: str,
+    container_path: str,
+    mode: str,
+) -> str | None:
+    """Validate a single host mount entry. Returns error string or None if valid."""
+    if not host_path or not host_path.startswith("/"):
+        return f"host_path must be an absolute path, got: {host_path!r}"
+    if not container_path or not container_path.startswith("/"):
+        return f"container_path must be an absolute path, got: {container_path!r}"
+    if mode not in VALID_MOUNT_MODES:
+        return f"mode must be one of {VALID_MOUNT_MODES}, got: {mode!r}"
+    if ".." in host_path.split("/"):
+        return f"host_path must not contain '..': {host_path!r}"
+    resolved = host_path.rstrip("/") or "/"
+    if resolved in BLOCKED_MOUNT_PATHS:
+        return f"host_path is blocked: {host_path!r}"
+    for prefix in BLOCKED_MOUNT_PREFIXES:
+        if resolved == prefix or resolved.startswith(prefix + "/"):
+            return f"host_path under blocked prefix {prefix}: {host_path!r}"
+    return None
+
+
 def resolve_sdk_model(model: str) -> str:
     """Translate an internal model key to the SDK model ID, or pass through."""
     return MODEL_ID_TRANSLATION.get(model, model)
