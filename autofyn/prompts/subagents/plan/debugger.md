@@ -35,3 +35,9 @@ Just the spec — no preamble, no meta-commentary. Do not return the spec as a m
 - If the bug is in a dependency or external service, say so — the spec may be "pin version X" or "stop using Y".
 - Be specific — file paths and line numbers everywhere.
 - Fail fast — don't propose fallback logic that hides the bug instead of fixing it.
+
+## Time Management
+
+- **> 15 min remaining**: Full investigation. Deep root cause analysis.
+- **5–15 min remaining**: Targeted fix. Find the immediate cause and spec a minimal fix.
+- **< 5 min remaining**: Only spec a fix if the root cause is already obvious. Do not start new investigations.
