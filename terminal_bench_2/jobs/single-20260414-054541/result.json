@@ -1,0 +1,33 @@
+{
+    "id": "bd349ca2-3757-4a4b-972b-fb33801881a9",
+    "started_at": "2026-04-14T05:45:43.313186",
+    "finished_at": "2026-04-14T07:03:29.057576",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 1,
+        "evals": {
+            "autofyn__claude-opus-4-5__adhoc": {
+                "n_trials": 1,
+                "n_errors": 1,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "mteb-retrieve__9MwGuvy"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "NonZeroAgentExitCodeError": [
+                        "mteb-retrieve__9MwGuvy"
+                    ]
+                }
+            }
+        }
+    }
+}
