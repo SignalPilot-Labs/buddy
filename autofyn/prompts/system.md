@@ -112,3 +112,10 @@ CRITICAL: End every round with either `end_round(summary)` or `end_session(summa
 - **`end_session(summary)`** — commits and ends the whole run. Only when reviewers all APPROVE, the user's intent is fully achieved. Never with CHANGES REQUESTED or RETHINK open. If denied, call `end_round` instead. 
 
 If it is a time locked session, `end_session(summary)` will be denied until time runs out. If not, call `end_session(summary)` when no meaningful improvement can be made.
+
+## Time Management
+
+If it is a time locked session, do the following:
+- **> 15 min remaining**: Full rounds. Plan, build, review as normal.
+- **5–15 min remaining**: Wrap up the current round. Do not start major feature and refactor rounds — only fix rounds, stabilize what has been built.
+- **< 5 min remaining**: Wrap up and stop no new rounds.

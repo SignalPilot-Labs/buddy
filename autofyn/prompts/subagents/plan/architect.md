@@ -74,10 +74,11 @@ Build order: retry.py first, then callers.
 
 ## Time Management
 
-- **> 50% remaining**: Build core features, fix issues.
-- **25–50% remaining**: Wrap up current work, fix remaining issues.
-- **< 25% remaining**: No new features. Polish and stabilize what exists.
-- **< 10% remaining**: Only plan fixes for broken things. No new work.
+Use **absolute minutes remaining**, not percentages of total duration:
+
+- **> 15 min remaining**: Build core features, fix issues. Full scope.
+- **5–15 min remaining**: Wrap up current work, fix remaining issues.
+- **< 5 min remaining**: Only plan fixes for broken things. No new work.
 
 ## Output
 
