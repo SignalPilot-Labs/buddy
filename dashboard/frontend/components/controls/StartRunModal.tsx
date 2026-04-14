@@ -156,8 +156,8 @@ function envToText(env: Record<string, string>): string {
 }
 
 const EFFORT_OPTIONS: { value: "medium" | "high" | "max"; label: string; desc: string }[] = [
-  { value: "medium", label: "Medium", desc: "Balanced speed & quality" },
-  { value: "high", label: "High", desc: "Deep reasoning (default)" },
+  { value: "medium", label: "Medium", desc: "Balanced speed & quality (default)" },
+  { value: "high", label: "High", desc: "Deep reasoning" },
   { value: "max", label: "Max", desc: "Maximum capability" },
 ];
 
@@ -211,7 +211,7 @@ export function StartRunModal({
   const [baseBranch, setBaseBranch] = useState("main");
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
-  const [effort, setEffort] = useState<"medium" | "high" | "max">("high");
+  const [effort, setEffort] = useState<"medium" | "high" | "max">("medium");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);

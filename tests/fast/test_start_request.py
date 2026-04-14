@@ -40,9 +40,9 @@ class TestStartRequestValidation:
         req = StartRequest(base_branch="  main  ")
         assert req.base_branch == "main"
 
-    def test_default_effort_is_high(self):
+    def test_default_effort_is_medium(self):
         req = StartRequest()
-        assert req.effort == "high"
+        assert req.effort == "medium"
 
     def test_accepts_valid_effort_values(self):
         for val in ("medium", "high", "max"):

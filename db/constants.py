@@ -29,7 +29,7 @@ MODEL_ID_TRANSLATION: dict[str, str] = {
 # "max" is only supported on 4.6 models (opus, sonnet); for older models
 # it is silently downgraded to "high" at the bootstrap boundary.
 VALID_EFFORTS: tuple[str, ...] = ("medium", "high", "max")
-DEFAULT_EFFORT: str = "high"
+DEFAULT_EFFORT: str = "medium"
 VALID_EFFORTS_PATTERN: str = f"^({'|'.join(VALID_EFFORTS)})$"
 
 # Models that support effort="max". Others get downgraded to "high".
