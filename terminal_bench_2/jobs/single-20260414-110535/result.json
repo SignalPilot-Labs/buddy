@@ -1,0 +1,33 @@
+{
+    "id": "52fe53a6-355f-4b70-afad-06257beae190",
+    "started_at": "2026-04-14T11:05:37.722599",
+    "finished_at": "2026-04-14T11:35:53.716419",
+    "n_total_trials": 1,
+    "stats": {
+        "n_trials": 1,
+        "n_errors": 1,
+        "evals": {
+            "autofyn__claude-opus-4-6__adhoc": {
+                "n_trials": 1,
+                "n_errors": 1,
+                "metrics": [
+                    {
+                        "mean": 0.0
+                    }
+                ],
+                "reward_stats": {
+                    "reward": {
+                        "0.0": [
+                            "dna-assembly__mmnnZZg"
+                        ]
+                    }
+                },
+                "exception_stats": {
+                    "AgentTimeoutError": [
+                        "dna-assembly__mmnnZZg"
+                    ]
+                }
+            }
+        }
+    }
+}
