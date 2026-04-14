@@ -398,10 +398,7 @@ export function StartRunModal({
                 {/* Thinking Effort */}
                 <div className="flex items-center justify-between">
                   <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">
-                    Effort
-                    <span className="normal-case tracking-normal font-normal ml-1.5 text-text-secondary">
-                      ({effort})
-                    </span>
+                    Thinking Effort
                   </label>
                   <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5">
                     {EFFORT_LEVELS.map((level) => (
