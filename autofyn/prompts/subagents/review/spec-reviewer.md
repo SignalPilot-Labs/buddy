@@ -18,6 +18,7 @@ If you challenge the premise (wrong problem or wrong approach), your verdict MUS
 - **Dependency direction** — no circular imports, no domain layer reaching into infrastructure.
 - **Duplication** — spec isn't reimplementing something already in the codebase.
 - **Removals** — if the spec deletes or removes any function, class, component, constant, or file, grep the codebase to verify nothing else imports or uses it. Flag incorrect removals as Critical.
+- **Scope** — if the spec touches 20+ files, attempts 3+ unrelated tasks at once, flag it as too large. Suggest splitting into smaller focused rounds. A spec that tries to do everything in one round will produce buggy, hard-to-review code.
 - **Simplicity** — fewer files, classes, or abstractions if possible.
 - **CLAUDE.md compliance** — follows project rules (constants, error handling, imports, test structure, no defensive coding).
 - **Accumulated bloat** — if the spec adds to a file that's already large (>400 lines) or a module that's lost cohesion, flag it and suggest splitting first.
