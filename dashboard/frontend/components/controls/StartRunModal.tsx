@@ -352,7 +352,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
                   <div className="space-y-2">
-                    <p className="text-content text-text-secondary mb-2">Bind host dirs into the sandbox. Repo lives at /home/agentuser/repo.</p>
+                    <p className="text-content text-text-secondary mb-2">Repo is at /home/agentuser/repo inside the sandbox.</p>
                     {mounts.map((m, i) => (
                       <div key={i} className="space-y-1.5 mb-3">
                         <div className="flex items-center gap-2">
