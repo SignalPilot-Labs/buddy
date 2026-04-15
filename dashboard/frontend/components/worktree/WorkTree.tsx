@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
@@ -221,12 +221,13 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // Live changes from event stream
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
   const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
+  const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
 
   // Git diff tree
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
-  const hasLiveChanges = liveChanges.filter(c => c.action !== "read").length > 0;
+  const hasLiveChanges = writeChanges.length > 0;
 
   // Determine what to show: "diff", "session", or "empty"
   type ShowSource = "diff" | "session" | "empty";
@@ -245,7 +246,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // File count for the header — reflects the active source
   const headerFileCount: number = (() => {
     if (showSource === "diff" && diffData) return diffData.total_files;
-    if (showSource === "session") return new Set(liveChanges.filter(c => c.action !== "read").map(c => c.path)).size;
+    if (showSource === "session") return new Set(writeChanges.map(c => c.path)).size;
     return 0;
   })();
 
@@ -260,9 +261,10 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  const sortedRoots = (tree: TreeNode) =>
+  const sortedRoots = useCallback((tree: TreeNode) =>
     Array.from(tree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1),
+  []);
 
   return (
     <div className="flex flex-col bg-sidebar border-l border-border mr-1 h-full w-full">
