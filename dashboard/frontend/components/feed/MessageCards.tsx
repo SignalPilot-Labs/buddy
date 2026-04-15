@@ -6,6 +6,75 @@ import { clsx } from "clsx";
 import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { fmtTime } from "@/components/feed/eventCardHelpers";
 
+/* ── Base Message Card ── */
+function MessageCard({
+  color,
+  icon,
+  title,
+  ts,
+  actions,
+  children,
+}: {
+  color: string;
+  icon: React.ReactNode;
+  title: string;
+  ts: string;
+  actions?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+      className="rounded-lg p-4 border-l-2 transition-all duration-150 hover:border-l-[3px]"
+      style={{
+        background: `${color}0a`,
+        borderColor: `${color}1a`,
+        borderLeftColor: color,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-2.5">
+        <div
+          className="flex items-center justify-center h-6 w-6 rounded-md"
+          style={{ background: `${color}1a` }}
+        >
+          {icon}
+        </div>
+        <span className="text-title font-semibold" style={{ color }}>
+          {title}
+        </span>
+        <span className="text-caption text-text-dim tabular-nums">
+          {fmtTime(ts)}
+        </span>
+        {actions}
+      </div>
+      {children}
+    </motion.div>
+  );
+}
+
+const ICON_AUTOFYN = (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#00ff88" strokeWidth="1.5" aria-hidden="true">
+    <path d="M6 1l1 3h3l-2.5 2 1 3L6 7.5 3.5 9l1-3L2 4h3L6 1z" />
+  </svg>
+);
+
+const ICON_PLANNER = (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ff8844" strokeWidth="1.5" aria-hidden="true">
+    <path d="M2 9l2-4 2 2.5 2-3.5 2 5" />
+    <rect x="1" y="9" width="10" height="1.5" rx="0.5" />
+  </svg>
+);
+
+const ICON_ERROR = (
+  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ff4444" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+    <circle cx="6" cy="6" r="5" />
+    <line x1="6" y1="3.5" x2="6" y2="6.5" />
+    <circle cx="6" cy="8.5" r="0.5" fill="#ff4444" stroke="none" />
+  </svg>
+);
+
 /* ── LLM Message ── */
 export function LLMMessageCard({
   role,
@@ -22,86 +91,27 @@ export function LLMMessageCard({
 }) {
   const [showThinking, setShowThinking] = useState(false);
   const isPlanner = role === "planner";
+  const color = isPlanner ? "#ff8844" : "#00ff88";
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className={clsx(
-        "rounded-lg p-4 border-l-2 transition-all duration-150 hover:border-l-[3px]",
-        isPlanner
-          ? "bg-[#ff8844]/[0.04] border border-[#ff8844]/10 border-l-[#ff8844]"
-          : "bg-white/[0.02] border border-white/[0.04] border-l-[#00ff88]"
-      )}
+    <MessageCard
+      color={color}
+      icon={isPlanner ? ICON_PLANNER : ICON_AUTOFYN}
+      title={isPlanner ? "Planner" : "AutoFyn"}
+      ts={ts}
+      actions={thinking ? (
+        <button
+          onClick={() => setShowThinking(!showThinking)}
+          className="ml-auto text-caption text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <circle cx="5" cy="5" r="3.5" />
+            <circle cx="5" cy="5" r="1" />
+          </svg>
+          {showThinking ? "hide reasoning" : "show reasoning"}
+        </button>
+      ) : undefined}
     >
-      <div className="flex items-center gap-2 mb-2.5">
-        <div
-          className={clsx(
-            "flex items-center justify-center h-6 w-6 rounded-md",
-            isPlanner ? "bg-[#ff8844]/10" : "bg-[#00ff88]/8"
-          )}
-        >
-          {isPlanner ? (
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="#ff8844"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <path d="M2 9l2-4 2 2.5 2-3.5 2 5" />
-              <rect x="1" y="9" width="10" height="1.5" rx="0.5" />
-            </svg>
-          ) : (
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              stroke="#00ff88"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <path d="M6 1l1 3h3l-2.5 2 1 3L6 7.5 3.5 9l1-3L2 4h3L6 1z" />
-            </svg>
-          )}
-        </div>
-        <span
-          className={clsx(
-            "text-title font-semibold",
-            isPlanner ? "text-[#ff8844]" : "text-accent-hover"
-          )}
-        >
-          {isPlanner ? "Planner" : "AutoFyn"}
-        </span>
-        <span className="text-caption text-text-dim tabular-nums">
-          {fmtTime(ts)}
-        </span>
-        {thinking && (
-          <button
-            onClick={() => setShowThinking(!showThinking)}
-            className="ml-auto text-caption text-text-secondary hover:text-accent-hover transition-colors flex items-center gap-1"
-          >
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              aria-hidden="true"
-            >
-              <circle cx="5" cy="5" r="3.5" />
-              <circle cx="5" cy="5" r="1" />
-            </svg>
-            {showThinking ? "hide reasoning" : "show reasoning"}
-          </button>
-        )}
-      </div>
-
       {showThinking && thinking && (
         <motion.div
           initial={{ height: 0, opacity: 0 }}
@@ -117,61 +127,40 @@ export function LLMMessageCard({
           </div>
         </motion.div>
       )}
-
       {text && (
         <div>
           <MarkdownContent
             content={text}
-            className={clsx(
-              "text-body",
-              isPlanner ? "text-[#cc9966]" : "text-accent-hover"
-            )}
+            className={clsx("text-body", isPlanner ? "text-[#cc9966]" : "text-accent-hover")}
           />
           {isLast && (
             <span
-              className={clsx(
-                "inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]",
-                isPlanner ? "bg-[#ff8844]/30" : "bg-[#00ff88]/25"
-              )}
-              style={{ animation: "blink 1s step-end infinite" }}
+              className="inline-block w-[5px] h-[13px] ml-0.5 rounded-[1px]"
+              style={{ background: `${color}40`, animation: "blink 1s step-end infinite" }}
             />
           )}
         </div>
       )}
-    </motion.div>
+    </MessageCard>
   );
 }
 
 /* ── Control / Error ── */
 export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="rounded-lg p-4 border-l-2 bg-[#ff4444]/[0.04] border border-[#ff4444]/10 border-l-[#ff4444]"
+    <MessageCard
+      color="#ff4444"
+      icon={ICON_ERROR}
+      title="Error"
+      ts={ts}
+      actions={retryAction ? (
+        <button onClick={retryAction} className="ml-auto text-caption text-[#ff4444] hover:underline">
+          Retry
+        </button>
+      ) : undefined}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <div className="flex items-center justify-center h-6 w-6 rounded-md bg-[#ff4444]/10">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ff4444" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-            <circle cx="6" cy="6" r="5" />
-            <line x1="6" y1="3.5" x2="6" y2="6.5" />
-            <circle cx="6" cy="8.5" r="0.5" fill="#ff4444" stroke="none" />
-          </svg>
-        </div>
-        <span className="text-title font-semibold text-[#ff4444]">Error</span>
-        <span className="text-caption text-text-dim tabular-nums">{fmtTime(ts)}</span>
-        {retryAction && (
-          <button
-            onClick={retryAction}
-            className="ml-auto text-caption text-[#ff4444] hover:underline"
-          >
-            Retry
-          </button>
-        )}
-      </div>
       <div className="text-body text-[#ff8888] whitespace-pre-wrap break-words">{text}</div>
-    </motion.div>
+    </MessageCard>
   );
 }
 

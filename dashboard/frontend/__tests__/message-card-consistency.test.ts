@@ -1,9 +1,9 @@
 /**
- * Message card consistency tests.
+ * Message card structure tests.
  *
- * LLMMessageCard and ControlMessage share the same card layout pattern.
- * If one changes structure, the other must match. These tests catch
- * style drift between the two cards.
+ * LLMMessageCard and ControlMessage both compose a shared MessageCard
+ * base. These tests verify the base exists and both cards use it,
+ * preventing duplication regressions.
  */
 
 import { describe, it, expect } from "vitest";
@@ -15,29 +15,31 @@ const SRC = fs.readFileSync(
   "utf-8",
 );
 
-describe("message card consistency", () => {
-  it("both cards use rounded-lg p-4 border-l-2 layout", () => {
-    // Both LLMMessageCard and ControlMessage must use the same card frame
-    const matches = SRC.match(/rounded-lg p-4 border-l-2/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
+describe("message card structure", () => {
+  it("MessageCard base component exists", () => {
+    expect(SRC).toContain("function MessageCard(");
   });
 
-  it("both cards use text-title font-semibold for header", () => {
-    const matches = SRC.match(/text-title font-semibold/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  it("LLMMessageCard composes MessageCard", () => {
+    expect(SRC).toContain("<MessageCard");
+    // Must appear in LLMMessageCard function body
+    const llmBlock = SRC.slice(SRC.indexOf("function LLMMessageCard"), SRC.indexOf("function ControlMessage"));
+    expect(llmBlock).toContain("<MessageCard");
   });
 
-  it("both cards use text-caption for timestamp", () => {
-    const matches = SRC.match(/text-caption text-text-dim tabular-nums/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  it("ControlMessage composes MessageCard", () => {
+    const ctrlBlock = SRC.slice(SRC.indexOf("function ControlMessage"));
+    expect(ctrlBlock).toContain("<MessageCard");
   });
 
-  it("both cards use h-6 w-6 icon container", () => {
-    const matches = SRC.match(/h-6 w-6 rounded-md/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  it("layout classes exist only in MessageCard base, not in LLM or Control", () => {
+    const llmBlock = SRC.slice(SRC.indexOf("function LLMMessageCard"), SRC.indexOf("function ControlMessage"));
+    const ctrlBlock = SRC.slice(SRC.indexOf("function ControlMessage"), SRC.indexOf("function UserPromptCard"));
+
+    // These structural classes must NOT appear in LLM or Control — only in the base
+    for (const block of [llmBlock, ctrlBlock]) {
+      expect(block).not.toContain("rounded-lg p-4 border-l-2");
+      expect(block).not.toContain("h-6 w-6 rounded-md");
+    }
   });
 });
