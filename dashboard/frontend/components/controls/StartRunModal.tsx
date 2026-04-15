@@ -353,70 +353,60 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
                   <div className="space-y-2">
                     {mounts.map((m, i) => (
-                      <div key={i} className="rounded border border-border bg-black/20 p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] uppercase tracking-wider text-text-dim">Host path</span>
+                      <div key={i} className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
+                          <input
+                            type="text"
+                            value={m.host_path}
+                            onChange={(e) => {
+                              const next = [...mounts];
+                              next[i] = { ...m, host_path: e.target.value };
+                              setMounts(next);
+                            }}
+                            placeholder="/Users/you/datasets"
+                            className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
+                          <input
+                            type="text"
+                            value={m.container_path}
+                            onChange={(e) => {
+                              const next = [...mounts];
+                              next[i] = { ...m, container_path: e.target.value };
+                              setMounts(next);
+                            }}
+                            placeholder="/home/agentuser/repo/data"
+                            className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 pl-[72px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = [...mounts];
+                              next[i] = { ...m, mode: m.mode === "ro" ? "rw" : "ro" };
+                              setMounts(next);
+                            }}
+                            className={clsx(
+                              "text-content transition-colors",
+                              m.mode === "rw" ? "text-[#ffaa00]" : "text-text-secondary"
+                            )}
+                          >
+                            {m.mode === "ro" ? "Read only" : "Read & write"}
+                          </button>
+                          <span className="text-text-dim">·</span>
                           <button
                             type="button"
                             onClick={() => setMounts(mounts.filter((_, j) => j !== i))}
-                            className="p-0.5 text-text-dim hover:text-[#ff4444] transition-colors"
+                            className="text-content text-text-dim hover:text-[#ff4444] transition-colors"
                           >
-                            <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-                            </svg>
+                            Remove
                           </button>
                         </div>
-                        <input
-                          type="text"
-                          value={m.host_path}
-                          onChange={(e) => {
-                            const next = [...mounts];
-                            next[i] = { ...m, host_path: e.target.value };
-                            setMounts(next);
-                          }}
-                          placeholder="/Users/you/datasets"
-                          className="w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
-                        />
-                        <div className="flex items-center gap-1.5 text-text-dim">
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                            <line x1="5" y1="2" x2="5" y2="8" /><polyline points="3 6 5 8 7 6" />
-                          </svg>
-                          <span className="text-[11px] uppercase tracking-wider">Sandbox path</span>
-                        </div>
-                        <input
-                          type="text"
-                          value={m.container_path}
-                          onChange={(e) => {
-                            const next = [...mounts];
-                            next[i] = { ...m, container_path: e.target.value };
-                            setMounts(next);
-                          }}
-                          placeholder="/home/agentuser/repo/data"
-                          className="w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = [...mounts];
-                            next[i] = { ...m, mode: m.mode === "ro" ? "rw" : "ro" };
-                            setMounts(next);
-                          }}
-                          className={clsx(
-                            "flex items-center gap-1.5 text-content transition-colors",
-                            m.mode === "rw" ? "text-[#ffaa00]" : "text-text-secondary"
-                          )}
-                        >
-                          <span className={clsx(
-                            "inline-block w-6 h-3.5 rounded-full relative transition-colors",
-                            m.mode === "rw" ? "bg-[#ffaa00]/30" : "bg-white/10"
-                          )}>
-                            <span className={clsx(
-                              "absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all",
-                              m.mode === "rw" ? "left-3 bg-[#ffaa00]" : "left-0.5 bg-white/40"
-                            )} />
-                          </span>
-                          {m.mode === "ro" ? "Read only" : "Read & write"}
-                        </button>
+                        {i < mounts.length - 1 && <div className="border-b border-border/50 mt-2" />}
                       </div>
                     ))}
                     <button
