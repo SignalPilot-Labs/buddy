@@ -96,24 +96,29 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   );
 
   const handleRestart = useCallback(
-    (prompt: string): void => {
+    (prompt?: string): void => {
       if (!selectedRunId) return;
       const pid = prompt ? addPendingMessage(prompt) : 0;
       resumeAgent(selectedRunId, prompt)
         .then(() => {
+          refreshRunsRef.current();
           const runId = selectedRunIdRef.current;
           if (runId) {
             sseRef.current.disconnect();
             sseRef.current.clearEvents();
+            // Reset cursors to -1 so SSE backend initializes from DB.
+            // After a restart, new events have new IDs — old cursors
+            // would miss them.
+            cursorsRef.current = { afterTool: -1, afterAudit: -1 };
             sseRef.current.connect(runId, cursorsRef.current);
           }
         })
         .catch((e) => {
           if (pid) markPendingFailed(pid);
-          addEvent({ _kind: "control", text: `Restart failed: ${e}`, ts: new Date().toISOString() });
+          addEvent({ _kind: "control", text: `Resume failed: ${e}`, ts: new Date().toISOString() });
         });
     },
-    [selectedRunId, selectedRunIdRef, addPendingMessage, markPendingFailed, addEvent, sseRef, cursorsRef],
+    [selectedRunId, selectedRunIdRef, addPendingMessage, markPendingFailed, addEvent, sseRef, cursorsRef, refreshRunsRef],
   );
 
   const handleStopClick = useCallback((): void => {

@@ -28,7 +28,7 @@ export interface RunActions {
     effort?: string | undefined,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
-  handleRestart: (prompt: string) => void;
+  handleRestart: (prompt?: string) => void;
   showStopDialog: boolean;
   handleStopClick: () => void;
   handleStopConfirm: (openPr: boolean) => void;
@@ -87,7 +87,7 @@ export interface DashboardState {
     effort?: string | undefined,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
-  handleRestart: (prompt: string) => void;
+  handleRestart: (prompt?: string) => void;
   handleStopClick: () => void;
   handleStopConfirm: (openPr: boolean) => void;
   handleStopCancel: () => void;

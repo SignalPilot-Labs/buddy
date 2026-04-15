@@ -203,10 +203,12 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
                 if (ev._event_type === "tool_call") {
                   const tc = ev as PollEventItem & { _event_type: "tool_call" };
                   afterTool = Math.max(afterTool, tc.id ?? 0);
+                  lastToolCursorRef.current = afterTool;
                   next = mergeToolEvent(next, tc);
                 } else {
                   const ae = ev as PollEventItem & { _event_type: "audit" };
                   afterAudit = Math.max(afterAudit, ae.id ?? 0);
+                  lastAuditCursorRef.current = afterAudit;
                   next = processAudit(next, ae);
                   if (ae.event_type === "run_ended") runEnded = true;
                   if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
