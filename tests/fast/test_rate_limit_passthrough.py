@@ -5,7 +5,7 @@ session or sleep — it should log the event, update the run status for
 the frontend banner, and let the stream continue.
 """
 
-from utils.models import StreamSignal, RoundResult
+from utils.models import RoundStatus, SignalKind, StreamSignal, RoundResult
 
 
 class TestStreamSignalKind:
@@ -17,7 +17,6 @@ class TestStreamSignalKind:
 
     def test_rate_limited_is_not_valid_signal_kind(self) -> None:
         """The old 'rate_limited' signal kind must not exist — it killed sessions."""
-        from utils.models import SignalKind
         assert "rate_limited" not in SignalKind.__args__  # type: ignore[attr-defined]
 
     def test_rate_limit_info_carries_data(self) -> None:
@@ -35,7 +34,6 @@ class TestRoundResultNoRateLimited:
         At runtime Literal validation isn't enforced by dataclasses, so we
         verify that 'rate_limited' is not in the RoundStatus type's args.
         """
-        from utils.models import RoundStatus
         assert "rate_limited" not in RoundStatus.__args__  # type: ignore[attr-defined]
 
     def test_round_result_has_no_rate_limit_resets_at(self) -> None:

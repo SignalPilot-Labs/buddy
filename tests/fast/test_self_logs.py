@@ -4,6 +4,8 @@ import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
+from docker.errors import NotFound
+from sandbox_client.pool import SandboxPool
 
 
 class TestGetSelfLogs:
@@ -11,7 +13,6 @@ class TestGetSelfLogs:
 
     @pytest.mark.asyncio
     async def test_returns_agent_container_lines(self) -> None:
-        from sandbox_client.pool import SandboxPool
 
         pool = SandboxPool.__new__(SandboxPool)
         mock_container = MagicMock()
@@ -30,9 +31,6 @@ class TestGetSelfLogs:
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_not_found(self) -> None:
-        from docker.errors import NotFound
-        from sandbox_client.pool import SandboxPool
-
         pool = SandboxPool.__new__(SandboxPool)
         mock_docker = MagicMock()
         mock_docker.containers.get.side_effect = NotFound("gone")

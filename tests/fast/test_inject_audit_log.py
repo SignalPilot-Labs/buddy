@@ -4,6 +4,8 @@ Verifies that send_control_signal writes a prompt_injected AuditLog row
 when the signal is 'inject', so user feedback persists across page refresh.
 """
 
+from contextlib import asynccontextmanager
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
@@ -29,8 +31,6 @@ def _mock_session_tracking_adds(run: MagicMock | None):
 
     session_mock.add = MagicMock(side_effect=track_add)
     session_mock.commit = AsyncMock()
-
-    from contextlib import asynccontextmanager
 
     @asynccontextmanager
     async def context():

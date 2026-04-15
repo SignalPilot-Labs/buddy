@@ -6,7 +6,7 @@ Exercises endpoint routing and run_id dispatch using a fake AgentServer.
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from endpoints import register_routes
@@ -105,8 +105,6 @@ class TestControlSignals:
         run.time_lock.unlock.assert_called_once()
 
     def test_stop_without_inbox_returns_409(self, client, mock_server) -> None:
-        from fastapi import HTTPException
-
         mock_server.get_run_or_first = MagicMock(
             side_effect=HTTPException(status_code=409, detail="No run in progress"),
         )

@@ -14,6 +14,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from contextlib import asynccontextmanager
 
+from fastapi import HTTPException
+
 
 def _mock_run(status: str, github_repo: str = "org/repo") -> MagicMock:
     """Create a mock Run ORM object with given status."""
@@ -178,8 +180,6 @@ class TestResumePausedRun:
         resume_run = _import_resume_run()
         run = _mock_run("running")
         with patch("backend.endpoints.runs.session", _mock_session(run)):
-            from fastapi import HTTPException
-
             with pytest.raises(HTTPException) as exc_info:
                 await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
             assert exc_info.value.status_code == 409
@@ -231,8 +231,6 @@ class TestResumePausedRun:
         """Resuming a nonexistent run returns 404."""
         resume_run = _import_resume_run()
         with patch("backend.endpoints.runs.session", _mock_session(None)):
-            from fastapi import HTTPException
-
             with pytest.raises(HTTPException) as exc_info:
                 await resume_run("00000000-0000-0000-0000-000000000001", _make_body())
             assert exc_info.value.status_code == 404

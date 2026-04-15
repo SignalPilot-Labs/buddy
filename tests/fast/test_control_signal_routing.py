@@ -4,10 +4,13 @@ Verifies that send_control_signal writes to DB AND forwards to the agent,
 and that /runs/{id}/resume routes correctly based on run status.
 """
 
+from contextlib import asynccontextmanager
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from backend.utils import send_control_signal
+from fastapi import HTTPException
 
 
 def _mock_run(status: str) -> MagicMock:
@@ -23,8 +26,6 @@ def _mock_session(run: MagicMock | None):
     session_mock.get = AsyncMock(return_value=run)
     session_mock.add = MagicMock()
     session_mock.commit = AsyncMock()
-
-    from contextlib import asynccontextmanager
 
     @asynccontextmanager
     async def context():
@@ -94,8 +95,6 @@ class TestSendControlSignalForwardsToAgent:
     async def test_rejects_wrong_status(self):
         run = _mock_run("completed")
         with patch("backend.utils.session", _mock_session(run)):
-            from fastapi import HTTPException
-
             with pytest.raises(HTTPException) as exc_info:
                 await send_control_signal("run-1", "pause", {"running"}, None, None)
             assert exc_info.value.status_code == 409
@@ -103,8 +102,6 @@ class TestSendControlSignalForwardsToAgent:
     @pytest.mark.asyncio
     async def test_rejects_missing_run(self):
         with patch("backend.utils.session", _mock_session(None)):
-            from fastapi import HTTPException
-
             with pytest.raises(HTTPException) as exc_info:
                 await send_control_signal("nonexistent", "pause", {"running"}, None, None)
             assert exc_info.value.status_code == 404
@@ -153,8 +150,6 @@ class TestSendControlSignalForwardsToAgent:
         session_mock.commit = AsyncMock(
             side_effect=lambda: call_order.append("db_commit")
         )
-
-        from contextlib import asynccontextmanager
 
         @asynccontextmanager
         async def context():

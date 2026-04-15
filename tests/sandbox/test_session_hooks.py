@@ -1,5 +1,6 @@
 """Unit tests for SessionHooks — tool logging, subagent tracking, emit behavior."""
 
+import time
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
@@ -92,8 +93,6 @@ class TestPostToolEmitsToolDone:
     @pytest.mark.asyncio
     async def test_computes_duration_from_pre_tool(self) -> None:
         hooks, _ = _make_hooks()
-        import time
-
         hooks._pre_tool_times["tu-1"] = time.time() - 0.05
 
         hook_input = cast(
