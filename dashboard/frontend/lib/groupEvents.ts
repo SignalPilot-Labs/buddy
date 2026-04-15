@@ -164,9 +164,9 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         const toolName = tc.tool_name.toLowerCase();
         if (toolName.includes("end_round")) {
           const summary = (tc.input_data?.summary as string) || "";
-          result.push({ id: `ms-${tc.ts}-End Round`, type: "milestone", label: "End Round", detail: summary, color: "#00ff88", ts: tc.ts });
+          result.push({ id: `ms-${tc.ts}-End Round Requested`, type: "milestone", label: "End Round Requested", detail: summary, color: "#00ff88", ts: tc.ts });
         } else {
-          result.push({ id: `ms-${tc.ts}-End Session`, type: "milestone", label: "End Session", detail: "", color: "#ffffff", ts: tc.ts });
+          result.push({ id: `ms-${tc.ts}-End Run Requested`, type: "milestone", label: "End Run Requested", detail: "", color: "#ffffff", ts: tc.ts });
         }
         i++;
         continue;

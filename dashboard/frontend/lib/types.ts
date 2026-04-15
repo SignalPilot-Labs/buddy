@@ -315,7 +315,7 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   pr_failed:           { label: "PR Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   pr_created:          { label: "PR Created",        color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   killed:              { label: "Killed",            color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  end_session_denied:  { label: "Session Denied",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  end_session_denied:  { label: "End Run Denied",     color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },

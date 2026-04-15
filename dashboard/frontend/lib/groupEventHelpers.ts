@@ -82,7 +82,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "fatal_error":
       return { id: `ctrl-${ts}-fatal`, type: "control", text: String(d.error || "Unknown error"), details: d, ts };
     case "end_session_denied":
-      return { id: `ms-${ts}-Session End Denied`, type: "milestone", label: "Session End Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
+      return { id: `ms-${ts}-End Run Denied`, type: "milestone", label: "End Run Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
       return { id: `ms-${ts}-Session Unlocked`, type: "milestone", label: "Session Unlocked", detail: "", color: "#00ff88", ts, event };
     case "stop_requested":
