@@ -349,6 +349,25 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
+export interface DiffRepoResponse {
+  diff: string;
+}
+
+export async function fetchDiffRepo(runId: string): Promise<DiffRepoResponse> {
+  const res = await apiFetch(`/api/runs/${runId}/diff/repo`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchDiffTmp(runId: string): Promise<DiffRepoResponse> {
+  const res = await apiFetch(`/api/runs/${runId}/diff/tmp`);
+  if (!res.ok) return { diff: "" };
+  return res.json();
+}
+
 export async function fetchBranches(repo: string): Promise<string[]> {
   const res = await apiFetch(
     `/api/agent/branches?repo=${encodeURIComponent(repo)}`,

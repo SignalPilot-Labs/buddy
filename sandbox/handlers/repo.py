@@ -33,6 +33,7 @@ import subprocess
 from aiohttp import web
 
 from constants import (
+    CMD_TIMEOUT,
     GIT_CREDENTIAL_HELPER,
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
@@ -41,6 +42,7 @@ from constants import (
     RETRY_MAX_ATTEMPTS,
     RETRY_TRANSIENT_PATTERNS,
 )
+from handlers.repo_parse import _parse_name_status, _parse_numstat
 from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
@@ -218,14 +220,11 @@ async def _branch_diff(
 ) -> list[dict]:
     """File-level diff stats between the working branch and base."""
     await _git(["fetch", "origin", base, "--depth", "1"], timeout)
-    numstat = await _git(
-        ["diff", "--numstat", f"origin/{base}...{working_branch}"], timeout,
-    )
+    ref_range = f"origin/{base}...{working_branch}"
+    numstat = await _git(["diff", "--numstat", ref_range], timeout)
     if numstat.exit_code != 0 or not numstat.stdout.strip():
         return []
-    name_status = await _git(
-        ["diff", "--name-status", f"origin/{base}...{working_branch}"], timeout,
-    )
+    name_status = await _git(["diff", "--name-status", ref_range], timeout)
     if name_status.exit_code != 0:
         return []
     return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
@@ -472,48 +471,26 @@ async def handle_teardown(request: web.Request) -> web.Response:
     })
 
 
-# ── Parse helpers ────────────────────────────────────────────────────
+async def handle_diff(request: web.Request) -> web.Response:
+    """Return the full unified diff of the working branch against base."""
+    state = _state(request)
+    if not state.working_branch or not state.base_branch:
+        return web.json_response({"error": "No active branch"}, status=409)
 
-
-def _parse_name_status(raw: str) -> dict[str, str]:
-    """Parse `git diff --name-status` into a path->status map."""
-    result: dict[str, str] = {}
-    for line in raw.strip().split("\n"):
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) >= 2:
-            code = parts[0][0]
-            result[parts[-1]] = {
-                "A": "added", "M": "modified",
-                "D": "deleted", "R": "renamed",
-            }.get(code, "modified")
-    return result
-
-
-def _parse_numstat(raw: str, status_map: dict[str, str]) -> list[dict]:
-    """Parse `git diff --numstat` into file change dicts."""
-    results: list[dict] = []
-    for line in raw.strip().split("\n"):
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) < 3:
-            continue
-        results.append({
-            "path": parts[2],
-            "added": int(parts[0]) if parts[0] != "-" else 0,
-            "removed": int(parts[1]) if parts[1] != "-" else 0,
-            "status": status_map.get(parts[2], "modified"),
-        })
-    return results
+    await _git(["fetch", "origin", state.base_branch, "--depth", "1"], CMD_TIMEOUT)
+    ref_range = f"origin/{state.base_branch}...{state.working_branch}"
+    result = await _git(["diff", ref_range], CMD_TIMEOUT)
+    if result.exit_code != 0:
+        return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
+    return web.json_response({"diff": result.stdout})
 
 
 # ── Registration ─────────────────────────────────────────────────────
 
 
 def register(app: web.Application) -> None:
-    """Attach /repo/bootstrap, /repo/save, /repo/teardown routes."""
+    """Attach /repo/* routes."""
     app.router.add_post("/repo/bootstrap", handle_bootstrap)
     app.router.add_post("/repo/save", handle_save)
     app.router.add_post("/repo/teardown", handle_teardown)
+    app.router.add_post("/repo/diff", handle_diff)

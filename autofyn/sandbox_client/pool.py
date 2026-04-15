@@ -118,6 +118,14 @@ class SandboxPool:
         await self._remove_container(container_id, container_name)
         await self._remove_volume(volume_name)
 
+    def get_client(self, run_key: str) -> SandboxClient | None:
+        """Return a SandboxClient for a live sandbox, or None if not running."""
+        if run_key not in self._containers:
+            return None
+        container_name = f"autofyn-sandbox-{run_key}"
+        url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
+        return SandboxClient(url, health_timeout=5)
+
     async def get_self_logs(self, tail: int) -> list[str]:
         """Fetch logs from the agent container itself."""
         try:

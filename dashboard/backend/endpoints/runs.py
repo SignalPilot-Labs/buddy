@@ -260,40 +260,58 @@ def _build_stored_diff(diff_stats: list) -> dict:
     }
 
 
-async def _fetch_live_or_agent_diff(is_active: bool, branch_name: str, base_branch: str) -> dict | None:
-    """Fetch a live diff (if run active) or from agent by branch name."""
-    if is_active:
-        data = await agent_request("GET", "/diff/live", AGENT_TIMEOUT_LONG, None, None, None)
-        if data:
-            data["source"] = "live"
-            return data
-    data = await agent_request(
-        "GET", f"/diff/{branch_name}", AGENT_TIMEOUT_LONG,
-        None, {"base": base_branch}, None,
-    )
-    if data:
-        data["source"] = "agent"
-        return data
-    return None
-
-
 @router.get("/runs/{run_id}/diff")
 async def get_run_diff(run_id: str = RunId) -> dict:
-    """Get diff stats for a run — stored, live, or from agent."""
+    """Get diff stats for a run from stored diff_stats."""
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         diff_stats = run.diff_stats
-        branch_name = run.branch_name
-        base_branch = run.base_branch or DEFAULT_BASE_BRANCH
-        is_active = run.status in ACTIVE_STATUSES
 
     if diff_stats:
         return _build_stored_diff(diff_stats)
 
-    data = await _fetch_live_or_agent_diff(is_active, branch_name, base_branch)
-    if data:
-        return data
-
     return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
+
+
+@router.get("/runs/{run_id}/diff/repo")
+async def get_diff_repo(run_id: str = RunId) -> dict:
+    """Full unified diff — proxies to agent (sandbox or GitHub API). Cached on agent."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        branch_name = run.branch_name
+        base_branch = run.base_branch or DEFAULT_BASE_BRANCH
+        github_repo = run.github_repo
+
+    if not github_repo:
+        raise HTTPException(status_code=404, detail="Run has no github_repo")
+
+    creds = await read_credentials(github_repo)
+    token = creds.get("git_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="No git_token configured for this repo")
+
+    return await agent_request(
+        "GET", "/diff/repo", AGENT_TIMEOUT_LONG,
+        None,
+        {
+            "run_id": run_id,
+            "branch": branch_name,
+            "base": base_branch,
+            "repo": github_repo,
+            "token": token,
+        },
+        None,
+    )
+
+
+@router.get("/runs/{run_id}/diff/tmp")
+async def get_diff_tmp(run_id: str = RunId) -> dict:
+    """List archived tmp/round files for a run."""
+    return await agent_request(
+        "GET", "/diff/tmp", AGENT_TIMEOUT_LONG,
+        None, {"run_id": run_id}, None,
+    )

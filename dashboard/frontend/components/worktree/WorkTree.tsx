@@ -5,14 +5,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
 import type { DiffStats } from "@/lib/api";
-import { fetchRunDiff } from "@/lib/api";
+import { fetchRunDiff, fetchDiffRepo, fetchDiffTmp } from "@/lib/api";
 import {
   extractFileChanges,
   buildTreeFromDiff,
   buildTreeFromChanges,
+  mergeTrees,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
 import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { FileDiffViewer } from "./FileDiffViewer";
 
 /* ── Icons ── */
 function FileIcon({ name, status }: { name: string; status?: string }) {
@@ -45,7 +47,17 @@ function DirIcon({ open }: { open: boolean }) {
 }
 
 /* ── Tree Node Component ── */
-function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
+function NodeItem({
+  node,
+  depth,
+  onFileClick,
+  clickablePaths,
+}: {
+  node: TreeNode;
+  depth: number;
+  onFileClick: ((path: string, status: string) => void) | null;
+  clickablePaths: ReadonlySet<string> | null;
+}) {
   const [open, setOpen] = useState(depth < 2);
   const isDir = node.isDir && node.children.size > 0;
 
@@ -58,7 +70,6 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     });
   }, [node.children]);
 
-  // Aggregate child stats for directories
   const totalAdded = useMemo(() => {
     if (!node.isDir) return node.added;
     let sum = node.added;
@@ -75,18 +86,25 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     return sum;
   }, [node]);
 
+  const isClickable = !isDir && onFileClick !== null && (clickablePaths === null || clickablePaths.has(node.fullPath));
+
+  const handleClick = () => {
+    if (isDir) { setOpen(!open); return; }
+    if (isClickable) onFileClick!(node.fullPath, node.status ?? "modified");
+  };
+
   return (
     <div>
       <div
         className={clsx(
           "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
-          isDir ? "cursor-pointer" : "cursor-default",
-          "hover:bg-white/[0.03]",
+          isDir ? "cursor-pointer" : isClickable ? "cursor-pointer" : "cursor-default",
+          isClickable ? "hover:bg-white/[0.06]" : "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
         style={{ paddingLeft: depth * 14 + 4 }}
-        onClick={() => isDir && setOpen(!open)}
+        onClick={handleClick}
       >
         {isDir ? (
           <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round"
@@ -124,7 +142,9 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
       <AnimatePresence>
         {open && isDir && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
-            {sorted.map(child => <NodeItem key={child.fullPath} node={child} depth={depth + 1} />)}
+            {sorted.map(child => (
+              <NodeItem key={child.fullPath} node={child} depth={depth + 1} onFileClick={onFileClick} clickablePaths={clickablePaths} />
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -171,8 +191,8 @@ type EmptyReason = "no-run" | "loading" | "unavailable" | "active-no-changes" | 
 function EmptyState({ reason }: { reason: EmptyReason }) {
   const messages: Record<EmptyReason, string> = {
     "no-run": "Select a run to see file changes",
-    "loading": "Loading changes…",
-    "unavailable": "Diff unavailable — agent offline or branch deleted",
+    loading: "Loading changes\u2026",
+    unavailable: "Diff unavailable \u2014 agent offline or branch deleted",
     "active-no-changes": "No file changes yet",
     "completed-no-changes": "No file changes in this run",
   };
@@ -194,27 +214,36 @@ export interface WorkTreeProps {
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [fullDiff, setFullDiff] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
-  // Fetch git diff when run changes
+  // Fetch diff stats (file list) when run changes
   useEffect(() => {
-    if (!runId) { setDiffData(null); return; }
+    if (!runId) { setDiffData(null); setFullDiff(null); return; }
+    setSelectedFile(null);
     setDiffLoading(true);
     fetchRunDiff(runId)
       .then(d => { setDiffData(d); setDiffLoading(false); })
       .catch(err => {
-        console.warn("WorkTree: initial diff fetch failed:", err);
+        console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
+    // Fetch full diff text: repo (git) + tmp (round files), concatenated
+    Promise.all([
+      fetchDiffRepo(runId).then(d => d.diff).catch(() => ""),
+      fetchDiffTmp(runId).then(d => d.diff).catch(() => ""),
+    ]).then(([repo, tmp]) => {
+      const combined = [repo, tmp].filter(Boolean).join("\n");
+      setFullDiff(combined || null);
+    });
   }, [runId]);
 
-  // Refresh periodically for live/agent diffs
+  // Refresh diff stats periodically for live/agent diffs
   const isPollingSource = diffData?.source === "live" || diffData?.source === "agent";
   useEffect(() => {
     if (!runId || !isPollingSource) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId)
-        .then(setDiffData)
-        .catch(err => console.warn("WorkTree: diff poll failed:", err));
+      fetchRunDiff(runId).then(setDiffData).catch(err => console.warn("WorkTree: diff poll failed:", err));
     }, DIFF_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [runId, isPollingSource]);
@@ -224,55 +253,90 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
   const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
 
-  // Git diff tree
+  // Git diff tree (from stats endpoint)
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
+
+  // Tmp files tree (from full diff text — files under round-N/)
+  const tmpTree = useMemo(() => {
+    if (!fullDiff) return null;
+    // Extract tmp file paths from the combined diff
+    const tmpPaths: string[] = [];
+    const sections = fullDiff.split("\ndiff --git ");
+    for (let i = 0; i < sections.length; i++) {
+      let s = sections[i];
+      if (i === 0 && s.startsWith("diff --git ")) s = s.slice("diff --git ".length);
+      else if (i === 0) continue;
+      const nl = s.indexOf("\n");
+      if (nl === -1) continue;
+      const header = s.slice(0, nl);
+      const bIdx = header.lastIndexOf(" b/");
+      if (bIdx === -1) continue;
+      const path = header.slice(bIdx + 3);
+      if (path.startsWith("tmp/round-")) tmpPaths.push(path);
+    }
+    if (tmpPaths.length === 0) return null;
+    return buildTreeFromChanges(tmpPaths.map(p => ({
+      path: p, action: "edit" as const, linesAdded: 0, linesRemoved: 0,
+      timestamp: "", toolCallId: 0, toolName: "Archive",
+    })));
+  }, [fullDiff]);
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
   const hasLiveChanges = writeChanges.length > 0;
+  const hasTmpFiles = tmpTree !== null;
+  const hasContent = hasGitDiff || hasLiveChanges || hasTmpFiles;
 
-  // Determine what to show: "diff", "session", or "empty"
-  type ShowSource = "diff" | "session" | "empty";
-  const showSource: ShowSource = hasLiveChanges ? "session" : hasGitDiff ? "diff" : "empty";
+  // Merged tree: git diff + session/tmp, session wins on conflict
+  const mergedTree = useMemo(() => {
+    let tree: TreeNode | null = diffTree;
+    const sessionTree = liveTree.children.size > 0 ? liveTree : tmpTree;
+    if (!tree && !sessionTree) return null;
+    if (!tree) return sessionTree;
+    if (!sessionTree) return tree;
+    return mergeTrees(tree, sessionTree);
+  }, [diffTree, liveTree, tmpTree]);
 
-  // Map DiffStats.source to DisplaySource for the badge
+  const mergedRoots = useMemo(() => {
+    if (!mergedTree) return [];
+    return Array.from(mergedTree.children.values())
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+  }, [mergedTree]);
+
+  // Badge: show primary source
   const displaySource: DisplaySource = (() => {
-    if (showSource === "session") return "session";
-    if (showSource !== "diff" || !diffData) return null;
+    if (!hasContent) return null;
+    if (!hasGitDiff) return "session";
+    if (!diffData) return null;
     if (diffData.source === "live") return "diff-live";
     if (diffData.source === "stored") return "diff-stored";
     if (diffData.source === "agent") return "diff-agent";
     return null;
   })();
 
-  // File count for the header — reflects the active source
-  const headerFileCount: number = (() => {
-    if (showSource === "diff" && diffData) return diffData.total_files;
-    if (showSource === "session") return new Set(writeChanges.map(c => c.path)).size;
-    return 0;
-  })();
+  // File count from merged tree
+  const headerFileCount = useMemo(() => {
+    if (!mergedTree) return 0;
+    let count = 0;
+    const walk = (n: TreeNode) => { if (!n.isDir) count++; n.children.forEach(walk); };
+    mergedTree.children.forEach(walk);
+    return count;
+  }, [mergedTree]);
 
-  // Stats for the diff bar (only shown when showing git diff)
-  const showDiffStats = showSource === "diff" && diffData && (diffData.total_added > 0 || diffData.total_removed > 0);
+  // Stats bar (git diff stats when available)
+  const showDiffStats = hasGitDiff && diffData && (diffData.total_added > 0 || diffData.total_removed > 0);
 
-  // Determine empty state reason
+  // Empty state reason
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
-    if (diffData?.source === "unavailable") return "unavailable";
+    if (diffData?.source === "unavailable" && !hasLiveChanges && !hasTmpFiles) return "unavailable";
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  const diffRoots = useMemo(() => {
-    if (!diffTree) return [];
-    return Array.from(diffTree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
-  }, [diffTree]);
-
-  const liveRoots = useMemo(() => {
-    return Array.from(liveTree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
-  }, [liveTree]);
+  const onFileClick = fullDiff !== null
+    ? (path: string, status: string) => setSelectedFile({ path, status })
+    : null;
 
   return (
     <div className="flex flex-col bg-sidebar h-full w-full">
@@ -285,7 +349,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         </svg>
         <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
         <SourceBadge source={displaySource} />
-        {showSource !== "empty" && (
+        {hasContent && (
           <span className="text-meta text-text-dim tabular-nums ml-auto">{headerFileCount} files</span>
         )}
       </div>
@@ -300,24 +364,31 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto py-1">
-        {showSource === "empty" && (
-          diffLoading && !diffData ? (
-            <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
-              <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
-            </div>
-          ) : (
-            <EmptyState reason={emptyReason} />
-          )
+      <div className={clsx("flex-1 overflow-y-auto", selectedFile === null && "py-1")}>
+        {selectedFile !== null && fullDiff !== null ? (
+          <FileDiffViewer
+            fullDiff={fullDiff}
+            filePath={selectedFile.path}
+            fileStatus={selectedFile.status}
+            onBack={() => setSelectedFile(null)}
+          />
+        ) : (
+          <>
+            {!hasContent && (
+              diffLoading && !diffData ? (
+                <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
+                  <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+                </div>
+              ) : (
+                <EmptyState reason={emptyReason} />
+              )
+            )}
+
+            {hasContent && mergedRoots.map(child => (
+              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} clickablePaths={null} />
+            ))}
+          </>
         )}
-
-        {showSource === "diff" && diffRoots.map(child => (
-          <NodeItem key={child.fullPath} node={child} depth={0} />
-        ))}
-
-        {showSource === "session" && liveRoots.map(child => (
-          <NodeItem key={child.fullPath} node={child} depth={0} />
-        ))}
       </div>
     </div>
   );

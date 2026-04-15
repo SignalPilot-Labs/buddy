@@ -8,17 +8,21 @@ reads the TimeLock for per-run time info.
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
 from fastapi import FastAPI, HTTPException
 
 from utils import db
+from utils.diff import fetch_github_diff
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     MAX_CONCURRENT_RUNS,
+    ROUND_ARCHIVE_AGENT_DIR,
     RUN_ID_LOG_PREFIX_LEN,
 )
 from utils.models import (
@@ -33,6 +37,8 @@ from utils.models import (
 
 if TYPE_CHECKING:
     from server import AgentServer
+
+log = logging.getLogger("endpoints")
 
 
 def _merge_tokens_into_env(
@@ -256,7 +262,61 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             lines = filtered
         return {"lines": lines, "total": len(lines)}
 
-    # ── Branches (GitHub API proxy) ────────────────────────────────────
+    # ── Diff ───────────────────────────────────────────────────────────
+
+    _diff_cache: dict[str, str] = {}
+
+    @app.get("/diff/repo")
+    async def diff_repo(
+        run_id: str,
+        branch: str,
+        base: str,
+        repo: str,
+        token: str,
+    ):
+        """Full unified diff. Sandbox for active runs, GitHub API for completed."""
+        if run_id in _diff_cache:
+            return {"diff": _diff_cache[run_id]}
+
+        client = server.pool().get_client(run_id)
+        if client:
+            try:
+                data = await client.repo.diff()
+                _diff_cache[run_id] = data["diff"]
+                return data
+            except Exception as exc:
+                log.warning("Sandbox diff failed for %s: %s", run_id, exc)
+                raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
+
+        result = await fetch_github_diff(repo, branch, base, token)
+        if "error" in result:
+            raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
+        _diff_cache[run_id] = result["diff"]
+        return result
+
+    @app.get("/diff/tmp")
+    async def diff_tmp(run_id: str):
+        """Unified diff of archived round files (all treated as new files)."""
+        archive_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
+        if not archive_root.is_dir():
+            return {"diff": ""}
+        parts: list[str] = []
+        for round_dir in sorted(archive_root.iterdir()):
+            if not round_dir.is_dir():
+                continue
+            for f in sorted(round_dir.iterdir()):
+                if not f.is_file():
+                    continue
+                rel = f"tmp/{round_dir.name}/{f.name}"
+                try:
+                    content = f.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+                lines = content.splitlines()
+                header = f"diff --git a/{rel} b/{rel}\nnew file mode 100644\n--- /dev/null\n+++ b/{rel}\n@@ -0,0 +1,{len(lines)} @@"
+                body = "\n".join(f"+{line}" for line in lines)
+                parts.append(f"{header}\n{body}")
+        return {"diff": "\n".join(parts)}
 
     @app.get("/branches")
     async def list_branches(repo: str, token: str):

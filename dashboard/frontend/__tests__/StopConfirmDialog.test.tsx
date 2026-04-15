@@ -29,8 +29,8 @@ describe("StopConfirmDialog", () => {
     renderDialog();
     expect(screen.getByText("Stop this run?")).toBeTruthy();
     expect(screen.getByText("Open a Pull Request?")).toBeTruthy();
-    expect(screen.getByText("Yes, open PR")).toBeTruthy();
-    expect(screen.getByText("No, just stop")).toBeTruthy();
+    expect(screen.getByText("Yes")).toBeTruthy();
+    expect(screen.getByText("No")).toBeTruthy();
   });
 
   it("does not render when closed", () => {
@@ -38,18 +38,18 @@ describe("StopConfirmDialog", () => {
     expect(document.body.textContent).not.toContain("Stop this run?");
   });
 
-  it("calls onConfirm(true) when 'Yes, open PR' is clicked", async () => {
+  it("calls onConfirm(true) when 'Yes' is clicked", async () => {
     const onConfirm = vi.fn();
     renderDialog({ onConfirm });
-    await userEvent.click(screen.getByText("Yes, open PR"));
+    await userEvent.click(screen.getByText("Yes"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onConfirm).toHaveBeenCalledWith(true);
   });
 
-  it("calls onConfirm(false) when 'No, just stop' is clicked", async () => {
+  it("calls onConfirm(false) when 'No' is clicked", async () => {
     const onConfirm = vi.fn();
     renderDialog({ onConfirm });
-    await userEvent.click(screen.getByText("No, just stop"));
+    await userEvent.click(screen.getByText("No"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onConfirm).toHaveBeenCalledWith(false);
   });

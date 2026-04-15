@@ -176,3 +176,38 @@ export function buildTreeFromChanges(changes: FileChange[]): TreeNode {
   }
   return root;
 }
+
+/* ── Merge two trees — session wins on path conflict ── */
+export function mergeTrees(git: TreeNode, session: TreeNode): TreeNode {
+  return _mergeDir(git, session);
+}
+
+function _mergeDir(git: TreeNode, session: TreeNode): TreeNode {
+  // If session has no children in this dir, just use git as-is (no clone)
+  if (session.children.size === 0) return git;
+  // If git has no children, just use session as-is
+  if (git.children.size === 0) return session;
+
+  const children = new Map<string, TreeNode>();
+
+  // Git entries — shared by reference unless session conflicts
+  for (const [key, node] of git.children) {
+    if (!session.children.has(key)) {
+      children.set(key, node); // share reference, no clone
+    }
+  }
+
+  // Session entries — shared by reference, or merged if both are dirs
+  for (const [key, sNode] of session.children) {
+    const gitNode = git.children.get(key);
+    if (!gitNode) {
+      children.set(key, sNode);
+    } else if (gitNode.isDir && sNode.isDir) {
+      children.set(key, _mergeDir(gitNode, sNode));
+    } else {
+      children.set(key, sNode); // session wins
+    }
+  }
+
+  return { ...git, children };
+}
