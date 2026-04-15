@@ -44,7 +44,7 @@ If the design itself is flawed (even if the dev followed the spec), flag it. Bad
 ### Warnings (should fix)
 - **Structure** — God files (>400 lines), god functions (>50 lines), duplicated code, unclear names. If a modified file has grown bloated or lost cohesion over multiple rounds, flag it for refactor.
 - **Hygiene** — Inline imports, magic values, dead code, unused imports, missing types, `any` usage, incorrect type assertions, non-empty `__init__` files, models and dataclasses not in dedicated files
-- **Performance** — N+1 queries, unbounded loops, missing indexes, sync blocking in async, pool churn, no connection reuse, sequential when parallelizable, missing memoization, redundant data persistence (storing what can be computed on demand), per-interaction network calls that should be fetched once and cached, unbounded growth in DB columns or storage
+- **Performance** — N+1 queries, unbounded loops, missing indexes, sync blocking in async, pool churn, no connection reuse, sequential when parallelizable, missing memoization, redundant data persistence (storing what can be computed on demand), memory growth, memory leak, unnecessary copies, api calls, per-interaction network calls that should be fetched once and cached, unbounded growth in DB columns or storage
 
 ### Regressions
 - Did the change break something that worked before?

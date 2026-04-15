@@ -22,7 +22,7 @@ If you challenge the premise (wrong problem or wrong approach), your verdict MUS
 - **Simplicity** — fewer files, classes, or abstractions if possible.
 - **CLAUDE.md compliance** — follows project rules (constants, error handling, imports, test structure, no defensive coding).
 - **Accumulated bloat** — if the spec adds to a file that's already large (>400 lines) or a module that's lost cohesion, flag it and suggest splitting first.
-- **Data & cost at scale** — if the spec persists data, is it already available from another source (database, cache, external service, filesystem)? What happens when this runs 1000 times — will storage, memory, or payload sizes become a problem? Prefer computing on demand over storing redundant copies.
+- **Data & cost at scale** — if the spec persists data (in memory or storage), is it already available from another source (database, cache, external service, filesystem)? What happens when this runs 1000 times — will storage, memory, or payload sizes become a problem? Prefer computing on demand over storing redundant copies.
 - **Fail-fast** — no layered fallbacks, no silent error swallowing.
 
 ## Output
