@@ -83,8 +83,10 @@ const QUICK_START_ICONS: Record<string, React.ReactElement> = {
   ),
 };
 
-const QUICK_PROMPTS = [
-  { label: "General improvement", icon: "sparkle", prompt: undefined as string | undefined, desc: "Default: security, bugs, tests, quality" },
+type QuickStartIcon = keyof typeof QUICK_START_ICONS;
+
+const QUICK_PROMPTS: { label: string; icon: QuickStartIcon; prompt: string | undefined; desc: string }[] = [
+  { label: "General improvement", icon: "sparkle", prompt: undefined, desc: "Default: security, bugs, tests, quality" },
   { label: "Security hardening", icon: "shield", prompt: "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.", desc: "Fix security issues" },
   { label: "Test coverage", icon: "flask", prompt: "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.", desc: "Add missing tests" },
   { label: "Bug fixes", icon: "bug", prompt: "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.", desc: "Find and fix bugs" },
@@ -257,7 +259,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                       </button>
                     ))}
                   </div>
-                  {selectedDurationPreset && (
+                  {selectedDurationPreset && duration > 0 && (
                     <p className="mt-2 text-xs text-white/40">{selectedDurationPreset.desc}</p>
                   )}
                 </div>
