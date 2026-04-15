@@ -78,13 +78,13 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "pr_created":
       return { id: `ms-${ts}-PR Created`, type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":
-      return { id: `ms-${ts}-PR Failed`, type: "milestone", label: "PR Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ctrl-${ts}-pr-failed`, type: "control", text: `PR failed: ${String(d.error || "Unknown error")}`, ts };
     case "session_ended":
       return { id: `ms-${ts}-Session Ended`, type: "milestone", label: "Session Ended", detail: `${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
     case "killed":
       return { id: `ms-${ts}-Killed`, type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":
-      return { id: `ms-${ts}-Fatal Error`, type: "milestone", label: "Fatal Error", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ctrl-${ts}-fatal`, type: "control", text: String(d.error || "Unknown error"), ts };
     case "planner_invoked":
       return { id: `ms-${ts}-Planner Invoked`, type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
@@ -121,7 +121,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
     case "auto_commit":
       return { id: `ms-${ts}-Auto Commit`, type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
     case "push_failed":
-      return { id: `ms-${ts}-Push Failed`, type: "milestone", label: "Push Failed", detail: String(d.error || "").slice(0, 100), color: "#ff4444", ts, event };
+      return { id: `ctrl-${ts}-push-failed`, type: "control", text: `Push failed: ${String(d.error || "Unknown error")}`, ts };
     case "permission_denied":
       return { id: `ms-${ts}-Permission Denied`, type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
     case "run_ended":
