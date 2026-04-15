@@ -339,7 +339,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
               <div className="flex items-center justify-between px-5 py-3 border-t border-border">
                 <span className="text-content text-text-secondary">Ctrl+Enter to start</span>
                 <div className="flex gap-2">
-                  <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                  <Button variant="ghost" size="md" onClick={onClose}>Cancel</Button>
                   <Button
                     variant="success" size="md" onClick={handleStart} disabled={busy}
                     icon={<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="3 2 8 5 3 8" /></svg>}
