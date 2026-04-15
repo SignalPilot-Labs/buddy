@@ -277,7 +277,6 @@ export type AuditEventType =
   | "agent_stop"
   | "pr_failed"
   | "pr_created"
-  | "session_ended"
   | "session_error"
   | "killed"
   | "end_session_denied"
@@ -314,7 +313,6 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   run_started:         { label: "Run Started",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   agent_stop:          { label: "Agent Stopped",     color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   pr_failed:           { label: "PR Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  session_ended:       { label: "Session Ended",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   pr_created:          { label: "PR Created",        color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   killed:              { label: "Killed",            color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   end_session_denied:  { label: "Session Denied",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },

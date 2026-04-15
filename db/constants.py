@@ -125,7 +125,6 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     # Lifecycle
     "run_started",
     "run_ended",
-    "session_ended",
     "killed",
     "fatal_error",
     "sandbox_crash",

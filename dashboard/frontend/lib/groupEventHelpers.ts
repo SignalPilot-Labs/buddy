@@ -77,8 +77,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-PR Created`, type: "milestone", label: "PR Created", detail: String(d.url || ""), color: "#00ff88", ts, event };
     case "pr_failed":
       return { id: `ctrl-${ts}-pr-failed`, type: "control", text: `PR failed: ${String(d.error || "Unknown error")}`, details: d, ts };
-    case "session_ended":
-      return { id: `ms-${ts}-Session Ended`, type: "milestone", label: "Session Ended", detail: `${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#88ccff", ts, event };
     case "killed":
       return { id: `ms-${ts}-Killed`, type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":
@@ -126,8 +124,11 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ctrl-${ts}-sandbox-crash`, type: "control", text: `Sandbox crashed: ${String(d.error || "Unknown error")}`, details: d, ts };
     case "permission_denied":
       return { id: `ms-${ts}-Permission Denied`, type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
-    case "run_ended":
-      return { id: `ms-${ts}-Run Ended`, type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
+    case "run_ended": {
+      const elapsed = d.elapsed_minutes as number | undefined;
+      const detail = elapsed ? `${elapsed}min` : "";
+      return { id: `ms-${ts}-Run Ended`, type: "milestone", label: "Run Ended", detail, color: "#88ccff", ts, event };
+    }
     default:
       return null;
   }
