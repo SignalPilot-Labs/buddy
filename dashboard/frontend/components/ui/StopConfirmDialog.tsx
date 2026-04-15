@@ -58,18 +58,18 @@ export function StopConfirmDialog({ open, onConfirm, onCancel }: StopConfirmDial
             <p className="text-meta text-[var(--color-text-muted)] mb-5">
               Open a Pull Request?
             </p>
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-3 justify-center">
               <button
                 onClick={() => onConfirm(false)}
                 className="px-4 py-2 rounded text-meta font-medium text-[var(--color-text-dim)] bg-white/[0.04] border border-[var(--color-border)] hover:bg-white/[0.08] hover:text-[var(--color-text)] transition-colors"
               >
-                No, just stop
+                No
               </button>
               <button
                 onClick={() => onConfirm(true)}
                 className="px-4 py-2 rounded text-meta font-medium text-[var(--color-accent-hover)] bg-[var(--color-accent-hover)]/10 border border-[var(--color-accent-hover)]/30 hover:bg-[var(--color-accent-hover)]/20 transition-colors"
               >
-                Yes, open PR
+                Yes
               </button>
             </div>
           </motion.div>
