@@ -312,15 +312,19 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         "git clone",
     )
 
-    # Merge cloned files into repo dir (preserves bind mounts)
-    _fail(
-        await _run(
-            ["sh", "-c", f"cp -a {clone_tmp}/. {REPO_WORK_DIR}/"],
-            "/",
-            timeout,
-        ),
-        "cp clone into repo dir",
-    )
+    # After rm -rf + mkdir, any surviving entries in REPO_WORK_DIR are
+    # bind mount points (Docker protects them). The user's mounted data
+    # takes precedence over repo contents — skip those dirs during copy.
+    mount_entries = await _run(["ls", "-A", REPO_WORK_DIR], "/", timeout)
+    excludes = [
+        name.strip() for name in mount_entries.stdout.strip().split("\n") if name.strip()
+    ]
+    rsync_cmd = ["rsync", "-a"]
+    for name in excludes:
+        log.warning("Host mount shadows repo dir '%s' — using mounted version", name)
+        rsync_cmd.append(f"--exclude=/{name}")
+    rsync_cmd += [f"{clone_tmp}/", f"{REPO_WORK_DIR}/"]
+    _fail(await _run(rsync_cmd, "/", timeout), "rsync clone into repo dir")
     await _run(["rm", "-rf", clone_tmp], "/", timeout)
 
     _fail(
