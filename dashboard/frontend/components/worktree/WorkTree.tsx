@@ -166,12 +166,13 @@ function SourceBadge({ source }: { source: DisplaySource }) {
 }
 
 /* ── Empty State ── */
-type EmptyReason = "no-run" | "loading" | "active-no-changes" | "completed-no-changes";
+type EmptyReason = "no-run" | "loading" | "unavailable" | "active-no-changes" | "completed-no-changes";
 
 function EmptyState({ reason }: { reason: EmptyReason }) {
   const messages: Record<EmptyReason, string> = {
     "no-run": "Select a run to see file changes",
     "loading": "Loading changes…",
+    "unavailable": "Diff unavailable — agent offline or branch deleted",
     "active-no-changes": "No file changes yet",
     "completed-no-changes": "No file changes in this run",
   };
@@ -257,6 +258,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
+    if (diffData?.source === "unavailable") return "unavailable";
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
