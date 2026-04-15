@@ -125,7 +125,6 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     # Lifecycle
     "run_started",
     "run_ended",
-    "session_ended",
     "killed",
     "fatal_error",
     "sandbox_crash",
@@ -147,8 +146,8 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "no_changes",
     # Session control
     "end_session_denied",
-    "session_unlocked",
-    "session_resumed",
+    "run_unlocked",
+    "run_resumed",
     # Permission / security
     "permission_denied",
     # Rate limiting

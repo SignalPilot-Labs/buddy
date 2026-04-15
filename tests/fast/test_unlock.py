@@ -3,7 +3,7 @@
 Covers:
 - TimeLock starts locked/unlocked based on duration
 - TimeLock.unlock() transitions to unlocked
-- Health endpoint reports correct session_unlocked value
+- Health endpoint reports correct run_unlocked value
 - UserControl forwards unlock to sandbox
 - end_session_tool respects unlocked state
 """

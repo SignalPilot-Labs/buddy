@@ -42,7 +42,7 @@ export async function fetchRun(id: string): Promise<Run> {
 
 export async function fetchToolCalls(
   runId: string,
-  limit: number
+  limit: number,
 ): Promise<ToolCall[]> {
   const res = await apiFetch(`/api/runs/${runId}/tools?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch tool calls");
@@ -51,7 +51,7 @@ export async function fetchToolCalls(
 
 export async function fetchAuditLog(
   runId: string,
-  limit: number
+  limit: number,
 ): Promise<AuditEvent[]> {
   const res = await apiFetch(`/api/runs/${runId}/audit?limit=${limit}`);
   if (!res.ok) throw new Error("Failed to fetch audit log");
@@ -60,7 +60,7 @@ export async function fetchAuditLog(
 
 export async function injectPrompt(
   runId: string,
-  prompt: string
+  prompt: string,
 ): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/inject`, {
     method: "POST",
@@ -74,7 +74,11 @@ export async function injectPrompt(
   return res.json();
 }
 
-export function createSSE(runId: string, afterTool: number, afterAudit: number): EventSource {
+export function createSSE(
+  runId: string,
+  afterTool: number,
+  afterAudit: number,
+): EventSource {
   return new EventSource(
     `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
@@ -106,7 +110,7 @@ export interface HealthRunEntry {
   started_at: number;
   elapsed_minutes?: number | null;
   time_remaining?: string | null;
-  session_unlocked?: boolean | null;
+  run_unlocked?: boolean | null;
 }
 
 export interface AgentHealth {
@@ -116,7 +120,12 @@ export interface AgentHealth {
   runs: HealthRunEntry[];
 }
 
-const UNREACHABLE_HEALTH: AgentHealth = { status: "unreachable", active_runs: 0, max_concurrent: 0, runs: [] };
+const UNREACHABLE_HEALTH: AgentHealth = {
+  status: "unreachable",
+  active_runs: 0,
+  max_concurrent: 0,
+  runs: [],
+};
 
 export async function fetchAgentHealth(): Promise<AgentHealth> {
   try {
@@ -158,14 +167,19 @@ export async function startRun(
   return res.json();
 }
 
-export async function fetchRepoEnv(repo: string): Promise<Record<string, string>> {
+export async function fetchRepoEnv(
+  repo: string,
+): Promise<Record<string, string>> {
   const res = await apiFetch(`/api/repos/${repo}/env`);
   if (!res.ok) return {};
   const data = await res.json();
   return data.env_vars || {};
 }
 
-export async function saveRepoEnv(repo: string, envVars: Record<string, string>): Promise<void> {
+export async function saveRepoEnv(
+  repo: string,
+  envVars: Record<string, string>,
+): Promise<void> {
   const res = await apiFetch(`/api/repos/${repo}/env`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -173,7 +187,9 @@ export async function saveRepoEnv(repo: string, envVars: Record<string, string>)
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-    throw new Error(err.detail || `Failed to save env vars (HTTP ${res.status})`);
+    throw new Error(
+      err.detail || `Failed to save env vars (HTTP ${res.status})`,
+    );
   }
 }
 
@@ -190,7 +206,10 @@ export async function fetchRepoMounts(repo: string): Promise<HostMount[]> {
   return data.mounts || [];
 }
 
-export async function saveRepoMounts(repo: string, mounts: HostMount[]): Promise<void> {
+export async function saveRepoMounts(
+  repo: string,
+  mounts: HostMount[],
+): Promise<void> {
   const res = await apiFetch(`/api/repos/${repo}/mounts`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -202,7 +221,10 @@ export async function saveRepoMounts(repo: string, mounts: HostMount[]): Promise
   }
 }
 
-export async function stopRun(runId: string, skipPr: boolean): Promise<{ ok: boolean }> {
+export async function stopRun(
+  runId: string,
+  skipPr: boolean,
+): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/stop`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -233,7 +255,10 @@ export async function unlockAgent(runId: string): Promise<{ ok: boolean }> {
   return res.json();
 }
 
-export async function resumeAgent(runId: string, prompt?: string): Promise<{ ok: boolean }> {
+export async function resumeAgent(
+  runId: string,
+  prompt?: string,
+): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/resume`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -264,11 +289,24 @@ export interface DiffStats {
 export async function fetchRunDiff(runId: string): Promise<DiffStats> {
   try {
     const res = await apiFetch(`/api/runs/${runId}/diff`);
-    if (!res.ok) return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
+    if (!res.ok)
+      return {
+        files: [],
+        total_files: 0,
+        total_added: 0,
+        total_removed: 0,
+        source: "unavailable",
+      };
     return res.json();
   } catch (err) {
     console.warn("Failed to fetch run diff:", err);
-    return { files: [], total_files: 0, total_added: 0, total_removed: 0, source: "unavailable" };
+    return {
+      files: [],
+      total_files: 0,
+      total_added: 0,
+      total_removed: 0,
+      source: "unavailable",
+    };
   }
 }
 
@@ -311,10 +349,16 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 // ── Branches ─────────────────────────────────────────────────────────────────
 
 export async function fetchBranches(repo: string): Promise<string[]> {
-  const res = await apiFetch(`/api/agent/branches?repo=${encodeURIComponent(repo)}`);
+  const res = await apiFetch(
+    `/api/agent/branches?repo=${encodeURIComponent(repo)}`,
+  );
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
-    throw new Error(err.detail || `Failed to fetch branches (HTTP ${res.status})`);
+    const err = await res
+      .json()
+      .catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(
+      err.detail || `Failed to fetch branches (HTTP ${res.status})`,
+    );
   }
   return res.json();
 }

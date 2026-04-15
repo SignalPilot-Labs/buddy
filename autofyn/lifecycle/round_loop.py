@@ -224,7 +224,7 @@ async def _handle_round_outcome(
             log.info("[%s] Stopped during pause", rid)
             return "stopped", 0
         await db.update_run_status(run.run_id, "running")
-        await db.log_audit(run.run_id, "session_resumed", {})
+        await db.log_audit(run.run_id, "run_resumed", {})
         return None, 0
 
     # status in ("complete", "ended")

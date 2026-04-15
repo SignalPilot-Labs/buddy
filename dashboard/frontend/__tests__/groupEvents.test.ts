@@ -249,7 +249,7 @@ describe("milestone detail text", () => {
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
     if (result[0].type === "milestone") {
-      expect(result[0].label).toBe("Session End Denied");
+      expect(result[0].label).toBe("End Run Denied");
       expect(result[0].detail).toBe("25.3m remaining");
     }
   });
@@ -393,7 +393,7 @@ describe("groupEvents", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].label).toBe("End Round");
+      expect(result[0].label).toBe("End Round Requested");
       expect(result[0].detail).toBe("Fix event batching");
       expect(result[0].color).toBe("#00ff88");
     }
@@ -407,7 +407,7 @@ describe("groupEvents", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].label).toBe("End Session");
+      expect(result[0].label).toBe("End Run Requested");
     }
   });
 

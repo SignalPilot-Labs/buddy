@@ -187,7 +187,7 @@ function MonitorPageInner() {
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
-        sessionLocked={activeRunHealth?.session_unlocked === false}
+        sessionLocked={activeRunHealth?.run_unlocked === false}
       />
 
       {/* Start Run Modal */}

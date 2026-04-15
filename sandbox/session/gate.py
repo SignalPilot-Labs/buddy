@@ -83,14 +83,6 @@ class SessionGate:
             )
 
             if unlocked:
-                await log_audit(
-                    run_id,
-                    "session_ended",
-                    {
-                        "summary": args["summary"],
-                        "elapsed_minutes": round(elapsed_min, 1),
-                    },
-                )
                 mark_ended()
                 emit(
                     {
