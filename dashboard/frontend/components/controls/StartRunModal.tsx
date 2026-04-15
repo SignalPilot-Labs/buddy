@@ -11,7 +11,8 @@ import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts } from "@/lib/api";
+import type { HostMount } from "@/lib/api";
 
 export interface StartRunModalProps {
   open: boolean;
@@ -103,15 +104,21 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [effort, setEffort] = useState<EffortLevel>("medium");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
+  const [mounts, setMounts] = useState<HostMount[]>([]);
+  const [mountError, setMountError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open && activeRepo) {
       setEnvError(null);
+      setMountError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       }).catch(() => {
         setEnvError("Failed to load environment variables");
+      });
+      fetchRepoMounts(activeRepo).then(setMounts).catch(() => {
+        setMountError("Failed to load host mounts");
       });
     }
   }, [open, activeRepo]);
@@ -145,6 +152,13 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         setEnvError(e instanceof Error ? e.message : "Failed to save env vars");
         return;
       }
+      try {
+        await saveRepoMounts(activeRepo, mounts);
+        setMountError(null);
+      } catch (e) {
+        setMountError(e instanceof Error ? e.message : "Failed to save mounts");
+        return;
+      }
     }
     onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
   };
@@ -157,6 +171,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const budgetSummary = budgetEnabled ? `$${budget}` : "Unlimited";
   const envCount = countEnvVars(envText);
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
+  const mountSummary = mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None";
   const selectedDurationPreset = DURATION_PRESETS.find((d) => d.minutes === duration);
 
   if (typeof document === "undefined") return null;
@@ -331,6 +346,73 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     />
                     <p className="mt-1 text-content text-text-secondary">KEY=value per line. Encrypted and injected into sandbox.</p>
                     {envError && <p className="mt-1 text-content text-[#ff4444]">{envError}</p>}
+                  </div>
+                </CollapsibleSection>
+
+                {/* Host Mounts (collapsible) */}
+                <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
+                  <div className="space-y-2">
+                    {mounts.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={m.host_path}
+                          onChange={(e) => {
+                            const next = [...mounts];
+                            next[i] = { ...m, host_path: e.target.value };
+                            setMounts(next);
+                          }}
+                          placeholder="/host/path"
+                          className="flex-1 bg-black/30 border border-border rounded px-2 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+                        />
+                        <span className="text-text-dim text-content">→</span>
+                        <input
+                          type="text"
+                          value={m.container_path}
+                          onChange={(e) => {
+                            const next = [...mounts];
+                            next[i] = { ...m, container_path: e.target.value };
+                            setMounts(next);
+                          }}
+                          placeholder="/container/path"
+                          className="flex-1 bg-black/30 border border-border rounded px-2 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = [...mounts];
+                            next[i] = { ...m, mode: m.mode === "ro" ? "rw" : "ro" };
+                            setMounts(next);
+                          }}
+                          className={clsx(
+                            "px-2 py-1 rounded text-content font-mono border transition-colors",
+                            m.mode === "rw"
+                              ? "border-[#ffaa00]/30 text-[#ffaa00] bg-[#ffaa00]/[0.06]"
+                              : "border-border text-text-secondary"
+                          )}
+                        >
+                          {m.mode}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMounts(mounts.filter((_, j) => j !== i))}
+                          className="p-1 text-text-dim hover:text-[#ff4444] transition-colors"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setMounts([...mounts, { host_path: "", container_path: "", mode: "ro" }])}
+                      className="text-content text-text-secondary hover:text-accent-hover transition-colors"
+                    >
+                      + Add mount
+                    </button>
+                    <p className="text-content text-text-secondary">Mount host directories into the sandbox. Default read-only.</p>
+                    {mountError && <p className="mt-1 text-content text-[#ff4444]">{mountError}</p>}
                   </div>
                 </CollapsibleSection>
               </div>

@@ -177,6 +177,31 @@ export async function saveRepoEnv(repo: string, envVars: Record<string, string>)
   }
 }
 
+export interface HostMount {
+  host_path: string;
+  container_path: string;
+  mode: "ro" | "rw";
+}
+
+export async function fetchRepoMounts(repo: string): Promise<HostMount[]> {
+  const res = await apiFetch(`/api/repos/${repo}/mounts`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.mounts || [];
+}
+
+export async function saveRepoMounts(repo: string, mounts: HostMount[]): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/mounts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mounts }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Failed to save mounts (HTTP ${res.status})`);
+  }
+}
+
 export async function stopRun(runId: string, skipPr: boolean): Promise<{ ok: boolean }> {
   const res = await apiFetch(`/api/runs/${runId}/stop`, {
     method: "POST",

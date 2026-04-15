@@ -78,6 +78,27 @@ describe("StartRunModal", () => {
     expect(document.body.textContent).toContain("No vars");
   });
 
+  it("collapsed sections show host mounts summary", () => {
+    renderModal();
+    expect(document.body.textContent).toContain("Host Mounts");
+    expect(document.body.textContent).toContain("None");
+  });
+
+  it("expanding host mounts shows add button", async () => {
+    renderModal();
+    const collapsibleButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button[aria-expanded]")
+    );
+    const mountsButton = collapsibleButtons.find((b) =>
+      b.textContent?.includes("Host Mounts")
+    );
+    expect(mountsButton).toBeDefined();
+    if (mountsButton) {
+      await userEvent.click(mountsButton);
+    }
+    expect(document.body.textContent).toContain("+ Add mount");
+  });
+
   it("expanding a section reveals its content", async () => {
     renderModal();
 
