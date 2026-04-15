@@ -131,14 +131,6 @@ async def run_rounds(
                 exc,
             )
         if terminal is not None:
-            await db.log_audit(
-                run.run_id,
-                "run_ended",
-                {
-                    "status": terminal,
-                    "elapsed_minutes": round(time_lock.elapsed_minutes(), 1),
-                },
-            )
             return terminal
 
 

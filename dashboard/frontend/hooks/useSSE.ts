@@ -196,7 +196,6 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
           const result = await pollEvents(runId, afterTool, afterAudit);
           if (gen !== genRef.current) return;
           if (result.events.length > 0) {
-            let runEnded = false;
             setEvents((prev) => {
               let next = prev;
               for (const ev of result.events) {
@@ -210,18 +209,11 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
                   afterAudit = Math.max(afterAudit, ae.id ?? 0);
                   lastAuditCursorRef.current = afterAudit;
                   next = processAudit(next, ae);
-                  if (ae.event_type === "run_ended") runEnded = true;
                   if (ae.event_type === "run_resumed") onSessionResumedRef.current?.();
                 }
               }
               return next;
             });
-            if (runEnded && pollingRef.current) {
-              clearInterval(pollingRef.current);
-              pollingRef.current = null;
-              setConnectionState("disconnected");
-              onRunEndedRef.current?.();
-            }
           }
         } catch (err) {
           console.warn("Poll request failed:", err);
@@ -298,8 +290,9 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       es.addEventListener("run_ended", () => {
         if (gen !== genRef.current) return;
         sseGotMessage = true;
-        // Flush any buffered events (the real run_ended audit event
-        // arrives via the "audit" listener — no synthetic event needed).
+        // The run_ended audit event was already emitted to the DB and delivered
+        // via the "audit" SSE listener. This server event just signals teardown
+        // is complete — flush remaining buffer and disconnect.
         if (rafRef.current !== null) {
           cancelAnimationFrame(rafRef.current);
           rafRef.current = null;

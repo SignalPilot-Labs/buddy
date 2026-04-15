@@ -175,6 +175,7 @@ class AgentServer:
             body.host_mounts,
         )
         terminal_status = "error"
+        bootstrap = None
         try:
             bootstrap = await bootstrap_run(
                 sandbox=sandbox,
@@ -233,6 +234,15 @@ class AgentServer:
                 )
             raise
         finally:
+            elapsed = round(bootstrap.time_lock.elapsed_minutes(), 1) if bootstrap and bootstrap.time_lock else None
+            await db.log_audit(
+                run_id,
+                "run_ended",
+                {
+                    "status": active.status or terminal_status,
+                    "elapsed_minutes": elapsed,
+                },
+            )
             active.inbox = None
             active.time_lock = None
             await sandbox.close()
