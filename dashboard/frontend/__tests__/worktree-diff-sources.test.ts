@@ -19,8 +19,8 @@ type EmptyReason = "no-run" | "loading" | "unavailable" | "active-no-changes" | 
 
 function resolveShowSource(diffData: DiffStats | null, hasLiveChanges: boolean): ShowSource {
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
-  if (hasGitDiff) return "diff";
   if (hasLiveChanges) return "session";
+  if (hasGitDiff) return "diff";
   return "empty";
 }
 
@@ -63,8 +63,8 @@ function makeDiff(source: DiffStats["source"], fileCount: number): DiffStats {
 }
 
 describe("resolveShowSource", () => {
-  it("prefers git diff over session data", () => {
-    expect(resolveShowSource(makeDiff("stored", 3), true)).toBe("diff");
+  it("prefers session over git diff", () => {
+    expect(resolveShowSource(makeDiff("stored", 3), true)).toBe("session");
   });
 
   it("falls back to session when diff has no files", () => {

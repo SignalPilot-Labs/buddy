@@ -232,7 +232,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
   // Determine what to show: "diff", "session", or "empty"
   type ShowSource = "diff" | "session" | "empty";
-  const showSource: ShowSource = hasGitDiff ? "diff" : hasLiveChanges ? "session" : "empty";
+  const showSource: ShowSource = hasLiveChanges ? "session" : hasGitDiff ? "diff" : "empty";
 
   // Map DiffStats.source to DisplaySource for the badge
   const displaySource: DisplaySource = (() => {
