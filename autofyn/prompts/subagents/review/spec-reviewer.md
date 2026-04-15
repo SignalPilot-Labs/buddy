@@ -17,8 +17,10 @@ If you challenge the premise (wrong problem or wrong approach), your verdict MUS
 - **File placement** — responsibilities in the right module; no god classes.
 - **Dependency direction** — no circular imports, no domain layer reaching into infrastructure.
 - **Duplication** — spec isn't reimplementing something already in the codebase.
+- **Removals** — if the spec deletes or removes any function, class, component, constant, or file, grep the codebase to verify nothing else imports or uses it. Flag incorrect removals as Critical.
 - **Simplicity** — fewer files, classes, or abstractions if possible.
 - **CLAUDE.md compliance** — follows project rules (constants, error handling, imports, test structure, no defensive coding).
+- **Accumulated bloat** — if the spec adds to a file that's already large (>400 lines) or a module that's lost cohesion, flag it and suggest splitting first.
 - **Fail-fast** — no layered fallbacks, no silent error swallowing.
 
 ## Output
