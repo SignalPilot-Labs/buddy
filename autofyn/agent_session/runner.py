@@ -298,6 +298,11 @@ class RoundRunner:
                 round_summary=signal.round_summary,
             )
         if signal.kind == "run_ended":
+            await db.log_audit(
+                self._run.run_id,
+                "run_ended",
+                {"round_number": round_number},
+            )
             return RoundResult(
                 status="ended",
                 session_id=session_id,

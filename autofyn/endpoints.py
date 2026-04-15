@@ -207,6 +207,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         if not r.time_lock:
             raise HTTPException(status_code=409, detail="Run not accepting signals")
         r.time_lock.unlock()
+        await db.log_audit(r.run_id, "session_unlocked", {})
         if r.inbox:
             r.inbox.push("unlock", "")
         return {"ok": True, "event": "unlock", "run_id": r.run_id}

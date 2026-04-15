@@ -106,6 +106,15 @@ ruff check
 ```
 Both must pass clean.
 
+## Audit Event Types
+
+- The canonical list of audit event types lives in `db/constants.py` → `AUDIT_EVENT_TYPES`.
+- When adding or removing an event type, you MUST update ALL THREE locations:
+  1. `db/constants.py` — `AUDIT_EVENT_TYPES` (source of truth)
+  2. `dashboard/frontend/lib/types.ts` — `AuditEventType` union + `AUDIT_EVENT_META`
+  3. `dashboard/frontend/lib/groupEventHelpers.ts` — `milestoneFromAudit()` switch case (if the event should be rendered)
+- Cross-language sync tests enforce this: `tests/fast/test_audit_event_sync.py` and `dashboard/frontend/__tests__/audit-event-sync.test.ts`. They will fail if the sets diverge.
+
 ## Pull Requests
 
 - **Always open PRs against `main`.** The repo default branch is `production`, but that is the release branch — day-to-day work merges into `main`. Pass `--base main` explicitly to `gh pr create` (or edit the base after creation) so PRs don't land on `production` by accident.

@@ -265,43 +265,42 @@ export const TOOL_COLORS: Record<ToolCategory, ToolMeta> = {
 
 /* ── Audit Event Types ── */
 // All 19 event_types from the database
+// Must match AUDIT_EVENT_TYPES in db/constants.py — sync test enforces this.
 export type AuditEventType =
   | "usage"
   | "llm_text"
   | "llm_thinking"
-  | "round_complete"
   | "round_ended"
   | "rate_limit"
   | "run_started"
-  | "sdk_config"
+  | "run_ended"
   | "agent_stop"
   | "pr_failed"
-  | "session_ended"
   | "pr_created"
+  | "session_ended"
+  | "session_error"
   | "killed"
-  | "planner_invoked"
   | "end_session_denied"
   | "session_unlocked"
   | "fatal_error"
-  | "rate_limit_paused"
+  | "sandbox_crash"
+  | "teardown_failed"
+  | "max_rounds_reached"
+  | "no_changes"
   | "stop_requested"
   | "pause_requested"
-  | "resumed"
   | "subagent_start"
   | "subagent_complete"
-  | "subagent_stuck"
-  | "subagent_timeout"
   | "stuck_recovery"
   | "prompt_injected"
   | "prompt_submitted"
   | "session_resumed"
   | "push_failed"
   | "auto_commit"
-  | "rate_limit_fallback"
-  | "rate_limit_waiting"
-  | "permission_allowed"
   | "permission_denied"
-  | "run_ended";
+  | "idle_timeout"
+  | "idle_nudge"
+  | "tool_timeout";
 
 export interface AuditEventMeta {
   label: string;
@@ -311,37 +310,32 @@ export interface AuditEventMeta {
 }
 
 export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
-  round_complete:      { label: "Round Complete",    color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   rate_limit:          { label: "Rate Limit",        color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   run_started:         { label: "Run Started",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
-  sdk_config:          { label: "SDK Config",        color: "text-text-dim",   bg: "bg-text-dim/[0.04]",  iconColor: "#777777" },
   agent_stop:          { label: "Agent Stopped",     color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   pr_failed:           { label: "PR Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   session_ended:       { label: "Session Ended",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   pr_created:          { label: "PR Created",        color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   killed:              { label: "Killed",            color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  planner_invoked:     { label: "Planner",           color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   end_session_denied:  { label: "Session Denied",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  rate_limit_paused:   { label: "Rate Limit Paused", color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  stop_requested:      { label: "Stop Requested",     color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
+  stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   pause_requested:     { label: "Pause Requested",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  resumed:             { label: "Resumed",           color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
-  subagent_timeout:    { label: "Subagent Timeout",  color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   stuck_recovery:      { label: "Stuck Recovery",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   prompt_injected:     { label: "Prompt Injected",   color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   session_resumed:     { label: "Session Resumed",   color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   push_failed:         { label: "Push Failed",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   auto_commit:         { label: "Auto Commit",       color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
-  rate_limit_fallback: { label: "Model Fallback",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  rate_limit_waiting:  { label: "Rate Limit Wait",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   permission_denied:   { label: "Permission Denied", color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  permission_allowed:  { label: "Permission Allowed", color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
-  subagent_stuck:      { label: "Subagent Stuck",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  run_ended:           { label: "Run Ended",        color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  run_ended:           { label: "Run Ended",         color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  sandbox_crash:       { label: "Sandbox Crash",     color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  teardown_failed:     { label: "Teardown Failed",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  no_changes:          { label: "No Changes",        color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
+  idle_timeout:        { label: "Idle Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  tool_timeout:        { label: "Tool Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
 };
 
 /* ── WorkTree Types ── */

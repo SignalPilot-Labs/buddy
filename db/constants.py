@@ -116,6 +116,59 @@ def validate_host_mount(
     return None
 
 
+# ── Audit Event Types ──
+# Canonical set of all event_type values written by log_audit() across
+# the agent, sandbox, and dashboard containers.  Both the Python backend
+# and the TypeScript frontend must stay in sync with this set — there are
+# cross-language tests that verify it.
+AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
+    # Lifecycle
+    "run_started",
+    "run_ended",
+    "session_ended",
+    "killed",
+    "fatal_error",
+    "sandbox_crash",
+    "teardown_failed",
+    # Round management
+    "round_ended",
+    "session_error",
+    "max_rounds_reached",
+    # User actions
+    "pause_requested",
+    "stop_requested",
+    "prompt_submitted",
+    "prompt_injected",
+    # Git / PR
+    "push_failed",
+    "pr_failed",
+    "pr_created",
+    "auto_commit",
+    "no_changes",
+    # Session control
+    "end_session_denied",
+    "session_unlocked",
+    "session_resumed",
+    # Permission / security
+    "permission_denied",
+    # Rate limiting
+    "rate_limit",
+    # Idle / stuck detection
+    "idle_timeout",
+    "idle_nudge",
+    "tool_timeout",
+    "stuck_recovery",
+    # Subagent tracking
+    "subagent_start",
+    "subagent_complete",
+    "agent_stop",
+    # LLM output
+    "llm_text",
+    "llm_thinking",
+    "usage",
+})
+
+
 def resolve_sdk_model(model: str) -> str:
     """Translate an internal model key to the SDK model ID, or pass through."""
     return MODEL_ID_TRANSLATION.get(model, model)

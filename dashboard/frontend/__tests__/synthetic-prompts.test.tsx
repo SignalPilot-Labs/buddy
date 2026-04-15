@@ -203,12 +203,12 @@ describe("EventFeed page refresh scenario", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
       makeAuditEvent(50, "prompt_injected", { prompt: "fix the bug" }),
-      makeAuditEvent(51, "resumed", { via: "inject" }),
+      makeAuditEvent(51, "session_resumed", {}),
     ];
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.getByText("Run Started")).toBeInTheDocument();
     expect(screen.getByText("fix the bug")).toBeInTheDocument();
-    expect(screen.getByText("Resumed")).toBeInTheDocument();
+    expect(screen.getByText("Session Resumed")).toBeInTheDocument();
     expect(screen.getAllByText("You")).toHaveLength(1);
   });
 });
