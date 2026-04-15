@@ -352,8 +352,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
                   <div className="space-y-2">
+                    <p className="text-content text-text-secondary mb-2">Bind host dirs into the sandbox. Repo lives at /home/agentuser/repo.</p>
                     {mounts.map((m, i) => (
-                      <div key={i} className="space-y-1.5">
+                      <div key={i} className="space-y-1.5 mb-3">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
                           <input
@@ -367,6 +368,15 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                             placeholder="/Users/you/datasets"
                             className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setMounts(mounts.filter((_, j) => j !== i))}
+                            className="p-1 text-text-dim hover:text-[#ff4444] transition-colors"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+                              <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
+                            </svg>
+                          </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
@@ -378,35 +388,34 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                               next[i] = { ...m, container_path: e.target.value };
                               setMounts(next);
                             }}
-                            placeholder="/home/agentuser/repo/data"
+                            placeholder="/home/agentuser/datasets"
                             className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
                           />
+                          <span className="w-[26px]" />
                         </div>
                         <div className="flex items-center gap-2 pl-[72px]">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = [...mounts];
-                              next[i] = { ...m, mode: m.mode === "ro" ? "rw" : "ro" };
-                              setMounts(next);
-                            }}
-                            className={clsx(
-                              "text-content transition-colors",
-                              m.mode === "rw" ? "text-[#ffaa00]" : "text-text-secondary"
-                            )}
-                          >
-                            {m.mode === "ro" ? "Read only" : "Read & write"}
-                          </button>
-                          <span className="text-text-dim">·</span>
-                          <button
-                            type="button"
-                            onClick={() => setMounts(mounts.filter((_, j) => j !== i))}
-                            className="text-content text-text-dim hover:text-[#ff4444] transition-colors"
-                          >
-                            Remove
-                          </button>
+                          <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5">
+                            {(["ro", "rw"] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => {
+                                  const next = [...mounts];
+                                  next[i] = { ...m, mode };
+                                  setMounts(next);
+                                }}
+                                className={clsx(
+                                  "px-2.5 py-0.5 rounded-full text-content transition-all",
+                                  m.mode === mode
+                                    ? "bg-[#00ff88]/[0.12] text-[#00ff88] font-medium"
+                                    : "text-text-dim hover:text-text-secondary"
+                                )}
+                              >
+                                {mode === "ro" ? "Read only" : "Read & write"}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        {i < mounts.length - 1 && <div className="border-b border-border/50 mt-2" />}
                       </div>
                     ))}
                     <button
@@ -416,7 +425,6 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     >
                       + Add mount
                     </button>
-                    <p className="text-content text-text-secondary">Bind host dirs into the sandbox. Repo lives at /home/agentuser/repo.</p>
                     {mountError && <p className="mt-1 text-content text-[#ff4444]">{mountError}</p>}
                   </div>
                 </CollapsibleSection>
