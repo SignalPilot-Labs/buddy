@@ -131,13 +131,11 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "sandbox_crash",
     "teardown_failed",
     # Round management
-    "round_complete",
     "round_ended",
     "session_error",
     "max_rounds_reached",
     # User actions
     "pause_requested",
-    "resumed",
     "stop_requested",
     "prompt_submitted",
     "prompt_injected",

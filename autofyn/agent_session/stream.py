@@ -200,7 +200,7 @@ class StreamDispatcher:
         self._tracker.record_tool_done(agent_id)
 
     async def _handle_result(self, data: dict) -> None:
-        """Persist the SDK session id, settle cost, log round_complete.
+        """Persist the SDK session id and settle cost.
 
         ResultMessage carries the authoritative cost for THIS round's
         session. We add it to the prior-rounds baseline and rebase so any
@@ -218,16 +218,6 @@ class StreamDispatcher:
             self._output_baseline = self._run.total_output_tokens
             self._cache_create_baseline = self._run.cache_creation_input_tokens
             self._cache_read_baseline = self._run.cache_read_input_tokens
-        await db.log_audit(
-            run_id,
-            "round_complete",
-            {
-                "round_number": self._round_number,
-                "turns": data.get("num_turns"),
-                "round_cost_usd": round_cost,
-                "total_cost_usd": self._run.total_cost,
-            },
-        )
         await self._persist_cost()
 
     async def _accumulate_usage(self, data: dict) -> None:

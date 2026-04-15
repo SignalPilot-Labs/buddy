@@ -91,8 +91,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Stop Requested`, type: "milestone", label: "Stop Requested", detail: String(d.reason || ""), color: "#ff8844", ts, event };
     case "pause_requested":
       return { id: `ms-${ts}-Pause Requested`, type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
-    case "resumed":
-      return { id: `ms-${ts}-Resumed`, type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
     case "rate_limit": {
       const resetEpoch = d.resets_at as number | undefined;
       let resetText = "Rate limited";
@@ -120,6 +118,8 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Session Resumed`, type: "milestone", label: "Session Resumed", detail: "", color: "#00ff88", ts, event };
     case "auto_commit":
       return { id: `ms-${ts}-Auto Commit`, type: "milestone", label: "Auto Commit", detail: String(d.reason || "").slice(0, 100), color: "#888888", ts, event };
+    case "no_changes":
+      return { id: `ms-${ts}-No Changes`, type: "milestone", label: "No Changes", detail: String(d.base_branch || ""), color: "#888888", ts, event };
     case "push_failed":
       return { id: `ctrl-${ts}-push-failed`, type: "control", text: `Push failed: ${String(d.error || "Unknown error")}`, details: d, ts };
     case "sandbox_crash":

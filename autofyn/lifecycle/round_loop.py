@@ -194,6 +194,11 @@ async def _handle_round_outcome(
 
     if result.status == "stopped":
         log.info("[%s] Round %d stopped by user", rid, round_number)
+        await db.log_audit(
+            run.run_id,
+            "stop_requested",
+            {"round_number": round_number},
+        )
         await _commit_and_push_round(
             sandbox,
             run,
@@ -219,7 +224,7 @@ async def _handle_round_outcome(
             log.info("[%s] Stopped during pause", rid)
             return "stopped", 0
         await db.update_run_status(run.run_id, "running")
-        await db.log_audit(run.run_id, "resumed", {})
+        await db.log_audit(run.run_id, "session_resumed", {})
         return None, 0
 
     # status in ("complete", "ended")
@@ -317,6 +322,7 @@ async def _commit_and_push_round(
             "round_number": round_number,
             "summary": summary,
             "message": message,
+            "total_cost_usd": run.total_cost,
         },
     )
 

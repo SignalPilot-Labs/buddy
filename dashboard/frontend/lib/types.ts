@@ -270,7 +270,6 @@ export type AuditEventType =
   | "usage"
   | "llm_text"
   | "llm_thinking"
-  | "round_complete"
   | "round_ended"
   | "rate_limit"
   | "run_started"
@@ -290,7 +289,6 @@ export type AuditEventType =
   | "no_changes"
   | "stop_requested"
   | "pause_requested"
-  | "resumed"
   | "subagent_start"
   | "subagent_complete"
   | "stuck_recovery"
@@ -324,7 +322,6 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   pause_requested:     { label: "Pause Requested",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  resumed:             { label: "Resumed",           color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   subagent_start:      { label: "Subagent Start",    color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   stuck_recovery:      { label: "Stuck Recovery",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
@@ -334,6 +331,11 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   auto_commit:         { label: "Auto Commit",       color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
   permission_denied:   { label: "Permission Denied", color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   run_ended:           { label: "Run Ended",         color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  sandbox_crash:       { label: "Sandbox Crash",     color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  teardown_failed:     { label: "Teardown Failed",   color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
+  no_changes:          { label: "No Changes",        color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
+  idle_timeout:        { label: "Idle Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  tool_timeout:        { label: "Tool Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
 };
 
 /* ── WorkTree Types ── */
