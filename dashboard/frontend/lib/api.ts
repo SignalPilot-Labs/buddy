@@ -352,15 +352,11 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 export interface FileDiffResponse {
   path: string;
   patch: string;
-  patch_available: boolean;
-  status: "added" | "modified" | "deleted" | "renamed";
-  added: number;
-  removed: number;
 }
 
 export async function fetchFileDiff(runId: string, filePath: string): Promise<FileDiffResponse> {
   const res = await apiFetch(
-    `/api/runs/${runId}/diff/file?path=${encodeURIComponent(filePath)}`,
+    `/api/runs/${runId}/file/diff?path=${encodeURIComponent(filePath)}`,
   );
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));

@@ -33,7 +33,7 @@ import subprocess
 from aiohttp import web
 
 from constants import (
-    DIFF_PATCH_MAX_BYTES,
+    CMD_TIMEOUT,
     GIT_CREDENTIAL_HELPER,
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
@@ -42,7 +42,7 @@ from constants import (
     RETRY_MAX_ATTEMPTS,
     RETRY_TRANSIENT_PATTERNS,
 )
-from handlers.repo_parse import _parse_full_diff, _parse_name_status, _parse_numstat
+from handlers.repo_parse import _parse_name_status, _parse_numstat
 from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
@@ -221,23 +221,13 @@ async def _branch_diff(
     """File-level diff stats between the working branch and base."""
     await _git(["fetch", "origin", base, "--depth", "1"], timeout)
     ref_range = f"origin/{base}...{working_branch}"
-    numstat, name_status, full_diff = await asyncio.gather(
-        _git(["diff", "--numstat", ref_range], timeout),
-        _git(["diff", "--name-status", ref_range], timeout),
-        _git(["diff", ref_range], timeout),
-    )
+    numstat = await _git(["diff", "--numstat", ref_range], timeout)
     if numstat.exit_code != 0 or not numstat.stdout.strip():
         return []
+    name_status = await _git(["diff", "--name-status", ref_range], timeout)
     if name_status.exit_code != 0:
         return []
-    patches = _parse_full_diff(full_diff.stdout)
-    files = _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
-    for f in files:
-        raw_patch = patches.get(f["path"], "")
-        if len(raw_patch) > DIFF_PATCH_MAX_BYTES:
-            raw_patch = raw_patch[:DIFF_PATCH_MAX_BYTES] + "\n... (truncated)"
-        f["patch"] = raw_patch
-    return files
+    return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
 
 
 async def _create_or_update_pr(
@@ -481,11 +471,29 @@ async def handle_teardown(request: web.Request) -> web.Response:
     })
 
 
+async def handle_file_diff(request: web.Request) -> web.Response:
+    """Return unified diff for a single file against the base branch."""
+    body = await request.json()
+    file_path: str = body["path"]
+    timeout: int = body.get("timeout", CMD_TIMEOUT)
+    state = request.app["repo_state"]
+    if not state.working_branch or not state.base_branch:
+        return web.json_response({"error": "No active branch"}, status=409)
+
+    await _git(["fetch", "origin", state.base_branch, "--depth", "1"], timeout)
+    ref_range = f"origin/{state.base_branch}...{state.working_branch}"
+    result = await _git(["diff", ref_range, "--", file_path], timeout)
+    if result.exit_code != 0:
+        return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
+    return web.json_response({"patch": result.stdout, "path": file_path})
+
+
 # ── Registration ─────────────────────────────────────────────────────
 
 
 def register(app: web.Application) -> None:
-    """Attach /repo/bootstrap, /repo/save, /repo/teardown routes."""
+    """Attach /repo/* routes."""
     app.router.add_post("/repo/bootstrap", handle_bootstrap)
     app.router.add_post("/repo/save", handle_save)
     app.router.add_post("/repo/teardown", handle_teardown)
+    app.router.add_post("/repo/file/diff", handle_file_diff)

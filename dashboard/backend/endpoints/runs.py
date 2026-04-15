@@ -299,31 +299,35 @@ async def get_run_diff(run_id: str = RunId) -> dict:
     return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
 
 
-@router.get("/runs/{run_id}/diff/file")
+@router.get("/runs/{run_id}/file/diff")
 async def get_file_diff(run_id: str = RunId, path: str = Query(...)) -> dict:
-    """Get the unified diff patch for a single file within a run's stored diff."""
+    """Get unified diff for a single file — proxies to agent (sandbox or GitHub API)."""
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        diff_stats = run.diff_stats
+        branch_name = run.branch_name
+        base_branch = run.base_branch or DEFAULT_BASE_BRANCH
+        github_repo = run.github_repo
 
-    if not diff_stats:
-        raise HTTPException(status_code=404, detail="No diff data available")
+    if not github_repo:
+        raise HTTPException(status_code=404, detail="Run has no github_repo")
 
-    entry: dict | None = next(
-        (e for e in diff_stats if e["path"] == path), None,
+    creds = await read_credentials(github_repo)
+    token = creds.get("git_token")
+    if not token:
+        raise HTTPException(status_code=400, detail="No git_token configured for this repo")
+
+    return await agent_request(
+        "GET", "/file/diff", AGENT_TIMEOUT_LONG,
+        None,
+        {
+            "run_id": run_id,
+            "path": path,
+            "branch": branch_name,
+            "base": base_branch,
+            "repo": github_repo,
+            "token": token,
+        },
+        None,
     )
-    if entry is None:
-        raise HTTPException(status_code=404, detail="File not found in diff")
-
-    patch_available = "patch" in entry
-    patch = entry["patch"] if patch_available else ""
-    return {
-        "path": path,
-        "patch": patch,
-        "patch_available": patch_available,
-        "status": entry["status"],
-        "added": entry["added"],
-        "removed": entry["removed"],
-    }

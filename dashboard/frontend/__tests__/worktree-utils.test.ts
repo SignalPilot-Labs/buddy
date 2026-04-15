@@ -4,6 +4,7 @@ import {
   extractFileChanges,
   buildTreeFromDiff,
   buildTreeFromChanges,
+  mergeTrees,
 } from "@/lib/worktree-utils";
 
 describe("norm", () => {
@@ -98,5 +99,62 @@ describe("extractFileChanges", () => {
     expect(changes[0].action).toBe("edit");
     expect(changes[0].linesAdded).toBe(2);
     expect(changes[0].linesRemoved).toBe(1);
+  });
+});
+
+describe("mergeTrees", () => {
+  it("includes files from both trees", () => {
+    const git = buildTreeFromDiff([
+      { path: "src/a.py", added: 5, removed: 0, status: "added" },
+    ]);
+    const session = buildTreeFromChanges([
+      { path: "tmp/report.md", action: "edit", linesAdded: 10, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Write" },
+    ]);
+    const merged = mergeTrees(git, session);
+    expect(merged.children.has("src")).toBe(true);
+    expect(merged.children.has("tmp")).toBe(true);
+  });
+
+  it("session wins on file conflict", () => {
+    const git = buildTreeFromDiff([
+      { path: "src/main.py", added: 5, removed: 2, status: "modified" },
+    ]);
+    const session = buildTreeFromChanges([
+      { path: "src/main.py", action: "edit", linesAdded: 99, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Edit" },
+    ]);
+    const merged = mergeTrees(git, session);
+    const file = merged.children.get("src")!.children.get("main.py")!;
+    expect(file.added).toBe(99);
+  });
+
+  it("merges directories recursively", () => {
+    const git = buildTreeFromDiff([
+      { path: "src/a.py", added: 1, removed: 0, status: "added" },
+    ]);
+    const session = buildTreeFromChanges([
+      { path: "src/b.py", action: "edit", linesAdded: 2, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Write" },
+    ]);
+    const merged = mergeTrees(git, session);
+    const src = merged.children.get("src")!;
+    expect(src.children.has("a.py")).toBe(true);
+    expect(src.children.has("b.py")).toBe(true);
+  });
+
+  it("handles empty git tree", () => {
+    const git = buildTreeFromDiff([]);
+    const session = buildTreeFromChanges([
+      { path: "tmp/x.md", action: "edit", linesAdded: 1, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Write" },
+    ]);
+    const merged = mergeTrees(git, session);
+    expect(merged.children.has("tmp")).toBe(true);
+  });
+
+  it("handles empty session tree", () => {
+    const git = buildTreeFromDiff([
+      { path: "src/a.py", added: 1, removed: 0, status: "added" },
+    ]);
+    const session = buildTreeFromChanges([]);
+    const merged = mergeTrees(git, session);
+    expect(merged.children.has("src")).toBe(true);
   });
 });

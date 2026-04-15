@@ -85,6 +85,10 @@ class Repo:
             diff_stats=list(data["diff_stats"]),
         )
 
+    async def file_diff(self, file_path: str) -> dict:
+        """Get unified diff for a single file from the sandbox."""
+        return await self._post("/repo/file/diff", {"path": file_path})
+
     # ── Private ────────────────────────────────────────────────────────
 
     async def _post(self, path: str, body: dict) -> dict:

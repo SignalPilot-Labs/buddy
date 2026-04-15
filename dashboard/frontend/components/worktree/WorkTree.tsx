@@ -10,6 +10,7 @@ import {
   extractFileChanges,
   buildTreeFromDiff,
   buildTreeFromChanges,
+  mergeTrees,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
 import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
@@ -246,55 +247,63 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
   const hasLiveChanges = writeChanges.length > 0;
+  const hasContent = hasGitDiff || hasLiveChanges;
 
-  // Determine what to show: "diff", "session", or "empty"
-  type ShowSource = "diff" | "session" | "empty";
-  const showSource: ShowSource = hasLiveChanges ? "session" : hasGitDiff ? "diff" : "empty";
+  // Merged tree: git diff + session, session wins on conflict
+  const mergedTree = useMemo(() => {
+    if (!diffTree && liveTree.children.size === 0) return null;
+    if (!diffTree) return liveTree;
+    if (liveTree.children.size === 0) return diffTree;
+    return mergeTrees(diffTree, liveTree);
+  }, [diffTree, liveTree]);
 
-  // Map DiffStats.source to DisplaySource for the badge
+  const mergedRoots = useMemo(() => {
+    if (!mergedTree) return [];
+    return Array.from(mergedTree.children.values())
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+  }, [mergedTree]);
+
+  // Badge: show primary source
   const displaySource: DisplaySource = (() => {
-    if (showSource === "session") return "session";
-    if (showSource !== "diff" || !diffData) return null;
+    if (!hasContent) return null;
+    if (!hasGitDiff) return "session";
+    if (!diffData) return null;
     if (diffData.source === "live") return "diff-live";
     if (diffData.source === "stored") return "diff-stored";
     if (diffData.source === "agent") return "diff-agent";
     return null;
   })();
 
-  // File count for the header — reflects the active source
-  const headerFileCount: number = (() => {
-    if (showSource === "diff" && diffData) return diffData.total_files;
-    if (showSource === "session") return new Set(writeChanges.map(c => c.path)).size;
-    return 0;
-  })();
+  // File count from merged tree
+  const headerFileCount = useMemo(() => {
+    if (!mergedTree) return 0;
+    let count = 0;
+    const walk = (n: TreeNode) => { if (!n.isDir) count++; n.children.forEach(walk); };
+    mergedTree.children.forEach(walk);
+    return count;
+  }, [mergedTree]);
 
-  // Stats for the diff bar (only shown when showing git diff)
-  const showDiffStats = showSource === "diff" && diffData && (diffData.total_added > 0 || diffData.total_removed > 0);
+  // Stats bar (git diff stats when available)
+  const showDiffStats = hasGitDiff && diffData && (diffData.total_added > 0 || diffData.total_removed > 0);
 
-  // Determine empty state reason
+  // Empty state reason
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
-    if (diffData?.source === "unavailable") return "unavailable";
+    if (diffData?.source === "unavailable" && !hasLiveChanges) return "unavailable";
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  const diffRoots = useMemo(() => {
-    if (!diffTree) return [];
-    return Array.from(diffTree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
-  }, [diffTree]);
+  // File click: only for files that exist in git diff (have a real patch to show)
+  const diffPaths = useMemo(() => {
+    if (!diffData?.files) return new Set<string>();
+    return new Set(diffData.files.map(f => f.path));
+  }, [diffData]);
 
-  const liveRoots = useMemo(() => {
-    return Array.from(liveTree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
-  }, [liveTree]);
-
-  // Only allow file click when source is "diff" and data is not "unavailable"
   const onFileClick: ((path: string, status: string) => void) | null =
-    showSource === "diff" && diffData?.source !== "unavailable"
-      ? (path, status) => setSelectedFile({ path, status })
+    hasGitDiff && diffData?.source !== "unavailable"
+      ? (path, status) => { if (diffPaths.has(path)) setSelectedFile({ path, status }); }
       : null;
 
   return (
@@ -308,7 +317,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         </svg>
         <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
         <SourceBadge source={displaySource} />
-        {showSource !== "empty" && (
+        {hasContent && (
           <span className="text-meta text-text-dim tabular-nums ml-auto">{headerFileCount} files</span>
         )}
       </div>
@@ -333,7 +342,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
           />
         ) : (
           <>
-            {showSource === "empty" && (
+            {!hasContent && (
               diffLoading && !diffData ? (
                 <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
                   <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
@@ -343,12 +352,8 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
               )
             )}
 
-            {showSource === "diff" && diffRoots.map(child => (
+            {hasContent && mergedRoots.map(child => (
               <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} />
-            ))}
-
-            {showSource === "session" && liveRoots.map(child => (
-              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={null} />
             ))}
           </>
         )}

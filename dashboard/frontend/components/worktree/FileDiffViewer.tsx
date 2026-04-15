@@ -7,7 +7,6 @@ import { fetchFileDiff } from "@/lib/api";
 import type { FileDiffResponse } from "@/lib/api";
 import { parseDiffLines, langFromPath } from "@/lib/diff-utils";
 import type { DiffLine } from "@/lib/diff-utils";
-import { DIFF_GUTTER_CLASS } from "@/lib/constants";
 
 export interface FileDiffViewerProps {
   runId: string;
@@ -79,10 +78,7 @@ function HighlightedLine({
 function GutterCell({ value }: { value: number | null }) {
   return (
     <span
-      className={clsx(
-        DIFF_GUTTER_CLASS,
-        "inline-block text-right pr-2 select-none text-text-dim shrink-0 tabular-nums",
-      )}
+      className="w-10 inline-block text-right pr-2 select-none text-text-dim shrink-0 tabular-nums"
     >
       {value !== null ? value : ""}
     </span>
@@ -233,13 +229,7 @@ export function FileDiffViewer({ runId, filePath, fileStatus, onBack }: FileDiff
           </div>
         )}
 
-        {!loading && error === null && diffData !== null && !diffData.patch_available && (
-          <div className="px-3 py-6 text-center text-meta text-text-dim">
-            Diff not available for this file
-          </div>
-        )}
-
-        {!loading && error === null && diffData !== null && diffData.patch_available && (
+        {!loading && error === null && diffData !== null && (
           <div className="text-content font-mono py-1">
             {diffLines.map((line, idx) => (
               <DiffLineRow
