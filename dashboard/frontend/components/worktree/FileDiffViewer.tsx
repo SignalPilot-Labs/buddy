@@ -101,8 +101,8 @@ function DiffLineRow({
 }) {
   const rowClass = clsx(
     "flex items-start font-mono text-content leading-relaxed",
-    line.type === "add" && "bg-[#00ff88]/[0.06]",
-    line.type === "remove" && "bg-[#ff4444]/[0.06]",
+    line.type === "add" && "bg-[#00ff88]/[0.10]",
+    line.type === "remove" && "bg-[#ff4444]/[0.10]",
   );
 
   if (line.type === "hunk-header") {
@@ -203,7 +203,7 @@ export function FileDiffViewer({ runId, filePath, fileStatus, onBack }: FileDiff
       <div className="flex items-center gap-2 px-2 py-2 border-b border-border shrink-0">
         <button
           onClick={onBack}
-          className="p-1 rounded hover:bg-white/[0.06] transition-colors text-text-dim hover:text-text"
+          className="p-2 rounded hover:bg-white/[0.06] transition-colors text-text-dim hover:text-text min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Back to file tree"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">

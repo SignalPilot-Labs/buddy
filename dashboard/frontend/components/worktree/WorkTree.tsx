@@ -94,7 +94,7 @@ function NodeItem({
         className={clsx(
           "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
           isDir ? "cursor-pointer" : onFileClick ? "cursor-pointer" : "cursor-default",
-          "hover:bg-white/[0.03]",
+          onFileClick && !isDir ? "hover:bg-white/[0.06]" : "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
@@ -323,7 +323,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       )}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className={clsx("flex-1 overflow-y-auto", selectedFile === null && "py-1")}>
         {selectedFile !== null && runId !== null ? (
           <FileDiffViewer
             runId={runId}
