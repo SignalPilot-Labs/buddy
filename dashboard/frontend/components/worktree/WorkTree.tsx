@@ -13,6 +13,7 @@ import {
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
 import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { FileDiffViewer } from "./FileDiffViewer";
 
 /* ── Icons ── */
 function FileIcon({ name, status }: { name: string; status?: string }) {
@@ -45,7 +46,15 @@ function DirIcon({ open }: { open: boolean }) {
 }
 
 /* ── Tree Node Component ── */
-function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
+function NodeItem({
+  node,
+  depth,
+  onFileClick,
+}: {
+  node: TreeNode;
+  depth: number;
+  onFileClick: ((path: string, status: string) => void) | null;
+}) {
   const [open, setOpen] = useState(depth < 2);
   const isDir = node.isDir && node.children.size > 0;
 
@@ -58,7 +67,6 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     });
   }, [node.children]);
 
-  // Aggregate child stats for directories
   const totalAdded = useMemo(() => {
     if (!node.isDir) return node.added;
     let sum = node.added;
@@ -75,18 +83,23 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     return sum;
   }, [node]);
 
+  const handleClick = () => {
+    if (isDir) { setOpen(!open); return; }
+    if (onFileClick) onFileClick(node.fullPath, node.status ?? "modified");
+  };
+
   return (
     <div>
       <div
         className={clsx(
           "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
-          isDir ? "cursor-pointer" : "cursor-default",
+          isDir ? "cursor-pointer" : onFileClick ? "cursor-pointer" : "cursor-default",
           "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
         style={{ paddingLeft: depth * 14 + 4 }}
-        onClick={() => isDir && setOpen(!open)}
+        onClick={handleClick}
       >
         {isDir ? (
           <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round"
@@ -124,7 +137,9 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
       <AnimatePresence>
         {open && isDir && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
-            {sorted.map(child => <NodeItem key={child.fullPath} node={child} depth={depth + 1} />)}
+            {sorted.map(child => (
+              <NodeItem key={child.fullPath} node={child} depth={depth + 1} onFileClick={onFileClick} />
+            ))}
           </motion.div>
         )}
       </AnimatePresence>
@@ -171,8 +186,8 @@ type EmptyReason = "no-run" | "loading" | "unavailable" | "active-no-changes" | 
 function EmptyState({ reason }: { reason: EmptyReason }) {
   const messages: Record<EmptyReason, string> = {
     "no-run": "Select a run to see file changes",
-    "loading": "Loading changes…",
-    "unavailable": "Diff unavailable — agent offline or branch deleted",
+    loading: "Loading changes\u2026",
+    unavailable: "Diff unavailable \u2014 agent offline or branch deleted",
     "active-no-changes": "No file changes yet",
     "completed-no-changes": "No file changes in this run",
   };
@@ -194,10 +209,12 @@ export interface WorkTreeProps {
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
-  // Fetch git diff when run changes
+  // Fetch git diff when run changes; reset selected file
   useEffect(() => {
     if (!runId) { setDiffData(null); return; }
+    setSelectedFile(null);
     setDiffLoading(true);
     fetchRunDiff(runId)
       .then(d => { setDiffData(d); setDiffLoading(false); })
@@ -274,6 +291,12 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
   }, [liveTree]);
 
+  // Only allow file click when source is "diff" and data is not "unavailable"
+  const onFileClick: ((path: string, status: string) => void) | null =
+    showSource === "diff" && diffData?.source !== "unavailable"
+      ? (path, status) => setSelectedFile({ path, status })
+      : null;
+
   return (
     <div className="flex flex-col bg-sidebar h-full w-full">
       {/* Header */}
@@ -301,23 +324,34 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto py-1">
-        {showSource === "empty" && (
-          diffLoading && !diffData ? (
-            <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
-              <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
-            </div>
-          ) : (
-            <EmptyState reason={emptyReason} />
-          )
+        {selectedFile !== null && runId !== null ? (
+          <FileDiffViewer
+            runId={runId}
+            filePath={selectedFile.path}
+            fileStatus={selectedFile.status}
+            onBack={() => setSelectedFile(null)}
+          />
+        ) : (
+          <>
+            {showSource === "empty" && (
+              diffLoading && !diffData ? (
+                <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
+                  <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+                </div>
+              ) : (
+                <EmptyState reason={emptyReason} />
+              )
+            )}
+
+            {showSource === "diff" && diffRoots.map(child => (
+              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} />
+            ))}
+
+            {showSource === "session" && liveRoots.map(child => (
+              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={null} />
+            ))}
+          </>
         )}
-
-        {showSource === "diff" && diffRoots.map(child => (
-          <NodeItem key={child.fullPath} node={child} depth={0} />
-        ))}
-
-        {showSource === "session" && liveRoots.map(child => (
-          <NodeItem key={child.fullPath} node={child} depth={0} />
-        ))}
       </div>
     </div>
   );

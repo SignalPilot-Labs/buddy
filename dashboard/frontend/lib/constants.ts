@@ -197,6 +197,9 @@ export function getApiBase(): string {
   return "";
 }
 
+// Diff viewer
+export const DIFF_GUTTER_CLASS = "w-10";
+
 /** Capitalize the first character of a string. */
 export function capitalize(s: string): string {
   if (s.length === 0) return s;

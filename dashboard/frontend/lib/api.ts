@@ -349,6 +349,26 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
+export interface FileDiffResponse {
+  path: string;
+  patch: string;
+  patch_available: boolean;
+  status: "added" | "modified" | "deleted" | "renamed";
+  added: number;
+  removed: number;
+}
+
+export async function fetchFileDiff(runId: string, filePath: string): Promise<FileDiffResponse> {
+  const res = await apiFetch(
+    `/api/runs/${runId}/diff/file?path=${encodeURIComponent(filePath)}`,
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchBranches(repo: string): Promise<string[]> {
   const res = await apiFetch(
     `/api/agent/branches?repo=${encodeURIComponent(repo)}`,

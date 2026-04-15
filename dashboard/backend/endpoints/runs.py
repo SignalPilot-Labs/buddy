@@ -297,3 +297,33 @@ async def get_run_diff(run_id: str = RunId) -> dict:
         return data
 
     return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
+
+
+@router.get("/runs/{run_id}/diff/file")
+async def get_file_diff(run_id: str = RunId, path: str = Query(...)) -> dict:
+    """Get the unified diff patch for a single file within a run's stored diff."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        diff_stats = run.diff_stats
+
+    if not diff_stats:
+        raise HTTPException(status_code=404, detail="No diff data available")
+
+    entry: dict | None = next(
+        (e for e in diff_stats if e["path"] == path), None,
+    )
+    if entry is None:
+        raise HTTPException(status_code=404, detail="File not found in diff")
+
+    patch_available = "patch" in entry
+    patch = entry["patch"] if patch_available else ""
+    return {
+        "path": path,
+        "patch": patch,
+        "patch_available": patch_available,
+        "status": entry["status"],
+        "added": entry["added"],
+        "removed": entry["removed"],
+    }

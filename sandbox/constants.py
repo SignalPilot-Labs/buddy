@@ -71,3 +71,8 @@ REPO_BRANCH_NAME_MAX_LEN: int = 256
 GIT_CREDENTIAL_HELPER: str = (
     '!f() { echo "username=x-access-token"; echo "password=${GIT_TOKEN}"; }; f'
 )
+
+# ── Diff capture ──
+# Maximum bytes of unified diff patch text stored per file during teardown.
+# Patches exceeding this limit are truncated with a notice appended.
+DIFF_PATCH_MAX_BYTES: int = 50_000
