@@ -9,6 +9,7 @@ Covers:
 """
 
 from prompts.orchestrator import _user_activity_block
+from utils.db import _SIGNAL_RENDERERS
 from utils.models import UserAction
 
 
@@ -80,37 +81,31 @@ class TestSignalRenderers:
     """The DB signal renderers must produce correct kind/text pairs."""
 
     def test_inject_produces_message_kind(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["inject"]("Fix the bug")
         assert kind == "message"
         assert text == "Fix the bug"
 
     def test_pause_produces_pause_kind(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["pause"](None)
         assert kind == "pause"
         assert text == "Paused"
 
     def test_resume_produces_resume_kind(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["resume"](None)
         assert kind == "resume"
         assert text == "Resumed"
 
     def test_stop_with_reason(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["stop"]("User requested")
         assert kind == "stop"
         assert text == "Stopped: User requested"
 
     def test_stop_without_reason(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["stop"](None)
         assert kind == "stop"
         assert text == "Stopped"
 
     def test_unlock_produces_unlock_kind(self) -> None:
-        from utils.db import _SIGNAL_RENDERERS
         kind, text = _SIGNAL_RENDERERS["unlock"](None)
         assert kind == "unlock"
         assert text == "Time gate unlocked"

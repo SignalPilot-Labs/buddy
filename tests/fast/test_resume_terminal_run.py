@@ -9,11 +9,13 @@ Verifies that:
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
 
-from endpoints import _restart_terminal_run
+from endpoints import _restart_terminal_run, register_routes
+from lifecycle.bootstrap import bootstrap_run
 from utils.models import ResumeRequest
 
 
@@ -168,7 +170,6 @@ class TestBootstrapResumesBranch:
             patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock) as mock_branch,
             patch("lifecycle.bootstrap.db.get_run_for_resume", new_callable=AsyncMock, return_value=prior_info),
         ):
-            from lifecycle.bootstrap import bootstrap_run
             result = await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
@@ -208,7 +209,6 @@ class TestBootstrapResumesBranch:
             patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock) as mock_status,
             patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock) as mock_branch,
         ):
-            from lifecycle.bootstrap import bootstrap_run
             await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
@@ -244,7 +244,6 @@ class TestBootstrapResumesBranch:
             patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock) as mock_status,
             patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock) as mock_branch,
         ):
-            from lifecycle.bootstrap import bootstrap_run
             await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
@@ -273,7 +272,6 @@ class TestResumeEdgeCases:
     @pytest.mark.asyncio
     async def test_resume_paused_run_pushes_to_inbox(self) -> None:
         """Paused run with active inbox should push resume, not restart."""
-        from unittest.mock import MagicMock
         inbox = MagicMock()
         inbox.push = MagicMock()
         active = MagicMock()
@@ -284,13 +282,10 @@ class TestResumeEdgeCases:
         server.get_run_or_first = MagicMock(return_value=active)
 
         # No body (simple resume) — should push to inbox
-        from endpoints import register_routes
-        from fastapi import FastAPI
         app = FastAPI()
         register_routes(app, server)
 
         # Simulate the resume logic directly
-        from fastapi.testclient import TestClient
         client = TestClient(app)
         resp = client.post("/resume")
         assert resp.status_code == 200
@@ -379,7 +374,6 @@ class TestBootstrapPreservesCosts:
             patch("lifecycle.bootstrap.db.update_run_status", new_callable=AsyncMock),
             patch("lifecycle.bootstrap.db.get_run_for_resume", new_callable=AsyncMock, return_value=prior_info),
         ):
-            from lifecycle.bootstrap import bootstrap_run
             result = await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",
@@ -415,7 +409,6 @@ class TestBootstrapPreservesCosts:
             patch("lifecycle.bootstrap.db.get_run_branch_name", new_callable=AsyncMock, return_value=None),
             patch("lifecycle.bootstrap.db.update_run_branch", new_callable=AsyncMock),
         ):
-            from lifecycle.bootstrap import bootstrap_run
             await bootstrap_run(
                 sandbox=mock_sandbox,
                 run_id="run-1",

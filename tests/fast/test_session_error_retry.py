@@ -9,6 +9,7 @@ A successful round resets the counter.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from lifecycle.round_loop import _handle_round_outcome
 from utils.constants import SESSION_ERROR_BASE_BACKOFF_SEC, SESSION_ERROR_MAX_RETRIES
 from utils.models import RoundResult
 
@@ -50,8 +51,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_first_error_retries_with_base_backoff(self):
         """First session error sleeps BASE_BACKOFF_SEC and returns None (retry)."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         with (
             patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
             patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
@@ -76,8 +75,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_second_error_doubles_backoff(self):
         """Second consecutive error sleeps 2 * BASE_BACKOFF_SEC."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         with (
             patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
             patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
@@ -102,8 +99,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_max_retries_stops_run(self):
         """After MAX_RETRIES consecutive errors, return 'error' terminal status."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         with (
             patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
             patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
@@ -128,8 +123,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_successful_round_resets_counter(self):
         """A complete round after errors resets the consecutive error counter."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         with (
             patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
             patch("lifecycle.round_loop._commit_and_push_round", new_callable=AsyncMock),
@@ -153,8 +146,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_backoff_is_exponential(self):
         """Verify the backoff sequence is 2, 4, 8 seconds."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         expected_backoffs = [
             SESSION_ERROR_BASE_BACKOFF_SEC * (2 ** i)
             for i in range(SESSION_ERROR_MAX_RETRIES)
@@ -166,8 +157,6 @@ class TestSessionErrorRetry:
     @pytest.mark.asyncio
     async def test_audit_log_records_each_error(self):
         """Each session error is logged to audit with attempt number and backoff."""
-        from lifecycle.round_loop import _handle_round_outcome
-
         with (
             patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
             patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock),
