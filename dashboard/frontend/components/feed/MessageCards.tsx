@@ -142,42 +142,35 @@ export function LLMMessageCard({
   );
 }
 
-/* ── Control ── */
+/* ── Control / Error ── */
 export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex items-center gap-2 px-4 py-2"
+      className="rounded-lg p-4 border-l-2 bg-[#ff4444]/[0.04] border border-[#ff4444]/10 border-l-[#ff4444]"
     >
-      <div className="flex-1 h-px bg-[#ffaa00]/10" />
-      <div className="flex items-center gap-1.5 text-content text-[#ffaa00]/80">
-        <svg
-          width="10"
-          height="10"
-          viewBox="0 0 10 10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          aria-hidden="true"
-        >
-          <polyline points="2 4 5 7 2 10" />
-          <line x1="6" y1="10" x2="9" y2="10" />
-        </svg>
-        {text}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center justify-center h-6 w-6 rounded-md bg-[#ff4444]/10">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#ff4444" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+            <circle cx="6" cy="6" r="5" />
+            <line x1="6" y1="3.5" x2="6" y2="6.5" />
+            <circle cx="6" cy="8.5" r="0.5" fill="#ff4444" stroke="none" />
+          </svg>
+        </div>
+        <span className="text-title font-semibold text-[#ff4444]">Error</span>
+        <span className="text-caption text-text-dim tabular-nums">{fmtTime(ts)}</span>
         {retryAction && (
           <button
             onClick={retryAction}
-            className="text-[#ffaa00] hover:underline ml-1"
+            className="ml-auto text-caption text-[#ff4444] hover:underline"
           >
             Retry
           </button>
         )}
-        <span className="text-text-dim tabular-nums">{fmtTime(ts)}</span>
       </div>
-      <div className="flex-1 h-px bg-[#ffaa00]/10" />
+      <div className="text-body text-[#ff8888] whitespace-pre-wrap break-words">{text}</div>
     </motion.div>
   );
 }

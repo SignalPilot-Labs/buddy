@@ -80,4 +80,26 @@ describe("EventFeed", () => {
     const matches = screen.getAllByText(/Run starting/);
     expect(matches).toHaveLength(1);
   });
+
+  it("control events show Error header", () => {
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[makeControlEvent("Failed to start run: HTTP 500")]} hasSelectedRun={true} />);
+    expect(screen.getByText("Error")).toBeInTheDocument();
+  });
+
+  it("control events show full error text", () => {
+    const longError = "Failed to start run: sandbox /repo/bootstrap -> 500: git clone failed (exit_code=128)";
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[makeControlEvent(longError)]} hasSelectedRun={true} />);
+    expect(screen.getByText(longError)).toBeInTheDocument();
+  });
+
+  it("control events show retry button when retryAction provided", () => {
+    const events: FeedEvent[] = [{
+      _kind: "control",
+      text: "Resume failed",
+      ts: new Date().toISOString(),
+      retryAction: () => {},
+    }];
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
+    expect(screen.getByText("Retry")).toBeInTheDocument();
+  });
 });
