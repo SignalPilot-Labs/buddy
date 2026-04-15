@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
-import type { DiffStats, TmpFileEntry } from "@/lib/api";
+import type { DiffStats } from "@/lib/api";
 import { fetchRunDiff, fetchDiffRepo, fetchDiffTmp } from "@/lib/api";
 import {
   extractFileChanges,
@@ -215,12 +215,11 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [fullDiff, setFullDiff] = useState<string | null>(null);
-  const [tmpFiles, setTmpFiles] = useState<TmpFileEntry[]>([]);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
   // Fetch diff stats (file list) when run changes
   useEffect(() => {
-    if (!runId) { setDiffData(null); setFullDiff(null); setTmpFiles([]); return; }
+    if (!runId) { setDiffData(null); setFullDiff(null); return; }
     setSelectedFile(null);
     setDiffLoading(true);
     fetchRunDiff(runId)
@@ -229,20 +228,15 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
-    // Fetch tmp files for this run (archived round reports)
-    fetchDiffTmp(runId).then(d => setTmpFiles(d.files)).catch(() => setTmpFiles([]));
+    // Fetch full diff text: repo (git) + tmp (round files), concatenated
+    Promise.all([
+      fetchDiffRepo(runId).then(d => d.diff).catch(() => ""),
+      fetchDiffTmp(runId).then(d => d.diff).catch(() => ""),
+    ]).then(([repo, tmp]) => {
+      const combined = [repo, tmp].filter(Boolean).join("\n");
+      setFullDiff(combined || null);
+    });
   }, [runId]);
-
-  // Fetch full diff text (cached on agent) when we have diff data
-  useEffect(() => {
-    if (!runId || !diffData || diffData.files.length === 0 || diffData.source === "unavailable") {
-      setFullDiff(null);
-      return;
-    }
-    fetchDiffRepo(runId)
-      .then(d => setFullDiff(d.diff))
-      .catch(err => console.warn("WorkTree: full diff fetch failed:", err));
-  }, [runId, diffData]);
 
   // Refresh diff stats periodically for live/agent diffs
   const isPollingSource = diffData?.source === "live" || diffData?.source === "agent";
@@ -259,24 +253,40 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
   const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
 
-  // Git diff tree
+  // Git diff tree (from stats endpoint)
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
-  // Tmp files tree (archived round reports)
+  // Tmp files tree (from full diff text — files under round-N/)
   const tmpTree = useMemo(() => {
-    if (tmpFiles.length === 0) return null;
-    return buildTreeFromChanges(tmpFiles.map(f => ({
-      path: f.path, action: "edit" as const, linesAdded: 0, linesRemoved: 0,
+    if (!fullDiff) return null;
+    // Extract tmp file paths from the combined diff
+    const tmpPaths: string[] = [];
+    const sections = fullDiff.split("\ndiff --git ");
+    for (let i = 0; i < sections.length; i++) {
+      let s = sections[i];
+      if (i === 0 && s.startsWith("diff --git ")) s = s.slice("diff --git ".length);
+      else if (i === 0) continue;
+      const nl = s.indexOf("\n");
+      if (nl === -1) continue;
+      const header = s.slice(0, nl);
+      const bIdx = header.lastIndexOf(" b/");
+      if (bIdx === -1) continue;
+      const path = header.slice(bIdx + 3);
+      if (path.startsWith("round-")) tmpPaths.push(path);
+    }
+    if (tmpPaths.length === 0) return null;
+    return buildTreeFromChanges(tmpPaths.map(p => ({
+      path: p, action: "edit" as const, linesAdded: 0, linesRemoved: 0,
       timestamp: "", toolCallId: 0, toolName: "Archive",
     })));
-  }, [tmpFiles]);
+  }, [fullDiff]);
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
   const hasLiveChanges = writeChanges.length > 0;
-  const hasTmpFiles = tmpFiles.length > 0;
+  const hasTmpFiles = tmpTree !== null;
   const hasContent = hasGitDiff || hasLiveChanges || hasTmpFiles;
 
-  // Merged tree: git diff + session + tmp, session wins on conflict
+  // Merged tree: git diff + session/tmp, session wins on conflict
   const mergedTree = useMemo(() => {
     let tree: TreeNode | null = diffTree;
     const sessionTree = liveTree.children.size > 0 ? liveTree : tmpTree;
@@ -323,12 +333,6 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
-
-  // Files clickable only if we have full diff text to extract from
-  const diffPaths = useMemo(() => {
-    if (!diffData?.files) return new Set<string>();
-    return new Set(diffData.files.map(f => f.path));
-  }, [diffData]);
 
   const onFileClick = fullDiff !== null
     ? (path: string, status: string) => setSelectedFile({ path, status })
@@ -381,7 +385,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
             )}
 
             {hasContent && mergedRoots.map(child => (
-              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} clickablePaths={diffPaths} />
+              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} clickablePaths={null} />
             ))}
           </>
         )}

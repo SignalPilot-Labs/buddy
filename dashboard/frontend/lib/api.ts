@@ -362,18 +362,9 @@ export async function fetchDiffRepo(runId: string): Promise<DiffRepoResponse> {
   return res.json();
 }
 
-export interface TmpFileEntry {
-  path: string;
-  size: number;
-}
-
-export interface DiffTmpResponse {
-  files: TmpFileEntry[];
-}
-
-export async function fetchDiffTmp(runId: string): Promise<DiffTmpResponse> {
+export async function fetchDiffTmp(runId: string): Promise<DiffRepoResponse> {
   const res = await apiFetch(`/api/runs/${runId}/diff/tmp`);
-  if (!res.ok) return { files: [] };
+  if (!res.ok) return { diff: "" };
   return res.json();
 }
 

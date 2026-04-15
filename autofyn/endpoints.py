@@ -296,22 +296,27 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     @app.get("/diff/tmp")
     async def diff_tmp(run_id: str):
-        """List archived round files for a completed run."""
+        """Unified diff of archived round files (all treated as new files)."""
         archive_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
         if not archive_root.is_dir():
-            return {"files": []}
-        files: list[dict] = []
+            return {"diff": ""}
+        parts: list[str] = []
         for round_dir in sorted(archive_root.iterdir()):
             if not round_dir.is_dir():
                 continue
             for f in sorted(round_dir.iterdir()):
                 if not f.is_file():
                     continue
-                files.append({
-                    "path": f"{round_dir.name}/{f.name}",
-                    "size": f.stat().st_size,
-                })
-        return {"files": files}
+                rel = f"{round_dir.name}/{f.name}"
+                try:
+                    content = f.read_text(encoding="utf-8")
+                except (OSError, UnicodeDecodeError):
+                    continue
+                lines = content.splitlines()
+                header = f"diff --git a/{rel} b/{rel}\nnew file mode 100644\n--- /dev/null\n+++ b/{rel}\n@@ -0,0 +1,{len(lines)} @@"
+                body = "\n".join(f"+{line}" for line in lines)
+                parts.append(f"{header}\n{body}")
+        return {"diff": "\n".join(parts)}
 
     @app.get("/branches")
     async def list_branches(repo: str, token: str):
