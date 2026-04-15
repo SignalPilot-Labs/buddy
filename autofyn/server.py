@@ -27,6 +27,7 @@ from sandbox_client.pool import SandboxPool
 from utils import db
 from utils.constants import (
     ACTIVE_RUN_STATUSES,
+    AccessNoiseFilter,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
     MAX_CONCURRENT_RUNS,
@@ -319,6 +320,9 @@ app = _server.app
 def main() -> None:
     """Run the agent HTTP server."""
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
+    _filt = AccessNoiseFilter()
+    for name in ("uvicorn.access", "uvicorn", ""):
+        logging.getLogger(name).addFilter(_filt)
     uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT, log_level="info")
 
 
