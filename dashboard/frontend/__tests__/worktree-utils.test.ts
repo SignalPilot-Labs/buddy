@@ -100,6 +100,77 @@ describe("extractFileChanges", () => {
     expect(changes[0].linesAdded).toBe(2);
     expect(changes[0].linesRemoved).toBe(1);
   });
+
+  it("write with structuredPatch counts actual + lines", () => {
+    const changes = extractFileChanges([{
+      _kind: "tool",
+      data: {
+        id: 3, tool_name: "Write", ts: "t3",
+        input_data: { file_path: "/workspace/new-file.ts" },
+        output_data: {
+          structuredPatch: [{ lines: ["+new", " ctx", "+added", "-old"] }],
+        },
+      },
+    } as any]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].action).toBe("write");
+    expect(changes[0].linesAdded).toBe(2);
+    expect(changes[0].linesRemoved).toBe(1);
+  });
+
+  it("write without structuredPatch has undefined line counts", () => {
+    const changes = extractFileChanges([{
+      _kind: "tool",
+      data: {
+        id: 4, tool_name: "Write", ts: "t4",
+        input_data: { file_path: "/workspace/new-file.ts" },
+        output_data: {},
+      },
+    } as any]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].action).toBe("write");
+    expect(changes[0].linesAdded).toBeUndefined();
+    expect(changes[0].linesRemoved).toBeUndefined();
+  });
+
+  it("write with both + and - lines counts both", () => {
+    const changes = extractFileChanges([{
+      _kind: "tool",
+      data: {
+        id: 5, tool_name: "Write", ts: "t5",
+        input_data: { file_path: "/workspace/rewritten.ts" },
+        output_data: {
+          structuredPatch: [
+            { lines: ["+++ b/rewritten.ts", "+line1", "+line2", "-old1", " ctx"] },
+            { lines: ["+line3", "-old2", "-old3"] },
+          ],
+        },
+      },
+    } as any]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].linesAdded).toBe(3);
+    expect(changes[0].linesRemoved).toBe(3);
+  });
+
+  it("edit still works after refactor to shared helper", () => {
+    const changes = extractFileChanges([{
+      _kind: "tool",
+      data: {
+        id: 6, tool_name: "Edit", ts: "t6",
+        input_data: { file_path: "/workspace/existing.ts" },
+        output_data: {
+          structuredPatch: [
+            { lines: ["--- a/existing.ts", "+++ b/existing.ts", "+added1", "-removed1", " unchanged"] },
+            { lines: ["+added2", "+added3"] },
+          ],
+        },
+      },
+    } as any]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].action).toBe("edit");
+    expect(changes[0].linesAdded).toBe(3);
+    expect(changes[0].linesRemoved).toBe(1);
+  });
 });
 
 describe("mergeTrees", () => {

@@ -2,6 +2,25 @@ import type { FeedEvent, FileChange } from "@/lib/types";
 import type { DiffFile } from "@/lib/api";
 import { getToolCategory } from "@/lib/types";
 
+/* ── Patch types ── */
+interface PatchHunk {
+  lines?: string[];
+}
+
+/* ── Shared patch line counter ── */
+function _countPatchLines(hunks: PatchHunk[]): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+  for (const hunk of hunks) {
+    if (hunk.lines === undefined) continue;
+    for (const line of hunk.lines) {
+      if (line.startsWith("+") && !line.startsWith("+++")) added++;
+      if (line.startsWith("-") && !line.startsWith("---")) removed++;
+    }
+  }
+  return { added, removed };
+}
+
 /* ── Tree Node ── */
 export interface TreeNode {
   name: string;
@@ -49,13 +68,13 @@ export function extractFileChanges(events: FeedEvent[]): FileChange[] {
       case "write": {
         const fp = (input.file_path as string) || (output.filePath as string) || "";
         if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0;
-          if (patch) for (const h of patch) added += (h.newLines as number) || 0;
+          const patch = output.structuredPatch as PatchHunk[] | undefined;
+          const counts = patch ? _countPatchLines(patch) : undefined;
           changes.push({
             path: norm(fp),
             action: "write",
-            linesAdded: added || undefined,
+            linesAdded: counts ? counts.added || undefined : undefined,
+            linesRemoved: counts ? counts.removed || undefined : undefined,
             timestamp: tc.ts,
             toolCallId: tc.id,
             toolName: tc.tool_name,
@@ -66,22 +85,13 @@ export function extractFileChanges(events: FeedEvent[]): FileChange[] {
       case "edit": {
         const fp = (input.file_path as string) || (output.filePath as string) || "";
         if (fp) {
-          const patch = output.structuredPatch as Array<Record<string, unknown>> | undefined;
-          let added = 0;
-          let removed = 0;
-          if (patch) {
-            for (const h of patch) {
-              for (const l of ((h.lines as string[]) || [])) {
-                if (l.startsWith("+") && !l.startsWith("+++")) added++;
-                if (l.startsWith("-") && !l.startsWith("---")) removed++;
-              }
-            }
-          }
+          const patch = output.structuredPatch as PatchHunk[] | undefined;
+          const counts = patch ? _countPatchLines(patch) : undefined;
           changes.push({
             path: norm(fp),
             action: "edit",
-            linesAdded: added || undefined,
-            linesRemoved: removed || undefined,
+            linesAdded: counts ? counts.added || undefined : undefined,
+            linesRemoved: counts ? counts.removed || undefined : undefined,
             timestamp: tc.ts,
             toolCallId: tc.id,
             toolName: tc.tool_name,
