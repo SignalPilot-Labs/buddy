@@ -307,7 +307,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             for f in sorted(round_dir.iterdir()):
                 if not f.is_file():
                     continue
-                rel = f"{round_dir.name}/{f.name}"
+                rel = f"tmp/{round_dir.name}/{f.name}"
                 try:
                     content = f.read_text(encoding="utf-8")
                 except (OSError, UnicodeDecodeError):

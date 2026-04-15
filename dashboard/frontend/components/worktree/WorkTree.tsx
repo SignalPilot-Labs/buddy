@@ -272,7 +272,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       const bIdx = header.lastIndexOf(" b/");
       if (bIdx === -1) continue;
       const path = header.slice(bIdx + 3);
-      if (path.startsWith("round-")) tmpPaths.push(path);
+      if (path.startsWith("tmp/round-")) tmpPaths.push(path);
     }
     if (tmpPaths.length === 0) return null;
     return buildTreeFromChanges(tmpPaths.map(p => ({
