@@ -362,7 +362,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                             next[i] = { ...m, host_path: e.target.value };
                             setMounts(next);
                           }}
-                          placeholder="/host/path"
+                          placeholder="~/datasets"
                           className="flex-1 bg-black/30 border border-border rounded px-2 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
                         />
                         <span className="text-text-dim text-content">→</span>
@@ -374,7 +374,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                             next[i] = { ...m, container_path: e.target.value };
                             setMounts(next);
                           }}
-                          placeholder="/container/path"
+                          placeholder="/home/agentuser/repo/data"
                           className="flex-1 bg-black/30 border border-border rounded px-2 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
                         />
                         <button
@@ -411,7 +411,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     >
                       + Add mount
                     </button>
-                    <p className="text-content text-text-secondary">Mount host directories into the sandbox. Default read-only.</p>
+                    <p className="text-content text-text-secondary">Bind host dirs into the sandbox. Repo lives at /home/agentuser/repo.</p>
                     {mountError && <p className="mt-1 text-content text-[#ff4444]">{mountError}</p>}
                   </div>
                 </CollapsibleSection>
