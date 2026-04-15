@@ -144,7 +144,10 @@ export function DashboardHeader({
         >
           <div className="w-px h-4 bg-border" />
           <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-          <span className="text-meta text-text-secondary font-medium font-mono">
+          <span className="text-meta text-text-secondary font-medium font-mono hidden sm:inline">
+            {selectedRun.id}
+          </span>
+          <span className="text-meta text-text-secondary font-medium font-mono sm:hidden">
             {selectedRun.id.slice(0, RUN_ID_DISPLAY_LENGTH)}
           </span>
           <button

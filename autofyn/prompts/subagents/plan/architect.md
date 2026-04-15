@@ -21,7 +21,7 @@ Before writing any plan, do this:
    - Does it mix many concerns and responsibilities in one class or function? Split it.
    - Is there dead code truly not used by any other file? Fully understand before removal.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.
-5. Split across rounds when work is structurally complex (new classes, changed interfaces, coupled changes across modules, major refactor). Hard cap: 20+ files always splits.
+   - Is it a major structurally complex task? (new classes, changed interfaces, coupled changes across modules, major refactor) Split across multiple rounds. If orchestrator demands in one round give feedback. Hard cap: 20+ files always splits.
 
 ## Priority
 
