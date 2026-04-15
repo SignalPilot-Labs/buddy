@@ -371,7 +371,7 @@ export function getAuditIcon(eventType: string, color?: string) {
     case "planner_invoked": return <PlannerIcon color={color} />;
     case "rate_limit": case "rate_limit_paused": return <RateLimitIcon color={color} />;
     case "sdk_config": return <ConfigIcon color={color} />;
-    case "session_unlocked": return <UnlockIcon color={color} />;
+    case "run_unlocked": return <UnlockIcon color={color} />;
     case "end_session_denied": return <SessionGateIcon color={color} />;
     case "stop_requested": return <StopRequestIcon color={color} />;
     default: return <DefaultToolIcon color={color} />;

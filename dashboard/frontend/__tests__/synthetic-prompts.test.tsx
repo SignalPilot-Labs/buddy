@@ -3,7 +3,7 @@
  *
  * Covers: server prompt events in groupEvents, pending messages as UI-only
  * state rendered by EventFeed, user_prompt as interruption boundary,
- * pause_requested label, session_resumed detail.
+ * pause_requested label, run_resumed detail.
  */
 
 import { render, screen } from "@testing-library/react";
@@ -203,12 +203,12 @@ describe("EventFeed page refresh scenario", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
       makeAuditEvent(50, "prompt_injected", { prompt: "fix the bug" }),
-      makeAuditEvent(51, "session_resumed", {}),
+      makeAuditEvent(51, "run_resumed", {}),
     ];
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
     expect(screen.getByText("Run Started")).toBeInTheDocument();
     expect(screen.getByText("fix the bug")).toBeInTheDocument();
-    expect(screen.getByText("Session Resumed")).toBeInTheDocument();
+    expect(screen.getByText("Run Resumed")).toBeInTheDocument();
     expect(screen.getAllByText("You")).toHaveLength(1);
   });
 });
@@ -331,15 +331,15 @@ describe("groupEvents pause_requested label", () => {
 
 /* ── Session Resumed detail ── */
 
-describe("groupEvents session_resumed detail", () => {
-  it("renders session_resumed with empty detail (no branch)", () => {
+describe("groupEvents run_resumed detail", () => {
+  it("renders run_resumed with empty detail (no branch)", () => {
     const events: FeedEvent[] = [
-      makeAuditEvent(1, "session_resumed", { branch: "autofyn/some-branch" }),
+      makeAuditEvent(1, "run_resumed", { branch: "autofyn/some-branch" }),
     ];
     const grouped = groupEvents(events);
     expect(grouped).toHaveLength(1);
     if (grouped[0].type === "milestone") {
-      expect(grouped[0].label).toBe("Session Resumed");
+      expect(grouped[0].label).toBe("Run Resumed");
       expect(grouped[0].detail).toBe("");
     }
   });

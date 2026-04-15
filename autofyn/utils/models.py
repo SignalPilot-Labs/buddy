@@ -414,7 +414,7 @@ class HealthRunEntry(BaseModel):
     started_at: float
     elapsed_minutes: float | None = None
     time_remaining: str | None = None
-    session_unlocked: bool | None = None
+    run_unlocked: bool | None = None
 
 
 class HealthResponse(BaseModel):

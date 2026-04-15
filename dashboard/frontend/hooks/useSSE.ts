@@ -211,7 +211,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
                   lastAuditCursorRef.current = afterAudit;
                   next = processAudit(next, ae);
                   if (ae.event_type === "run_ended") runEnded = true;
-                  if (ae.event_type === "session_resumed") onSessionResumedRef.current?.();
+                  if (ae.event_type === "run_resumed") onSessionResumedRef.current?.();
                 }
               }
               return next;
@@ -287,7 +287,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
         try {
           const raw: AuditEvent = JSON.parse((e as MessageEvent).data);
           lastAuditCursorRef.current = Math.max(lastAuditCursorRef.current, raw.id ?? 0);
-          if (raw.event_type === "session_resumed") onSessionResumedRef.current?.();
+          if (raw.event_type === "run_resumed") onSessionResumedRef.current?.();
           bufferRef.current.push({ kind: "audit", data: raw });
           scheduleFlush();
         } catch (err) {

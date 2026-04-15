@@ -146,8 +146,8 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "no_changes",
     # Session control
     "end_session_denied",
-    "session_unlocked",
-    "session_resumed",
+    "run_unlocked",
+    "run_resumed",
     # Permission / security
     "permission_denied",
     # Rate limiting

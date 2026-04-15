@@ -280,7 +280,7 @@ export type AuditEventType =
   | "session_error"
   | "killed"
   | "end_session_denied"
-  | "session_unlocked"
+  | "run_unlocked"
   | "fatal_error"
   | "sandbox_crash"
   | "teardown_failed"
@@ -293,7 +293,7 @@ export type AuditEventType =
   | "stuck_recovery"
   | "prompt_injected"
   | "prompt_submitted"
-  | "session_resumed"
+  | "run_resumed"
   | "push_failed"
   | "auto_commit"
   | "permission_denied"
@@ -315,8 +315,8 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   pr_failed:           { label: "PR Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   pr_created:          { label: "PR Created",        color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   killed:              { label: "Killed",            color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  end_session_denied:  { label: "End Run Denied",     color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  session_unlocked:    { label: "Session Unlocked",  color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
+  end_session_denied:  { label: "End Run Denied",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  run_unlocked:    { label: "Run Unlocked",      color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   fatal_error:         { label: "Fatal Error",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   stop_requested:      { label: "Stop Requested",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
   pause_requested:     { label: "Pause Requested",   color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
@@ -324,7 +324,7 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   subagent_complete:   { label: "Subagent Done",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   stuck_recovery:      { label: "Stuck Recovery",    color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   prompt_injected:     { label: "Prompt Injected",   color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
-  session_resumed:     { label: "Session Resumed",   color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
+  run_resumed:     { label: "Run Resumed",   color: "text-[#00ff88]",  bg: "bg-[#00ff88]/[0.04]", iconColor: "#00ff88" },
   push_failed:         { label: "Push Failed",       color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
   auto_commit:         { label: "Auto Commit",       color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
   permission_denied:   { label: "Permission Denied", color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
