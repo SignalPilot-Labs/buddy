@@ -295,30 +295,19 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
         }
       });
 
-      es.addEventListener("run_ended", (e) => {
+      es.addEventListener("run_ended", () => {
         if (gen !== genRef.current) return;
         sseGotMessage = true;
-        try {
-          const data = JSON.parse((e as MessageEvent).data);
-          // Flush any buffered events before appending run_ended
-          if (rafRef.current !== null) {
-            cancelAnimationFrame(rafRef.current);
-            rafRef.current = null;
-          }
-          const pending = bufferRef.current;
-          bufferRef.current = [];
-          setEvents((prev) => {
-            const next = applyBuffer(prev, pending);
-            return [
-              ...next,
-              // Synthetic event — id: 0 is intentional. This event is cosmetic, disappears on
-              // reload, and must not use a large sentinel that would break sort comparators or
-              // cursor tracking.
-              { _kind: "audit", data: { id: 0, run_id: runId, event_type: "run_ended", details: data, ts: new Date().toISOString() } },
-            ];
-          });
-        } catch (err) {
-          console.warn("Failed to parse run_ended SSE event:", err);
+        // Flush any buffered events (the real run_ended audit event
+        // arrives via the "audit" listener — no synthetic event needed).
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        const pending = bufferRef.current;
+        bufferRef.current = [];
+        if (pending.length > 0) {
+          setEvents((prev) => applyBuffer(prev, pending));
         }
         setConnectionState("disconnected");
         es.close();
