@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import type { FeedEvent } from "@/lib/types";
-import type { DiffFile, DiffStats } from "@/lib/api";
+import type { FeedEvent, RunStatus } from "@/lib/types";
+import type { DiffStats } from "@/lib/api";
 import { fetchRunDiff } from "@/lib/api";
 import {
   extractFileChanges,
@@ -12,6 +12,7 @@ import {
   buildTreeFromChanges,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
+import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
 
 /* ── Icons ── */
 function FileIcon({ name, status }: { name: string; status?: string }) {
@@ -65,6 +66,7 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     node.children.forEach(walk);
     return sum;
   }, [node]);
+
   const totalRemoved = useMemo(() => {
     if (!node.isDir) return node.removed;
     let sum = node.removed;
@@ -77,7 +79,8 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
     <div>
       <div
         className={clsx(
-          "flex items-center gap-1.5 py-[3px] px-1 rounded cursor-pointer transition-colors text-content",
+          "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
+          isDir ? "cursor-pointer" : "cursor-default",
           "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
@@ -129,55 +132,91 @@ function NodeItem({ node, depth }: { node: TreeNode; depth: number }) {
   );
 }
 
-/* ── File List (flat view) ── */
-function FileList({ files }: { files: DiffFile[] }) {
-  const sorted = [...files].sort((a, b) => (b.added + b.removed) - (a.added + a.removed));
+/* ── Source Badge ── */
+type DisplaySource = "diff-live" | "diff-stored" | "diff-agent" | "session" | null;
+
+function SourceBadge({ source }: { source: DisplaySource }) {
+  if (!source) return null;
+
+  const config: Record<NonNullable<DisplaySource>, { label: string; className: string }> = {
+    "diff-live": {
+      label: "live",
+      className: "text-[#00ff88]/70 bg-[#00ff88]/10",
+    },
+    "diff-stored": {
+      label: "git",
+      className: "text-[#88ccff]/70 bg-[#88ccff]/10",
+    },
+    "diff-agent": {
+      label: "live",
+      className: "text-[#00ff88]/70 bg-[#00ff88]/10",
+    },
+    session: {
+      label: "session",
+      className: "text-[#ffcc44]/70 bg-[#ffcc44]/10",
+    },
+  };
+
+  const { label, className } = config[source];
   return (
-    <div className="space-y-0.5">
-      {sorted.map((f, i) => (
-        <div key={i} className="flex items-center gap-1.5 px-2 py-[3px] text-content hover:bg-white/[0.02] rounded transition-colors">
-          <span className={clsx(
-            "shrink-0 w-[14px] text-center text-caption font-bold uppercase",
-            f.status === "added" && "text-[#00ff88]/80",
-            f.status === "modified" && "text-[#ffcc44]/80",
-            f.status === "deleted" && "text-[#ff4444]/80",
-            f.status === "renamed" && "text-[#88ccff]/80",
-          )}>
-            {f.status?.[0]?.toUpperCase() || "M"}
-          </span>
-          <span className="text-accent-hover truncate flex-1">{f.path}</span>
-          {f.added > 0 && <span className="text-[#00ff88]/70 tabular-nums shrink-0">+{f.added}</span>}
-          {f.removed > 0 && <span className="text-[#ff4444]/70 tabular-nums shrink-0">-{f.removed}</span>}
-        </div>
-      ))}
+    <span className={clsx("text-caption font-bold rounded px-1 py-0.5 uppercase tracking-wider leading-tight", className)}>
+      {label}
+    </span>
+  );
+}
+
+/* ── Empty State ── */
+type EmptyReason = "no-run" | "loading" | "active-no-changes" | "completed-no-changes";
+
+function EmptyState({ reason }: { reason: EmptyReason }) {
+  const messages: Record<EmptyReason, string> = {
+    "no-run": "Select a run to see file changes",
+    "loading": "Loading changes…",
+    "active-no-changes": "No file changes yet",
+    "completed-no-changes": "No file changes in this run",
+  };
+
+  return (
+    <div className="text-meta text-text-dim px-3 py-6 text-center">
+      {messages[reason]}
     </div>
   );
 }
 
 /* ── Main WorkTree Panel ── */
-export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId: string | null; mobile?: boolean }) {
-  const [activeTab, setActiveTab] = useState<"tree" | "files" | "live">("tree");
-  const [collapsed, setCollapsed] = useState(false);
+export interface WorkTreeProps {
+  events: FeedEvent[];
+  runId: string | null;
+  runStatus?: RunStatus | null;
+}
+
+export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
 
-  // Fetch git diff when run changes — reset tab to tree view
+  // Fetch git diff when run changes
   useEffect(() => {
-    setActiveTab("tree");
     if (!runId) { setDiffData(null); return; }
     setDiffLoading(true);
-    fetchRunDiff(runId).then(d => { setDiffData(d); setDiffLoading(false); }).catch(() => setDiffLoading(false));
+    fetchRunDiff(runId)
+      .then(d => { setDiffData(d); setDiffLoading(false); })
+      .catch(err => {
+        console.warn("WorkTree: initial diff fetch failed:", err);
+        setDiffLoading(false);
+      });
   }, [runId]);
 
-  // Also refresh periodically for live runs
-  const isLiveDiff = diffData?.source === "live";
+  // Refresh periodically for live/agent diffs
+  const isPollingSource = diffData?.source === "live" || diffData?.source === "agent";
   useEffect(() => {
-    if (!runId || !isLiveDiff) return;
+    if (!runId || !isPollingSource) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId).then(setDiffData).catch(() => {});
-    }, 15000);
+      fetchRunDiff(runId)
+        .then(setDiffData)
+        .catch(err => console.warn("WorkTree: diff poll failed:", err));
+    }, DIFF_POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [runId, isLiveDiff]);
+  }, [runId, isPollingSource]);
 
   // Live changes from event stream
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
@@ -186,132 +225,90 @@ export function WorkTree({ events, runId, mobile }: { events: FeedEvent[]; runId
   // Git diff tree
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
-  const hasGitDiff = diffData && diffData.files && diffData.files.length > 0;
-  const hasLive = liveChanges.filter(c => c.action !== "read").length > 0;
+  const hasGitDiff = diffData !== null && diffData.files.length > 0;
+  const hasLiveChanges = liveChanges.filter(c => c.action !== "read").length > 0;
 
-  const totalFiles = diffData?.total_files || 0;
-  const totalAdded = diffData?.total_added || 0;
-  const totalRemoved = diffData?.total_removed || 0;
+  // Determine what to show: "diff", "session", or "empty"
+  type ShowSource = "diff" | "session" | "empty";
+  const showSource: ShowSource = hasGitDiff ? "diff" : hasLiveChanges ? "session" : "empty";
+
+  // Map DiffStats.source to DisplaySource for the badge
+  const displaySource: DisplaySource = (() => {
+    if (showSource === "session") return "session";
+    if (showSource !== "diff" || !diffData) return null;
+    if (diffData.source === "live") return "diff-live";
+    if (diffData.source === "stored") return "diff-stored";
+    if (diffData.source === "agent") return "diff-agent";
+    return null;
+  })();
+
+  // File count for the header — reflects the active source
+  const headerFileCount: number = (() => {
+    if (showSource === "diff" && diffData) return diffData.total_files;
+    if (showSource === "session") return new Set(liveChanges.filter(c => c.action !== "read").map(c => c.path)).size;
+    return 0;
+  })();
+
+  // Stats for the diff bar (only shown when showing git diff)
+  const showDiffStats = showSource === "diff" && diffData && (diffData.total_added > 0 || diffData.total_removed > 0);
+
+  // Determine empty state reason
+  const emptyReason: EmptyReason = (() => {
+    if (!runId) return "no-run";
+    if (diffLoading && !diffData) return "loading";
+    const isTerminal = runStatus !== null && runStatus !== undefined && TERMINAL_STATUSES.has(runStatus);
+    return isTerminal ? "completed-no-changes" : "active-no-changes";
+  })();
+
+  const sortedRoots = (tree: TreeNode) =>
+    Array.from(tree.children.values())
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
 
   return (
-    <div className={clsx(
-        "flex flex-col bg-sidebar transition-all duration-200",
-        mobile
-          ? "flex-1"
-          : clsx("border-l border-border mr-1 h-full", collapsed ? "w-[32px]" : "w-full"),
-      )}>
+    <div className="flex flex-col bg-sidebar border-l border-border mr-1 h-full w-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
-        {!collapsed && (
-          <>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round">
-              <path d="M6 1v10M6 1L3 4M6 1l3 3" />
-              <circle cx="6" cy="11" r="0" /><circle cx="3" cy="6" r="1" /><circle cx="9" cy="8" r="1" />
-              <line x1="3" y1="6" x2="6" y2="6" /><line x1="9" y1="8" x2="6" y2="8" />
-            </svg>
-            <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
-            {diffData?.source && (
-              <span className={clsx(
-                "text-caption rounded px-1 py-0.5 uppercase tracking-wider leading-tight",
-                diffData.source === "live" ? "text-[#00ff88]/70 bg-[#00ff88]/8" :
-                diffData.source === "stored" ? "text-[#88ccff]/70 bg-[#88ccff]/8" :
-                "text-text-muted bg-white/[0.03]"
-              )}>
-                {diffData.source === "live" ? "live" : diffData.source === "stored" ? "git" : diffData.source}
-              </span>
-            )}
-            <span className="text-meta text-text-dim tabular-nums ml-auto">{totalFiles} files</span>
-          </>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+          <path d="M6 1v10M6 1L3 4M6 1l3 3" />
+          <circle cx="6" cy="11" r="0" /><circle cx="3" cy="6" r="1" /><circle cx="9" cy="8" r="1" />
+          <line x1="3" y1="6" x2="6" y2="6" /><line x1="9" y1="8" x2="6" y2="8" />
+        </svg>
+        <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">Changes</span>
+        <SourceBadge source={displaySource} />
+        {showSource !== "empty" && (
+          <span className="text-meta text-text-dim tabular-nums ml-auto">{headerFileCount} files</span>
         )}
-        {!mobile && <button onClick={() => setCollapsed(!collapsed)} className="text-text-dim hover:text-accent-hover transition-colors p-0.5 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            {collapsed ? <polyline points="3 2 7 5 3 8" /> : <polyline points="7 2 3 5 7 8" />}
-          </svg>
-        </button>}
       </div>
 
-      {(!collapsed || mobile) && (
-        <>
-          {/* Stats */}
-          {(totalAdded > 0 || totalRemoved > 0) && (
-            <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border/60 text-meta text-text-secondary">
-              <span>{totalFiles} files changed</span>
-              {totalAdded > 0 && <span className="text-[#00ff88]/70">+{totalAdded}</span>}
-              {totalRemoved > 0 && <span className="text-[#ff4444]/70">-{totalRemoved}</span>}
-            </div>
-          )}
-
-          {/* Tabs */}
-          <div className="flex border-b border-border/60">
-            {hasGitDiff && (
-              <button onClick={() => setActiveTab("tree")}
-                className={clsx("flex-1 py-1.5 text-meta font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
-                  activeTab === "tree" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
-                Tree
-              </button>
-            )}
-            {hasGitDiff && (
-              <button onClick={() => setActiveTab("files")}
-                className={clsx("flex-1 py-1.5 text-meta font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
-                  activeTab === "files" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
-                Files
-              </button>
-            )}
-            {hasLive && (
-              <button onClick={() => setActiveTab("live")}
-                className={clsx("flex-1 py-1.5 text-meta font-medium text-center transition-colors focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]",
-                  activeTab === "live" ? "text-text border-b border-[#00ff88]" : "text-text-secondary hover:text-accent-hover")}>
-                Session
-              </button>
-            )}
-            {!hasGitDiff && !hasLive && (
-              <div className="flex-1 py-1.5 text-meta text-text-dim text-center">
-                {diffLoading ? "Loading..." : "No changes"}
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto py-1">
-            {diffLoading && !diffData && (
-              <div className="flex items-center justify-center py-8">
-                <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
-              </div>
-            )}
-
-            {activeTab === "tree" && diffTree && diffTree.children.size > 0 && (
-              Array.from(diffTree.children.values())
-                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
-                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
-            )}
-            {activeTab === "tree" && !diffLoading && (!diffTree || diffTree.children.size === 0) && hasGitDiff && (
-              <div className="text-meta text-text-dim px-3 py-6 text-center">No tree data</div>
-            )}
-
-            {activeTab === "files" && diffData && diffData.files && diffData.files.length > 0 && (
-              <FileList files={diffData.files} />
-            )}
-            {activeTab === "files" && !diffLoading && (!diffData?.files || diffData.files.length === 0) && (
-              <div className="text-meta text-text-dim px-3 py-6 text-center">No files in this diff</div>
-            )}
-
-            {activeTab === "live" && liveTree.children.size > 0 && (
-              Array.from(liveTree.children.values())
-                .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1)
-                .map(child => <NodeItem key={child.fullPath} node={child} depth={0} />)
-            )}
-            {activeTab === "live" && !diffLoading && liveTree.children.size === 0 && (
-              <div className="text-meta text-text-dim px-3 py-6 text-center">No session activity yet</div>
-            )}
-
-            {!diffLoading && !hasGitDiff && !hasLive && (
-              <div className="text-meta text-text-dim px-3 py-6 text-center">
-                No file changes detected yet
-              </div>
-            )}
-          </div>
-        </>
+      {/* Diff stats bar */}
+      {showDiffStats && diffData && (
+        <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border/60 text-meta text-text-secondary">
+          <span>{diffData.total_files} files changed</span>
+          {diffData.total_added > 0 && <span className="text-[#00ff88]/70">+{diffData.total_added}</span>}
+          {diffData.total_removed > 0 && <span className="text-[#ff4444]/70">-{diffData.total_removed}</span>}
+        </div>
       )}
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto py-1">
+        {showSource === "empty" && (
+          diffLoading && !diffData ? (
+            <div className="flex items-center justify-center py-8" role="status" aria-label="Loading changes">
+              <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+            </div>
+          ) : (
+            <EmptyState reason={emptyReason} />
+          )
+        )}
+
+        {showSource === "diff" && diffTree && sortedRoots(diffTree).map(child => (
+          <NodeItem key={child.fullPath} node={child} depth={0} />
+        ))}
+
+        {showSource === "session" && sortedRoots(liveTree).map(child => (
+          <NodeItem key={child.fullPath} node={child} depth={0} />
+        ))}
+      </div>
     </div>
   );
 }
