@@ -83,6 +83,7 @@ ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.
 AGENT_CONTAINER_NAME = "autofyn-agent"
+RUN_ID_LOG_PREFIX_LEN = 8
 SANDBOX_URL_DEFAULT = "http://sandbox:8080"
 SANDBOX_EXEC_TIMEOUT_DEFAULT = 120
 SANDBOX_CLONE_TIMEOUT_DEFAULT = 300
