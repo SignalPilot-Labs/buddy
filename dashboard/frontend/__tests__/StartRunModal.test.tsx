@@ -51,6 +51,11 @@ describe("StartRunModal", () => {
     expect(document.body.textContent).toContain("main");
   });
 
+  it("shows quick start options", () => {
+    renderModal();
+    expect(document.body.textContent).toContain("Quick Start");
+  });
+
   it("disables when busy", () => {
     renderModal({ busy: true });
     expect(document.body.textContent).toContain("Starting...");

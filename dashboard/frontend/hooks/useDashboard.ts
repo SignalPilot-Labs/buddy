@@ -231,7 +231,7 @@ export function useDashboard(): DashboardState {
     setHistoryEventsRef.current([]);
     setPendingMessagesRef.current([]);
     sseRef.current.clearEvents();
-    setBranches([]);
+    setBranches(["main"]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }

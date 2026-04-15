@@ -9,7 +9,7 @@ import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
 import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize } from "@/lib/constants";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts } from "@/lib/api";
 import type { HostMount } from "@/lib/api";
@@ -98,7 +98,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [budgetEnabled, setBudgetEnabled] = useState(false);
   const [budget, setBudget] = useState(50);
   const [duration, setDuration] = useState(0);
-  const [baseBranch, setBaseBranch] = useState("main");
+  const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
   const [effort, setEffort] = useState<EffortLevel>("medium");

@@ -42,15 +42,15 @@ If the design itself is flawed (even if the dev followed the spec), flag it. Bad
 - **Error handling** — Bare excepts, swallowed errors, missing error propagation, crashes on bad input
 
 ### Warnings (should fix)
-- **Structure** — God files (>400 lines), god functions (>50 lines), duplicated code, unclear names
+- **Structure** — God files (>400 lines), god functions (>50 lines), duplicated code, unclear names. If a modified file has grown bloated or lost cohesion over multiple rounds, flag it for refactor.
 - **Hygiene** — Inline imports, magic values, dead code, unused imports, missing types, `any` usage, incorrect type assertions, non-empty `__init__` files, models and dataclasses not in dedicated files
 - **Performance** — N+1 queries, unbounded loops, missing indexes, sync blocking in async, pool churn, no connection reuse, sequential when parallelizable, missing memoization
 
 ### Regressions
 - Did the change break something that worked before?
 - Were existing tests affected? Do they still pass?
-- Was anything deleted that was still used?
-- If a function signature changed, were all callers updated?
+- **If anything was deleted or removed** (function, class, constant, component, file, export) — grep the codebase for references. If it is imported or used anywhere, flag as Critical. Do not trust the diff alone.
+- If a function signature changed, were all callers updated? Grep to verify.
 
 ### Build Artifacts
 - Check `git status` for files that should NOT be committed: `node_modules/`, `.next/`, `__pycache__/`, `*.pyc`, `dist/`, `.cache/`, `build/`, `*.log`, `.env`, `.env.local`, `*.sqlite`, `coverage/`
