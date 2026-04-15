@@ -425,9 +425,56 @@ input[type="checkbox"]:checked {
   border-color: var(--color-success);
 }
 
+input[type="checkbox"]:focus-visible {
+  outline: 1px solid var(--color-success);
+  outline-offset: 2px;
+}
+
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   appearance: none;
+}
+
+/* Range slider */
+input[type="range"].range-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].range-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 2px solid var(--color-bg-card);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+input[type="range"].range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type="range"].range-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-success);
+  border: 2px solid var(--color-bg-card);
+  cursor: pointer;
+}
+
+input[type="range"].range-slider::-moz-range-track {
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
 }
 
 /* Header glow */

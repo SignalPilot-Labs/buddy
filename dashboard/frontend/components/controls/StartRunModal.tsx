@@ -57,11 +57,37 @@ const DURATION_PRESETS = [
   { label: "8 hours", minutes: 480, desc: "Overnight" },
 ];
 
+const QUICK_START_ICONS: Record<string, React.ReactElement> = {
+  sparkle: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 1v2M7 11v2M1 7h2M11 7h2M3.22 3.22l1.42 1.42M9.36 9.36l1.42 1.42M9.36 4.64L10.78 3.22M3.22 10.78l1.42-1.42" />
+    </svg>
+  ),
+  shield: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 1.5L2 3.5v3c0 2.8 2.1 5.1 5 5.5 2.9-.4 5-2.7 5-5.5v-3L7 1.5z" />
+      <polyline points="5 7 6.5 8.5 9 5.5" />
+    </svg>
+  ),
+  flask: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 1h4M5 1v4.5L2 11c-.4.8.1 2 1.5 2h7c1.4 0 1.9-1.2 1.5-2L9 5.5V1" />
+      <line x1="4" y1="9" x2="10" y2="9" />
+    </svg>
+  ),
+  bug: (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7" cy="8" r="3" />
+      <path d="M7 5V2M4 8H1M10 8h3M4.5 5.5L2.5 3.5M9.5 5.5l2-2M4.5 10.5l-2 2M9.5 10.5l2 2" />
+    </svg>
+  ),
+};
+
 const QUICK_PROMPTS = [
-  { label: "General improvement", prompt: undefined as string | undefined, desc: "Default: security, bugs, tests, quality" },
-  { label: "Security hardening", prompt: "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.", desc: "Fix security issues" },
-  { label: "Test coverage", prompt: "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.", desc: "Add missing tests" },
-  { label: "Bug fixes", prompt: "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.", desc: "Find and fix bugs" },
+  { label: "General improvement", icon: "sparkle", prompt: undefined as string | undefined, desc: "Default: security, bugs, tests, quality" },
+  { label: "Security hardening", icon: "shield", prompt: "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.", desc: "Fix security issues" },
+  { label: "Test coverage", icon: "flask", prompt: "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.", desc: "Add missing tests" },
+  { label: "Bug fixes", icon: "bug", prompt: "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.", desc: "Find and fix bugs" },
 ];
 
 export function StartRunModal({ open, onClose, onStart, busy, branches, activeRepo }: StartRunModalProps) {
@@ -129,6 +155,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const budgetSummary = budgetEnabled ? `$${budget}` : "Unlimited";
   const envCount = countEnvVars(envText);
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
+  const selectedDurationPreset = DURATION_PRESETS.find((d) => d.minutes === duration);
 
   if (typeof document === "undefined") return null;
 
@@ -167,7 +194,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 </button>
               </div>
 
-              <div className="p-5 space-y-5">
+              <div className="p-5 space-y-6">
                 <BranchPicker branches={branches} selected={baseBranch} onSelect={setBaseBranch} />
 
                 {/* Quick prompts */}
@@ -178,16 +205,24 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                       <button
                         key={i}
                         onClick={() => { setSelectedQuick(selectedQuick === i ? null : i); setCustomPrompt(""); }}
-                        className={clsx("text-left p-3 rounded border transition-all text-content", selectedQuick === i ? "border-[#00ff88]/30 bg-[#00ff88]/[0.04]" : "border-border bg-white/[0.01] hover:bg-white/[0.03]")}
+                        className={clsx(
+                          "group text-left p-3 rounded border transition-all text-content hover:scale-[1.01]",
+                          selectedQuick === i
+                            ? "border-border border-l-2 border-l-[#00ff88] bg-[#00ff88]/[0.06]"
+                            : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
+                        )}
                       >
-                        <div className="font-medium text-accent-hover">{q.label}</div>
+                        <div className="flex items-center gap-1.5 font-medium text-accent-hover">
+                          <span className="text-text-muted">{QUICK_START_ICONS[q.icon]}</span>
+                          {q.label}
+                        </div>
                         <div className="text-text-muted mt-0.5">{q.desc}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className="separator-subtle" />
+                <div className="separator-subtle my-1" />
 
                 {/* Custom prompt */}
                 <div>
@@ -197,7 +232,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     value={customPrompt}
                     onChange={(e) => { setCustomPrompt(e.target.value); setSelectedQuick(null); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Describe what the agent should focus on..."
+                    placeholder="e.g., Refactor the auth module to use JWT tokens instead of session cookies..."
                     rows={3}
                     className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
                   />
@@ -212,15 +247,23 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                       <button
                         key={d.minutes}
                         onClick={() => setDuration(d.minutes)}
-                        className={clsx("text-content px-2 py-1.5 rounded border transition-all", duration === d.minutes ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88]" : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]")}
+                        className={clsx(
+                          "text-content px-3 py-2 rounded border transition-all",
+                          duration === d.minutes
+                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
+                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                        )}
                       >
                         {d.label}
                       </button>
                     ))}
                   </div>
+                  {selectedDurationPreset && (
+                    <p className="mt-2 text-xs text-white/40">{selectedDurationPreset.desc}</p>
+                  )}
                 </div>
 
-                <div className="separator-subtle" />
+                <div className="separator-subtle my-1" />
 
                 {/* Model (collapsible) */}
                 <CollapsibleSection label="Model" summary={modelSummary} defaultOpen={false}>
@@ -248,21 +291,25 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 <CollapsibleSection label="Budget" summary={budgetSummary} defaultOpen={false}>
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer select-none text-content text-text-secondary">
-                      <span
-                        onClick={() => setBudgetEnabled(!budgetEnabled)}
-                        className={clsx("flex items-center justify-center h-3 w-3 rounded border transition-all shrink-0", budgetEnabled ? "bg-[#00ff88] border-[#00ff88]" : "border-border-faint bg-transparent")}
-                      >
-                        {budgetEnabled && (
-                          <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5">
-                            <polyline points="1.5 4 3 5.5 6.5 2" />
-                          </svg>
-                        )}
-                      </span>
-                      <span onClick={() => setBudgetEnabled(!budgetEnabled)}>Enable budget cap</span>
+                      <input
+                        type="checkbox"
+                        checked={budgetEnabled}
+                        onChange={() => setBudgetEnabled(!budgetEnabled)}
+                        className="rounded"
+                      />
+                      Enable budget cap
                     </label>
                     {budgetEnabled && (
                       <div className="flex items-center gap-3 mt-2">
-                        <input type="range" min={5} max={200} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 accent-[#00ff88]" />
+                        <input
+                          type="range"
+                          min={5}
+                          max={200}
+                          step={5}
+                          value={budget}
+                          onChange={(e) => setBudget(Number(e.target.value))}
+                          className="flex-1 range-slider"
+                        />
                         <span className="text-content font-semibold text-text tabular-nums w-16 text-right">${budget}</span>
                       </div>
                     )}
@@ -288,12 +335,13 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+              <div className="flex items-center justify-between px-5 py-4 border-t border-border">
                 <span className="text-content text-text-secondary">Ctrl+Enter to start</span>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-1 justify-end">
                   <Button variant="ghost" onClick={onClose}>Cancel</Button>
                   <Button
-                    variant="success" size="md" onClick={handleStart} disabled={busy}
+                    variant="success" size="lg" onClick={handleStart} disabled={busy}
+                    className="flex-1"
                     icon={<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="3 2 8 5 3 8" /></svg>}
                   >
                     {busy ? "Starting..." : "New Run"}

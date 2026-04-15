@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useId } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export interface CollapsibleSectionProps {
@@ -21,14 +21,16 @@ export function CollapsibleSection({
   children,
 }: CollapsibleSectionProps): React.ReactElement {
   const [open, setOpen] = useState(defaultOpen);
+  const contentId = useId();
 
   return (
     <div>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 py-2 rounded hover:bg-white/[0.03] transition-colors text-left"
+        className="w-full flex items-center gap-2 py-2.5 px-2 rounded-md hover:bg-white/[0.03] transition-colors text-left"
         aria-expanded={open}
+        aria-controls={contentId}
       >
         <motion.span
           variants={CHEVRON_VARIANTS}
@@ -60,6 +62,7 @@ export function CollapsibleSection({
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
+            id={contentId}
             key="content"
             variants={CONTENT_VARIANTS}
             initial="closed"
