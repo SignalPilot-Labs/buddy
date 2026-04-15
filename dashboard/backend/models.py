@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -69,7 +69,7 @@ class HostMountEntry(BaseModel):
 class SaveMountsRequest(BaseModel):
     """Request body for saving per-repo host mounts."""
 
-    mounts: list[HostMountEntry] = Field(default_factory=list)
+    mounts: list[HostMountEntry] = Field(default_factory=list, max_length=MAX_HOST_MOUNTS)
 
 
 class AddTokenRequest(BaseModel):

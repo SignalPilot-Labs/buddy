@@ -87,11 +87,58 @@ class TestBlockedContainerPaths:
         error = validate_host_mount("/data", "/home/agentuser/.claude/sessions", "ro")
         assert error is not None
 
+    def test_container_root_blocked(self) -> None:
+        """Cannot shadow the entire container filesystem."""
+        error = validate_host_mount("/data", "/", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
     def test_other_container_path_allowed(self) -> None:
         assert validate_host_mount("/data", "/mnt/data", "ro") is None
 
     def test_home_agentuser_other_allowed(self) -> None:
         assert validate_host_mount("/data", "/home/agentuser/data", "ro") is None
+
+
+class TestPathNormalization:
+    """posixpath.normpath resolves .., //, trailing slashes before validation."""
+
+    def test_host_traversal_to_etc_blocked(self) -> None:
+        error = validate_host_mount("/data/../etc/shadow", "/mnt/x", "ro")
+        assert error is not None
+
+    def test_host_traversal_double_dot_resolved(self) -> None:
+        """/data/../etc normalizes to /etc which is blocked."""
+        error = validate_host_mount("/data/safe/../../etc", "/mnt/x", "ro")
+        assert error is not None
+
+    def test_host_traversal_to_safe_path_allowed(self) -> None:
+        """/data/../home/user normalizes to /home/user which is allowed."""
+        assert validate_host_mount("/data/../home/user/files", "/mnt/x", "ro") is None
+
+    def test_container_traversal_to_claude_blocked(self) -> None:
+        """/home/agentuser/repo/../.claude normalizes to /home/agentuser/.claude."""
+        error = validate_host_mount("/data", "/home/agentuser/repo/../.claude", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
+    def test_container_traversal_to_repo_root_blocked(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/repo/data/..", "ro")
+        assert error is not None
+        assert "sandbox internals" in error
+
+    def test_host_double_slash_normalized(self) -> None:
+        """/etc//ssh normalizes to /etc/ssh which is blocked."""
+        error = validate_host_mount("/etc//ssh", "/mnt/x", "ro")
+        assert error is not None
+
+    def test_host_trailing_slash_normalized(self) -> None:
+        error = validate_host_mount("/etc/", "/mnt/x", "ro")
+        assert error is not None
+
+    def test_container_trailing_slash_normalized(self) -> None:
+        error = validate_host_mount("/data", "/home/agentuser/.claude/", "ro")
+        assert error is not None
 
 
 class TestInvalidInputs:
@@ -119,13 +166,3 @@ class TestInvalidInputs:
         error = validate_host_mount("/data", "/mnt/host/data", "rwx")
         assert error is not None
         assert "mode" in error
-
-    def test_path_traversal_blocked(self) -> None:
-        error = validate_host_mount("/data/../etc/shadow", "/mnt/host/x", "ro")
-        assert error is not None
-        assert ".." in error
-
-    def test_trailing_slash_normalized(self) -> None:
-        """Trailing slash on a blocked path must still be caught."""
-        error = validate_host_mount("/etc/", "/mnt/host/etc", "ro")
-        assert error is not None

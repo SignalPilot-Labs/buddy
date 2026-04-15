@@ -4,6 +4,8 @@ The `db` package is the only Python package imported by both `autofyn/` and
 `dashboard/backend/`, so cross-container constants that must not drift live here.
 """
 
+import posixpath
+
 # Placeholder branch name for runs that haven't been bootstrapped yet.
 # The DB column is non-nullable, so we use this sentinel instead of NULL.
 # Bootstrap must treat this as "no branch" and generate a real name.
@@ -71,8 +73,10 @@ BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
     "/home/agentuser/.claude",
 })
 BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
+    "/",
     "/home/agentuser/repo",
 })
+MAX_HOST_MOUNTS: int = 10
 
 
 def validate_host_mount(
@@ -80,26 +84,33 @@ def validate_host_mount(
     container_path: str,
     mode: str,
 ) -> str | None:
-    """Validate a single host mount entry. Returns error string or None if valid."""
+    """Validate a single host mount entry. Returns error string or None if valid.
+
+    Paths are normalized with posixpath.normpath to resolve `..`, `//`,
+    and trailing slashes before checking against blocked lists.
+    """
     if not host_path or not host_path.startswith("/"):
         return f"host_path must be an absolute path, got: {host_path!r}"
     if not container_path or not container_path.startswith("/"):
         return f"container_path must be an absolute path, got: {container_path!r}"
-    resolved_container = container_path.rstrip("/") or "/"
+    if mode not in VALID_MOUNT_MODES:
+        return f"mode must be one of {VALID_MOUNT_MODES}, got: {mode!r}"
+
+    resolved_host = posixpath.normpath(host_path)
+    resolved_container = posixpath.normpath(container_path)
+
+    # Container path checks
     if resolved_container in BLOCKED_CONTAINER_EXACT_PATHS:
         return f"container_path would overwrite sandbox internals: {container_path!r}"
     for blocked in BLOCKED_CONTAINER_PATHS:
         if resolved_container == blocked or resolved_container.startswith(blocked + "/"):
             return f"container_path would overwrite sandbox internals: {container_path!r}"
-    if mode not in VALID_MOUNT_MODES:
-        return f"mode must be one of {VALID_MOUNT_MODES}, got: {mode!r}"
-    if ".." in host_path.split("/"):
-        return f"host_path must not contain '..': {host_path!r}"
-    resolved = host_path.rstrip("/") or "/"
-    if resolved in BLOCKED_MOUNT_PATHS:
+
+    # Host path checks
+    if resolved_host in BLOCKED_MOUNT_PATHS:
         return f"host_path is blocked: {host_path!r}"
     for prefix in BLOCKED_MOUNT_PREFIXES:
-        if resolved == prefix or resolved.startswith(prefix + "/"):
+        if resolved_host == prefix or resolved_host.startswith(prefix + "/"):
             return f"host_path under blocked prefix {prefix}: {host_path!r}"
     return None
 
