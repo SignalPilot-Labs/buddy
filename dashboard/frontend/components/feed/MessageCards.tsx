@@ -146,22 +146,80 @@ export function LLMMessageCard({
 }
 
 /* ── Control / Error ── */
-export function ControlMessage({ text, ts, retryAction }: { text: string; ts: string; retryAction?: () => void }) {
+export function ControlMessage({
+  text,
+  ts,
+  details,
+  retryAction,
+}: {
+  text: string;
+  ts: string;
+  details?: Record<string, unknown>;
+  retryAction?: () => void;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const detailEntries = details ? formatDetails(details) : null;
+
   return (
     <MessageCard
       color="#ff4444"
       icon={ICON_ERROR}
       title="Error"
       ts={ts}
-      actions={retryAction ? (
-        <button onClick={retryAction} className="ml-auto text-caption text-[#ff4444] hover:underline">
-          Retry
-        </button>
-      ) : undefined}
+      actions={
+        <>
+          {detailEntries && (
+            <button
+              onClick={() => setShowDetails(!showDetails)}
+              className="ml-auto text-caption text-text-secondary hover:text-[#ff8888] transition-colors flex items-center gap-1"
+            >
+              <svg
+                width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
+                aria-hidden="true"
+                className={clsx("transition-transform duration-150", showDetails && "rotate-90")}
+              >
+                <path d="M3.5 2L7 5L3.5 8" />
+              </svg>
+              {showDetails ? "hide details" : "show details"}
+            </button>
+          )}
+          {retryAction && (
+            <button onClick={retryAction} className={clsx(!detailEntries && "ml-auto", "text-caption text-[#ff4444] hover:underline")}>
+              Retry
+            </button>
+          )}
+        </>
+      }
     >
       <div className="text-body text-[#ff8888] whitespace-pre-wrap break-words">{text}</div>
+      {showDetails && detailEntries && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="mt-3 px-3 py-2 bg-black/20 rounded border border-white/[0.03] overflow-hidden"
+        >
+          <div className="text-content text-text-secondary uppercase tracking-wider font-semibold mb-1">
+            Details
+          </div>
+          <div className="text-meta text-text-secondary leading-relaxed whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto font-mono">
+            {detailEntries}
+          </div>
+        </motion.div>
+      )}
     </MessageCard>
   );
+}
+
+function formatDetails(details: Record<string, unknown>): string | null {
+  const lines: string[] = [];
+  for (const [key, value] of Object.entries(details)) {
+    if (key === "error" || key === "_pending" || key === "_failed") continue;
+    const v = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+    if (!v) continue;
+    lines.push(`${key}: ${v}`);
+  }
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 /* ── User Prompt Chat Bubble ── */

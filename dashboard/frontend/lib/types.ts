@@ -265,21 +265,29 @@ export const TOOL_COLORS: Record<ToolCategory, ToolMeta> = {
 
 /* ── Audit Event Types ── */
 // All 19 event_types from the database
+// Must match AUDIT_EVENT_TYPES in db/constants.py — sync test enforces this.
 export type AuditEventType =
   | "usage"
   | "llm_text"
   | "llm_thinking"
+  | "round_complete"
   | "round_ended"
   | "rate_limit"
   | "run_started"
+  | "run_ended"
   | "agent_stop"
   | "pr_failed"
-  | "session_ended"
   | "pr_created"
+  | "session_ended"
+  | "session_error"
   | "killed"
   | "end_session_denied"
   | "session_unlocked"
   | "fatal_error"
+  | "sandbox_crash"
+  | "teardown_failed"
+  | "max_rounds_reached"
+  | "no_changes"
   | "stop_requested"
   | "pause_requested"
   | "resumed"
@@ -292,7 +300,9 @@ export type AuditEventType =
   | "push_failed"
   | "auto_commit"
   | "permission_denied"
-  | "run_ended";
+  | "idle_timeout"
+  | "idle_nudge"
+  | "tool_timeout";
 
 export interface AuditEventMeta {
   label: string;
