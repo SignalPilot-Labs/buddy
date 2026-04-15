@@ -232,8 +232,8 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     @app.get("/logs")
     async def get_logs(tail: int, run_id: str | None = None):
-        """Return sandbox container logs for a run."""
-        lines = await server.pool().get_logs(run_id, tail)
+        """Return agent container logs."""
+        lines = await server.pool().get_self_logs(tail)
         return {"lines": lines, "total": len(lines)}
 
     # ── Branches (GitHub API proxy) ────────────────────────────────────

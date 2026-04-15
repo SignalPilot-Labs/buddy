@@ -71,7 +71,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           <line x1="6" y1="8" x2="9" y2="8" />
         </svg>
         <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">
-          Sandbox Logs
+          Run Logs
         </span>
         <span className="text-meta text-text-dim tabular-nums ml-auto">
           {filtered.length} lines

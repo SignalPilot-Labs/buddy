@@ -15,6 +15,7 @@ from docker.models.containers import Container
 
 from db.constants import validate_host_mount
 from utils.constants import (
+    AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
     ENV_KEY_ALLOW_DOCKER,
     SANDBOX_POOL_ENV_PASSTHROUGH,
@@ -117,7 +118,16 @@ class SandboxPool:
         await self._remove_container(container_id, container_name)
         await self._remove_volume(volume_name)
 
-    async def get_logs(self, run_key: str | None, tail: int) -> list[str]:
+    async def get_self_logs(self, tail: int) -> list[str]:
+        """Fetch logs from the agent container itself."""
+        try:
+            container = self._docker.containers.get(AGENT_CONTAINER_NAME)
+            raw: bytes = await asyncio.to_thread(container.logs, tail=tail, timestamps=True)
+            return raw.decode("utf-8", errors="replace").splitlines()
+        except docker.errors.NotFound:
+            return []
+
+    async def get_sandbox_logs(self, run_key: str | None, tail: int) -> list[str]:
         """Fetch logs from a sandbox container. Falls back to static sandbox."""
         if run_key and run_key in self._containers:
             container_name = f"autofyn-sandbox-{run_key}"

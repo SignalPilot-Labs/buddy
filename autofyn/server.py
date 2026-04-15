@@ -217,7 +217,7 @@ class AgentServer:
             # container. Otherwise failures lose their root cause. Persist
             # them as an audit event so they survive container cleanup and
             # show up in the dashboard timeline.
-            tail_lines = await self._pool.get_logs(run_id, tail=200)
+            tail_lines = await self._pool.get_sandbox_logs(run_id, tail=200)
             await db.log_audit(
                 run_id,
                 "sandbox_crash",
