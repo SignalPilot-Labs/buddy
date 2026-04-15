@@ -155,7 +155,7 @@ export function MobileLayout({
           )}
           {mobilePanel === "changes" && (
             <motion.div key="changes" className="flex-1 flex flex-col min-h-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
-              <WorkTree events={allEvents} runId={selectedRunId} mobile />
+              <WorkTree events={allEvents} runId={selectedRunId} runStatus={runStatus} />
             </motion.div>
           )}
           {mobilePanel === "logs" && (

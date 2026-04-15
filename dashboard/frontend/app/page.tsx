@@ -290,6 +290,7 @@ function MonitorPageInner() {
                   events={allEvents}
                   activeTab={rightPanel}
                   onTabChange={setRightPanel}
+                  runStatus={runStatus}
                 />
               </div>
             </>

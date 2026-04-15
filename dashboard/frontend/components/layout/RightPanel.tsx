@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import type { FeedEvent } from "@/lib/types";
+import type { FeedEvent, RunStatus } from "@/lib/types";
 import { WorkTree } from "@/components/worktree/WorkTree";
 import { ContainerLogs } from "@/components/logs/ContainerLogs";
 
@@ -12,6 +12,7 @@ export interface RightPanelProps {
   events: FeedEvent[];
   activeTab: "changes" | "logs";
   onTabChange: (tab: "changes" | "logs") => void;
+  runStatus: RunStatus | null;
 }
 
 function GitBranchIcon() {
@@ -36,7 +37,7 @@ function TerminalIcon() {
   );
 }
 
-export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanelProps) {
+export function RightPanel({ runId, events, activeTab, onTabChange, runStatus }: RightPanelProps) {
   return (
     <div className="flex flex-col border-l border-border min-h-0 w-full h-full">
       {/* Segmented tab bar */}
@@ -82,7 +83,7 @@ export function RightPanel({ runId, events, activeTab, onTabChange }: RightPanel
           className="flex-1 min-h-0 overflow-hidden"
         >
           {activeTab === "changes" ? (
-            <WorkTree events={events} runId={runId} />
+            <WorkTree events={events} runId={runId} runStatus={runStatus} />
           ) : (
             <ContainerLogs runId={runId} />
           )}

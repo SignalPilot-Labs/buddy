@@ -14,6 +14,7 @@ Before delegating:
    - For Python, detect what the repo uses: `uv.lock` → `uv sync`; `poetry.lock` → `poetry install`; root `pyproject.toml` with a `[project]` table → `pip install -e .`; otherwise SKIP (deps may already be installed in the container).
    - **NEVER assume `pip install -e .` works at the repo root.** Many monorepos have no installable root package and the command will fail.
    - Fix any build failures before feature work.
+   - If the user's message is not clear from `README.md` and `CLAUDE.md`, explore parts of the codebase with `code-explorer` to fully understand it.
 3. If **Round > 1**, read `/tmp/round-<previous>/orchestrator.md` to catch up. Its `Lessons` section is your accumulated observations about this repo across prior rounds — trust it, build on it, don't re-discover. Glob `/tmp/round-*/` if you need deeper history. If the area is unfamiliar, or the user message is unclear, dispatch one or more `code-explorer`(s) before the plan phase.
 
 The latest user message takes priority over prior plans.
