@@ -82,3 +82,30 @@ export function langFromPath(filePath: string): string {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   return EXT_TO_LANG[ext] ?? "text";
 }
+
+/** Extract a single file's patch from a full unified diff. Returns null if not found or binary. */
+export function extractFilePatch(fullDiff: string, targetPath: string): string | null {
+  const marker = ` b/${targetPath}`;
+  const sections = fullDiff.split("\ndiff --git ");
+  for (let i = 0; i < sections.length; i++) {
+    let section = sections[i];
+    if (i === 0) {
+      if (section.startsWith("diff --git ")) {
+        section = section.slice("diff --git ".length);
+      } else {
+        continue;
+      }
+    }
+    const nl = section.indexOf("\n");
+    if (nl === -1) continue;
+    const header = section.slice(0, nl);
+    if (header.endsWith(marker)) {
+      const body = section.slice(nl + 1);
+      if (body.startsWith("Binary files") && body.split("\n")[0].includes("differ")) {
+        return null;
+      }
+      return body;
+    }
+  }
+  return null;
+}

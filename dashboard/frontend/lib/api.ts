@@ -349,21 +349,31 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 
 // ── Branches ─────────────────────────────────────────────────────────────────
 
-export interface FileDiffResponse {
-  path: string;
-  patch: string;
-  binary?: boolean;
-  empty?: boolean;
+export interface DiffRepoResponse {
+  diff: string;
 }
 
-export async function fetchFileDiff(runId: string, filePath: string): Promise<FileDiffResponse> {
-  const res = await apiFetch(
-    `/api/runs/${runId}/file/diff?path=${encodeURIComponent(filePath)}`,
-  );
+export async function fetchDiffRepo(runId: string): Promise<DiffRepoResponse> {
+  const res = await apiFetch(`/api/runs/${runId}/diff/repo`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
     throw new Error(err.detail || `HTTP ${res.status}`);
   }
+  return res.json();
+}
+
+export interface TmpFileEntry {
+  path: string;
+  size: number;
+}
+
+export interface DiffTmpResponse {
+  files: TmpFileEntry[];
+}
+
+export async function fetchDiffTmp(runId: string): Promise<DiffTmpResponse> {
+  const res = await apiFetch(`/api/runs/${runId}/diff/tmp`);
+  if (!res.ok) return { files: [] };
   return res.json();
 }
 

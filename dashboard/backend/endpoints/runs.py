@@ -299,9 +299,9 @@ async def get_run_diff(run_id: str = RunId) -> dict:
     return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
 
 
-@router.get("/runs/{run_id}/file/diff")
-async def get_file_diff(run_id: str = RunId, path: str = Query(...)) -> dict:
-    """Get unified diff for a single file — proxies to agent (sandbox or GitHub API)."""
+@router.get("/runs/{run_id}/diff/repo")
+async def get_diff_repo(run_id: str = RunId) -> dict:
+    """Full unified diff — proxies to agent (sandbox or GitHub API). Cached on agent."""
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
@@ -319,15 +319,23 @@ async def get_file_diff(run_id: str = RunId, path: str = Query(...)) -> dict:
         raise HTTPException(status_code=400, detail="No git_token configured for this repo")
 
     return await agent_request(
-        "GET", "/file/diff", AGENT_TIMEOUT_LONG,
+        "GET", "/diff/repo", AGENT_TIMEOUT_LONG,
         None,
         {
             "run_id": run_id,
-            "path": path,
             "branch": branch_name,
             "base": base_branch,
             "repo": github_repo,
             "token": token,
         },
         None,
+    )
+
+
+@router.get("/runs/{run_id}/diff/tmp")
+async def get_diff_tmp(run_id: str = RunId) -> dict:
+    """List archived tmp/round files for a run."""
+    return await agent_request(
+        "GET", "/diff/tmp", AGENT_TIMEOUT_LONG,
+        None, {"run_id": run_id}, None,
     )

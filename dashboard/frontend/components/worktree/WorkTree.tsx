@@ -4,8 +4,8 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
-import type { DiffStats } from "@/lib/api";
-import { fetchRunDiff } from "@/lib/api";
+import type { DiffStats, TmpFileEntry } from "@/lib/api";
+import { fetchRunDiff, fetchDiffRepo, fetchDiffTmp } from "@/lib/api";
 import {
   extractFileChanges,
   buildTreeFromDiff,
@@ -214,29 +214,42 @@ export interface WorkTreeProps {
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  const [fullDiff, setFullDiff] = useState<string | null>(null);
+  const [tmpFiles, setTmpFiles] = useState<TmpFileEntry[]>([]);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
-  // Fetch git diff when run changes; reset selected file
+  // Fetch diff stats (file list) when run changes
   useEffect(() => {
-    if (!runId) { setDiffData(null); return; }
+    if (!runId) { setDiffData(null); setFullDiff(null); setTmpFiles([]); return; }
     setSelectedFile(null);
     setDiffLoading(true);
     fetchRunDiff(runId)
       .then(d => { setDiffData(d); setDiffLoading(false); })
       .catch(err => {
-        console.warn("WorkTree: initial diff fetch failed:", err);
+        console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
+    // Fetch tmp files for this run (archived round reports)
+    fetchDiffTmp(runId).then(d => setTmpFiles(d.files)).catch(() => setTmpFiles([]));
   }, [runId]);
 
-  // Refresh periodically for live/agent diffs
+  // Fetch full diff text (cached on agent) when we have diff data
+  useEffect(() => {
+    if (!runId || !diffData || diffData.files.length === 0 || diffData.source === "unavailable") {
+      setFullDiff(null);
+      return;
+    }
+    fetchDiffRepo(runId)
+      .then(d => setFullDiff(d.diff))
+      .catch(err => console.warn("WorkTree: full diff fetch failed:", err));
+  }, [runId, diffData]);
+
+  // Refresh diff stats periodically for live/agent diffs
   const isPollingSource = diffData?.source === "live" || diffData?.source === "agent";
   useEffect(() => {
     if (!runId || !isPollingSource) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId)
-        .then(setDiffData)
-        .catch(err => console.warn("WorkTree: diff poll failed:", err));
+      fetchRunDiff(runId).then(setDiffData).catch(err => console.warn("WorkTree: diff poll failed:", err));
     }, DIFF_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [runId, isPollingSource]);
@@ -249,17 +262,29 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // Git diff tree
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
+  // Tmp files tree (archived round reports)
+  const tmpTree = useMemo(() => {
+    if (tmpFiles.length === 0) return null;
+    return buildTreeFromChanges(tmpFiles.map(f => ({
+      path: f.path, action: "edit" as const, linesAdded: 0, linesRemoved: 0,
+      timestamp: "", toolCallId: 0, toolName: "Archive",
+    })));
+  }, [tmpFiles]);
+
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
   const hasLiveChanges = writeChanges.length > 0;
-  const hasContent = hasGitDiff || hasLiveChanges;
+  const hasTmpFiles = tmpFiles.length > 0;
+  const hasContent = hasGitDiff || hasLiveChanges || hasTmpFiles;
 
-  // Merged tree: git diff + session, session wins on conflict
+  // Merged tree: git diff + session + tmp, session wins on conflict
   const mergedTree = useMemo(() => {
-    if (!diffTree && liveTree.children.size === 0) return null;
-    if (!diffTree) return liveTree;
-    if (liveTree.children.size === 0) return diffTree;
-    return mergeTrees(diffTree, liveTree);
-  }, [diffTree, liveTree]);
+    let tree: TreeNode | null = diffTree;
+    const sessionTree = liveTree.children.size > 0 ? liveTree : tmpTree;
+    if (!tree && !sessionTree) return null;
+    if (!tree) return sessionTree;
+    if (!sessionTree) return tree;
+    return mergeTrees(tree, sessionTree);
+  }, [diffTree, liveTree, tmpTree]);
 
   const mergedRoots = useMemo(() => {
     if (!mergedTree) return [];
@@ -294,18 +319,18 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
-    if (diffData?.source === "unavailable" && !hasLiveChanges) return "unavailable";
+    if (diffData?.source === "unavailable" && !hasLiveChanges && !hasTmpFiles) return "unavailable";
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  // Files that have a real git diff patch (clickable for per-file viewer)
+  // Files clickable only if we have full diff text to extract from
   const diffPaths = useMemo(() => {
     if (!diffData?.files) return new Set<string>();
     return new Set(diffData.files.map(f => f.path));
   }, [diffData]);
 
-  const onFileClick = hasGitDiff && diffData?.source !== "unavailable"
+  const onFileClick = fullDiff !== null
     ? (path: string, status: string) => setSelectedFile({ path, status })
     : null;
 
@@ -336,9 +361,9 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
       {/* Content */}
       <div className={clsx("flex-1 overflow-y-auto", selectedFile === null && "py-1")}>
-        {selectedFile !== null && runId !== null ? (
+        {selectedFile !== null && fullDiff !== null ? (
           <FileDiffViewer
-            runId={runId}
+            fullDiff={fullDiff}
             filePath={selectedFile.path}
             fileStatus={selectedFile.status}
             onBack={() => setSelectedFile(null)}

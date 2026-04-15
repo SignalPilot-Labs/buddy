@@ -7,7 +7,7 @@ prefix false-positive prevention, and fetch_github_file_diff fallback chain.
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from utils.diff import extract_file_patch, fetch_github_file_diff
+from utils.diff import extract_file_patch, fetch_github_diff
 
 
 SAMPLE_FULL_DIFF = """\
@@ -87,12 +87,12 @@ Binary files a/image.png and b/image.png differ
         assert extract_file_patch(diff, "image.png") is None
 
 
-class TestFetchGithubFileDiff:
-    """fetch_github_file_diff must try compare, then PR, then error."""
+class TestFetchGithubDiff:
+    """fetch_github_diff must try compare, then PR, then error."""
 
     @pytest.mark.asyncio
     async def test_compare_success(self) -> None:
-        """GitHub compare returns 200 → extract patch."""
+        """GitHub compare returns 200 → returns full diff text."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = SAMPLE_FULL_DIFF
@@ -103,24 +103,25 @@ class TestFetchGithubFileDiff:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("utils.diff.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_github_file_diff("o/r", "feat", "main", "src/main.py", "tok")
-        assert "+import sys" in result["patch"]
+            result = await fetch_github_diff("o/r", "feat", "main", "tok")
+        assert "diff" in result
+        assert "+import sys" in result["diff"]
 
     @pytest.mark.asyncio
     async def test_compare_404_pr_found(self) -> None:
-        """Compare 404 → finds PR → fetches PR diff."""
+        """Compare 404 → finds PR → returns PR diff text."""
         call_count = 0
 
         async def mock_get(url: str, **kwargs: object) -> MagicMock:
             nonlocal call_count
             call_count += 1
             resp = MagicMock()
-            if call_count == 1:  # compare
+            if call_count == 1:
                 resp.status_code = 404
-            elif call_count == 2:  # PR list
+            elif call_count == 2:
                 resp.status_code = 200
                 resp.json.return_value = [{"number": 42}]
-            elif call_count == 3:  # PR diff
+            elif call_count == 3:
                 resp.status_code = 200
                 resp.text = SAMPLE_FULL_DIFF
             return resp
@@ -131,8 +132,9 @@ class TestFetchGithubFileDiff:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("utils.diff.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_github_file_diff("o/r", "feat", "main", "src/main.py", "tok")
-        assert "+import sys" in result["patch"]
+            result = await fetch_github_diff("o/r", "feat", "main", "tok")
+        assert "diff" in result
+        assert "+import sys" in result["diff"]
 
     @pytest.mark.asyncio
     async def test_compare_404_no_pr(self) -> None:
@@ -156,7 +158,7 @@ class TestFetchGithubFileDiff:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("utils.diff.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_github_file_diff("o/r", "deleted", "main", "x.py", "tok")
+            result = await fetch_github_diff("o/r", "deleted", "main", "tok")
         assert "error" in result
         assert "no PR found" in result["error"]
 
@@ -173,6 +175,6 @@ class TestFetchGithubFileDiff:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("utils.diff.httpx.AsyncClient", return_value=mock_client):
-            result = await fetch_github_file_diff("o/r", "feat", "main", "x.py", "tok")
+            result = await fetch_github_diff("o/r", "feat", "main", "tok")
         assert "error" in result
         assert result["status"] == 403

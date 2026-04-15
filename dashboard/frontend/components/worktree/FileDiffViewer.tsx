@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { clsx } from "clsx";
 import type { ThemedToken } from "shiki";
-import { fetchFileDiff } from "@/lib/api";
-import type { FileDiffResponse } from "@/lib/api";
 import { parseDiffLines, langFromPath } from "@/lib/diff-utils";
 import type { DiffLine } from "@/lib/diff-utils";
+import { extractFilePatch } from "@/lib/diff-utils";
 
 export interface FileDiffViewerProps {
-  runId: string;
+  fullDiff: string;
   filePath: string;
   fileStatus: string;
   onBack: () => void;
@@ -150,48 +149,24 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /* ── Main component ── */
-export function FileDiffViewer({ runId, filePath, fileStatus, onBack }: FileDiffViewerProps) {
-  const [diffData, setDiffData] = useState<FileDiffResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function FileDiffViewer({ fullDiff, filePath, fileStatus, onBack }: FileDiffViewerProps) {
   const [highlighter, setHighlighter] = useState<ShikiHighlighter | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
-    setLoading(true);
-    setError(null);
-    setDiffData(null);
-
-    fetchFileDiff(runId, filePath)
-      .then((data) => {
-        if (mountedRef.current) {
-          setDiffData(data);
-          setLoading(false);
-        }
-      })
-      .catch((err: Error) => {
-        if (mountedRef.current) {
-          setError(err.message);
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      mountedRef.current = false;
-    };
-  }, [runId, filePath]);
-
-  useEffect(() => {
     getHighlighter().then((h) => {
       if (mountedRef.current) setHighlighter(h);
     }).catch((err: unknown) => {
       console.warn("shiki highlighter init failed:", err);
     });
+    return () => { mountedRef.current = false; };
   }, []);
 
+  const patch = useMemo(() => extractFilePatch(fullDiff, filePath), [fullDiff, filePath]);
+  const isBinary = patch === null && fullDiff.includes(`b/${filePath}`);
   const lang = langFromPath(filePath);
-  const diffLines = diffData?.patch ? parseDiffLines(diffData.patch) : [];
+  const diffLines = patch ? parseDiffLines(patch) : [];
 
   return (
     <div className="flex flex-col bg-sidebar h-full w-full">
@@ -214,34 +189,19 @@ export function FileDiffViewer({ runId, filePath, fileStatus, onBack }: FileDiff
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        {loading && (
-          <div className="flex items-center justify-center py-8" role="status" aria-label="Loading diff">
-            <div
-              className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]"
-              style={{ animation: "spin 1s linear infinite" }}
-            />
-          </div>
-        )}
-
-        {!loading && error !== null && (
-          <div className="px-3 py-6 text-center text-meta text-[#ff4444]/80">
-            {error}
-          </div>
-        )}
-
-        {!loading && error === null && diffData !== null && diffData.binary && (
+        {isBinary && (
           <div className="px-3 py-6 text-center text-meta text-text-dim">
             Binary file — diff not available
           </div>
         )}
 
-        {!loading && error === null && diffData !== null && !diffData.binary && diffData.empty && (
+        {!isBinary && diffLines.length === 0 && (
           <div className="px-3 py-6 text-center text-meta text-text-dim">
-            File unchanged in this diff
+            File not found in diff
           </div>
         )}
 
-        {!loading && error === null && diffData !== null && !diffData.binary && !diffData.empty && (
+        {!isBinary && diffLines.length > 0 && (
           <div className="text-content font-mono py-1">
             {diffLines.map((line, idx) => (
               <DiffLineRow

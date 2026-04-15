@@ -10,17 +10,19 @@ from __future__ import annotations
 import asyncio
 import logging
 import uuid
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import httpx
 from fastapi import FastAPI, HTTPException
 
 from utils import db
-from utils.diff import fetch_github_file_diff
+from utils.diff import fetch_github_diff
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     MAX_CONCURRENT_RUNS,
+    ROUND_ARCHIVE_AGENT_DIR,
     RUN_ID_LOG_PREFIX_LEN,
 )
 from utils.models import (
@@ -260,30 +262,56 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             lines = filtered
         return {"lines": lines, "total": len(lines)}
 
-    # ── File Diff ──────────────────────────────────────────────────────
+    # ── Diff ───────────────────────────────────────────────────────────
 
-    @app.get("/file/diff")
-    async def file_diff(
+    _diff_cache: dict[str, str] = {}
+
+    @app.get("/diff/repo")
+    async def diff_repo(
         run_id: str,
-        path: str,
         branch: str,
         base: str,
         repo: str,
         token: str,
     ):
-        """Per-file unified diff. Tries sandbox first (active run), falls back to GitHub API."""
+        """Full unified diff. Sandbox for active runs, GitHub API for completed."""
+        if run_id in _diff_cache:
+            return {"diff": _diff_cache[run_id]}
+
         client = server.pool().get_client(run_id)
         if client:
             try:
-                return await client.repo.file_diff(path)
+                data = await client.repo.diff()
+                _diff_cache[run_id] = data["diff"]
+                return data
             except Exception as exc:
-                log.warning("Sandbox file/diff failed for %s: %s", run_id, exc)
+                log.warning("Sandbox diff failed for %s: %s", run_id, exc)
                 raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
-        result = await fetch_github_file_diff(repo, branch, base, path, token)
+        result = await fetch_github_diff(repo, branch, base, token)
         if "error" in result:
             raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
+        _diff_cache[run_id] = result["diff"]
         return result
+
+    @app.get("/diff/tmp")
+    async def diff_tmp(run_id: str):
+        """List archived round files for a completed run."""
+        archive_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
+        if not archive_root.is_dir():
+            return {"files": []}
+        files: list[dict] = []
+        for round_dir in sorted(archive_root.iterdir()):
+            if not round_dir.is_dir():
+                continue
+            for f in sorted(round_dir.iterdir()):
+                if not f.is_file():
+                    continue
+                files.append({
+                    "path": f"{round_dir.name}/{f.name}",
+                    "size": f.stat().st_size,
+                })
+        return {"files": files}
 
     @app.get("/branches")
     async def list_branches(repo: str, token: str):

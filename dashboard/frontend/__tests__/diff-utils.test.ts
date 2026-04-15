@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { parseDiffLines, langFromPath } from "@/lib/diff-utils";
+import { parseDiffLines, langFromPath, extractFilePatch } from "@/lib/diff-utils";
 
 describe("parseDiffLines", () => {
   it("parses hunk header and extracts line numbers", () => {
@@ -89,5 +89,52 @@ describe("langFromPath", () => {
 
   it("returns text for no extension", () => {
     expect(langFromPath("Makefile")).toBe("text");
+  });
+});
+
+const SAMPLE_DIFF = `diff --git a/src/main.py b/src/main.py
+--- a/src/main.py
++++ b/src/main.py
+@@ -1,2 +1,3 @@
+ import os
++import sys
+diff --git a/src/utils.py b/src/utils.py
+--- a/src/utils.py
++++ b/src/utils.py
+@@ -1 +1,2 @@
+ def helper():
++    pass
+`;
+
+describe("extractFilePatch", () => {
+  it("extracts patch for a file", () => {
+    const patch = extractFilePatch(SAMPLE_DIFF, "src/main.py");
+    expect(patch).not.toBeNull();
+    expect(patch).toContain("+import sys");
+    expect(patch).not.toContain("helper");
+  });
+
+  it("returns null for missing file", () => {
+    expect(extractFilePatch(SAMPLE_DIFF, "nope.py")).toBeNull();
+  });
+
+  it("no prefix false positive", () => {
+    const diff = `diff --git a/foo.py.bak b/foo.py.bak
++++ b/foo.py.bak
+@@ -1 +1,2 @@
++new
+`;
+    expect(extractFilePatch(diff, "foo.py")).toBeNull();
+  });
+
+  it("returns null for binary files", () => {
+    const diff = `diff --git a/img.png b/img.png
+Binary files a/img.png and b/img.png differ
+`;
+    expect(extractFilePatch(diff, "img.png")).toBeNull();
+  });
+
+  it("handles empty diff", () => {
+    expect(extractFilePatch("", "any.py")).toBeNull();
   });
 });
