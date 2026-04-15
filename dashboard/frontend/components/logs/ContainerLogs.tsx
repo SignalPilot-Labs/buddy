@@ -14,9 +14,9 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL);
+    const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL, runId ?? undefined);
     setLines(data.lines ?? []);
-  }, []);
+  }, [runId]);
 
   // Initial load — clear old lines immediately on run switch to avoid showing stale logs
   useEffect(() => {

@@ -318,9 +318,10 @@ export interface ContainerLogs {
   total: number;
 }
 
-export async function fetchContainerLogs(tail: number): Promise<ContainerLogs> {
+export async function fetchContainerLogs(tail: number, runId?: string): Promise<ContainerLogs> {
   try {
-    const res = await apiFetch(`/api/agent/logs?tail=${tail}`);
+    const params = runId ? `&run_id=${encodeURIComponent(runId)}` : "";
+    const res = await apiFetch(`/api/agent/logs?tail=${tail}${params}`);
     if (!res.ok) return { lines: [], total: 0 };
     return res.json();
   } catch {
