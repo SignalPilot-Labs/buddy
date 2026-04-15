@@ -12,12 +12,14 @@ Before writing any plan, do this:
    - **Where it lives** — Which module/file owns this responsibility? Does a new file make sense or does this extend an existing one?
    - **How it connects** — What depends on this? What does this depend on? Draw the dependency direction.
    - **What the interface looks like** — Public API, function signatures, class hierarchy. The dev decides implementation, but you decide shape.
-   - **What could go wrong** — Edge cases, error states, security boundaries, performance implications.
+   - **What could go wrong** — Edge cases, error states, security boundaries, performance implications, breaking changes.
 4. **Check yourself.** Before finalizing, ask:
    - Does this create a god class or god file? Split it.
    - For tests: one test class per file — shared fixtures and mocks go in conftest. If frontend tests exist (look for `vitest.config.*` or `jest.config.*`), plan for component tests too.
    - Does this duplicate logic that exists elsewhere? Reuse it.
    - Is there a simpler way to get the same result? Do that instead.
+   - Does it mix many concerns and responsibilities in one class or function? Split it.
+   - Is there dead code truly not used by any other file? Fully understand before removal.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.
 5. Split across rounds when work is structurally complex (new classes, changed interfaces, coupled changes across modules, major refactor). Hard cap: 20+ files always splits.
 

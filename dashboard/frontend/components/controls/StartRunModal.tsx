@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
+import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
@@ -18,6 +19,7 @@ export interface StartRunModalProps {
   onClose: () => void;
   onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
   busy: boolean;
+  branches: string[];
   activeRepo: string | null;
 }
 
@@ -91,12 +93,12 @@ const QUICK_PROMPTS: { label: string; icon: QuickStartIcon; prompt: string | und
   { label: "Bug fixes", icon: "bug", prompt: "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.", desc: "Find and fix bugs" },
 ];
 
-export function StartRunModal({ open, onClose, onStart, busy, activeRepo }: StartRunModalProps) {
+export function StartRunModal({ open, onClose, onStart, busy, branches, activeRepo }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
   const [budget, setBudget] = useState(50);
   const [duration, setDuration] = useState(0);
-  const baseBranch = DEFAULT_BASE_BRANCH;
+  const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
   const [effort, setEffort] = useState<EffortLevel>("medium");
@@ -210,6 +212,8 @@ export function StartRunModal({ open, onClose, onStart, busy, activeRepo }: Star
               </div>
 
               <div className="p-5 space-y-4">
+                <BranchPicker branches={branches} selected={baseBranch} onSelect={setBaseBranch} />
+
                 {/* Quick prompts */}
                 <div>
                   <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Quick Start</label>

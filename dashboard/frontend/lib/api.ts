@@ -347,3 +347,20 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
   }
 }
 
+// ── Branches ─────────────────────────────────────────────────────────────────
+
+export async function fetchBranches(repo: string): Promise<string[]> {
+  const res = await apiFetch(
+    `/api/agent/branches?repo=${encodeURIComponent(repo)}`,
+  );
+  if (!res.ok) {
+    const err = await res
+      .json()
+      .catch(() => ({ detail: `HTTP ${res.status}` }));
+    throw new Error(
+      err.detail || `Failed to fetch branches (HTTP ${res.status})`,
+    );
+  }
+  return res.json();
+}
+

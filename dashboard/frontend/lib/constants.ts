@@ -61,6 +61,9 @@ export const RECONNECT_MAX_ATTEMPTS = 10;
 // Default base branch for new runs.
 export const DEFAULT_BASE_BRANCH = "main";
 
+// Branches pinned to the top of the branch picker, in display order.
+export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
+
 // Run ID display
 export const RUN_ID_DISPLAY_LENGTH = 8;
 export const COPY_FEEDBACK_MS = 1500;

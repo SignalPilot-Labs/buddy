@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { RunStatus } from "@/lib/types";
-import { pauseAgent, unlockAgent } from "@/lib/api";
+import { fetchBranches, pauseAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useToast } from "@/hooks/useToast";
 import { RunList } from "@/components/sidebar/RunList";
@@ -53,6 +53,7 @@ function MonitorPageInner() {
     connected,
     connectionState,
     historyTruncated,
+    branches,
     isMobile,
     isConfigured,
     atCapacity,
@@ -84,6 +85,7 @@ function MonitorPageInner() {
     setMobilePanel,
     setControlsOpen,
     setRightPanel,
+    setBranches,
     setSettingsStatus,
     setRepos,
   } = dashboard;
@@ -177,6 +179,9 @@ function MonitorPageInner() {
             showToast("Select a repo first", "error");
             return;
           }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
           setStartModalOpen(true);
         }}
         sidebarCollapsed={sidebarCollapsed}
@@ -191,6 +196,7 @@ function MonitorPageInner() {
         onClose={() => setStartModalOpen(false)}
         onStart={handleStartRun}
         busy={busy}
+        branches={branches}
         activeRepo={activeRepoFilter}
       />
 
@@ -338,6 +344,9 @@ function MonitorPageInner() {
             showToast("Select a repo first", "error");
             return;
           }
+          fetchBranches(activeRepoFilter)
+            .then(setBranches)
+            .catch((err) => showToast(`Failed to load branches: ${err.message}`, "error"));
           setStartModalOpen(true);
         }}
         isConfigured={isConfigured}
