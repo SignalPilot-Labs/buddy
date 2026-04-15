@@ -356,7 +356,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     {mounts.map((m, i) => (
                       <div key={i} className="space-y-1.5 mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
+                          <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
                           <input
                             type="text"
                             value={m.host_path}
@@ -379,7 +379,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-[11px] uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
+                          <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
                           <input
                             type="text"
                             value={m.container_path}

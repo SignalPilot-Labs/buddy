@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { RunStatus } from "@/lib/types";
-import { fetchBranches, pauseAgent, resumeAgent, unlockAgent } from "@/lib/api";
+import { fetchBranches, pauseAgent, unlockAgent } from "@/lib/api";
 import { useDashboard } from "@/hooks/useDashboard";
 import { useToast } from "@/hooks/useToast";
 import { RunList } from "@/components/sidebar/RunList";
@@ -271,9 +271,7 @@ function MonitorPageInner() {
               events={allEvents}
               busy={busy}
               onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-              onResume={(prompt) => {
-                void toastControlAction("Resume", (id) => resumeAgent(id, prompt));
-              }}
+              onResume={(prompt) => handleRestart(prompt)}
               onInject={handleInject}
               onRestart={handleRestart}
             />
@@ -320,7 +318,7 @@ function MonitorPageInner() {
           setControlsOpen={setControlsOpen}
           onSelectRun={handleSelectRun}
           onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-          onResume={() => { void toastControlAction("Resume", resumeAgent); }}
+          onResume={() => handleRestart()}
           onInject={handleInject}
           onRestart={handleRestart}
           showToast={showToast}
@@ -333,7 +331,7 @@ function MonitorPageInner() {
         onClose={() => setControlsOpen(false)}
         status={runStatus}
         onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-        onResume={() => { void toastControlAction("Resume", resumeAgent); }}
+        onResume={() => handleRestart()}
         onStop={handleStopClick}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
         onToggleInject={() => setMobilePanel("feed")}
