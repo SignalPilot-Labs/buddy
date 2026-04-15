@@ -229,7 +229,19 @@ export function FileDiffViewer({ runId, filePath, fileStatus, onBack }: FileDiff
           </div>
         )}
 
-        {!loading && error === null && diffData !== null && (
+        {!loading && error === null && diffData !== null && diffData.binary && (
+          <div className="px-3 py-6 text-center text-meta text-text-dim">
+            Binary file — diff not available
+          </div>
+        )}
+
+        {!loading && error === null && diffData !== null && !diffData.binary && diffData.empty && (
+          <div className="px-3 py-6 text-center text-meta text-text-dim">
+            File unchanged in this diff
+          </div>
+        )}
+
+        {!loading && error === null && diffData !== null && !diffData.binary && !diffData.empty && (
           <div className="text-content font-mono py-1">
             {diffLines.map((line, idx) => (
               <DiffLineRow

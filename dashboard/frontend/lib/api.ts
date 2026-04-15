@@ -352,6 +352,8 @@ export async function fetchNetworkInfo(): Promise<NetworkInfo> {
 export interface FileDiffResponse {
   path: string;
   patch: string;
+  binary?: boolean;
+  empty?: boolean;
 }
 
 export async function fetchFileDiff(runId: string, filePath: string): Promise<FileDiffResponse> {

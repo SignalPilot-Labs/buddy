@@ -51,10 +51,12 @@ function NodeItem({
   node,
   depth,
   onFileClick,
+  clickablePaths,
 }: {
   node: TreeNode;
   depth: number;
   onFileClick: ((path: string, status: string) => void) | null;
+  clickablePaths: ReadonlySet<string> | null;
 }) {
   const [open, setOpen] = useState(depth < 2);
   const isDir = node.isDir && node.children.size > 0;
@@ -84,9 +86,11 @@ function NodeItem({
     return sum;
   }, [node]);
 
+  const isClickable = !isDir && onFileClick !== null && (clickablePaths === null || clickablePaths.has(node.fullPath));
+
   const handleClick = () => {
     if (isDir) { setOpen(!open); return; }
-    if (onFileClick) onFileClick(node.fullPath, node.status ?? "modified");
+    if (isClickable) onFileClick!(node.fullPath, node.status ?? "modified");
   };
 
   return (
@@ -94,8 +98,8 @@ function NodeItem({
       <div
         className={clsx(
           "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
-          isDir ? "cursor-pointer" : onFileClick ? "cursor-pointer" : "cursor-default",
-          onFileClick && !isDir ? "hover:bg-white/[0.06]" : "hover:bg-white/[0.03]",
+          isDir ? "cursor-pointer" : isClickable ? "cursor-pointer" : "cursor-default",
+          isClickable ? "hover:bg-white/[0.06]" : "hover:bg-white/[0.03]",
           node.status === "added" && "bg-[#00ff88]/[0.02]",
           node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
@@ -139,7 +143,7 @@ function NodeItem({
         {open && isDir && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.15 }} className="overflow-hidden">
             {sorted.map(child => (
-              <NodeItem key={child.fullPath} node={child} depth={depth + 1} onFileClick={onFileClick} />
+              <NodeItem key={child.fullPath} node={child} depth={depth + 1} onFileClick={onFileClick} clickablePaths={clickablePaths} />
             ))}
           </motion.div>
         )}
@@ -295,16 +299,15 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  // File click: only for files that exist in git diff (have a real patch to show)
+  // Files that have a real git diff patch (clickable for per-file viewer)
   const diffPaths = useMemo(() => {
     if (!diffData?.files) return new Set<string>();
     return new Set(diffData.files.map(f => f.path));
   }, [diffData]);
 
-  const onFileClick: ((path: string, status: string) => void) | null =
-    hasGitDiff && diffData?.source !== "unavailable"
-      ? (path, status) => { if (diffPaths.has(path)) setSelectedFile({ path, status }); }
-      : null;
+  const onFileClick = hasGitDiff && diffData?.source !== "unavailable"
+    ? (path: string, status: string) => setSelectedFile({ path, status })
+    : null;
 
   return (
     <div className="flex flex-col bg-sidebar h-full w-full">
@@ -353,7 +356,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
             )}
 
             {hasContent && mergedRoots.map(child => (
-              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} />
+              <NodeItem key={child.fullPath} node={child} depth={0} onFileClick={onFileClick} clickablePaths={diffPaths} />
             ))}
           </>
         )}

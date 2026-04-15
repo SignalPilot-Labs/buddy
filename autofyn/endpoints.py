@@ -16,7 +16,7 @@ import httpx
 from fastapi import FastAPI, HTTPException
 
 from utils import db
-from utils.diff import extract_file_patch
+from utils.diff import fetch_github_file_diff
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
@@ -37,14 +37,6 @@ if TYPE_CHECKING:
     from server import AgentServer
 
 log = logging.getLogger("endpoints")
-
-
-def _to_patch_response(full_diff: str, path: str) -> dict:
-    """Extract a single file's patch from a full diff, or raise 404."""
-    patch = extract_file_patch(full_diff, path)
-    if patch is None:
-        raise HTTPException(status_code=404, detail=f"File {path} not found in diff")
-    return {"patch": patch, "path": path}
 
 
 def _merge_tokens_into_env(
@@ -268,8 +260,6 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             lines = filtered
         return {"lines": lines, "total": len(lines)}
 
-    # ── Branches (GitHub API proxy) ────────────────────────────────────
-
     # ── File Diff ──────────────────────────────────────────────────────
 
     @app.get("/file/diff")
@@ -282,58 +272,18 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         token: str,
     ):
         """Per-file unified diff. Tries sandbox first (active run), falls back to GitHub API."""
-        # Active run: proxy to sandbox
         client = server.pool().get_client(run_id)
         if client:
             try:
                 return await client.repo.file_diff(path)
             except Exception as exc:
                 log.warning("Sandbox file/diff failed for %s: %s", run_id, exc)
+                raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
-        # Completed run: GitHub compare API
-        url = f"https://api.github.com/repos/{repo}/compare/{base}...{branch}"
-        headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3.diff",
-        }
-        async with httpx.AsyncClient(timeout=15) as http:
-            resp = await http.get(url, headers=headers)
-
-        if resp.status_code == 404:
-            # Branch deleted — try finding a PR
-            pr_url = f"https://api.github.com/repos/{repo}/pulls"
-            pr_headers = {
-                "Authorization": f"token {token}",
-                "Accept": "application/vnd.github+json",
-            }
-            async with httpx.AsyncClient(timeout=15) as http:
-                pr_resp = await http.get(
-                    pr_url,
-                    headers=pr_headers,
-                    params={"head": f"{repo.split('/')[0]}:{branch}", "state": "all", "per_page": 1},
-                )
-            if pr_resp.status_code == 200 and pr_resp.json():
-                pr_number = pr_resp.json()[0]["number"]
-                diff_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
-                async with httpx.AsyncClient(timeout=15) as http:
-                    diff_resp = await http.get(
-                        diff_url,
-                        headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3.diff"},
-                    )
-                if diff_resp.status_code == 200:
-                    return _to_patch_response(diff_resp.text, path)
-            raise HTTPException(
-                status_code=404,
-                detail="Branch deleted and no PR found — diff unavailable",
-            )
-
-        if resp.status_code >= 400:
-            raise HTTPException(
-                status_code=resp.status_code,
-                detail=f"GitHub API error: {resp.text[:200]}",
-            )
-
-        return _to_patch_response(resp.text, path)
+        result = await fetch_github_file_diff(repo, branch, base, path, token)
+        if "error" in result:
+            raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
+        return result
 
     @app.get("/branches")
     async def list_branches(repo: str, token: str):

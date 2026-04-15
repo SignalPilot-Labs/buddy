@@ -473,10 +473,11 @@ async def handle_teardown(request: web.Request) -> web.Response:
 
 async def handle_file_diff(request: web.Request) -> web.Response:
     """Return unified diff for a single file against the base branch."""
+    state = _state(request)
     body = await request.json()
     file_path: str = body["path"]
-    timeout: int = body.get("timeout", CMD_TIMEOUT)
-    state = request.app["repo_state"]
+    timeout: int = CMD_TIMEOUT
+
     if not state.working_branch or not state.base_branch:
         return web.json_response({"error": "No active branch"}, status=409)
 
@@ -485,7 +486,12 @@ async def handle_file_diff(request: web.Request) -> web.Response:
     result = await _git(["diff", ref_range, "--", file_path], timeout)
     if result.exit_code != 0:
         return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
-    return web.json_response({"patch": result.stdout, "path": file_path})
+    patch = result.stdout.strip()
+    if not patch:
+        return web.json_response({"patch": "", "path": file_path, "empty": True})
+    if "Binary files" in patch and "differ" in patch:
+        return web.json_response({"patch": "", "path": file_path, "binary": True})
+    return web.json_response({"patch": patch, "path": file_path})
 
 
 # ── Registration ─────────────────────────────────────────────────────
