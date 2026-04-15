@@ -302,9 +302,11 @@ export function MilestoneCard({
               {detail}
             </span>
           ))}
+        <span className="text-caption text-text-dim tabular-nums">
+          {fmtTime(ts)}
+        </span>
       </div>
       <div className="flex-1 h-px" style={{ background: `${color}15` }} />
-      <span className="text-caption text-text-dim tabular-nums shrink-0">{fmtTime(ts)}</span>
     </motion.div>
   );
 }
