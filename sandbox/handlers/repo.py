@@ -291,6 +291,14 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
 
     await _install_git_credentials(token, timeout)
 
+    # Clone into a temp dir first, then merge into REPO_WORK_DIR.
+    # Host bind mounts may already exist under REPO_WORK_DIR, making
+    # it non-empty. rm -rf can't remove mount points, and git clone
+    # refuses non-empty dirs. Cloning to /tmp then cp -a works because
+    # cp merges into existing dirs without touching mount points.
+    clone_tmp = "/tmp/repo-clone"
+    await _run(["rm", "-rf", clone_tmp], "/", timeout)
+    await _run(["mkdir", "-p", clone_tmp], "/", timeout)
     await _run(["rm", "-rf", REPO_WORK_DIR], "/", timeout)
     await _run(["mkdir", "-p", REPO_WORK_DIR], "/", timeout)
 
@@ -299,9 +307,25 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         await _git(
             ["clone", "--depth", "50", "--no-single-branch", remote_url, "."],
             timeout,
+            cwd=clone_tmp,
         ),
         "git clone",
     )
+
+    # After rm -rf + mkdir, any surviving entries in REPO_WORK_DIR are
+    # bind mount points (Docker protects them). The user's mounted data
+    # takes precedence over repo contents — skip those dirs during copy.
+    mount_entries = await _run(["ls", "-A", REPO_WORK_DIR], "/", timeout)
+    excludes = [
+        name.strip() for name in mount_entries.stdout.strip().split("\n") if name.strip()
+    ]
+    rsync_cmd = ["rsync", "-a"]
+    for name in excludes:
+        log.warning("Host mount shadows repo dir '%s' — using mounted version", name)
+        rsync_cmd.append(f"--exclude=/{name}")
+    rsync_cmd += [f"{clone_tmp}/", f"{REPO_WORK_DIR}/"]
+    _fail(await _run(rsync_cmd, "/", timeout), "rsync clone into repo dir")
+    await _run(["rm", "-rf", clone_tmp], "/", timeout)
 
     _fail(
         await _git(

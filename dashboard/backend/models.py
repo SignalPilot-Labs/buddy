@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -56,6 +56,20 @@ class ResumeRunRequest(BaseModel):
     run_id: str = Field(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
     max_budget_usd: float = Field(default=0, ge=0, description="Max spend in USD. 0 = unlimited.")
     model: str | None = Field(None, pattern=VALID_MODELS_PATTERN, description="Override model for the resumed run. Defaults to the original run's model.")
+
+
+class HostMountEntry(BaseModel):
+    """A single host directory mount."""
+
+    host_path: str = Field(min_length=1, max_length=4096)
+    container_path: str = Field(min_length=1, max_length=4096)
+    mode: str = Field(pattern=r"^(ro|rw)$")
+
+
+class SaveMountsRequest(BaseModel):
+    """Request body for saving per-repo host mounts."""
+
+    mounts: list[HostMountEntry] = Field(default_factory=list, max_length=MAX_HOST_MOUNTS)
 
 
 class AddTokenRequest(BaseModel):

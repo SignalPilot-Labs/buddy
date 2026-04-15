@@ -172,6 +172,7 @@ class AgentServer:
             run_id,
             self._health_timeout,
             body.env,
+            body.host_mounts,
         )
         terminal_status = "error"
         try:

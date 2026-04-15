@@ -14,8 +14,10 @@ from backend.constants import (
     MASTER_KEY_PATH,
     SECRET_KEYS,
 )
+from db.constants import validate_host_mount
 from backend.models import (
     AddTokenRequest,
+    SaveMountsRequest,
     SetActiveRepoRequest,
     UpdateSettingsRequest,
 )
@@ -61,6 +63,11 @@ def _env_vars_key(repo: str) -> str:
     return f"env_vars:{repo}"
 
 
+def _host_mounts_key(repo: str) -> str:
+    """Setting table key for per-repo host directory mounts."""
+    return f"host_mounts:{repo}"
+
+
 @router.get("/settings")
 async def get_settings() -> dict:
     """Get all settings with secrets masked."""
@@ -68,7 +75,7 @@ async def get_settings() -> dict:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
         for setting in result.scalars().all():
-            if setting.key.startswith("env_vars:"):
+            if setting.key.startswith("env_vars:") or setting.key.startswith("host_mounts:"):
                 continue
             if setting.encrypted:
                 try:
@@ -127,6 +134,40 @@ async def save_repo_env(repo: str, body: dict) -> dict:
                 await s.delete(existing)
         await s.commit()
     return {"ok": True, "repo": repo, "key_count": len(env_vars)}
+
+
+@router.get("/repos/{repo:path}/mounts")
+async def get_repo_mounts(repo: str) -> dict:
+    """Get host directory mounts for a repo."""
+    async with session() as s:
+        setting = await s.get(Setting, _host_mounts_key(repo))
+        if not setting:
+            return {"repo": repo, "mounts": []}
+        try:
+            mounts: list[dict[str, str]] = json.loads(setting.value)
+            return {"repo": repo, "mounts": mounts}
+        except Exception as e:
+            log.error("Failed to parse host mounts for %s: %s", repo, e)
+            return {"repo": repo, "mounts": []}
+
+
+@router.put("/repos/{repo:path}/mounts")
+async def save_repo_mounts(repo: str, body: SaveMountsRequest) -> dict:
+    """Save host directory mounts for a repo. Full replacement."""
+    for mount in body.mounts:
+        error = validate_host_mount(mount.host_path, mount.container_path, mount.mode)
+        if error:
+            raise HTTPException(status_code=422, detail=error)
+    serialized = [m.model_dump() for m in body.mounts]
+    async with session() as s:
+        if serialized:
+            await upsert_setting(s, _host_mounts_key(repo), json.dumps(serialized), False)
+        else:
+            existing = await s.get(Setting, _host_mounts_key(repo))
+            if existing:
+                await s.delete(existing)
+        await s.commit()
+    return {"ok": True, "repo": repo, "mount_count": len(serialized)}
 
 
 @router.get("/repos")

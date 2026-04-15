@@ -166,6 +166,14 @@ async def read_credentials(repo: str | None) -> dict:
                 except Exception as e:
                     log.error("Failed to decrypt %s: %s", env_key, e)
 
+            mounts_key = f"host_mounts:{repo}"
+            mounts_setting = await s.get(Setting, mounts_key)
+            if mounts_setting:
+                try:
+                    creds["host_mounts"] = json.loads(mounts_setting.value)
+                except Exception as e:
+                    log.error("Failed to parse %s: %s", mounts_key, e)
+
     return creds
 
 
