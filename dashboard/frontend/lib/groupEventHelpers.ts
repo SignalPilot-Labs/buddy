@@ -68,8 +68,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       const detail = branch ? `${d.model || "claude"} · ${branch}` : `${d.model || "claude"}`;
       return { id: `ms-${ts}-Run Started`, type: "milestone", label: "Run Started", detail, color: "#88ccff", ts, event };
     }
-    case "round_complete":
-      return null; // Legacy — superseded by round_ended below
     case "round_ended": {
       const roundNum = d.round_number as number | undefined;
       const label = roundNum ? `Round ${roundNum} complete` : "Round complete";
@@ -85,8 +83,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Killed`, type: "milestone", label: "Killed", detail: `after ${(d.elapsed_minutes as number)?.toFixed(1) || "?"}min`, color: "#ff4444", ts, event };
     case "fatal_error":
       return { id: `ctrl-${ts}-fatal`, type: "control", text: String(d.error || "Unknown error"), ts };
-    case "planner_invoked":
-      return { id: `ms-${ts}-Planner Invoked`, type: "milestone", label: "Planner Invoked", detail: `Round ${d.round} · ${d.tool_summary || ""}`, color: "#ff8844", ts, event };
     case "end_session_denied":
       return { id: `ms-${ts}-Session End Denied`, type: "milestone", label: "Session End Denied", detail: `${d.remaining_minutes || "?"}m remaining`, color: "#ffaa00", ts, event };
     case "session_unlocked":
@@ -97,20 +93,24 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Pause Requested`, type: "milestone", label: "Pause Requested", detail: "", color: "#ffaa00", ts, event };
     case "resumed":
       return { id: `ms-${ts}-Resumed`, type: "milestone", label: "Resumed", detail: String(d.via === "inject" ? "via inject" : ""), color: "#00ff88", ts, event };
-    case "rate_limit_paused": {
+    case "rate_limit": {
       const resetEpoch = d.resets_at as number | undefined;
-      const resetDetail = resetEpoch
-        ? (() => {
-            const resetDate = new Date(resetEpoch * 1000);
-            const diffMs = resetEpoch * 1000 - Date.now();
-            const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-            if (diffMs <= 0) return `resets ${timeStr} (ready)`;
-            const h = Math.floor(diffMs / 3600000);
-            const m = Math.floor((diffMs % 3600000) / 60000);
-            return h > 0 ? `resets ${timeStr} (${h}h ${m}m)` : `resets ${timeStr} (${m}m)`;
-          })()
-        : (d.reason as string) || "out of credits";
-      return { id: `ms-${ts}-Rate Limited`, type: "milestone", label: "Rate Limited", detail: resetDetail, color: "#ffaa00", ts, event };
+      let resetText = "Rate limited";
+      if (resetEpoch) {
+        const resetDate = new Date(resetEpoch * 1000);
+        const diffMs = resetEpoch * 1000 - Date.now();
+        const timeStr = resetDate.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        if (diffMs <= 0) {
+          resetText = `Rate limited — resets ${timeStr} (ready)`;
+        } else {
+          const h = Math.floor(diffMs / 3600000);
+          const m = Math.floor((diffMs % 3600000) / 60000);
+          resetText = h > 0
+            ? `Rate limited — resets ${timeStr} (${h}h ${m}m)`
+            : `Rate limited — resets ${timeStr} (${m}m)`;
+        }
+      }
+      return { id: `ctrl-${ts}-rate-limit`, type: "control", text: resetText, ts };
     }
     case "prompt_injected":
       return { id: `up-${event.data.id}-${ts}`, type: "user_prompt", prompt: String(d.prompt || ""), ts, pending: Boolean(d._pending), failed: Boolean(d._failed), injected: true };
@@ -126,14 +126,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       return { id: `ms-${ts}-Permission Denied`, type: "milestone", label: "Permission Denied", detail: String(d.tool_name || ""), color: "#ff4444", ts, event };
     case "run_ended":
       return { id: `ms-${ts}-Run Ended`, type: "milestone", label: "Run Ended", detail: String(d.status || ""), color: "#88ccff", ts, event };
-    case "permission_allowed":
-    case "subagent_stuck":
-    case "subagent_timeout":
-      return null;
-    case "sdk_config":
-      return null;
-    case "rate_limit":
-      return null;
     default:
       return null;
   }
