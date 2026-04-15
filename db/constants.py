@@ -71,6 +71,7 @@ VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
 # like /home/agentuser/repo/data are allowed — users mount data there.
 BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
     "/home/agentuser/.claude",
+    "/tmp/repo-clone",
 })
 BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
     "/",
