@@ -179,49 +179,35 @@ export function buildTreeFromChanges(changes: FileChange[]): TreeNode {
 
 /* ── Merge two trees — session wins on path conflict ── */
 export function mergeTrees(git: TreeNode, session: TreeNode): TreeNode {
-  const root: TreeNode = {
-    name: "",
-    fullPath: "",
-    isDir: true,
-    children: new Map(),
-    added: 0,
-    removed: 0,
-  };
-  // Git entries first
-  for (const [key, node] of git.children) {
-    root.children.set(key, _cloneNode(node));
-  }
-  // Session overlays — wins on conflict
-  for (const [key, sNode] of session.children) {
-    const existing = root.children.get(key);
-    if (!existing) {
-      root.children.set(key, _cloneNode(sNode));
-    } else if (existing.isDir && sNode.isDir) {
-      root.children.set(key, _mergeDir(existing, sNode));
-    } else {
-      root.children.set(key, _cloneNode(sNode));
-    }
-  }
-  return root;
-}
-
-function _cloneNode(node: TreeNode): TreeNode {
-  const children = new Map<string, TreeNode>();
-  for (const [k, v] of node.children) children.set(k, _cloneNode(v));
-  return { ...node, children };
+  return _mergeDir(git, session);
 }
 
 function _mergeDir(git: TreeNode, session: TreeNode): TreeNode {
-  const merged = _cloneNode(git);
-  for (const [key, sChild] of session.children) {
-    const existing = merged.children.get(key);
-    if (!existing) {
-      merged.children.set(key, _cloneNode(sChild));
-    } else if (existing.isDir && sChild.isDir) {
-      merged.children.set(key, _mergeDir(existing, sChild));
-    } else {
-      merged.children.set(key, _cloneNode(sChild));
+  // If session has no children in this dir, just use git as-is (no clone)
+  if (session.children.size === 0) return git;
+  // If git has no children, just use session as-is
+  if (git.children.size === 0) return session;
+
+  const children = new Map<string, TreeNode>();
+
+  // Git entries — shared by reference unless session conflicts
+  for (const [key, node] of git.children) {
+    if (!session.children.has(key)) {
+      children.set(key, node); // share reference, no clone
     }
   }
-  return merged;
+
+  // Session entries — shared by reference, or merged if both are dirs
+  for (const [key, sNode] of session.children) {
+    const gitNode = git.children.get(key);
+    if (!gitNode) {
+      children.set(key, sNode);
+    } else if (gitNode.isDir && sNode.isDir) {
+      children.set(key, _mergeDir(gitNode, sNode));
+    } else {
+      children.set(key, sNode); // session wins
+    }
+  }
+
+  return { ...git, children };
 }
