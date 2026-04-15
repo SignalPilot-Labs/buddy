@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
@@ -187,7 +187,7 @@ function EmptyState({ reason }: { reason: EmptyReason }) {
 export interface WorkTreeProps {
   events: FeedEvent[];
   runId: string | null;
-  runStatus?: RunStatus | null;
+  runStatus: RunStatus | null;
 }
 
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
@@ -257,17 +257,23 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
-    const isTerminal = runStatus !== null && runStatus !== undefined && TERMINAL_STATUSES.has(runStatus);
+    const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  const sortedRoots = useCallback((tree: TreeNode) =>
-    Array.from(tree.children.values())
-      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1),
-  []);
+  const diffRoots = useMemo(() => {
+    if (!diffTree) return [];
+    return Array.from(diffTree.children.values())
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+  }, [diffTree]);
+
+  const liveRoots = useMemo(() => {
+    return Array.from(liveTree.children.values())
+      .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+  }, [liveTree]);
 
   return (
-    <div className="flex flex-col bg-sidebar border-l border-border mr-1 h-full w-full">
+    <div className="flex flex-col bg-sidebar h-full w-full">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
@@ -303,11 +309,11 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
           )
         )}
 
-        {showSource === "diff" && diffTree && sortedRoots(diffTree).map(child => (
+        {showSource === "diff" && diffRoots.map(child => (
           <NodeItem key={child.fullPath} node={child} depth={0} />
         ))}
 
-        {showSource === "session" && sortedRoots(liveTree).map(child => (
+        {showSource === "session" && liveRoots.map(child => (
           <NodeItem key={child.fullPath} node={child} depth={0} />
         ))}
       </div>

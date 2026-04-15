@@ -12,7 +12,7 @@ export interface RightPanelProps {
   events: FeedEvent[];
   activeTab: "changes" | "logs";
   onTabChange: (tab: "changes" | "logs") => void;
-  runStatus?: RunStatus | null;
+  runStatus: RunStatus | null;
 }
 
 function GitBranchIcon() {
