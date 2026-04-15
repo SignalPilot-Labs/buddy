@@ -31,7 +31,6 @@ export function useDashboard(): DashboardState {
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [startModalOpen, setStartModalOpen] = useState(false);
   const [agentHealth, setAgentHealth] = useState<AgentHealth | null>(null);
-  const [branches, setBranches] = useState<string[]>(["main"]);
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
@@ -231,7 +230,6 @@ export function useDashboard(): DashboardState {
     setHistoryEventsRef.current([]);
     setPendingMessagesRef.current([]);
     sseRef.current.clearEvents();
-    setBranches([]);
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
@@ -285,7 +283,6 @@ export function useDashboard(): DashboardState {
     connected,
     connectionState,
     historyTruncated,
-    branches,
     isMobile,
     isConfigured,
     atCapacity,
@@ -309,7 +306,6 @@ export function useDashboard(): DashboardState {
     setMobilePanel,
     setControlsOpen,
     setRightPanel,
-    setBranches,
     setSettingsStatus,
     setRepos,
     ...runActions,

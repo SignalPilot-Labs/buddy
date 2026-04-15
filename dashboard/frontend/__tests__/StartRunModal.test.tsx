@@ -16,7 +16,6 @@ function renderModal(overrides = {}) {
     onClose: vi.fn(),
     onStart: vi.fn(),
     busy: false,
-    branches: ["main", "staging", "develop"],
     activeRepo: null,
   };
   const props = { ...defaults, ...overrides };
@@ -46,9 +45,9 @@ describe("StartRunModal", () => {
     expect(document.body.textContent).toContain("Claude Opus 4.6");
   });
 
-  it("shows branch selector with main", () => {
+  it("shows quick start options", () => {
     renderModal();
-    expect(document.body.textContent).toContain("main");
+    expect(document.body.textContent).toContain("Quick Start");
   });
 
   it("disables when busy", () => {

@@ -1,11 +1,12 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import type { Run, RunStatus, RepoInfo } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { ACTIVE_STATUSES } from "@/lib/constants";
+import { ACTIVE_STATUSES, RUN_ID_DISPLAY_LENGTH, COPY_FEEDBACK_MS } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
@@ -48,6 +49,16 @@ export function DashboardHeader({
   onUnlock,
   sessionLocked,
 }: DashboardHeaderProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyRunId = useCallback(() => {
+    if (!selectedRun) return;
+    navigator.clipboard.writeText(selectedRun.id).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
+    });
+  }, [selectedRun]);
+
   const agentReachable = agentHealth != null && agentHealth.status !== "unreachable";
   const agentIdle = agentHealth?.status === "idle";
   const agentBootstrapping = agentHealth?.status === "bootstrapping";
@@ -124,7 +135,7 @@ export function DashboardHeader({
         onSelect={onRepoSwitch}
       />
 
-      {/* Selected run status + branch */}
+      {/* Selected run status + run ID */}
       {selectedRun && (
         <motion.div
           initial={{ opacity: 0, x: -8 }}
@@ -133,9 +144,26 @@ export function DashboardHeader({
         >
           <div className="w-px h-4 bg-border" />
           <StatusBadge status={selectedRun.status as RunStatus} size="md" />
-          <span className="text-meta text-text-secondary font-medium">
-            {selectedRun.branch_name.replace("autofyn/", "")}
+          <span className="text-meta text-text-secondary font-medium font-mono">
+            {selectedRun.id.slice(0, RUN_ID_DISPLAY_LENGTH)}
           </span>
+          <button
+            onClick={handleCopyRunId}
+            title="Copy run ID"
+            aria-label="Copy run ID"
+            className="p-1 rounded hover:bg-white/[0.04] text-text-secondary hover:text-accent-hover transition-colors"
+          >
+            {copied ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="2 6 5 9 10 3" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="4" y="4" width="7" height="7" rx="1" />
+                <path d="M2 8H1.5A1.5 1.5 0 0 1 0 6.5V1.5A1.5 1.5 0 0 1 1.5 0H6.5A1.5 1.5 0 0 1 8 1.5V2" />
+              </svg>
+            )}
+          </button>
         </motion.div>
       )}
 

@@ -58,8 +58,12 @@ export const RECONNECT_BASE_MS = 1000;
 export const RECONNECT_MAX_MS = 30000;
 export const RECONNECT_MAX_ATTEMPTS = 10;
 
-// Branches pinned to the top of the branch picker, in display order.
-export const PINNED_BRANCHES: ReadonlyArray<string> = ["main", "staging"];
+// Default base branch for new runs.
+export const DEFAULT_BASE_BRANCH = "main";
+
+// Run ID display
+export const RUN_ID_DISPLAY_LENGTH = 8;
+export const COPY_FEEDBACK_MS = 1500;
 
 // Model selector — one record per model, all presentation data in one place.
 export type ModelId = "opus" | "sonnet" | "opus-4-5";
