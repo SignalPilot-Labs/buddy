@@ -22,6 +22,7 @@ Before writing any plan, do this:
    - Does it fix the root cause or just patch symptoms? Always fix root cause.
    - Is the code well organized into logical classes, files folders and subfolders? Is the code maintainable, follows best system design principles? If not, tell orchestrator so. 
    - **Before removing ANY function, class, constant, component, or file:** grep the entire codebase for imports and references. If it is used anywhere, understand how it is used and if it is actually dead code. Do not trust your memory — verify with grep.
+   - **Scan the neighborhood.** Before adding to a file, check its size and cohesion. If it's over 400 lines, has unrelated functions, or the module has grown organically across rounds — flag it for refactor in the spec. Don't let bloat accumulate silently.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.
    - Is it a major structurally complex task? (new classes, changed interfaces, coupled changes across modules, major refactor) Split across multiple rounds. If orchestrator demands in one round give feedback. Hard cap: 20+ files always splits.
 
