@@ -50,7 +50,6 @@ class FakeBootstrap:
 def _make_active_run(run_id: str) -> ActiveRun:
     return ActiveRun(
         run_id=run_id,
-        task="fix bug",
         status="starting",
     )
 
