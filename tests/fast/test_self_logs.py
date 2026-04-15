@@ -30,12 +30,12 @@ class TestGetSelfLogs:
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_not_found(self) -> None:
-        import docker
+        from docker.errors import NotFound
         from sandbox_client.pool import SandboxPool
 
         pool = SandboxPool.__new__(SandboxPool)
         mock_docker = MagicMock()
-        mock_docker.containers.get.side_effect = docker.errors.NotFound("gone")
+        mock_docker.containers.get.side_effect = NotFound("gone")
         pool._docker = mock_docker
 
         lines = await pool.get_self_logs(10)
