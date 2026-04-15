@@ -70,6 +70,25 @@ describe("ContainerLogs", () => {
     expect(screen.queryByText(/Round 1/)).not.toBeInTheDocument();
   });
 
+  it("passes run_id to API when provided", async () => {
+    const fetchSpy = mockFetch(MOCK_LOGS);
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<ContainerLogs runId="abc12345-full-uuid" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Run started/)).toBeInTheDocument();
+    });
+    const url = fetchSpy.mock.calls[0]?.[0] as string;
+    expect(url).toContain("run_id=abc12345-full-uuid");
+  });
+
+  it("does not pass run_id when runId is null", () => {
+    const fetchSpy = mockFetch(MOCK_LOGS);
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<ContainerLogs runId={null} />);
+    // Should not fetch at all when no runId
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("shows no-logs state when API returns empty", async () => {
     vi.stubGlobal("fetch", mockFetch({ lines: [], total: 0 }));
     render(<ContainerLogs runId="run-1" />);

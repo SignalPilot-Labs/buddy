@@ -12,7 +12,7 @@ API_KEY_PATH = "/data/api.key"
 AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500)}"
 
 # Pagination
-RUNS_PAGE_SIZE = 50
+RUNS_PAGE_SIZE = 15
 QUERY_MAX_LIMIT = 5001
 
 # SSE

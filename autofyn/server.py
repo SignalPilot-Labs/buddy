@@ -27,6 +27,7 @@ from sandbox_client.pool import SandboxPool
 from utils import db
 from utils.constants import (
     ACTIVE_RUN_STATUSES,
+    AccessNoiseFilter,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
     MAX_CONCURRENT_RUNS,
@@ -217,7 +218,7 @@ class AgentServer:
             # container. Otherwise failures lose their root cause. Persist
             # them as an audit event so they survive container cleanup and
             # show up in the dashboard timeline.
-            tail_lines = await self._pool.get_logs(run_id, tail=200)
+            tail_lines = await self._pool.get_sandbox_logs(run_id, tail=200)
             await db.log_audit(
                 run_id,
                 "sandbox_crash",
@@ -319,6 +320,9 @@ app = _server.app
 def main() -> None:
     """Run the agent HTTP server."""
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
+    _filt = AccessNoiseFilter()
+    for name in ("uvicorn.access", "uvicorn", ""):
+        logging.getLogger(name).addFilter(_filt)
     uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT, log_level="info")
 
 

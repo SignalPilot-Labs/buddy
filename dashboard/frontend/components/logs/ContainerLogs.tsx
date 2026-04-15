@@ -14,9 +14,9 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const refresh = useCallback(async () => {
-    const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL);
+    const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL, runId ?? undefined);
     setLines(data.lines ?? []);
-  }, []);
+  }, [runId]);
 
   // Initial load — clear old lines immediately on run switch to avoid showing stale logs
   useEffect(() => {
@@ -71,7 +71,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
           <line x1="6" y1="8" x2="9" y2="8" />
         </svg>
         <span className="text-body font-bold uppercase tracking-[0.15em] text-text-muted">
-          Sandbox Logs
+          Run Logs
         </span>
         <span className="text-meta text-text-dim tabular-nums ml-auto">
           {filtered.length} lines

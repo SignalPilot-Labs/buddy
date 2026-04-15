@@ -234,9 +234,15 @@ async def list_branches(repo: str = Query(...)) -> list:
 
 
 @router.get("/agent/logs")
-async def agent_logs(tail: int = Query(default=LOG_TAIL_DEFAULT, le=LOG_TAIL_MAX)) -> dict:
-    """Fetch container logs from the agent."""
-    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, {"tail": tail}, {"lines": [], "total": 0})
+async def agent_logs(
+    tail: int = Query(default=LOG_TAIL_DEFAULT, le=LOG_TAIL_MAX),
+    run_id: str | None = Query(default=None),
+) -> dict:
+    """Fetch container logs from the agent, optionally filtered by run."""
+    params: dict[str, str | int] = {"tail": tail}
+    if run_id:
+        params["run_id"] = run_id
+    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, params, {"lines": [], "total": 0})
 
 
 # ---------------------------------------------------------------------------

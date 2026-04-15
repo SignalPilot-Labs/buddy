@@ -1,6 +1,16 @@
 """All magic values for the agent package."""
 
+import logging
 from pathlib import Path
+
+
+# ── Logging ──
+class AccessNoiseFilter(logging.Filter):
+    """Drop health checks and high-frequency polling from access logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "GET /health" not in msg and "GET /logs" not in msg
 
 # ── Timeouts ──
 TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call
@@ -72,6 +82,8 @@ ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.
+AGENT_CONTAINER_NAME = "autofyn-agent"
+RUN_ID_LOG_PREFIX_LEN = 8
 SANDBOX_URL_DEFAULT = "http://sandbox:8080"
 SANDBOX_EXEC_TIMEOUT_DEFAULT = 120
 SANDBOX_CLONE_TIMEOUT_DEFAULT = 300
