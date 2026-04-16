@@ -12,6 +12,7 @@ import {
   buildTreeFromChanges,
   mergeTrees,
   parseTmpDiffStats,
+  resolveSessionTree,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
 import { DIFF_MAX_BYTES, DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
@@ -294,14 +295,11 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const hasTmpFiles = tmpTree !== null;
   const hasContent = hasGitDiff || hasLiveChanges || hasTmpFiles;
 
-  // Merged tree: git diff + session (live events + tmp/round-N files).
-  // Session wins over git on conflict; within session, tmpTree wins over
-  // liveTree so round-N files keep their 'added' status — otherwise the
-  // Write tool-call events clobber them as 'modified'.
+  // Merged tree: git diff + session (liveTree ⊕ tmpTree). Session wins
+  // over git on conflict; resolveSessionTree handles the internal
+  // liveTree-vs-tmpTree conflict so round-N files keep their 'added' status.
   const mergedTree = useMemo(() => {
-    const sessionTree = tmpTree && liveTree.children.size > 0
-      ? mergeTrees(liveTree, tmpTree)
-      : (tmpTree ?? (liveTree.children.size > 0 ? liveTree : null));
+    const sessionTree = resolveSessionTree(liveTree, tmpTree);
     if (!diffTree && !sessionTree) return null;
     if (!diffTree) return sessionTree;
     if (!sessionTree) return diffTree;

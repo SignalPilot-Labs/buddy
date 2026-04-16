@@ -273,31 +273,18 @@ async def get_run_diff(run_id: str = RunId) -> dict:
         return build_stats_response(diff_stats, "stored")
 
     # Live-run path: derive stats from the current unified diff.
-    live = await _fetch_live_diff_stats(run_id, branch_name, base_branch, github_repo)
-    if live is not None:
-        return build_stats_response(live, "live")
-
-    return build_stats_response([], "unavailable")
-
-
-async def _fetch_live_diff_stats(
-    run_id: str,
-    branch_name: str,
-    base_branch: str,
-    github_repo: str | None,
-) -> list[dict] | None:
-    """Pull /diff/repo from the agent and parse it into per-file stats.
-
-    Returns None when we can't get a usable diff (no repo configured,
-    no token, agent proxy failed). The caller maps None to "unavailable".
-    """
+    # Two distinct failure modes surface to the frontend as distinct sources:
+    #   - "unavailable": nothing to fetch yet (no repo/token, or diff is empty).
+    #   - HTTPException: agent is unreachable / returned an error — raise
+    #     through so the dashboard reports the problem instead of silently
+    #     collapsing it into "unavailable".
     if not github_repo:
-        return None
+        return build_stats_response([], "unavailable")
     creds = await read_credentials(github_repo)
     token = creds.get("git_token")
     if not token:
-        return None
-    result = await agent_request(
+        return build_stats_response([], "unavailable")
+    result: dict = await agent_request(
         "GET", "/diff/repo", AGENT_TIMEOUT_LONG,
         None,
         {
@@ -306,13 +293,13 @@ async def _fetch_live_diff_stats(
             "base": base_branch,
             "repo": github_repo,
         },
-        {"diff": ""},  # fallback — treat agent errors as "no diff yet"
+        None,  # no fallback: agent errors must surface, not masquerade as empty
         extra_headers={HEADER_GITHUB_TOKEN: token},
     )
-    diff_text = result.get("diff", "") if isinstance(result, dict) else ""
+    diff_text = result["diff"]
     if not diff_text:
-        return None
-    return parse_diff_stats(diff_text)
+        return build_stats_response([], "unavailable")
+    return build_stats_response(parse_diff_stats(diff_text), "live")
 
 
 @router.get("/runs/{run_id}/diff/repo")

@@ -230,6 +230,25 @@ export function mergeTrees(git: TreeNode, session: TreeNode): TreeNode {
   return _mergeDir(git, session);
 }
 
+/* ── Resolve the session-side tree for the Changes panel ──
+ *
+ * liveTree (from Write tool-call events) marks everything "modified".
+ * tmpTree (from the tmp/round-N patch sections) marks round files
+ * "added". For files that appear in both, tmpTree wins so the user
+ * sees the correct `A` classification — otherwise the live event
+ * would clobber it. When only one side is populated, return that side.
+ */
+export function resolveSessionTree(
+  liveTree: TreeNode,
+  tmpTree: TreeNode | null,
+): TreeNode | null {
+  const hasLive = liveTree.children.size > 0;
+  if (tmpTree && hasLive) return mergeTrees(liveTree, tmpTree);
+  if (tmpTree) return tmpTree;
+  if (hasLive) return liveTree;
+  return null;
+}
+
 function _mergeDir(git: TreeNode, session: TreeNode): TreeNode {
   // If session has no children in this dir, just use git as-is (no clone)
   if (session.children.size === 0) return git;

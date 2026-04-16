@@ -6,6 +6,7 @@ import {
   buildTreeFromChanges,
   mergeTrees,
   parseTmpDiffStats,
+  resolveSessionTree,
 } from "@/lib/worktree-utils";
 
 describe("norm", () => {
@@ -259,6 +260,45 @@ describe("mergeTrees tmpTree vs liveTree status preservation", () => {
     const merged = mergeTrees(liveTree, tmpTree);
     expect(merged.children.has("src")).toBe(true);
     expect(merged.children.has("tmp")).toBe(true);
+  });
+});
+
+describe("resolveSessionTree", () => {
+  const emptyRoot = () =>
+    buildTreeFromChanges([], null);
+
+  const singleLive = () =>
+    buildTreeFromChanges([
+      { path: "src/a.ts", action: "edit", linesAdded: 1, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Edit" },
+    ], null);
+
+  const singleTmp = () =>
+    buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "edit", linesAdded: 2, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+  it("returns null when both sides empty", () => {
+    expect(resolveSessionTree(emptyRoot(), null)).toBeNull();
+  });
+
+  it("returns liveTree when tmpTree is null", () => {
+    const live = singleLive();
+    expect(resolveSessionTree(live, null)).toBe(live);
+  });
+
+  it("returns tmpTree when liveTree has no children", () => {
+    const tmp = singleTmp();
+    expect(resolveSessionTree(emptyRoot(), tmp)).toBe(tmp);
+  });
+
+  it("merges so tmpTree wins on path conflict", () => {
+    const live = buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "write", linesAdded: 2, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Write" },
+    ], null);
+    const tmp = singleTmp();
+    const merged = resolveSessionTree(live, tmp);
+    const leaf = merged!.children.get("tmp")!.children.get("round-1")!.children.get("plan.md")!;
+    expect(leaf.status).toBe("added");
   });
 });
 
