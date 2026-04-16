@@ -90,7 +90,7 @@ Build order: retry.py first, then callers.
 - **One focused step.** Not a laundry list.
 - **Be specific.** "add input validation to parse_query in engine.py" not "improve error handling."
 - **Stay on mission.** Every step must serve the user's original prompt.
-- **Always find the next improvement** — unless the orchestrator says time is almost up, in which case plan a polish/stabilization-only spec.
+- **Always find the next improvement** — unless the orchestrator's dispatch explicitly asks for a polish/stabilization-only spec.
 - **Fail fast — no layered fallbacks.** Never spec a design that masks missing/invalid inputs with defaults or chained `value ?? fallback1 ?? fallback2`. If a required value can be absent, the spec must surface the error at the boundary, not swallow it. Layered fallbacks turn one bug into three indistinguishable bugs.
 
 ## Output
