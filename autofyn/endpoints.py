@@ -11,10 +11,11 @@ import asyncio
 import logging
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 import httpx
-from fastapi import FastAPI, HTTPException
+
+from fastapi import FastAPI, Header, HTTPException
 
 from utils import db
 from utils.diff import fetch_github_diff
@@ -272,7 +273,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         branch: str,
         base: str,
         repo: str,
-        token: str,
+        token: Annotated[str, Header(alias="x-github-token")],
     ):
         """Full unified diff. Sandbox for active runs, GitHub API for completed."""
         if run_id in _diff_cache:
@@ -319,7 +320,10 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         return {"diff": "\n".join(parts)}
 
     @app.get("/branches")
-    async def list_branches(repo: str, token: str):
+    async def list_branches(
+        repo: str,
+        token: Annotated[str, Header(alias="x-github-token")],
+    ):
         """List branches on the GitHub remote for the given repo.
 
         Called by the dashboard's StartRunModal to populate the "branch from"

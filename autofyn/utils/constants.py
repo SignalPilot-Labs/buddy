@@ -95,6 +95,10 @@ ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
 ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
 
+# ── HTTP headers ──
+# Sync: dashboard/backend/constants.py must define the same constant.
+HEADER_GITHUB_TOKEN = "X-GitHub-Token"
+
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"
 ENV_KEY_ALLOW_DOCKER = "AF_ALLOW_DOCKER"
