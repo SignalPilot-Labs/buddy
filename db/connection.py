@@ -62,6 +62,7 @@ async def run_migrations() -> None:
         await _migrate_cache_token_columns(conn)
         await _migrate_context_tokens_column(conn)
         await _migrate_model_name_column(conn)
+        await _migrate_branch_name_nullable(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -121,6 +122,25 @@ async def _migrate_model_name_column(conn) -> None:
             "ALTER TABLE runs ADD COLUMN model_name VARCHAR"
         ))
         log.info("Added column runs.model_name")
+
+
+async def _migrate_branch_name_nullable(conn) -> None:
+    """Make branch_name nullable and convert 'pending' placeholders to NULL.
+
+    branch_name was NOT NULL with a 'pending' placeholder set before
+    bootstrap assigned a real branch. The placeholder collides with any
+    real branch of the same name on the remote. NULL is the correct
+    representation for 'not yet assigned'.
+    """
+    result = await conn.execute(text(
+        "SELECT is_nullable FROM information_schema.columns "
+        "WHERE table_name = 'runs' AND column_name = 'branch_name'"
+    ))
+    row = result.first()
+    if row and row[0] == "NO":
+        await conn.execute(text("ALTER TABLE runs ALTER COLUMN branch_name DROP NOT NULL"))
+        await conn.execute(text("UPDATE runs SET branch_name = NULL WHERE branch_name = 'pending'"))
+        log.info("Migrated runs.branch_name to nullable, converted 'pending' to NULL")
 
 
 def get_session_factory() -> async_sessionmaker[AsyncSession]:

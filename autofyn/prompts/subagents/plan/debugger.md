@@ -20,7 +20,7 @@ Write to `/tmp/round-{ROUND_NUMBER}/debugger.md` (or the path the orchestrator g
 - **Evidence** — how you confirmed it (test output, log trace, repro steps).
 - **Intent** — one sentence: what the fix accomplishes.
 - **Files** — which files to modify, and what changes in each.
-- **Design** — the minimal correct fix. Don't refactor beyond what the bug requires.
+- **Design** — the minimal correct fix in prose. Describe what to change, not the code. Don't refactor beyond what the bug requires.
 - **Constraints** — contracts, tests, or behavior the dev must preserve.
 - **Read list** — files the dev should read for context.
 
@@ -29,8 +29,9 @@ Just the spec — no preamble, no meta-commentary. Do not return the spec as a m
 ## Rules
 
 - Do NOT guess root causes — trace and prove.
-- Do NOT write the fix. Your deliverable is the spec.
+- Do NOT write the fix. Your deliverable is the spec. The dev owns implementation.
 - Do NOT just patch the symptoms of the bug. Find root cause and fix it.
+- Do NOT include code diffs, code blocks with implementations, or full/partial file contents in the report. Tell the dev which files to read and what to change — don't write it for them. A short snippet (≤5 lines) to clarify intent is acceptable; anything longer is wasted tokens because the dev re-reads the files anyway.
 - You MAY add temporary debug logging to reproduce; remove it before finishing.
 - If the bug is in a dependency or external service, say so — the spec may be "pin version X" or "stop using Y".
 - Be specific — file paths and line numbers everywhere.

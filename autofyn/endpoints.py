@@ -13,7 +13,7 @@ import re
 import uuid
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import httpx
 
@@ -344,26 +344,44 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         base: str,
         repo: str,
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
+        source: Literal["sandbox", "github"] = "sandbox",
     ):
-        """Full unified diff. Sandbox for active runs, GitHub API for completed."""
-        client = server.pool().get_client(run_id)
-        if client:
-            try:
-                return await client.repo.diff()
-            except Exception as exc:
-                log.warning("Sandbox diff failed for %s: %s", run_id, exc)
-                raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
+        """Full unified diff.
 
-        if run_id in _github_diff_cache:
-            _github_diff_cache.move_to_end(run_id)
-            return {"diff": _github_diff_cache[run_id]}
-        result = await fetch_github_diff(repo, branch, base, token)
-        if "error" in result:
-            raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
-        _github_diff_cache[run_id] = result["diff"]
-        if len(_github_diff_cache) > GITHUB_DIFF_CACHE_MAX:
-            _github_diff_cache.popitem(last=False)
-        return result
+        `source` controls the retrieval path:
+        - "sandbox" (default): diff against the live working tree via the
+          sandbox client. Returns 409 if no sandbox is available — the
+          caller (dashboard) should only use this mode for active runs.
+        - "github": compare via GitHub API. For completed runs whose
+          sandbox is gone. The agent caches these in an LRU so repeated
+          views don't re-fetch.
+
+        The dashboard decides which source based on run.status; the agent
+        never silently falls through from sandbox to GitHub, which
+        previously caused a placeholder branch ("pending") to collide
+        with a real remote branch and return an unrelated diff.
+        """
+        if source == "github":
+            if run_id in _github_diff_cache:
+                _github_diff_cache.move_to_end(run_id)
+                return {"diff": _github_diff_cache[run_id]}
+            result = await fetch_github_diff(repo, branch, base, token)
+            if "error" in result:
+                raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
+            _github_diff_cache[run_id] = result["diff"]
+            if len(_github_diff_cache) > GITHUB_DIFF_CACHE_MAX:
+                _github_diff_cache.popitem(last=False)
+            return result
+
+        # Sandbox path — active runs only.
+        client = server.pool().get_client(run_id)
+        if not client:
+            raise HTTPException(status_code=409, detail="No active sandbox for run")
+        try:
+            return await client.repo.diff()
+        except Exception as exc:
+            log.warning("Sandbox diff failed for %s: %s", run_id, exc)
+            raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
     @app.get("/diff/repo/stats")
     async def diff_repo_stats(run_id: str):

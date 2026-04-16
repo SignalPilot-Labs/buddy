@@ -297,7 +297,7 @@ describe("run_started milestone detail", () => {
     }
   });
 
-  it("does not show 'pending' as branch name", () => {
+  it("does not show null branch name", () => {
     const events: FeedEvent[] = [
       {
         _kind: "audit",
@@ -305,7 +305,7 @@ describe("run_started milestone detail", () => {
           id: 2,
           run_id: "r",
           event_type: "run_started",
-          details: { model: "opus", branch: "pending" },
+          details: { model: "opus", branch: null },
           ts: new Date().toISOString(),
         },
       },

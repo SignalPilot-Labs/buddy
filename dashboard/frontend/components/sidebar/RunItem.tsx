@@ -45,7 +45,7 @@ export function RunItem({
 }) {
   const label = run.custom_prompt
     ? run.custom_prompt.slice(0, PROMPT_LABEL_MAX_LEN)
-    : run.branch_name.replace("autofyn/", "").slice(0, 20);
+    : (run.branch_name ?? "starting…").replace("autofyn/", "").slice(0, 20);
 
   const statusMeta = STATUS_META[run.status as RunStatus] || STATUS_META.error;
   const { flashing, flashColor, onAnimationEnd } = useStatusFlash(run.status);

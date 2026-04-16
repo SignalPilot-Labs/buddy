@@ -135,3 +135,51 @@ class TestBranchDiffOutputStitching:
         assert result == [
             {"path": "assets/logo.png", "added": 0, "removed": 0, "status": "added"},
         ]
+
+
+class TestWorktreeDiffGitInvocation:
+    """_worktree_diff must diff base_sha to the working tree.
+
+    The live /diff/repo/stats endpoint relies on this so mid-round
+    uncommitted edits surface in the dashboard Changes panel before
+    the per-round `/repo/save` commit lands. One-arg `git diff <sha>`
+    is the only form that includes working-tree state — the two-arg
+    form used by _branch_diff is strictly ref-to-ref and misses every
+    uncommitted edit until the next commit, which is exactly the bug
+    this pair of functions is meant to split.
+    """
+
+    @pytest.mark.asyncio
+    async def test_uses_one_arg_form_against_base_sha(self, git_mock: AsyncMock) -> None:
+        git_mock.side_effect = [
+            _cmd_result("10\t2\tsrc/main.py\n"),
+            _cmd_result("M\tsrc/main.py\n"),
+        ]
+        await repo_module._worktree_diff(BASE_SHA, 30)
+        calls = [c.args[0] for c in git_mock.call_args_list]
+        assert calls == [
+            ["diff", "--numstat", BASE_SHA],
+            ["diff", "--name-status", BASE_SHA],
+        ]
+        # No second ref — if this ever regresses to two-arg form, the
+        # original bug returns: mid-round uncommitted edits disappear
+        # from the live stats.
+        for call in calls:
+            assert len(call) == 3, f"unexpected extra ref in {call}"
+
+    @pytest.mark.asyncio
+    async def test_empty_numstat_returns_empty_list(self, git_mock: AsyncMock) -> None:
+        git_mock.side_effect = [_cmd_result("")]
+        assert await repo_module._worktree_diff(BASE_SHA, 30) == []
+
+    @pytest.mark.asyncio
+    async def test_full_parse_matches_branch_diff_shape(self, git_mock: AsyncMock) -> None:
+        git_mock.side_effect = [
+            _cmd_result("25\t0\tsrc/new.py\n10\t2\tsrc/main.py\n"),
+            _cmd_result("A\tsrc/new.py\nM\tsrc/main.py\n"),
+        ]
+        result = await repo_module._worktree_diff(BASE_SHA, 30)
+        assert result == [
+            {"path": "src/new.py", "added": 25, "removed": 0, "status": "added"},
+            {"path": "src/main.py", "added": 10, "removed": 2, "status": "modified"},
+        ]

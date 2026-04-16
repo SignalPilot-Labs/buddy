@@ -4,7 +4,7 @@ export interface Run {
   id: string;
   started_at: string;
   ended_at: string | null;
-  branch_name: string;
+  branch_name: string | null;
   base_branch: string;
   status: RunStatus;
   pr_url: string | null;

@@ -76,8 +76,8 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
 
   switch (event.data.event_type) {
     case "run_started": {
-      // "pending" is the DB placeholder from BRANCH_PENDING_PLACEHOLDER (db/constants.py)
-      const branch = d.branch && d.branch !== "pending" ? d.branch : "";
+      // branch_name is NULL until bootstrap assigns a real branch.
+      const branch = d.branch || "";
       const detail = branch
         ? `${d.model || "claude"} · ${branch}`
         : `${d.model || "claude"}`;
