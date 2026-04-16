@@ -8,7 +8,8 @@ rounds summary, prior-round file index, user messages).
 
 from claude_agent_sdk.types import SystemPromptPreset
 
-from prompts.loader import load_markdown, render_time_status
+from prompts.loader import load_markdown, render_environment, render_time_status
+from utils.constants import TOOL_CALL_TIMEOUT_SEC
 from utils.models import RoundContext, RoundsMetadata, UserAction
 
 
@@ -17,7 +18,12 @@ def build_round_system_prompt(context: RoundContext) -> SystemPromptPreset:
     template = load_markdown("system")
     body = _apply_placeholders(template, context)
 
-    sections: list[str] = [body, load_markdown("query/git-rules")]
+    environment = render_environment(
+        round_number=context.round_number,
+        tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
+        host_mounts=context.host_mounts,
+    )
+    sections: list[str] = [body, environment, load_markdown("query/git-rules")]
 
     if context.duration_minutes > 0:
         sections.append(

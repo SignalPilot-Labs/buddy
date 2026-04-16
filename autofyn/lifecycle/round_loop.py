@@ -41,6 +41,7 @@ async def run_rounds(
     sandbox: SandboxClient,
     bootstrap: BootstrapResult,
     exec_timeout: int,
+    host_mounts: list[dict[str, str]] | None,
 ) -> str:
     """Run rounds until the orchestrator or user says stop.
 
@@ -88,14 +89,14 @@ async def run_rounds(
             metadata=prior_metadata,
             previous_round_reports=prior_reports,
             user_activity=user_activity,
+            host_mounts=host_mounts,
         )
         system_prompt = build_round_system_prompt(round_context)
 
         options = dict(bootstrap.base_session_options)
         options["agents"] = build_agent_defs(
             round_number=round_number,
-            duration_minutes=run.duration_minutes,
-            time_remaining_minutes=time_lock.remaining_minutes(),
+            host_mounts=host_mounts,
         )
         options["system_prompt"] = {
             "type": system_prompt["type"],

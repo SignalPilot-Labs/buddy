@@ -93,14 +93,6 @@ Build order: retry.py first, then callers.
 - **Always find the next improvement** — unless the orchestrator says time is almost up, in which case plan a polish/stabilization-only spec.
 - **Fail fast — no layered fallbacks.** Never spec a design that masks missing/invalid inputs with defaults or chained `value ?? fallback1 ?? fallback2`. If a required value can be absent, the spec must surface the error at the boundary, not swallow it. Layered fallbacks turn one bug into three indistinguishable bugs.
 
-## Time Management
-
-Use **absolute minutes remaining**, not percentages of total duration:
-
-- **> 15 min remaining**: Build core features, fix issues. Full scope.
-- **5–15 min remaining**: Wrap up current work, fix remaining issues.
-- **< 5 min remaining**: Only plan fixes for broken things. No new work.
-
 ## Output
 
 **You MUST write the spec to `/tmp/round-{ROUND_NUMBER}/architect.md`.** This is how builders and reviewers receive your plan. If you don't write to this file, nobody sees your work.
