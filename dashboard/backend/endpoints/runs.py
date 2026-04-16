@@ -35,6 +35,7 @@ from backend.utils import (
     send_control_signal,
     session,
 )
+from db.constants import BRANCH_PENDING_PLACEHOLDER
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.endpoints")
@@ -310,6 +311,16 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
 
     if not github_repo:
         raise HTTPException(status_code=404, detail="Run has no github_repo")
+
+    # Bootstrap hasn't assigned a real working branch yet — do NOT proxy to
+    # the agent. Without a sandbox in the pool the agent falls through to
+    # GitHub's compare API, and "pending" can collide with a real branch
+    # of that name on the remote (it does on this repo), returning a large
+    # unrelated diff that the worktree panel then renders as "too large".
+    # 409 mirrors /diff/repo/stats for the same pre-bootstrap condition and
+    # keeps this distinct from a run that genuinely has an empty diff.
+    if branch_name == BRANCH_PENDING_PLACEHOLDER:
+        raise HTTPException(status_code=409, detail="Run has not bootstrapped a working branch yet")
 
     creds = await read_credentials(github_repo)
     token = creds.get("git_token")
