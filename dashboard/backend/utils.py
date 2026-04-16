@@ -94,7 +94,7 @@ async def send_control_signal(
         else:
             json_body = None
         params = {"run_id": run_id}
-        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None, None)
+        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None, extra_headers=None)
 
     return {"ok": True, "signal": signal, "run_id": run_id}
 
@@ -283,6 +283,7 @@ async def agent_request(
     json_body: dict | None,
     params: dict | None,
     fallback: Any,
+    *,
     extra_headers: dict[str, str] | None,
 ) -> Any:
     """Make an HTTP request to the agent container.

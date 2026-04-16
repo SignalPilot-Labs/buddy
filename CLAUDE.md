@@ -28,13 +28,7 @@ The orchestrator delegates to subagents organized by phase: Explore (code-explor
 
 ## Build & Install — IMPORTANT
 
-**This is a monorepo. There is NO installable root package. Do NOT run `pip install -e .` at the repo root — it will fail.**
-
-The root `pyproject.toml` is pytest config only. No `[build-system]`, no `[project]`. Running `pip install -e .` or `pip install -e autofyn/` from the repo root will error with `"not a valid editable requirement"` or `"Getting requirements to build editable did not run successfully"`.
-
-**There are no Python deps to install on the host.** All Python packages live inside Docker containers and are installed by the Dockerfiles via `uv pip install --system --no-cache "/app/[dev]"` (or equivalent) at image build time. The agent, sandbox, and dashboard all run inside containers that already have their deps. Host-side tests do not need an editable install — pytest's `pythonpath` in the root `pyproject.toml` (`["autofyn", "dashboard", "sandbox", "db", "."]`) resolves imports for local development.
-
-**If you're a subagent told to "set up the build environment"** (per the Round 1 instructions): check for `package.json` and run `npm ci` only in those directories that have one. For Python, there is nothing to install — skip it. Do NOT run `pip install -e .` or `pip install -e autofyn/` at the root.
+**This is a monorepo. The root has no installable package** — it's a `pyproject.toml` for pytest config only (no `[build-system]`, no `[project]`). Do NOT run `pip install -e .` at the repo root.
 
 The actual Python packages live in subdirectories, each with their own `pyproject.toml`:
 
@@ -43,6 +37,20 @@ The actual Python packages live in subdirectories, each with their own `pyprojec
 - `cli/pyproject.toml` — `autofyn` CLI (installed on the host by `install.sh`)
 - `dashboard/backend/pyproject.toml` — dashboard FastAPI backend (installed in `autofyn-dashboard` container)
 - `db/pyproject.toml` — shared SQLAlchemy models (installed in all three containers)
+
+**To set up a dev environment (for pyright/pytest to resolve imports like `fastapi`, `aiohttp`, etc.):** install each subdir individually with its dev extras:
+
+```
+pip install -e "./db[dev]"
+pip install -e "./autofyn[dev]"
+pip install -e "./sandbox[dev]"
+pip install -e "./dashboard/backend[dev]"
+pip install -e "./cli[dev]"
+```
+
+Skip any subdir that doesn't have `[project.optional-dependencies].dev` — just use `pip install -e ./<subdir>`.
+
+**If you see `Import "fastapi" could not be resolved` or similar, deps are not installed** — run the installs above before running pyright/pytest.
 
 Day-to-day development runs everything via `docker compose up -d` (or `autofyn start`). To rebuild a container after a code change: `docker compose build <service> && docker compose up -d --force-recreate <service>`.
 

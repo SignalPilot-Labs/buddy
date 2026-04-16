@@ -22,6 +22,7 @@ from utils.diff import fetch_github_diff
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
+    HEADER_GITHUB_TOKEN,
     MAX_CONCURRENT_RUNS,
     ROUND_ARCHIVE_AGENT_DIR,
     RUN_ID_LOG_PREFIX_LEN,
@@ -273,7 +274,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         branch: str,
         base: str,
         repo: str,
-        token: Annotated[str, Header(alias="x-github-token")],
+        token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
     ):
         """Full unified diff. Sandbox for active runs, GitHub API for completed."""
         if run_id in _diff_cache:
@@ -322,7 +323,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
     @app.get("/branches")
     async def list_branches(
         repo: str,
-        token: Annotated[str, Header(alias="x-github-token")],
+        token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
     ):
         """List branches on the GitHub remote for the given repo.
 

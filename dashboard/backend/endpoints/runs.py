@@ -124,7 +124,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "github_repo": creds.get("github_repo"),
         "env": creds.get("env"),
     }
-    await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, None)
+    await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
     run.status = "running"
     run.error_message = None
     await s.commit()
@@ -196,7 +196,7 @@ async def agent_health() -> dict:
     """Check if agent container is reachable."""
     return await agent_request("GET", "/health", AGENT_TIMEOUT_SHORT, None, None, {
         "status": "unreachable", "active_runs": 0, "max_concurrent": 0, "runs": [],
-    }, None)
+    }, extra_headers=None)
 
 
 @router.post("/agent/start")
@@ -215,7 +215,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "github_repo": creds.get("github_repo"),
         "env": creds.get("env"),
         "host_mounts": creds.get("host_mounts"),
-    }, None, None, None)
+    }, None, None, extra_headers=None)
 
 
 @router.get("/agent/branches")
@@ -230,7 +230,7 @@ async def list_branches(repo: str = Query(...)) -> list:
         )
     return await agent_request(
         "GET", "/branches", AGENT_TIMEOUT_LONG,
-        None, {"repo": repo}, None, {HEADER_GITHUB_TOKEN: token},
+        None, {"repo": repo}, None, extra_headers={HEADER_GITHUB_TOKEN: token},
     )
 
 
@@ -243,7 +243,7 @@ async def agent_logs(
     params: dict[str, str | int] = {"tail": tail}
     if run_id:
         params["run_id"] = run_id
-    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, params, {"lines": [], "total": 0}, None)
+    return await agent_request("GET", "/logs", AGENT_TIMEOUT_LONG, None, params, {"lines": [], "total": 0}, extra_headers=None)
 
 
 # ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
             "repo": github_repo,
         },
         None,
-        {HEADER_GITHUB_TOKEN: token},
+        extra_headers={HEADER_GITHUB_TOKEN: token},
     )
 
 
@@ -314,5 +314,5 @@ async def get_diff_tmp(run_id: str = RunId) -> dict:
     """List archived tmp/round files for a run."""
     return await agent_request(
         "GET", "/diff/tmp", AGENT_TIMEOUT_LONG,
-        None, {"run_id": run_id}, None, None,
+        None, {"run_id": run_id}, None, extra_headers=None,
     )
