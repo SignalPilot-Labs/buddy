@@ -42,7 +42,7 @@ from constants import (
     RETRY_MAX_ATTEMPTS,
     RETRY_TRANSIENT_PATTERNS,
 )
-from handlers.repo_parse import _parse_name_status, _parse_numstat
+from handlers.repo_parse import _normalize_rename_path, _parse_name_status, _parse_numstat
 from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
