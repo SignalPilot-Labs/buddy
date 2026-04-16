@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from cli.config import state
-from cli.constants import SHORT_ID_LENGTH
+from cli.constants import MASK_PREFIX_DEFAULT, SHORT_ID_LENGTH
 
 console = Console()
 
@@ -99,12 +99,50 @@ def short_id(run_id: str) -> str:
     return run_id[:SHORT_ID_LENGTH]
 
 
+# ── Secret masking ──────────────────────────────────────────────────────────
+
+
+def mask_secret(value: str, prefix_len: int) -> str:
+    """Mask a secret, showing only the first *prefix_len* characters.
+
+    Mirrors dashboard/backend/crypto.py::mask byte-for-byte so CLI-local
+    masking and server-side masking render identically.
+    """
+    if not value:
+        return ""
+    if len(value) <= prefix_len:
+        return "****"
+    return value[:prefix_len] + "*" * (len(value) - prefix_len)
+
+
+def _redact_dict(data: dict, secret_keys: frozenset[str], prefix_len: int) -> dict:
+    """Shallow copy of *data* with values of *secret_keys* masked.
+
+    Only ever called on dicts.
+    """
+    out: dict = {}
+    for k, v in data.items():
+        if k in secret_keys and v is not None:
+            out[k] = mask_secret(str(v), prefix_len)
+        else:
+            out[k] = v
+    return out
+
+
 # ── Output functions ────────────────────────────────────────────────────────
 
 
-def print_json(data: Any) -> None:
-    """Pretty-print data as JSON."""
-    console.print_json(_json.dumps(data, default=str))
+def print_json(
+    data: Any,
+    *,
+    secret_keys: frozenset[str] | None = None,
+    prefix_len: int = MASK_PREFIX_DEFAULT,
+) -> None:
+    """Pretty-print data as JSON, optionally masking secret fields."""
+    payload = data
+    if secret_keys is not None and isinstance(payload, dict):
+        payload = _redact_dict(payload, secret_keys, prefix_len)
+    console.print_json(_json.dumps(payload, default=str))
 
 
 def print_table(
@@ -129,16 +167,23 @@ def print_table(
     console.print(table)
 
 
-def print_detail(data: dict, *, title: str | None = None) -> None:
-    """Render a single record as a key → value table."""
+def print_detail(
+    data: dict,
+    *,
+    title: str | None = None,
+    secret_keys: frozenset[str] | None = None,
+    prefix_len: int = MASK_PREFIX_DEFAULT,
+) -> None:
+    """Render a single record as a key → value table, optionally masking secrets."""
+    rendered: dict = data if secret_keys is None else _redact_dict(data, secret_keys, prefix_len)
     if state.json_mode:
-        print_json(data)
+        print_json(rendered)
         return
 
     table = Table(title=title, show_header=False, show_lines=False, pad_edge=False)
     table.add_column("Key", style="bold")
     table.add_column("Value")
-    for k, v in data.items():
+    for k, v in rendered.items():
         table.add_row(k, str(v) if v is not None else "—")
     console.print(table)
 

@@ -6,7 +6,7 @@ No hardcoded defaults here — config.yml is the single source of truth.
 
 import logging
 
-from sqlalchemy import text
+from sqlalchemy import URL, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from config.loader import database_config
@@ -18,9 +18,21 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
-def _build_dsn(cfg: dict) -> str:
-    """Build PostgreSQL DSN from config dict."""
-    return "postgresql+psycopg://{user}:{password}@{host}:{port}/{name}".format(**cfg)
+def _build_url(cfg: dict) -> URL:
+    """Build a SQLAlchemy URL from config dict.
+
+    Uses URL.create so the password renders as '***' in repr/str (and in
+    any SQLAlchemy engine log with echo=True) while the real password is
+    still used to establish connections.
+    """
+    return URL.create(
+        drivername="postgresql+psycopg",
+        username=cfg["user"],
+        password=cfg["password"],
+        host=cfg["host"],
+        port=cfg["port"],
+        database=cfg["name"],
+    )
 
 
 async def connect() -> async_sessionmaker[AsyncSession]:
@@ -29,7 +41,7 @@ async def connect() -> async_sessionmaker[AsyncSession]:
 
     cfg = database_config()
     _engine = create_async_engine(
-        _build_dsn(cfg),
+        _build_url(cfg),
         pool_size=cfg["pool_size"],
         max_overflow=cfg["max_overflow"],
         pool_timeout=cfg["pool_timeout"],

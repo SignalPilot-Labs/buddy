@@ -7,7 +7,7 @@ from typing import Optional
 import typer
 
 from cli.config import CONFIG_PATH, _load_config, _save_config, state
-from cli.constants import DEFAULT_API_URL
+from cli.constants import CLI_SECRET_KEYS, DEFAULT_API_URL
 from cli.output import console, print_detail, print_json, print_success
 
 app = typer.Typer(
@@ -31,9 +31,9 @@ def get_config() -> None:
         console.print("[dim]Using defaults. Run 'autofyn config set' to configure.[/dim]")
         cfg = {"api_url": DEFAULT_API_URL, "api_key": "(auto from container)"}
     if state.json_mode:
-        print_json(cfg)
+        print_json(cfg, secret_keys=CLI_SECRET_KEYS)
         return
-    print_detail(cfg, title=f"CLI Config ({CONFIG_PATH})")
+    print_detail(cfg, title=f"CLI Config ({CONFIG_PATH})", secret_keys=CLI_SECRET_KEYS)
 
 
 @app.command("set")

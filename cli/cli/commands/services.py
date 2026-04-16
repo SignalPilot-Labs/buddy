@@ -13,9 +13,9 @@ import typer
 from pathlib import Path
 
 from cli.client import get_client
-from cli.constants import AUTOFYN_HOME, BUILD_SCRIPT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.constants import AUTOFYN_HOME, BUILD_SCRIPT, MASK_PREFIX_CLAUDE, MASK_PREFIX_GIT, SIGINT_EXIT_CODE, UP_SCRIPT
 from cli.git import detect_local_repo
-from cli.output import console
+from cli.output import console, mask_secret
 
 
 def _compose(args: list[str]) -> None:
@@ -179,7 +179,7 @@ def _detect_claude_token() -> str | None:
             if result.returncode == 0 and result.stdout:
                 token = _extract_token(result.stdout)
                 if token:
-                    print(f"✓ Token received ({token[:12]}****)")
+                    print(f"✓ Token received ({mask_secret(token, MASK_PREFIX_CLAUDE)})")
                     return token
         except FileNotFoundError:
             console.print(
@@ -195,7 +195,7 @@ def _detect_git_token() -> str | None:
     console.print("[dim]Checking gh CLI for an existing token...[/dim]")
     token = _run_token_cmd(["gh", "auth", "token"])
     if token:
-        masked = token[:7] + "****"
+        masked = mask_secret(token, MASK_PREFIX_GIT)
         if _ask_yes_no(f"Found token from gh CLI ({masked}). Use it?"):
             return token
     console.print(

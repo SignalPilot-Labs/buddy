@@ -58,3 +58,18 @@ DEFAULT_RUN_DURATION: float = 0.0
 
 # Stop action defaults
 STOP_PR_DEFAULT: str = "Y"
+
+# Secret masking — prefix lengths mirror dashboard/backend/constants.py
+MASK_PREFIX_DEFAULT: int = 6
+MASK_PREFIX_CLAUDE: int = 8
+MASK_PREFIX_GIT: int = 7
+
+# Keys that must be masked before printing to stdout
+CLI_SECRET_KEYS: frozenset[str] = frozenset(
+    {
+        "api_key",
+        "dashboard_api_key",
+        "git_token",
+        "claude_token",
+    }
+)
