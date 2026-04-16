@@ -38,9 +38,15 @@ from models import ToolContext
 
 log = logging.getLogger("sandbox.session_utils")
 
-# Module-level lazy aiohttp session. Created on first use so env vars are
-# available at call time. Closed explicitly via close_agent_client() on
-# server shutdown.
+# Cache env-based config at import time. server.py imports this module
+# BEFORE it pops SANDBOX_INTERNAL_SECRET from os.environ (line 48), so
+# the env var is still present here. After server.py pops it, os.environ
+# no longer has it — any lazy read would fail silently.
+_AGENT_URL: str = os.environ.get(AGENT_URL_ENV_VAR, "")
+_SANDBOX_SECRET: str = os.environ.get(INTERNAL_SECRET_ENV_VAR, "")
+
+# Module-level lazy aiohttp session. Created on first use.
+# Closed explicitly via close_agent_client() on server shutdown.
 _agent_client: aiohttp.ClientSession | None = None
 
 
@@ -61,19 +67,17 @@ async def close_agent_client() -> None:
 
 
 def _agent_url() -> str:
-    """Read the agent base URL from env. Raises if not set."""
-    url = os.environ.get(AGENT_URL_ENV_VAR, "")
-    if not url:
+    """Return the cached agent base URL. Raises if not set at import time."""
+    if not _AGENT_URL:
         raise RuntimeError(f"{AGENT_URL_ENV_VAR} is not set — cannot reach agent")
-    return url
+    return _AGENT_URL
 
 
 def _sandbox_secret() -> str:
-    """Read the sandbox internal secret from env. Raises if not set."""
-    secret = os.environ.get(INTERNAL_SECRET_ENV_VAR, "")
-    if not secret:
+    """Return the cached sandbox secret. Raises if not set at import time."""
+    if not _SANDBOX_SECRET:
         raise RuntimeError(f"{INTERNAL_SECRET_ENV_VAR} is not set")
-    return secret
+    return _SANDBOX_SECRET
 
 
 async def log_tool_call(
