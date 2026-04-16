@@ -231,7 +231,10 @@ async def _branch_diff(
       local object DB from bootstrap.
 
     Two-arg form (`git diff A B`) is used so no merge base is required,
-    unaffected by shallow fetches or force-updated bases.
+    unaffected by shallow fetches or force-updated bases. Ref-to-ref
+    form excludes uncommitted working-tree edits — which is correct
+    for teardown (the PR carries only committed changes) but wrong for
+    live polling during a round; see `_worktree_diff`.
     """
     numstat = await _git(["diff", "--numstat", base_sha, working_branch], timeout)
     if numstat.exit_code != 0 or not numstat.stdout.strip():
@@ -239,6 +242,24 @@ async def _branch_diff(
     name_status = await _git(
         ["diff", "--name-status", base_sha, working_branch], timeout,
     )
+    if name_status.exit_code != 0:
+        return []
+    return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
+
+
+async def _worktree_diff(base_sha: str, timeout: int) -> list[dict]:
+    """File-level diff stats between the working tree and the base-point SHA.
+
+    One-arg `git diff <sha>` compares the working tree (including staged
+    and unstaged edits) against the given commit, so uncommitted changes
+    from an in-progress round are surfaced. Used by the dashboard's live
+    Changes panel so the badge and file tree populate mid-round, not
+    only after `/repo/save` commits.
+    """
+    numstat = await _git(["diff", "--numstat", base_sha], timeout)
+    if numstat.exit_code != 0 or not numstat.stdout.strip():
+        return []
+    name_status = await _git(["diff", "--name-status", base_sha], timeout)
     if name_status.exit_code != 0:
         return []
     return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
@@ -497,18 +518,18 @@ async def handle_teardown(request: web.Request) -> web.Response:
 
 
 async def handle_diff(request: web.Request) -> web.Response:
-    """Return the full unified diff of the working branch against base.
+    """Return the full unified diff of the working tree against base.
 
-    Diff target is the base-point SHA captured at bootstrap — stable even
-    if `origin/<base>` has since advanced or been force-updated.
+    One-arg `git diff <sha>` compares base_sha to the working tree, so
+    uncommitted edits from an in-progress round are included. This is
+    what the dashboard's live Changes panel shows; teardown stats use
+    the committed ref-to-ref form separately.
     """
     state = _state(request)
     if not state.working_branch or not state.base_branch:
         return web.json_response({"error": "No active branch"}, status=409)
 
-    result = await _git(
-        ["diff", state.base_sha, state.working_branch], CMD_TIMEOUT,
-    )
+    result = await _git(["diff", state.base_sha], CMD_TIMEOUT)
     if result.exit_code != 0:
         return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
     return web.json_response({"diff": result.stdout})
@@ -517,14 +538,15 @@ async def handle_diff(request: web.Request) -> web.Response:
 async def handle_diff_stats(request: web.Request) -> web.Response:
     """Return per-file diff stats without transferring the full diff body.
 
-    Used by the dashboard Changes panel on every poll (~every 15s). The
-    full-diff endpoint streams megabytes; this one returns a few hundred
-    bytes derived from `git diff --numstat` + `--name-status`.
+    Used by the dashboard Changes panel on every poll. Worktree form so
+    mid-round uncommitted edits surface in the stats before `/repo/save`
+    commits them — otherwise the panel badge is stuck on 'session' and
+    files aren't clickable until the first commit of the round lands.
     """
     state = _state(request)
     if not state.working_branch or not state.base_branch:
         return web.json_response({"error": "No active branch"}, status=409)
-    files = await _branch_diff(state.working_branch, state.base_sha, CMD_TIMEOUT)
+    files = await _worktree_diff(state.base_sha, CMD_TIMEOUT)
     return web.json_response({"files": files})
 
 
