@@ -81,3 +81,7 @@ ACTIVE_STATUSES: frozenset[str] = frozenset({"running", "paused", "rate_limited"
 INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset(
     {"completed", "stopped", "error"}
 )
+
+# ── HTTP headers ──
+# Sync: autofyn/utils/constants.py must define the same constant.
+HEADER_GITHUB_TOKEN = "X-GitHub-Token"

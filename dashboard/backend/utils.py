@@ -94,7 +94,7 @@ async def send_control_signal(
         else:
             json_body = None
         params = {"run_id": run_id}
-        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None)
+        await agent_request("POST", agent_path, AGENT_TIMEOUT_SHORT, json_body, params, None, extra_headers=None)
 
     return {"ok": True, "signal": signal, "run_id": run_id}
 
@@ -283,6 +283,8 @@ async def agent_request(
     json_body: dict | None,
     params: dict | None,
     fallback: Any,
+    *,
+    extra_headers: dict[str, str] | None,
 ) -> Any:
     """Make an HTTP request to the agent container.
 
@@ -290,10 +292,15 @@ async def agent_request(
     - If fallback is provided, returns it silently.
     - Otherwise raises HTTP 502.
     Preserves 409 conflict errors from the agent.
+    extra_headers are merged after X-Internal-Secret so they cannot overwrite it.
     """
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            headers = {"X-Internal-Secret": _AGENT_INTERNAL_SECRET} if _AGENT_INTERNAL_SECRET else {}
+            headers: dict[str, str] = {"X-Internal-Secret": _AGENT_INTERNAL_SECRET} if _AGENT_INTERNAL_SECRET else {}
+            if extra_headers:
+                for key, value in extra_headers.items():
+                    if key != "X-Internal-Secret":
+                        headers[key] = value
             res = await client.request(
                 method, f"{AGENT_API_URL}{path}", json=json_body, params=params, headers=headers,
             )
