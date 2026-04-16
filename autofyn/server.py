@@ -31,6 +31,8 @@ from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
+    INTERNAL_SECRET_HEADER,
     MAX_CONCURRENT_RUNS,
     SANDBOX_CLONE_TIMEOUT_DEFAULT,
     SANDBOX_EXEC_TIMEOUT_DEFAULT,
@@ -47,6 +49,7 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
     "ANTHROPIC_API_KEY",
 )
 
@@ -107,7 +110,7 @@ class AgentServer:
         async def check_internal_secret(request, call_next):
             if request.url.path == "/health":
                 return await call_next(request)
-            provided = request.headers.get("X-Internal-Secret", "")
+            provided = request.headers.get(INTERNAL_SECRET_HEADER, "")
             if not hmac.compare_digest(provided, secret):
                 return JSONResponse(
                     status_code=401,

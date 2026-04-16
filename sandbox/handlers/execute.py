@@ -23,7 +23,7 @@ def _safe_env() -> dict[str, str]:
 
     Project secrets (API keys etc.) are kept — the sandbox needs them
     to build and run the target project. Only our own credentials
-    (GIT_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, AGENT_INTERNAL_SECRET, etc.)
+    (GIT_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, SANDBOX_INTERNAL_SECRET, etc.)
     are removed so the LLM cannot read them from the process env.
     """
     return {

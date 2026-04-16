@@ -23,7 +23,7 @@ SANDBOX_HOST: str = "0.0.0.0"
 
 # ── Security ──
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"
-INTERNAL_SECRET_ENV_VAR: str = "AGENT_INTERNAL_SECRET"
+INTERNAL_SECRET_ENV_VAR: str = "SANDBOX_INTERNAL_SECRET"
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg.get("credential_patterns", [])
 SECRET_ENV_VARS: str = _security_cfg.get("secret_env_vars", "")

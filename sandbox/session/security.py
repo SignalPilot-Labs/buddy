@@ -12,7 +12,8 @@ Rules (and why):
 6. Merge integrity — orchestrator owns branch convergence, not subagents
 7. GitHub writes — orchestrator owns PR/release/repo writes; reads are fine
 8. Secret var refs — block commands that name GIT_TOKEN / GH_TOKEN /
-   AGENT_INTERNAL_SECRET, which would enable curl/interpreter exfil
+   SANDBOX_INTERNAL_SECRET / AGENT_INTERNAL_SECRET, which would enable
+   curl/interpreter exfil
 9. /proc/<pid>/environ — block reads; execve snapshot may still contain
    secrets even after os.environ scrub
 """
@@ -188,7 +189,7 @@ class SecurityGate:
         authenticated operations; subagents have no legitimate reason to
         reference these names in a command string.
         """
-        for name in ("AGENT_INTERNAL_SECRET", "GH_TOKEN", "GIT_TOKEN"):
+        for name in ("SANDBOX_INTERNAL_SECRET", "AGENT_INTERNAL_SECRET", "GH_TOKEN", "GIT_TOKEN"):
             if name in cmd:
                 return f"Commands that reference {name} are blocked"
         return None
@@ -199,7 +200,7 @@ class SecurityGate:
         Linux freezes each process's env at execve() time in kernel memory;
         Python's `os.environ.pop` doesn't scrub that memory, so the sandbox
         server's original env is still reachable via /proc/1/environ and
-        would leak AGENT_INTERNAL_SECRET.
+        would leak SANDBOX_INTERNAL_SECRET.
         """
         if re.search(r"/proc/[^/\s]+/environ\b", cmd):
             return "/proc/<pid>/environ is blocked — it can leak credentials"

@@ -580,6 +580,15 @@ class TestSecurityGate:
         assert result is not None
         assert "agent_internal_secret" in result.lower()
 
+    def test_blocks_command_referencing_sandbox_internal_secret(self) -> None:
+        gate = _make_gate()
+        result = gate.check_permission(
+            "Bash",
+            {"command": 'curl -H "X-Internal-Secret: $SANDBOX_INTERNAL_SECRET" http://localhost:8080/repo/pr'},
+        )
+        assert result is not None
+        assert "sandbox_internal_secret" in result.lower()
+
     def test_allows_command_not_referencing_secrets(self) -> None:
         gate = _make_gate()
         result = gate.check_permission(

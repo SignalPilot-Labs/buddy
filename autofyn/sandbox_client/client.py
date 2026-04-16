@@ -5,7 +5,7 @@ SandboxClient owns the shared httpx.AsyncClient and binds four handlers
 separate clients; they are typed namespaces over the same connection.
 There is exactly one SandboxClient per sandbox container.
 
-The internal-auth secret is required. If AGENT_INTERNAL_SECRET is not
+The internal-auth secret is required. If SANDBOX_INTERNAL_SECRET is not
 set in the environment, construction raises — there is no dev-mode
 fallback that silently drops the header.
 """
@@ -19,7 +19,7 @@ from sandbox_client.handlers.execute import Execute
 from sandbox_client.handlers.file_system import FileSystem
 from sandbox_client.handlers.repo import Repo
 from sandbox_client.handlers.session import Session
-from utils.constants import ENV_KEY_INTERNAL_SECRET, SANDBOX_CLIENT_DEFAULT_TIMEOUT
+from utils.constants import ENV_KEY_SANDBOX_SECRET, INTERNAL_SECRET_HEADER, SANDBOX_CLIENT_DEFAULT_TIMEOUT
 
 log = logging.getLogger("sandbox_client.client")
 
@@ -41,15 +41,15 @@ class SandboxClient:
     def __init__(self, base_url: str, health_timeout: int) -> None:
         self._base_url = base_url.rstrip("/")
         self._health_timeout = health_timeout
-        secret = os.environ[ENV_KEY_INTERNAL_SECRET]
+        secret = os.environ[ENV_KEY_SANDBOX_SECRET]
         if not secret:
             raise RuntimeError(
-                f"{ENV_KEY_INTERNAL_SECRET} is empty — refusing to talk to sandbox",
+                f"{ENV_KEY_SANDBOX_SECRET} is empty — refusing to talk to sandbox",
             )
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(SANDBOX_CLIENT_DEFAULT_TIMEOUT),
-            headers={"X-Internal-Secret": secret},
+            headers={INTERNAL_SECRET_HEADER: secret},
         )
         self.execute: Execute = Execute(self._http)
         self.file_system: FileSystem = FileSystem(self._http)

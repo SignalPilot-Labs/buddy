@@ -6,10 +6,15 @@ HOST_IP="${HOST_IP:-$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/n
 export HOST_IP
 echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 
-# Generate internal secret if not already set by the user
+# Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
     AGENT_INTERNAL_SECRET="$(openssl rand -hex 32)"
     export AGENT_INTERNAL_SECRET
+fi
+
+if [ -z "${SANDBOX_INTERNAL_SECRET:-}" ]; then
+    SANDBOX_INTERNAL_SECRET="$(openssl rand -hex 32)"
+    export SANDBOX_INTERNAL_SECRET
 fi
 
 docker compose down --remove-orphans 2>/dev/null || true
