@@ -224,6 +224,12 @@ async def _branch_diff(
     (`git diff A...B`). Three-dot needs a merge base, which the
     `--depth 1` shallow fetch below can destroy whenever the base
     branch has been force-updated (e.g. squash merges on main).
+
+    TODO: two-arg diff reports files as "deleted from branch" when
+    `origin/<base>` advances past the branch point — harmless for a
+    run that lasts minutes, wrong for fast-moving bases. Cleaner fix
+    is to capture the branch-point SHA at bootstrap and diff against
+    that instead of always the current tip of origin/<base>.
     """
     await _git(["fetch", "origin", base, "--depth", "1"], timeout)
     base_ref = f"origin/{base}"
