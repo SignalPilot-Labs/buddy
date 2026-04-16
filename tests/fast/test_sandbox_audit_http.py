@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "sandbox-test-secret")
+os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 os.environ.setdefault("AF_AGENT_URL", "http://autofyn-agent:8500")
 
 from session.utils import log_audit, log_tool_call
@@ -58,7 +58,7 @@ class TestLogAuditHttp:
         assert call_args[1]["json"]["run_id"] == "run-1"
         assert call_args[1]["json"]["event_type"] == "tool_timeout"
         assert call_args[1]["json"]["details"] == {"tool": "Bash"}
-        assert call_args[1]["headers"]["X-Internal-Secret"] == "sandbox-test-secret"
+        assert call_args[1]["headers"]["X-Internal-Secret"] == "test-sandbox-secret"
 
     @pytest.mark.asyncio
     async def test_logs_warning_on_http_error(self, caplog) -> None:
@@ -109,7 +109,7 @@ class TestLogToolCallHttp:
         assert payload["permitted"] is True
         assert payload["agent_role"] == "worker"
         assert payload["tool_use_id"] == "toolu_1"
-        assert call_args[1]["headers"]["X-Internal-Secret"] == "sandbox-test-secret"
+        assert call_args[1]["headers"]["X-Internal-Secret"] == "test-sandbox-secret"
 
     @pytest.mark.asyncio
     async def test_logs_warning_on_http_error(self, caplog) -> None:

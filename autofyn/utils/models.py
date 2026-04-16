@@ -432,7 +432,7 @@ class InternalAuditRequest(BaseModel):
 
     run_id: str
     event_type: str
-    details: dict
+    details: dict | None
 
 
 class InternalToolCallRequest(BaseModel):

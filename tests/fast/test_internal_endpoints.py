@@ -13,16 +13,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-os.environ.setdefault("AGENT_INTERNAL_SECRET", "agent-test-secret")
-os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "sandbox-test-secret")
+os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
+os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 
 with patch("docker.from_env", return_value=MagicMock()):
     from server import _server
 
 from utils.constants import INTERNAL_SECRET_HEADER
 
-_AGENT_SECRET = "agent-test-secret"
-_SANDBOX_SECRET = "sandbox-test-secret"
+_AGENT_SECRET = "test-secret"
+_SANDBOX_SECRET = "test-sandbox-secret"
 _WRONG_SECRET = "wrong-secret"
 
 _AUDIT_PAYLOAD = {

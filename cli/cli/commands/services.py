@@ -22,8 +22,8 @@ def _compose(args: list[str]) -> None:
     """Run ``docker compose <args>`` in the AutoFyn home directory."""
     cmd = ["docker", "compose"] + args
     console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
-    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default")
-    os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "default")
+    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default-agent")
+    os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "default-sandbox")
     result = subprocess.run(cmd, cwd=AUTOFYN_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
