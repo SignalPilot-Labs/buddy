@@ -7,6 +7,7 @@ from typing import Optional
 import typer
 
 from cli.client import get_client
+from cli.constants import CLI_SECRET_KEYS
 from cli.output import console, print_detail, print_json, print_success
 from cli.config import state
 
@@ -55,9 +56,9 @@ def get_settings() -> None:
     """
     data = get_client().get("/api/settings")
     if state.json_mode:
-        print_json(data)
+        print_json(data, secret_keys=CLI_SECRET_KEYS)
         return
-    print_detail(data, title="Settings")
+    print_detail(data, title="Settings", secret_keys=CLI_SECRET_KEYS)
 
 
 @app.command("set")
