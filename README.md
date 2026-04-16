@@ -110,7 +110,7 @@ This mounts the host Docker socket into sandbox containers, giving the agent ful
 
 ### Network exposure
 
-The dashboard (port 3400) and API (3401) bind to `127.0.0.1` only — other devices on your Wi-Fi/LAN cannot reach them. Access the dashboard from the same machine at [http://localhost:3400](http://localhost:3400). If you need LAN access, front the dashboard with a reverse proxy that enforces its own authentication; do not rebind the compose ports to `0.0.0.0` without one.
+The dashboard (port 3400) and API (3401) are reachable on your LAN. Only run the stack on trusted networks. For untrusted environments, front the dashboard with a reverse proxy that enforces its own authentication.
 
 ---
 

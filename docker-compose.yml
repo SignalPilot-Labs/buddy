@@ -34,8 +34,8 @@ services:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:?AGENT_INTERNAL_SECRET must be set — run up.sh or define it in .env}
       HOST_IP: ${HOST_IP:-}
     ports:
-      - "127.0.0.1:3400:3400"
-      - "127.0.0.1:3401:3401"
+      - "3400:3400"
+      - "3401:3401"
     volumes:
       - autofyn-keys:/data
     networks:

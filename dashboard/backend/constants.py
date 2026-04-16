@@ -85,11 +85,3 @@ INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset(
 # ── HTTP headers ──
 # Sync: autofyn/utils/constants.py must define the same constant.
 HEADER_GITHUB_TOKEN = "X-GitHub-Token"
-
-# ── Host-header allowlist for DNS-rebinding protection ──────────────────────
-# Do NOT add "dashboard" or "dashboard:3401" — Next.js calls FastAPI via
-# http://localhost:${API_PORT}, so the Host header is always localhost:3401.
-# Adding the Docker service name would expand attack surface for zero benefit.
-ALLOWED_HOSTS: frozenset[str] = frozenset(
-    {"localhost", "localhost:3401", "127.0.0.1", "127.0.0.1:3401"}
-)

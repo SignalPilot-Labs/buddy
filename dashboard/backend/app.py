@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.constants import ALLOWED_HOSTS, APP_TITLE, MASTER_KEY_PATH
+from backend.constants import APP_TITLE, MASTER_KEY_PATH
 from backend.crypto import CredentialDecryptError
 from backend.endpoints.runs import router as runs_router
 from backend.endpoints.settings import router as settings_router, _credential_decrypt_error_handler
@@ -60,23 +60,6 @@ app.add_middleware(
     allow_methods=_ALLOWED_METHODS,
     allow_headers=_ALLOWED_HEADERS,
 )
-
-
-@app.middleware("http")
-async def enforce_host_header(request: Request, call_next) -> Response:
-    """Reject requests whose Host header is not in ALLOWED_HOSTS.
-
-    Runs before CORS (outermost middleware in the stack) to defeat
-    DNS-rebinding attacks. Returns 421 Misdirected Request when the
-    Host does not match the allowlist.
-    """
-    host = request.headers.get("host")
-    if host not in ALLOWED_HOSTS:
-        return Response(
-            status_code=421,
-            content="Misdirected Request: Host header not allowed",
-        )
-    return await call_next(request)
 
 
 app.add_exception_handler(CredentialDecryptError, _credential_decrypt_error_handler)
