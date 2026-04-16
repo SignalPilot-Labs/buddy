@@ -51,7 +51,7 @@ export function BashGroupCard({
             {commands.length !== 1 ? "s" : ""}
           </div>
           <div className="text-body text-text-secondary mt-0.5 truncate">
-            {commands[0]?.cmd}
+            {commands[0]?.desc || commands[0]?.cmd}
             {commands.length > 1 ? ` + ${commands.length - 1} more` : ""}
           </div>
         </div>
@@ -215,8 +215,8 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
   switch (cat) {
     case "bash":
       summary =
-        (input.description as string) ||
         (input.command as string)?.slice(0, 100) ||
+        (input.description as string) ||
         "";
       break;
     case "read":
