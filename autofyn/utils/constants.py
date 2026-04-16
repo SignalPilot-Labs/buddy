@@ -35,6 +35,9 @@ SESSION_PERMISSION_MODE = "bypassPermissions"
 PROMPT_SUMMARY_LIMIT = 200  # Custom prompt preview in API responses and audit
 RUN_STATE_BASE = "/home/agentuser/.claude/run-state"
 ROUND_DIR_PREFIX = "/tmp/round-"
+# Strict pattern for round dir names: "round-" followed by one or more digits.
+# Used to reject anything that merely starts with "round-" (e.g. "round-..").
+ROUND_DIR_NAME_RE = r"^round-\d+$"
 ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
 # Persistent round archive on the agent container's `autofyn-rounds`

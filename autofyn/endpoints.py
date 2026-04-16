@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -25,6 +26,7 @@ from utils.constants import (
     HEADER_GITHUB_TOKEN,
     MAX_CONCURRENT_RUNS,
     ROUND_ARCHIVE_AGENT_DIR,
+    ROUND_DIR_NAME_RE,
     RUN_ID_LOG_PREFIX_LEN,
 )
 from utils.models import (
@@ -38,6 +40,7 @@ from utils.models import (
 )
 
 if TYPE_CHECKING:
+    from sandbox_client.client import SandboxClient
     from server import AgentServer
 
 log = logging.getLogger("endpoints")
@@ -100,6 +103,66 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
     active.task = task
     task.add_done_callback(lambda t: server.on_task_done(active, t))
     return {"ok": True, "event": "resume", "run_id": run_id, "restarted": True}
+
+
+def _build_tmp_diff(entries: list[tuple[str, str]]) -> str:
+    """Render a list of (rel_path, content) tuples as a unified 'new file' diff."""
+    parts: list[str] = []
+    for rel, content in entries:
+        lines = content.splitlines()
+        header = (
+            f"diff --git a/{rel} b/{rel}\n"
+            f"new file mode 100644\n"
+            f"--- /dev/null\n"
+            f"+++ b/{rel}\n"
+            f"@@ -0,0 +1,{len(lines)} @@"
+        )
+        body = "\n".join(f"+{line}" for line in lines)
+        parts.append(f"{header}\n{body}")
+    return "\n".join(parts)
+
+
+_ROUND_DIR_NAME = re.compile(ROUND_DIR_NAME_RE)
+
+
+async def _collect_tmp_from_sandbox(
+    client: "SandboxClient",
+) -> list[tuple[str, str]]:
+    """Read /tmp/round-* from the live sandbox. Rounds are fetched in parallel."""
+    entries_raw = await client.file_system.ls("/tmp")
+    round_names = sorted(n for n in entries_raw if _ROUND_DIR_NAME.match(n))
+    if not round_names:
+        return []
+    results = await asyncio.gather(*(
+        client.file_system.read_dir(f"/tmp/{n}") for n in round_names
+    ))
+    entries: list[tuple[str, str]] = []
+    for round_name, files in zip(round_names, results):
+        if not files:
+            continue
+        for fname, content in sorted(files.items()):
+            entries.append((f"tmp/{round_name}/{fname}", content))
+    return entries
+
+
+def _collect_tmp_from_archive(run_id: str) -> list[tuple[str, str]]:
+    """Read archived round files from the agent's host volume."""
+    archive_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
+    if not archive_root.is_dir():
+        return []
+    entries: list[tuple[str, str]] = []
+    for round_dir in sorted(archive_root.iterdir()):
+        if not round_dir.is_dir():
+            continue
+        for f in sorted(round_dir.iterdir()):
+            if not f.is_file():
+                continue
+            try:
+                content = f.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            entries.append((f"tmp/{round_dir.name}/{f.name}", content))
+    return entries
 
 
 def register_routes(app: FastAPI, server: "AgentServer") -> None:
@@ -298,27 +361,19 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     @app.get("/diff/tmp")
     async def diff_tmp(run_id: str):
-        """Unified diff of archived round files (all treated as new files)."""
-        archive_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
-        if not archive_root.is_dir():
-            return {"diff": ""}
-        parts: list[str] = []
-        for round_dir in sorted(archive_root.iterdir()):
-            if not round_dir.is_dir():
-                continue
-            for f in sorted(round_dir.iterdir()):
-                if not f.is_file():
-                    continue
-                rel = f"tmp/{round_dir.name}/{f.name}"
-                try:
-                    content = f.read_text(encoding="utf-8")
-                except (OSError, UnicodeDecodeError):
-                    continue
-                lines = content.splitlines()
-                header = f"diff --git a/{rel} b/{rel}\nnew file mode 100644\n--- /dev/null\n+++ b/{rel}\n@@ -0,0 +1,{len(lines)} @@"
-                body = "\n".join(f"+{line}" for line in lines)
-                parts.append(f"{header}\n{body}")
-        return {"diff": "\n".join(parts)}
+        """Unified diff of round files (all treated as new files).
+
+        During round 1 the archive on the host volume is still empty — the files
+        only exist inside the live sandbox at /tmp/round-N. So we check the
+        sandbox first and fall back to the archive for completed runs.
+        """
+        client = server.pool().get_client(run_id)
+        entries = (
+            await _collect_tmp_from_sandbox(client)
+            if client
+            else _collect_tmp_from_archive(run_id)
+        )
+        return {"diff": _build_tmp_diff(entries)}
 
     @app.get("/branches")
     async def list_branches(

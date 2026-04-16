@@ -141,8 +141,15 @@ export function buildTreeFromDiff(files: DiffFile[]): TreeNode {
   return root;
 }
 
-/* ── Build tree from live event-stream changes ── */
-export function buildTreeFromChanges(changes: FileChange[]): TreeNode {
+/* ── Build tree from live event-stream changes ──
+ *
+ * `forcedStatus` overrides the default "modified" classification — used for
+ * tmp/round-N files which are always new files (status "added").
+ */
+export function buildTreeFromChanges(
+  changes: FileChange[],
+  forcedStatus: string | null,
+): TreeNode {
   const root: TreeNode = {
     name: "",
     fullPath: "",
@@ -180,11 +187,42 @@ export function buildTreeFromChanges(changes: FileChange[]): TreeNode {
       if (isLast) {
         cur.added = stats.added;
         cur.removed = stats.removed;
-        cur.status = "modified";
+        cur.status = forcedStatus ?? "modified";
       }
     }
   }
   return root;
+}
+
+/* ── Parse a combined tmp unified diff into per-file add counts ──
+ *
+ * The agent's /diff/tmp endpoint emits one "new file" diff block per round
+ * file. We extract the b/-path and count actual "+" body lines so the
+ * Changes panel shows real line counts, not zeros.
+ */
+export function parseTmpDiffStats(
+  fullDiff: string,
+): { path: string; linesAdded: number }[] {
+  const out: { path: string; linesAdded: number }[] = [];
+  const sections = fullDiff.split("\ndiff --git ");
+  for (let i = 0; i < sections.length; i++) {
+    let s = sections[i];
+    if (i === 0 && s.startsWith("diff --git ")) s = s.slice("diff --git ".length);
+    else if (i === 0) continue;
+    const nl = s.indexOf("\n");
+    if (nl === -1) continue;
+    const header = s.slice(0, nl);
+    const bIdx = header.lastIndexOf(" b/");
+    if (bIdx === -1) continue;
+    const path = header.slice(bIdx + 3);
+    if (!path.startsWith("tmp/round-")) continue;
+    let added = 0;
+    for (const line of s.slice(nl + 1).split("\n")) {
+      if (line.startsWith("+") && !line.startsWith("+++")) added++;
+    }
+    out.push({ path, linesAdded: added });
+  }
+  return out;
 }
 
 /* ── Merge two trees — session wins on path conflict ── */
