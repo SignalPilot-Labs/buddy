@@ -72,3 +72,55 @@ REPO_BRANCH_NAME_MAX_LEN: int = 256
 GIT_CREDENTIAL_HELPER: str = (
     '!f() { echo "username=x-access-token"; echo "password=${GIT_TOKEN}"; }; f'
 )
+
+# ── /proc leak path filter ──
+# Matches sensitive /proc paths that expose process memory and environment.
+# Load-bearing gate: /proc/1/environ still contains the execve() snapshot
+# of ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN until a re-exec is shipped
+# (deferred to round 4). This filter is the primary closure for F1.
+#
+# The pattern is NOT anchored so that it matches /proc/ appearing anywhere
+# in a Bash token (e.g. "if=/proc/kcore", "< /proc/1/environ").
+# This matches the original security.py behavior for Bash-only checking.
+PROC_LEAK_PATH_RE: re.Pattern[str] = re.compile(
+    r"/proc/(?:[^/\s]+/(?:environ|cmdline|mem|maps)|kcore)\b"
+)
+
+# ── Git environment isolation ──
+# Env-var key names (as string constants — used in build_git_env).
+GIT_CONFIG_NOSYSTEM_KEY: str = "GIT_CONFIG_NOSYSTEM"
+GIT_CONFIG_GLOBAL_KEY: str = "GIT_CONFIG_GLOBAL"
+GIT_CONFIG_COUNT_KEY: str = "GIT_CONFIG_COUNT"
+XDG_CONFIG_HOME_KEY: str = "XDG_CONFIG_HOME"
+HOME_ENV_KEY: str = "HOME"
+
+# Values for the git-isolation environment variables.
+GIT_CONFIG_NOSYSTEM_VALUE: str = "1"
+GIT_CONFIG_GLOBAL_VALUE: str = "/dev/null"
+GIT_CONFIG_COUNT_VALUE: str = "0"
+XDG_CONFIG_HOME_VALUE: str = "/nonexistent"
+GIT_ISOLATED_HOME: str = "/tmp/git-isolated"
+
+# Keys to strip from the inherited env — GIT_CONFIG_* prefix families.
+GIT_CONFIG_ENV_PREFIXES: tuple[str, ...] = ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
+
+# Exact keys to strip from the inherited env.
+GIT_CONFIG_EXACT_ENV_KEYS: frozenset[str] = frozenset({
+    "GIT_CONFIG",
+    "GIT_SSH_COMMAND",
+    "GIT_EXEC_PATH",
+    "GIT_TEMPLATE_DIR",
+    "GIT_CONFIG_COUNT",
+})
+
+# Per-invocation git -c flags injected between `git` and the subcommand.
+# These override any config that may be present in the env-isolated home.
+PER_CALL_GIT_CONFIG_FLAGS: tuple[str, ...] = (
+    "-c", f"credential.helper={GIT_CREDENTIAL_HELPER}",
+    "-c", "include.path=/dev/null",
+    "-c", "core.sshCommand=/bin/false",
+    "-c", "protocol.ext.allow=never",
+)
+
+# ── Config write patterns (loaded from config.yml) ──
+CONFIG_WRITE_PATTERNS: list[str] = _security_cfg.get("config_write_patterns", [])

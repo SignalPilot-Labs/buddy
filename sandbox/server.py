@@ -13,6 +13,7 @@ from aiohttp import web
 
 from config.loader import sandbox_config
 from constants import (
+    GIT_ISOLATED_HOME,
     HealthLogFilter,
     INTERNAL_SECRET_ENV_VAR,
     INTERNAL_SECRET_HEADER,
@@ -85,6 +86,10 @@ async def on_shutdown(app: web.Application) -> None:
 
 def main() -> None:
     """Start the sandbox HTTP server."""
+    # Create the git-isolated home directory used by build_git_env.
+    # Fails fast if the filesystem is broken — do not proceed without it.
+    os.makedirs(GIT_ISOLATED_HOME, exist_ok=True)
+
     app = web.Application(middlewares=[auth_middleware])
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)

@@ -16,6 +16,8 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-autofyn}
     volumes:
       - autofyn-db:/var/lib/postgresql/data
+    networks:
+      - autofyn-control
     healthcheck:
       test: pg_isready -U autofyn
       interval: 5s
@@ -36,6 +38,8 @@ services:
       - "127.0.0.1:3401:3401"
     volumes:
       - autofyn-keys:/data
+    networks:
+      - autofyn-control
     depends_on:
       db:
         condition: service_healthy
@@ -66,6 +70,9 @@ services:
       # first-mount copy preserves non-root ownership.
       - autofyn-rounds:/home/agentuser/.autofyn/rounds
     working_dir: /workspace
+    networks:
+      - autofyn-control
+      - autofyn-sandbox
     depends_on:
       dashboard:
         condition: service_started
@@ -92,6 +99,8 @@ services:
     volumes:
       - agent-repo:/home/agentuser/repo
       - claude-agent-sessions:/home/agentuser/.claude
+    networks:
+      - autofyn-sandbox
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
       interval: 10s
@@ -105,3 +114,10 @@ volumes:
   claude-agent-sessions:
   agent-repo:
   autofyn-rounds:
+
+networks:
+  autofyn-control:
+    name: autofyn-control
+    internal: true
+  autofyn-sandbox:
+    name: autofyn-sandbox

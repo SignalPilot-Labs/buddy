@@ -9,12 +9,27 @@ import logging
 import os
 from pathlib import Path
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 log = logging.getLogger("backend.crypto")
 
 
+class CredentialDecryptError(RuntimeError):
+    """Raised when Fernet decryption fails due to wrong key or tampered ciphertext.
+
+    Wraps cryptography.fernet.InvalidToken so that the caller never needs to
+    import or catch InvalidToken directly. This keeps the error type stable
+    regardless of the underlying crypto library version.
+    """
+
+
 _fernet: Fernet | None = None
+
+
+def _reset_fernet_for_testing() -> None:
+    """Reset the cached Fernet instance. For use in tests only."""
+    global _fernet
+    _fernet = None
 
 
 def _get_fernet(key_path: str) -> Fernet:
@@ -52,9 +67,19 @@ def encrypt(plaintext: str, key_path: str) -> str:
 
 
 def decrypt(ciphertext: str, key_path: str) -> str:
-    """Decrypt a Fernet token back to plaintext."""
+    """Decrypt a Fernet token back to plaintext.
+
+    Raises CredentialDecryptError if the ciphertext is invalid (wrong key or
+    tampered). InvalidToken never crosses this module boundary.
+    """
     f = _get_fernet(key_path)
-    return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+    try:
+        return f.decrypt(ciphertext.encode("utf-8")).decode("utf-8")
+    except InvalidToken as exc:
+        raise CredentialDecryptError(
+            "Fernet decryption failed — master.key mismatch or ciphertext tampered. "
+            "Check /data/master.key."
+        ) from exc
 
 
 def mask(value: str, prefix_len: int) -> str:

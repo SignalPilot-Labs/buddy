@@ -1,8 +1,7 @@
 """Regression: every repo.py subprocess must receive an explicit env= dict.
 
 Verifies:
-  - _install_git_credentials does not write to os.environ
-  - git config call (auth-free) has env= set, GIT_TOKEN absent
+  - _store_git_token does not write to os.environ or disk
   - _push env carries GIT_TOKEN and GH_TOKEN
   - _has_changes (git status) env has no token
   - _commits_ahead fetch call has GIT_TOKEN; rev-list call does not
@@ -18,7 +17,7 @@ import pytest
 
 from handlers import repo_env
 from handlers.repo_phases import _commits_ahead, _run
-from handlers.repo import _install_git_credentials, _has_changes, _push
+from handlers.repo import _store_git_token, _has_changes, _push
 
 
 _FAKE_TOKEN = "fake-token-abc"
@@ -46,11 +45,11 @@ class TestGitSubprocessEnv:
     """Every subprocess must get env= with no secrets unless explicitly needed."""
 
     @pytest.mark.asyncio
-    async def test_install_git_credentials_does_not_touch_environ(
+    async def test_store_git_token_does_not_touch_environ(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """_install_git_credentials must not modify os.environ."""
+        """_store_git_token must not modify os.environ (no git config call)."""
         calls: list[dict[str, Any]] = []
 
         async def fake_exec(*args: Any, **kwargs: Any) -> AsyncMock:
@@ -59,22 +58,14 @@ class TestGitSubprocessEnv:
 
         monkeypatch.setattr("asyncio.create_subprocess_exec", fake_exec)
         snapshot_before = dict(os.environ)
-        await _install_git_credentials(_FAKE_TOKEN, timeout=5)
+        await _store_git_token(_FAKE_TOKEN)
         snapshot_after = dict(os.environ)
 
         assert snapshot_before == snapshot_after, (
-            "_install_git_credentials must not modify os.environ"
+            "_store_git_token must not modify os.environ"
         )
-        assert len(calls) >= 1
-        config_call = next(
-            (c for c in calls if "git" in c["args"] and "config" in c["args"]),
-            None,
-        )
-        assert config_call is not None, "Expected a git config call"
-        assert config_call["env"] is not None, "git config call must have env= set"
-        assert "GIT_TOKEN" not in config_call["env"], (
-            "git config credential.helper call must not carry GIT_TOKEN"
-        )
+        # No subprocess should be called (no git config --global)
+        assert len(calls) == 0, "_store_git_token must not spawn any subprocess"
 
     @pytest.mark.asyncio
     async def test_push_env_carries_tokens(

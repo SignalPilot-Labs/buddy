@@ -108,9 +108,21 @@ ENV_KEY_ALLOW_DOCKER = "AF_ALLOW_DOCKER"
 
 # ── Sandbox Pool (per-run containers) ──
 SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
-SANDBOX_POOL_NETWORK = "autofyn_default"  # compose default network
+SANDBOX_POOL_NETWORK = "autofyn-sandbox"  # compose-managed network for pool sandboxes
+AGENT_CONTROL_NETWORK = "autofyn-control"  # internal network: agent ↔ dashboard ↔ db
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
 SANDBOX_POOL_ENV_PASSTHROUGH = [
     "AGENT_INTERNAL_SECRET",
 ]
+
+# ── Start validation ──
+# Keys and prefixes that must never appear in the env dict posted to /start.
+# Only the agent validates /start bodies — do NOT duplicate in db/constants.py.
+BLOCKED_START_ENV_KEYS: frozenset[str] = frozenset({
+    "AGENT_INTERNAL_SECRET",
+    "DASHBOARD_API_KEY",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+})
+BLOCKED_START_ENV_KEY_PREFIXES: tuple[str, ...] = ("GIT_CONFIG_", "LD_")

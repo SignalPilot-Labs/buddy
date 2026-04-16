@@ -38,9 +38,16 @@ function makeNextRequest(opts: {
   const search = opts.search ?? "";
   const url = `http://localhost:3400/api/${pathStr}${search}`;
 
+  // Always include a loopback Host header so the proxy's host-allowlist check
+  // passes. Tests that explicitly verify the 421 path live in proxy-host-header.test.ts.
+  const headers: Record<string, string> = {
+    host: "localhost:3400",
+    ...opts.headers,
+  };
+
   const reqInit: RequestInit & { duplex?: string } = {
     method,
-    headers: opts.headers,
+    headers,
   };
   if (opts.body !== undefined) {
     reqInit.body = opts.body;

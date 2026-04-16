@@ -22,6 +22,8 @@ from utils import db
 from utils.diff import fetch_github_diff
 from utils.log_scrub import scrub_lines
 from utils.constants import (
+    BLOCKED_START_ENV_KEY_PREFIXES,
+    BLOCKED_START_ENV_KEYS,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     HEADER_GITHUB_TOKEN,
@@ -30,6 +32,7 @@ from utils.constants import (
     ROUND_DIR_NAME_RE,
     RUN_ID_LOG_PREFIX_LEN,
 )
+from db.constants import validate_host_mount
 from utils.models import (
     ActiveRun,
     HealthResponse,
@@ -45,6 +48,42 @@ if TYPE_CHECKING:
     from server import AgentServer
 
 log = logging.getLogger("endpoints")
+
+
+def _validate_start_env(env: dict[str, str]) -> None:
+    """Reject any env key that would override internal secrets or inject git config.
+
+    Raises HTTPException 422 on the first blocked key found.
+    BLOCKED_START_ENV_KEYS are checked exactly; BLOCKED_START_ENV_KEY_PREFIXES
+    are checked as prefixes.
+    """
+    for key in env:
+        if key in BLOCKED_START_ENV_KEYS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"env key '{key}' is not allowed in /start requests",
+            )
+        if any(key.startswith(prefix) for prefix in BLOCKED_START_ENV_KEY_PREFIXES):
+            raise HTTPException(
+                status_code=422,
+                detail=f"env key '{key}' matches a blocked prefix and is not allowed in /start requests",
+            )
+
+
+def _validate_start_host_mounts(
+    host_mounts: list[dict[str, str]] | None,
+) -> None:
+    """Validate each host mount entry. Raises HTTPException 422 on first error."""
+    if not host_mounts:
+        return
+    for mount in host_mounts:
+        error = validate_host_mount(
+            mount.get("host_path", ""),
+            mount.get("container_path", ""),
+            mount.get("mode", ""),
+        )
+        if error:
+            raise HTTPException(status_code=422, detail=error)
 
 
 def _merge_tokens_into_env(
@@ -197,6 +236,13 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
     async def start_run(body: StartRequest):
         """Start a new run — bootstraps a sandbox and kicks off the round loop."""
         server.ensure_capacity()
+
+        # Validate env keys before merging tokens — reject blocked keys at boundary.
+        if body.env:
+            _validate_start_env(body.env)
+
+        # Validate host mounts at boundary — raise 422 on first error (not silent skip).
+        _validate_start_host_mounts(body.host_mounts)
 
         body.env = _merge_tokens_into_env(
             body.env,

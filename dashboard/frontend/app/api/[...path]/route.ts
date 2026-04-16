@@ -8,6 +8,11 @@
  * X-API-Key over the host loopback. It does NOT go through this proxy. Intentional —
  * routing CLI through :3400 would add a dependency on Next.js being up to stop/status
  * the stack.
+ *
+ * Security: inbound requests whose Host header is not in ALLOWED_HOSTS are rejected
+ * with HTTP 421 Misdirected Request BEFORE any API key is attached. This prevents
+ * containers on the Docker bridge network (e.g. sandbox) from reaching the dashboard
+ * admin endpoints by targeting dashboard:3400.
  */
 
 import type { NextRequest } from "next/server";
@@ -19,8 +24,19 @@ export const dynamic = "force-dynamic";
 const API_URL_ENV = "API_URL";
 const DASHBOARD_API_KEY_ENV = "DASHBOARD_API_KEY";
 
+// ── Host-header allowlist — loopback only (no HOST_IP, no external IPs) ───────
+
+const ALLOWED_HOSTS: ReadonlySet<string> = new Set([
+  "localhost:3400",
+  "127.0.0.1:3400",
+]);
+
+const STATUS_MISDIRECTED = 421;
+const MISDIRECTED_BODY = "Misdirected Request";
+
 // ── Header name constants ──────────────────────────────────────────────────────
 
+const HEADER_HOST = "host";
 const HEADER_X_API_KEY = "X-API-Key";
 const HEADER_CONTENT_TYPE = "Content-Type";
 const HEADER_ACCEPT = "Accept";
@@ -35,6 +51,26 @@ const API_KEY = process.env[DASHBOARD_API_KEY_ENV];
 if (!UPSTREAM) throw new Error(`${API_URL_ENV} is not set`);
 if (!API_KEY) throw new Error(`${DASHBOARD_API_KEY_ENV} is not set`);
 
+// ── Host-header guard ──────────────────────────────────────────────────────────
+
+/**
+ * Returns a 421 Response if the request's Host header is not in ALLOWED_HOSTS,
+ * or null if the host is permitted and the request should proceed.
+ *
+ * The check runs BEFORE any API key is read or attached — a misdirected request
+ * learns nothing about authentication infrastructure.
+ *
+ * Host header matching is case-insensitive per RFC 3986 §3.2.2 (host is
+ * case-insensitive). We normalise to lowercase before the set lookup.
+ */
+export function assertLoopbackHost(req: NextRequest): Response | null {
+  const host = req.headers.get(HEADER_HOST);
+  if (host === null || !ALLOWED_HOSTS.has(host.toLowerCase())) {
+    return new Response(MISDIRECTED_BODY, { status: STATUS_MISDIRECTED });
+  }
+  return null;
+}
+
 // ── Proxy helper ───────────────────────────────────────────────────────────────
 
 interface RouteParams {
@@ -42,6 +78,9 @@ interface RouteParams {
 }
 
 async function proxy(req: NextRequest, { params }: RouteParams): Promise<Response> {
+  const hostCheck = assertLoopbackHost(req);
+  if (hostCheck !== null) return hostCheck;
+
   const { path } = await params;
   const search = new URL(req.url).search;
   const targetUrl = `${UPSTREAM}/api/${path.join("/")}${search}`;

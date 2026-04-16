@@ -56,10 +56,10 @@ BLOCKED_MOUNT_PREFIXES: tuple[str, ...] = (
     "/boot",
     "/sbin",
     "/usr/sbin",
+    "/home",
 )
 BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
     "/",
-    "/home",
     "/tmp",
     "/var",
     "/usr",

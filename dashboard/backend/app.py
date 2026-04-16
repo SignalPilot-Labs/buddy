@@ -7,8 +7,9 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.constants import ALLOWED_HOSTS, APP_TITLE, MASTER_KEY_PATH
+from backend.crypto import CredentialDecryptError
 from backend.endpoints.runs import router as runs_router
-from backend.endpoints.settings import router as settings_router
+from backend.endpoints.settings import router as settings_router, _credential_decrypt_error_handler
 from backend.endpoints.streaming import router as streaming_router
 from backend.endpoints.network import router as network_router
 from backend.utils import autofill_settings
@@ -77,6 +78,8 @@ async def enforce_host_header(request: Request, call_next) -> Response:
         )
     return await call_next(request)
 
+
+app.add_exception_handler(CredentialDecryptError, _credential_decrypt_error_handler)
 
 app.include_router(runs_router)
 app.include_router(settings_router)

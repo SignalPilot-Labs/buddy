@@ -20,7 +20,7 @@ echo "[dashboard] API key loaded (${API_KEY:0:4}****)"
 echo "[dashboard] Host IP: ${HOST_IP:-not set}"
 
 # ── Start FastAPI backend ─────────────────────────────────────────────────
-uvicorn backend.app:app --host 0.0.0.0 --port "$API_PORT" &
+uvicorn backend.app:app --host 127.0.0.1 --port "$API_PORT" &
 FASTAPI_PID=$!
 
 for i in $(seq 1 30); do
@@ -35,7 +35,7 @@ done
 # ── Start Next.js frontend (standalone server) ───────────────────────────
 cd /app/frontend
 export API_URL="http://localhost:${API_PORT}"
-API_URL="http://localhost:${API_PORT}" PORT="$UI_PORT" HOSTNAME="0.0.0.0" node server.js &
+API_URL="http://localhost:${API_PORT}" PORT="$UI_PORT" HOSTNAME="127.0.0.1" node server.js &
 NEXT_PID=$!
 
 echo "[dashboard] Next.js frontend ready on :${UI_PORT}"

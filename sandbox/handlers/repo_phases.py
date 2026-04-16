@@ -22,6 +22,7 @@ import subprocess
 from aiohttp import web
 
 from constants import (
+    PER_CALL_GIT_CONFIG_FLAGS,
     REPO_WORK_DIR,
     RETRY_BASE_DELAY_SEC,
     RETRY_MAX_ATTEMPTS,
@@ -99,9 +100,14 @@ async def _git(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR, *, with_
 
     with_token is required keyword-only: forgetting it is a pyright error,
     not a silent token leak.
+
+    PER_CALL_GIT_CONFIG_FLAGS are prepended between `git` and the subcommand
+    to ensure credential.helper, include.path, core.sshCommand, and
+    protocol.ext.allow are always set to safe values for handler-owned calls.
     """
     env = build_git_env(with_token=with_token)
-    return await _with_retry(["git"] + args, cwd, timeout, env)
+    cmd = ["git"] + list(PER_CALL_GIT_CONFIG_FLAGS) + args
+    return await _with_retry(cmd, cwd, timeout, env)
 
 
 async def _gh(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:

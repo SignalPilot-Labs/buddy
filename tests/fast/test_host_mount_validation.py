@@ -10,7 +10,7 @@ class TestValidMounts:
         assert validate_host_mount("/data/models", "/mnt/host/models", "ro") is None
 
     def test_readwrite_mount(self) -> None:
-        assert validate_host_mount("/home/user/output", "/mnt/host/output", "rw") is None
+        assert validate_host_mount("/srv/user/output", "/mnt/host/output", "rw") is None
 
     def test_deeply_nested_path(self) -> None:
         assert validate_host_mount("/data/ml/datasets/v2", "/mnt/host/data", "ro") is None
@@ -53,8 +53,25 @@ class TestBlockedPaths:
         assert error is not None
         assert "blocked" in error
 
-    def test_home_subdir_allowed(self) -> None:
-        assert validate_host_mount("/home/user/data", "/mnt/host/data", "ro") is None
+    def test_home_subdir_blocked(self) -> None:
+        """F6: /home is now a BLOCKED_MOUNT_PREFIX — all subdirs are blocked."""
+        error = validate_host_mount("/home/user/data", "/mnt/host/data", "ro")
+        assert error is not None
+
+    def test_home_alice_ssh_blocked(self) -> None:
+        error = validate_host_mount("/home/alice/.ssh", "/mnt/ssh", "ro")
+        assert error is not None
+
+    def test_home_bob_repo_blocked(self) -> None:
+        error = validate_host_mount("/home/bob/repo", "/mnt/repo", "ro")
+        assert error is not None
+
+    def test_srv_data_allowed(self) -> None:
+        assert validate_host_mount("/srv/data", "/mnt/srv", "ro") is None
+
+    def test_homely_data_allowed(self) -> None:
+        """Path starting with '/home' but not under '/home/' — allowed."""
+        assert validate_host_mount("/homely/data", "/mnt/homely", "ro") is None
 
     def test_boot_blocked(self) -> None:
         error = validate_host_mount("/boot", "/mnt/host/boot", "ro")
@@ -112,9 +129,10 @@ class TestPathNormalization:
         error = validate_host_mount("/data/safe/../../etc", "/mnt/x", "ro")
         assert error is not None
 
-    def test_host_traversal_to_safe_path_allowed(self) -> None:
-        """/data/../home/user normalizes to /home/user which is allowed."""
-        assert validate_host_mount("/data/../home/user/files", "/mnt/x", "ro") is None
+    def test_host_traversal_to_home_now_blocked(self) -> None:
+        """/data/../home/user normalizes to /home/user which is blocked by F6."""
+        error = validate_host_mount("/data/../home/user/files", "/mnt/x", "ro")
+        assert error is not None
 
     def test_container_traversal_to_claude_blocked(self) -> None:
         """/home/agentuser/repo/../.claude normalizes to /home/agentuser/.claude."""

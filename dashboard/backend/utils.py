@@ -142,7 +142,12 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
 
 
 async def read_credentials(repo: str | None) -> dict:
-    """Read and decrypt stored credentials. Picks next Claude token round-robin."""
+    """Read and decrypt stored credentials. Picks next Claude token round-robin.
+
+    Raises CredentialDecryptError if any encrypted value cannot be decrypted.
+    Raises json.JSONDecodeError if any JSON value is malformed.
+    Callers must not catch these — fail fast per CLAUDE.md.
+    """
     creds: dict[str, Any] = {}
     async with session() as s:
         for key in ("git_token", "github_repo"):
@@ -150,10 +155,7 @@ async def read_credentials(repo: str | None) -> dict:
             if not setting:
                 continue
             if setting.encrypted:
-                try:
-                    creds[key] = crypto.decrypt(setting.value, MASTER_KEY_PATH)
-                except Exception as e:
-                    log.error("Failed to decrypt %s: %s", key, e)
+                creds[key] = crypto.decrypt(setting.value, MASTER_KEY_PATH)
             else:
                 creds[key] = setting.value
 
@@ -165,19 +167,13 @@ async def read_credentials(repo: str | None) -> dict:
             env_key = f"env_vars:{repo}"
             env_setting = await s.get(Setting, env_key)
             if env_setting:
-                try:
-                    plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
-                    creds["env"] = json.loads(plain)
-                except Exception as e:
-                    log.error("Failed to decrypt %s: %s", env_key, e)
+                plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
+                creds["env"] = json.loads(plain)
 
             mounts_key = f"host_mounts:{repo}"
             mounts_setting = await s.get(Setting, mounts_key)
             if mounts_setting:
-                try:
-                    creds["host_mounts"] = json.loads(mounts_setting.value)
-                except Exception as e:
-                    log.error("Failed to parse %s: %s", mounts_key, e)
+                creds["host_mounts"] = json.loads(mounts_setting.value)
 
     return creds
 
@@ -206,14 +202,16 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 # ---------------------------------------------------------------------------
 
 async def read_token_pool(s: AsyncSession) -> list[str]:
-    """Read the decrypted token pool."""
+    """Read the decrypted token pool.
+
+    Returns empty list when no token pool is stored.
+    Raises CredentialDecryptError if decryption fails.
+    Raises json.JSONDecodeError if the decrypted payload is not valid JSON.
+    """
     pool = await s.get(Setting, "claude_tokens")
-    if pool:
-        try:
-            return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-        except (json.JSONDecodeError, TypeError, Exception):
-            return []
-    return []
+    if not pool:
+        return []
+    return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
 
 
 async def _write_token_pool(s: AsyncSession, tokens: list[str]) -> None:

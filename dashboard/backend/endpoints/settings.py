@@ -4,12 +4,12 @@ import json
 import logging
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, func
 
 from backend import auth, crypto
 from backend.constants import (
-    ENV_VARS_MASK_CHAR,
     MASK_PREFIX_DEFAULT,
     MASTER_KEY_PATH,
     SECRET_KEYS,
@@ -37,6 +37,16 @@ from db.models import Run, Setting
 log = logging.getLogger("dashboard.settings")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
+
+
+async def _credential_decrypt_error_handler(
+    request: Request, exc: Exception,
+) -> JSONResponse:
+    """Return HTTP 500 with a clear message when credential decryption fails."""
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
 
 
 @router.get("/settings/status")
@@ -70,7 +80,11 @@ def _host_mounts_key(repo: str) -> str:
 
 @router.get("/settings")
 async def get_settings() -> dict:
-    """Get all settings with secrets masked."""
+    """Get all settings with secrets masked.
+
+    Raises CredentialDecryptError (HTTP 500) if any encrypted setting cannot
+    be decrypted — fail-fast, no silent fallback to empty values.
+    """
     async with session() as s:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
@@ -78,11 +92,7 @@ async def get_settings() -> dict:
             if setting.key.startswith("env_vars:") or setting.key.startswith("host_mounts:"):
                 continue
             if setting.encrypted:
-                try:
-                    settings[setting.key] = _decrypt_setting(setting)
-                except Exception as e:
-                    log.error("Failed to decrypt setting '%s': %s", setting.key, e)
-                    settings[setting.key] = ENV_VARS_MASK_CHAR
+                settings[setting.key] = _decrypt_setting(setting)
             else:
                 settings[setting.key] = setting.value
         return settings

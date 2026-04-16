@@ -31,7 +31,6 @@ from aiohttp import web
 
 from constants import (
     CMD_TIMEOUT,
-    GIT_CREDENTIAL_HELPER,
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
     REPO_WORK_DIR,
@@ -76,20 +75,15 @@ def _validate_branch(name: str) -> None:
 # ── Credential setup ─────────────────────────────────────────────────
 
 
-async def _install_git_credentials(token: str, timeout: int) -> None:
-    """Store the token in the module-level holder and configure git's credential helper.
+async def _store_git_token(token: str) -> None:
+    """Store the token in the module-level holder.
 
-    Stores token via repo_env.set_git_token() — nothing is written to os.environ.
-    The credential helper reads $GIT_TOKEN at request time; $GIT_TOKEN is set only
-    in the env= dict of each subprocess that needs it (via build_git_env).
+    With GIT_CONFIG_GLOBAL=/dev/null set by build_git_env (F5), any global
+    git config write would go to /dev/null. The credential helper is now
+    injected per-invocation via PER_CALL_GIT_CONFIG_FLAGS in _git, so no
+    git config --global write is needed here.
     """
     repo_env.set_git_token(token)
-
-    cfg = await _git(
-        ["config", "--global", "credential.helper", GIT_CREDENTIAL_HELPER],
-        timeout, cwd="/", with_token=False,
-    )
-    _fail(cfg, "git config credential.helper")
 
 
 # ── Private git op helpers (called by handlers below) ────────────────
@@ -154,7 +148,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     _validate_branch(base_branch)
     _validate_branch(working_branch)
 
-    await _install_git_credentials(token, timeout)
+    await _store_git_token(token)
 
     # Clone into a temp dir first, then merge into REPO_WORK_DIR.
     # Host bind mounts may already exist under REPO_WORK_DIR, making
