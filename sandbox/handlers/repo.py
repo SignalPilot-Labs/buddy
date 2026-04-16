@@ -42,10 +42,34 @@ from constants import (
     RETRY_MAX_ATTEMPTS,
     RETRY_TRANSIENT_PATTERNS,
 )
-from handlers.repo_parse import _normalize_rename_path, _parse_name_status, _parse_numstat
+from handlers.repo_parse import _parse_name_status, _parse_numstat
 from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
+
+_SECRET_MASK: str = "***REDACTED***"
+_SECRET_ENV_KEYS: tuple[str, ...] = ("GIT_TOKEN", "GH_TOKEN")
+
+
+def _scrub_secrets(text: str) -> str:
+    """Replace any in-process git/gh token value with `_SECRET_MASK`.
+
+    The sandbox installs `GIT_TOKEN` / `GH_TOKEN` in its own process env at
+    bootstrap (see `_install_git_credentials`). Every git/gh subprocess
+    inherits them, and any subprocess error that surfaces their values in
+    stderr/stdout would leak the PAT to logs, exception bodies, or HTTP
+    responses. This helper masks the raw value before any such crossing.
+
+    Reads `os.environ` at call time — not a cached snapshot — because
+    `_install_git_credentials` mutates env mid-process and tests reset env
+    between cases.
+    """
+    scrubbed = text
+    for key in _SECRET_ENV_KEYS:
+        value = os.environ.get(key)
+        if value:
+            scrubbed = scrubbed.replace(value, _SECRET_MASK)
+    return scrubbed
 
 
 def _state(request: web.Request) -> RepoState:
@@ -128,7 +152,7 @@ def _fail(result: CmdResult, label: str) -> None:
     stderr routinely contains newlines.
     """
     if result.exit_code != 0:
-        stderr = result.stderr.strip()[:2000]
+        stderr = _scrub_secrets(result.stderr.strip())[:2000]
         log.error("%s failed (exit=%d): %s", label, result.exit_code, stderr)
         body = json.dumps({
             "error": f"{label} failed",
@@ -193,7 +217,7 @@ async def _push(working_branch: str, timeout: int) -> str | None:
     """Push working branch to origin. Returns error string on failure, None on success."""
     result = await _git(["push", "-u", "origin", working_branch], timeout)
     if result.exit_code != 0:
-        err = result.stderr.strip()[:500]
+        err = _scrub_secrets(result.stderr.strip())[:500]
         log.warning("push failed: %s", err)
         return err
     return None
@@ -261,7 +285,7 @@ async def _create_or_update_pr(
             timeout,
         )
         if edit.exit_code != 0:
-            return existing, f"gh pr edit failed: {edit.stderr.strip()[:200]}"
+            return existing, f"gh pr edit failed: {_scrub_secrets(edit.stderr.strip())[:200]}"
         return existing, None
 
     create = await _gh(
@@ -276,7 +300,7 @@ async def _create_or_update_pr(
         timeout,
     )
     if create.exit_code != 0:
-        return None, f"gh pr create failed: {create.stderr.strip()[:200]}"
+        return None, f"gh pr create failed: {_scrub_secrets(create.stderr.strip())[:200]}"
     return create.stdout.strip(), None
 
 
@@ -510,7 +534,7 @@ async def handle_diff(request: web.Request) -> web.Response:
         ["diff", state.base_sha, state.working_branch], CMD_TIMEOUT,
     )
     if result.exit_code != 0:
-        return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
+        return web.json_response({"error": "git diff failed", "detail": _scrub_secrets(result.stderr)[:500]}, status=500)
     return web.json_response({"diff": result.stdout})
 
 
