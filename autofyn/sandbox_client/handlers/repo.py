@@ -89,6 +89,16 @@ class Repo:
         """Get the full unified diff from the sandbox."""
         return await self._post("/repo/diff", {})
 
+    async def diff_stats(self) -> list[dict]:
+        """Get per-file diff stats (path, added, removed, status).
+
+        Cheap counterpart to `diff()` — returns only numstat + name-status
+        output, a few hundred bytes, intended for the dashboard's periodic
+        polling of the Changes-panel header.
+        """
+        data = await self._post("/repo/diff/stats", {})
+        return list(data["files"])
+
     # ── Private ────────────────────────────────────────────────────────
 
     async def _post(self, path: str, body: dict) -> dict:

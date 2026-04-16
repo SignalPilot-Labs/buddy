@@ -218,13 +218,21 @@ async def _commits_ahead(base: str, timeout: int) -> int:
 async def _branch_diff(
     working_branch: str, base: str, timeout: int,
 ) -> list[dict]:
-    """File-level diff stats between the working branch and base."""
+    """File-level diff stats between the working branch and base.
+
+    Uses two-arg form (`git diff A B`) rather than three-dot
+    (`git diff A...B`). Three-dot needs a merge base, which the
+    `--depth 1` shallow fetch below can destroy whenever the base
+    branch has been force-updated (e.g. squash merges on main).
+    """
     await _git(["fetch", "origin", base, "--depth", "1"], timeout)
-    ref_range = f"origin/{base}...{working_branch}"
-    numstat = await _git(["diff", "--numstat", ref_range], timeout)
+    base_ref = f"origin/{base}"
+    numstat = await _git(["diff", "--numstat", base_ref, working_branch], timeout)
     if numstat.exit_code != 0 or not numstat.stdout.strip():
         return []
-    name_status = await _git(["diff", "--name-status", ref_range], timeout)
+    name_status = await _git(
+        ["diff", "--name-status", base_ref, working_branch], timeout,
+    )
     if name_status.exit_code != 0:
         return []
     return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
@@ -489,6 +497,20 @@ async def handle_diff(request: web.Request) -> web.Response:
     return web.json_response({"diff": result.stdout})
 
 
+async def handle_diff_stats(request: web.Request) -> web.Response:
+    """Return per-file diff stats without transferring the full diff body.
+
+    Used by the dashboard Changes panel on every poll (~every 15s). The
+    full-diff endpoint streams megabytes; this one returns a few hundred
+    bytes derived from `git diff --numstat` + `--name-status`.
+    """
+    state = _state(request)
+    if not state.working_branch or not state.base_branch:
+        return web.json_response({"error": "No active branch"}, status=409)
+    files = await _branch_diff(state.working_branch, state.base_branch, CMD_TIMEOUT)
+    return web.json_response({"files": files})
+
+
 # ── Registration ─────────────────────────────────────────────────────
 
 
@@ -498,3 +520,4 @@ def register(app: web.Application) -> None:
     app.router.add_post("/repo/save", handle_save)
     app.router.add_post("/repo/teardown", handle_teardown)
     app.router.add_post("/repo/diff", handle_diff)
+    app.router.add_post("/repo/diff/stats", handle_diff_stats)

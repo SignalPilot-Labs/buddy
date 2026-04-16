@@ -358,6 +358,24 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         _github_diff_cache[run_id] = result["diff"]
         return result
 
+    @app.get("/diff/repo/stats")
+    async def diff_repo_stats(run_id: str):
+        """Per-file diff stats without transferring the full diff body.
+
+        Intended for the dashboard Changes-panel header poll. Only handles
+        live runs — completed-run stats live in the dashboard DB (written
+        at teardown) and the dashboard short-circuits before calling this.
+        """
+        client = server.pool().get_client(run_id)
+        if not client:
+            raise HTTPException(status_code=409, detail="No active sandbox for run")
+        try:
+            files = await client.repo.diff_stats()
+        except Exception as exc:
+            log.warning("Sandbox diff_stats failed for %s: %s", run_id, exc)
+            raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
+        return {"files": files}
+
     @app.get("/diff/tmp")
     async def diff_tmp(run_id: str):
         """Unified diff of round files (all treated as new files).

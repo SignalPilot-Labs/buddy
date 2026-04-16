@@ -28,7 +28,6 @@ from backend.models import (
     StartRunRequest,
     StopRunRequest,
 )
-from backend.diff_parser import build_stats_response, parse_diff_stats
 from backend.utils import (
     agent_request,
     model_to_dict,
@@ -251,55 +250,51 @@ async def agent_logs(
 # Diff
 # ---------------------------------------------------------------------------
 
+def _stats_response(files: list, source: str) -> dict:
+    """Shape a list of {path, added, removed, status} into the response."""
+    return {
+        "files": files,
+        "total_files": len(files),
+        "total_added": sum(f.get("added", 0) for f in files),
+        "total_removed": sum(f.get("removed", 0) for f in files),
+        "source": source,
+    }
+
+
 @router.get("/runs/{run_id}/diff")
 async def get_run_diff(run_id: str = RunId) -> dict:
     """Diff stats for a run.
 
     Stored (post-teardown) `run.diff_stats` wins when present. For live
-    runs mid-execution, teardown hasn't fired yet — fall back to the
-    agent's `/diff/repo` endpoint and derive stats on-demand so the
-    Changes panel can show real counts during the run.
+    runs mid-execution, teardown hasn't fired yet — call the agent's
+    cheap `/diff/repo/stats` endpoint instead (counts only, no diff body
+    transfer) and return `source: "live"`.
     """
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         diff_stats = run.diff_stats
-        branch_name = run.branch_name
-        base_branch = run.base_branch or DEFAULT_BASE_BRANCH
-        github_repo = run.github_repo
 
     if diff_stats:
-        return build_stats_response(diff_stats, "stored")
+        return _stats_response(diff_stats, "stored")
 
-    # Live-run path: derive stats from the current unified diff.
-    # Two distinct failure modes surface to the frontend as distinct sources:
-    #   - "unavailable": nothing to fetch yet (no repo/token, or diff is empty).
-    #   - HTTPException: agent is unreachable / returned an error — raise
-    #     through so the dashboard reports the problem instead of silently
-    #     collapsing it into "unavailable".
-    if not github_repo:
-        return build_stats_response([], "unavailable")
-    creds = await read_credentials(github_repo)
-    token = creds.get("git_token")
-    if not token:
-        return build_stats_response([], "unavailable")
-    result: dict = await agent_request(
-        "GET", "/diff/repo", AGENT_TIMEOUT_LONG,
-        None,
-        {
-            "run_id": run_id,
-            "branch": branch_name,
-            "base": base_branch,
-            "repo": github_repo,
-        },
-        None,  # no fallback: agent errors must surface, not masquerade as empty
-        extra_headers={HEADER_GITHUB_TOKEN: token},
-    )
-    diff_text = result["diff"]
-    if not diff_text:
-        return build_stats_response([], "unavailable")
-    return build_stats_response(parse_diff_stats(diff_text), "live")
+    # Live-run path: pull stats-only from the agent. Agent errors raise
+    # HTTPException (distinct failure mode from "no diff yet"); 409 means
+    # the sandbox is gone and there's nothing to fetch.
+    try:
+        result: dict = await agent_request(
+            "GET", "/diff/repo/stats", AGENT_TIMEOUT_SHORT,
+            None,
+            {"run_id": run_id},
+            None,  # no fallback: agent errors must surface, not masquerade as empty
+            extra_headers=None,
+        )
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            return _stats_response([], "unavailable")
+        raise
+    return _stats_response(list(result["files"]), "live")
 
 
 @router.get("/runs/{run_id}/diff/repo")
