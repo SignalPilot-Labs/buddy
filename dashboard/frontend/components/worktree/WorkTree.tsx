@@ -153,7 +153,14 @@ function NodeItem({
 }
 
 /* ── Source Badge ── */
-type DisplaySource = "diff-live" | "diff-stored" | "diff-agent" | "session" | null;
+// Only two meaningful states now that the sandbox's /diff/repo/stats diffs
+// the working tree (so uncommitted edits are visible immediately): "live"
+// for anything coming out of an active sandbox session, and "git" for the
+// stored diff persisted at teardown. The previous "session" fallback —
+// triggered when we had content from the event stream but not yet from
+// git — is dead: worktree diff makes that a race that resolves in <poll
+// interval. Keeping only the two real states.
+type DisplaySource = "diff-live" | "diff-stored" | null;
 
 function SourceBadge({ source }: { source: DisplaySource }) {
   if (!source) return null;
@@ -166,14 +173,6 @@ function SourceBadge({ source }: { source: DisplaySource }) {
     "diff-stored": {
       label: "git",
       className: "text-[#88ccff]/70 bg-[#88ccff]/10",
-    },
-    "diff-agent": {
-      label: "live",
-      className: "text-[#00ff88]/70 bg-[#00ff88]/10",
-    },
-    session: {
-      label: "session",
-      className: "text-[#ffcc44]/70 bg-[#ffcc44]/10",
     },
   };
 
@@ -224,6 +223,25 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffTooLarge, setDiffTooLarge] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
+  // Fetch diff bodies (repo + tmp). Extracted so both mount and poll
+  // can call it — before this, bodies were one-shot on mount so newly
+  // written round reports were visible in the tree (via liveTree from
+  // the event stream) but couldn't be opened until a manual refresh.
+  const fetchDiffBodies = (id: string) => {
+    Promise.all([
+      fetchDiffRepo(id).then(d => d.diff).catch(() => ""),
+      fetchDiffTmp(id).then(d => d.diff).catch(() => ""),
+    ]).then(([repo, tmp]) => {
+      const repoOversize = repo.length > DIFF_MAX_BYTES;
+      const tmpOversize = tmp.length > DIFF_MAX_BYTES;
+      const repoSafe = repoOversize ? null : (repo || null);
+      const tmpSafe = tmpOversize ? null : (tmp || null);
+      setRepoDiff(repoSafe);
+      setTmpDiff(tmpSafe);
+      setDiffTooLarge((repoOversize || tmpOversize) && !repoSafe && !tmpSafe);
+    });
+  };
+
   // Fetch diff stats (file list) when run changes
   useEffect(() => {
     if (!runId) {
@@ -242,30 +260,20 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
-    // Cap each side independently — a huge repo diff still lets tmp files
-    // render, and a huge tmp diff still lets git files render. Flag 'too
-    // large' only when *both* sides came back empty because of size (not
-    // because a run has no diff yet).
-    Promise.all([
-      fetchDiffRepo(runId).then(d => d.diff).catch(() => ""),
-      fetchDiffTmp(runId).then(d => d.diff).catch(() => ""),
-    ]).then(([repo, tmp]) => {
-      const repoOversize = repo.length > DIFF_MAX_BYTES;
-      const tmpOversize = tmp.length > DIFF_MAX_BYTES;
-      const repoSafe = repoOversize ? null : (repo || null);
-      const tmpSafe = tmpOversize ? null : (tmp || null);
-      setRepoDiff(repoSafe);
-      setTmpDiff(tmpSafe);
-      setDiffTooLarge((repoOversize || tmpOversize) && !repoSafe && !tmpSafe);
-    });
+    fetchDiffBodies(runId);
   }, [runId]);
 
-  // Refresh diff stats periodically for live/agent diffs
+  // Poll all three diff sources for live/agent runs so the tree, badge,
+  // and click-to-open all stay fresh mid-round. Before this, only stats
+  // were polled — repoDiff and tmpDiff were one-shot on mount, so newly
+  // written round reports appeared in the tree (via liveTree from events)
+  // but couldn't be opened until a manual refresh fetched the diff body.
   const isPollingSource = diffData?.source === "live" || diffData?.source === "agent";
   useEffect(() => {
     if (!runId || !isPollingSource) return;
     const id = setInterval(() => {
       fetchRunDiff(runId).then(setDiffData).catch(err => console.warn("WorkTree: diff poll failed:", err));
+      fetchDiffBodies(runId);
     }, DIFF_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [runId, isPollingSource]);
@@ -327,15 +335,15 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
   }, [mergedTree]);
 
-  // Badge: show primary source
+  // Badge: derive directly from diffData.source. "live" and "agent"
+  // both mean an active sandbox → green "live"; "stored" → blue "git".
+  // No more "session" fallback — worktree diff eliminated the window
+  // where we had event-stream content but no git stats.
   const displaySource: DisplaySource = (() => {
     if (!hasContent) return null;
-    if (!hasGitDiff) return "session";
     if (!diffData) return null;
-    if (diffData.source === "live") return "diff-live";
     if (diffData.source === "stored") return "diff-stored";
-    if (diffData.source === "agent") return "diff-agent";
-    return null;
+    return "diff-live";
   })();
 
   // File count from merged tree
