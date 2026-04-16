@@ -125,7 +125,7 @@ function DiffLineRow({
       <GutterCell value={line.oldLine} />
       <GutterCell value={line.newLine} />
       <span className={clsx("pr-2 select-none shrink-0", prefixColor)}>{prefix}</span>
-      <span className="flex-1 overflow-x-auto whitespace-pre">
+      <span className="flex-1 whitespace-pre">
         <HighlightedLine content={line.content} lang={lang} highlighter={highlighter} />
       </span>
     </div>
@@ -188,7 +188,7 @@ export function FileDiffViewer({ fullDiff, filePath, fileStatus, onBack }: FileD
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 overflow-auto">
         {isBinary && (
           <div className="px-3 py-6 text-center text-meta text-text-dim">
             Binary file — diff not available
@@ -202,7 +202,7 @@ export function FileDiffViewer({ fullDiff, filePath, fileStatus, onBack }: FileD
         )}
 
         {!isBinary && diffLines.length > 0 && (
-          <div className="text-content font-mono py-1">
+          <div className="text-content font-mono py-1 w-max min-w-full">
             {diffLines.map((line, idx) => (
               <DiffLineRow
                 key={idx}
