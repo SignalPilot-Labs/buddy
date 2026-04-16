@@ -204,7 +204,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
 
     # Freeze the base SHA now. Every subsequent diff (teardown stats,
     # live /repo/diff/stats) uses this SHA — independent of base moving on.
-    sha_result = await _git(["rev-parse", f"origin/{base_branch}"], timeout)
+    sha_result = await _git(["rev-parse", f"origin/{base_branch}"], timeout, with_token=False)
     _fail(sha_result, f"git rev-parse origin/{base_branch}")
     base_sha = sha_result.stdout.strip()
     if not base_sha:
