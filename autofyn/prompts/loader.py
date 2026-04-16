@@ -59,3 +59,30 @@ def render_time_status(
         .replace("{TIME_REMAINING_MINUTES}", str(max(int(time_remaining_minutes), 0)))
         .replace("{DURATION_MINUTES}", str(int(duration_minutes)))
     )
+
+
+def render_environment(
+    round_number: int,
+    tool_call_timeout_min: int,
+    host_mounts: list[dict[str, str]] | None,
+) -> str:
+    """Render `query/environment.md` with runtime values and host mounts."""
+    template = load_markdown("query/environment")
+    return (
+        template
+        .replace("{ROUND_NUMBER}", str(round_number))
+        .replace("{TOOL_CALL_TIMEOUT_MIN}", str(tool_call_timeout_min))
+        .replace("{HOST_MOUNTS_BLOCK}", _host_mounts_block(host_mounts))
+    )
+
+
+def _host_mounts_block(host_mounts: list[dict[str, str]] | None) -> str:
+    """Render a 'Host mounts:\\n- ...' block, or empty string when there are none."""
+    if not host_mounts:
+        return ""
+    lines = ["Host mounts:"]
+    for m in host_mounts:
+        mode = m.get("mode", "ro")
+        access = "read-only" if mode == "ro" else "read-write"
+        lines.append(f"- `{m['target']}` ({access})")
+    return "\n".join(lines)
