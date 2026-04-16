@@ -27,13 +27,16 @@ const HEADER_ACCEPT = "Accept";
 const HEADER_CACHE_CONTROL = "Cache-Control";
 const HEADER_CONTENT_LENGTH = "content-length";
 
-// ── Module-level env reads — throws at import time if missing (fail-fast) ─────
+// ── Env reads — lazy at request time, not module load ─────────────────────────
+// Next.js 16 collects page data during `next build` by evaluating route
+// modules. Throwing at module-load would fail the build in CI where these
+// env vars are not set. Read and validate at request time instead.
 
-const UPSTREAM = process.env[API_URL_ENV];
-const API_KEY = process.env[DASHBOARD_API_KEY_ENV];
-
-if (!UPSTREAM) throw new Error(`${API_URL_ENV} is not set`);
-if (!API_KEY) throw new Error(`${DASHBOARD_API_KEY_ENV} is not set`);
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not set`);
+  return value;
+}
 
 // ── Proxy helper ───────────────────────────────────────────────────────────────
 
@@ -42,12 +45,15 @@ interface RouteParams {
 }
 
 async function proxy(req: NextRequest, { params }: RouteParams): Promise<Response> {
+  const upstreamBase = requireEnv(API_URL_ENV);
+  const apiKey = requireEnv(DASHBOARD_API_KEY_ENV);
+
   const { path } = await params;
   const search = new URL(req.url).search;
-  const targetUrl = `${UPSTREAM}/api/${path.join("/")}${search}`;
+  const targetUrl = `${upstreamBase}/api/${path.join("/")}${search}`;
 
   const forwardHeaders: Record<string, string> = {
-    [HEADER_X_API_KEY]: API_KEY as string,
+    [HEADER_X_API_KEY]: apiKey,
   };
 
   const contentType = req.headers.get(HEADER_CONTENT_TYPE);

@@ -82,21 +82,23 @@ describe("Next.js /api proxy route", () => {
     vi.restoreAllMocks();
   });
 
-  it("throws at module import time when DASHBOARD_API_KEY is missing", async () => {
+  it("throws at request time when DASHBOARD_API_KEY is missing", async () => {
     vi.stubEnv("DASHBOARD_API_KEY", "");
     vi.resetModules();
-
+    const mod: RouteModule = await import("../app/api/[...path]/route");
+    const req = makeRequest({});
     await expect(
-      import("../app/api/[...path]/route"),
+      mod.GET(req, { params: Promise.resolve({ path: ["runs"] }) }),
     ).rejects.toThrow("DASHBOARD_API_KEY is not set");
   });
 
-  it("throws at module import time when API_URL is missing", async () => {
+  it("throws at request time when API_URL is missing", async () => {
     vi.stubEnv("API_URL", "");
     vi.resetModules();
-
+    const mod: RouteModule = await import("../app/api/[...path]/route");
+    const req = makeRequest({});
     await expect(
-      import("../app/api/[...path]/route"),
+      mod.GET(req, { params: Promise.resolve({ path: ["runs"] }) }),
     ).rejects.toThrow("API_URL is not set");
   });
 
