@@ -28,7 +28,7 @@ os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
 with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer, _scrub_secrets
 
-from utils.constants import ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET
+from utils.constants import ENV_KEY_ANTHROPIC_API, ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET
 from utils.models import ActiveRun, StartRequest
 
 
@@ -85,7 +85,7 @@ class TestServerAuditRedaction:
         monkeypatch.delenv(ENV_KEY_GIT_TOKEN, raising=False)
         monkeypatch.delenv(ENV_KEY_CLAUDE_TOKEN, raising=False)
         monkeypatch.delenv(ENV_KEY_INTERNAL_SECRET, raising=False)
-        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        monkeypatch.delenv(ENV_KEY_ANTHROPIC_API, raising=False)
         text = "benign traceback text"
         result = _scrub_secrets(text)
         assert result == text

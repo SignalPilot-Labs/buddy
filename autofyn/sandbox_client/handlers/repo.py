@@ -34,7 +34,7 @@ def _scrub_secrets(text: str, body: dict) -> str:
     scrubbed = text
     for key in _SECRET_BODY_KEYS:
         value = body.get(key)
-        if isinstance(value, str) and value:
+        if value:
             scrubbed = scrubbed.replace(value, _SECRET_MASK)
     return scrubbed
 

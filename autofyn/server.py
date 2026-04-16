@@ -28,6 +28,7 @@ from utils import db
 from utils.constants import (
     ACTIVE_RUN_STATUSES,
     AccessNoiseFilter,
+    ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
@@ -47,7 +48,7 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
-    "ANTHROPIC_API_KEY",
+    ENV_KEY_ANTHROPIC_API,
 )
 
 
