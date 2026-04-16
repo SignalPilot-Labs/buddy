@@ -8,12 +8,13 @@ Endpoints:
     POST /repo/bootstrap   clone + verify base + create working branch
     POST /repo/save        commit + push per-round changes (no-op if clean)
     POST /repo/teardown    commit leftovers + push + PR + diff stats
+    POST /repo/diff        full unified diff of working branch against base
 
-Auth is installed at bootstrap: `GIT_TOKEN` + `GH_TOKEN` are set in the
-sandbox process env, and git's global credential helper is configured to
-read `$GIT_TOKEN` at request time. Every subsequent git/gh command — from
-the handlers in this file or from subagent-spawned shells — picks up auth
-transparently. Nothing is written to disk.
+Auth is stored in a module-level variable in repo_env; each authenticated
+git/gh subprocess receives GIT_TOKEN/GH_TOKEN via its own env= dict.
+Nothing is written to os.environ. The credential helper still reads
+$GIT_TOKEN, but $GIT_TOKEN is set only in the env of the specific
+process that needs it.
 
 Security rules (enforced here because they protect against orchestrator
 bugs — not malicious subagents, which gVisor + SDK SecurityGate handle):
@@ -24,11 +25,7 @@ bugs — not malicious subagents, which gVisor + SDK SecurityGate handle):
     3. PR create/update always uses the working branch as head.
 """
 
-import asyncio
-import json
 import logging
-import os
-import subprocess
 
 from aiohttp import web
 
@@ -38,12 +35,17 @@ from constants import (
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
     REPO_WORK_DIR,
-    RETRY_BASE_DELAY_SEC,
-    RETRY_MAX_ATTEMPTS,
-    RETRY_TRANSIENT_PATTERNS,
 )
-from handlers.repo_parse import _normalize_rename_path, _parse_name_status, _parse_numstat
-from models import CmdResult, RepoState
+from handlers import repo_env
+from handlers.repo_phases import (
+    _branch_diff,
+    _commits_ahead,
+    _create_or_update_pr,
+    _fail,
+    _git,
+    _run,
+)
+from models import RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
 
@@ -71,90 +73,21 @@ def _validate_branch(name: str) -> None:
         raise web.HTTPBadRequest(reason="invalid branch name format")
 
 
-# ── Subprocess helpers ───────────────────────────────────────────────
-
-
-async def _run(args: list[str], cwd: str, timeout: int) -> CmdResult:
-    """Run a subprocess inheriting the sandbox process env."""
-    proc: asyncio.subprocess.Process | None = None
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *args, cwd=cwd,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return CmdResult(
-            stdout=(stdout or b"").decode(),
-            stderr=(stderr or b"").decode(),
-            exit_code=proc.returncode or 0,
-        )
-    except asyncio.TimeoutError:
-        if proc:
-            proc.kill()
-        return CmdResult(stdout="", stderr="timed out", exit_code=-1)
-
-
-async def _with_retry(cmd: list[str], cwd: str, timeout: int) -> CmdResult:
-    """Run a command with exponential backoff on transient failures."""
-    result = CmdResult(stdout="", stderr="", exit_code=-1)
-    for attempt in range(RETRY_MAX_ATTEMPTS):
-        result = await _run(cmd, cwd, timeout)
-        if result.exit_code == 0:
-            return result
-        if not any(p in result.stderr.lower() for p in RETRY_TRANSIENT_PATTERNS):
-            return result
-        if attempt < RETRY_MAX_ATTEMPTS - 1:
-            delay = RETRY_BASE_DELAY_SEC * (2 ** attempt)
-            log.warning("%s: transient error, retry %d/%d in %.0fs", cmd[0], attempt + 1, RETRY_MAX_ATTEMPTS, delay)
-            await asyncio.sleep(delay)
-    return result
-
-
-async def _git(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
-    """Run `git <args>` with retry on transient network errors."""
-    return await _with_retry(["git"] + args, cwd, timeout)
-
-
-async def _gh(args: list[str], timeout: int, cwd: str = REPO_WORK_DIR) -> CmdResult:
-    """Run `gh <args>` with retry on transient network errors."""
-    return await _with_retry(["gh"] + args, cwd, timeout)
-
-
-def _fail(result: CmdResult, label: str) -> None:
-    """Raise HTTP 500 with the git/gh error in the JSON body on failure.
-
-    Stderr goes into the body (not the HTTP reason header) because
-    aiohttp rejects reason values containing `\\r` or `\\n`, and git
-    stderr routinely contains newlines.
-    """
-    if result.exit_code != 0:
-        stderr = result.stderr.strip()[:2000]
-        log.error("%s failed (exit=%d): %s", label, result.exit_code, stderr)
-        body = json.dumps({
-            "error": f"{label} failed",
-            "exit_code": result.exit_code,
-            "stderr": stderr,
-        })
-        raise web.HTTPInternalServerError(
-            text=body,
-            content_type="application/json",
-        )
+# ── Credential setup ─────────────────────────────────────────────────
 
 
 async def _install_git_credentials(token: str, timeout: int) -> None:
-    """Install the token so every git/gh command authenticates transparently.
+    """Store the token in the module-level holder and configure git's credential helper.
 
-    Sets `GIT_TOKEN` + `GH_TOKEN` in the process env and configures git's
-    global credential helper to read `$GIT_TOKEN` at request time. Nothing
-    on disk — the secret lives in process memory only and is inherited by
-    subagent-spawned shells that need authenticated git operations.
+    Stores token via repo_env.set_git_token() — nothing is written to os.environ.
+    The credential helper reads $GIT_TOKEN at request time; $GIT_TOKEN is set only
+    in the env= dict of each subprocess that needs it (via build_git_env).
     """
-    os.environ["GIT_TOKEN"] = token
-    os.environ["GH_TOKEN"] = token
+    repo_env.set_git_token(token)
 
     cfg = await _git(
         ["config", "--global", "credential.helper", GIT_CREDENTIAL_HELPER],
-        timeout, cwd="/",
+        timeout, cwd="/", with_token=False,
     )
     _fail(cfg, "git config credential.helper")
 
@@ -164,7 +97,7 @@ async def _install_git_credentials(token: str, timeout: int) -> None:
 
 async def _require_on_working_branch(state: RepoState, timeout: int) -> None:
     """Refuse if HEAD isn't on the expected working branch."""
-    current = await _git(["branch", "--show-current"], timeout)
+    current = await _git(["branch", "--show-current"], timeout, with_token=False)
     head = current.stdout.strip()
     if head != state.working_branch:
         raise web.HTTPConflict(
@@ -174,15 +107,15 @@ async def _require_on_working_branch(state: RepoState, timeout: int) -> None:
 
 async def _has_changes(timeout: int) -> bool:
     """True if the working tree has uncommitted or staged changes."""
-    result = await _git(["status", "--porcelain"], timeout)
+    result = await _git(["status", "--porcelain"], timeout, with_token=False)
     _fail(result, "git status")
     return bool(result.stdout.strip())
 
 
 async def _commit(message: str, timeout: int) -> bool:
     """Stage everything and commit. Returns True on commit, False if clean."""
-    _fail(await _git(["add", "."], timeout), "git add")
-    result = await _git(["commit", "-m", message], timeout)
+    _fail(await _git(["add", "."], timeout, with_token=False), "git add")
+    result = await _git(["commit", "-m", message], timeout, with_token=False)
     if result.exit_code != 0 and "nothing to commit" in (result.stdout + result.stderr):
         return False
     _fail(result, "git commit")
@@ -191,79 +124,12 @@ async def _commit(message: str, timeout: int) -> bool:
 
 async def _push(working_branch: str, timeout: int) -> str | None:
     """Push working branch to origin. Returns error string on failure, None on success."""
-    result = await _git(["push", "-u", "origin", working_branch], timeout)
+    result = await _git(["push", "-u", "origin", working_branch], timeout, with_token=True)
     if result.exit_code != 0:
         err = result.stderr.strip()[:500]
         log.warning("push failed: %s", err)
         return err
     return None
-
-
-async def _commits_ahead(base: str, timeout: int) -> int:
-    """Count commits between origin/base and HEAD."""
-    _fail(
-        await _git(["fetch", "origin", base, "--depth", "1"], timeout),
-        "git fetch base",
-    )
-    result = await _git(
-        ["rev-list", "--count", f"origin/{base}..HEAD"], timeout,
-    )
-    _fail(result, "git rev-list")
-    try:
-        return int(result.stdout.strip())
-    except ValueError:
-        return 0
-
-
-async def _branch_diff(
-    working_branch: str, base: str, timeout: int,
-) -> list[dict]:
-    """File-level diff stats between the working branch and base."""
-    await _git(["fetch", "origin", base, "--depth", "1"], timeout)
-    ref_range = f"origin/{base}...{working_branch}"
-    numstat = await _git(["diff", "--numstat", ref_range], timeout)
-    if numstat.exit_code != 0 or not numstat.stdout.strip():
-        return []
-    name_status = await _git(["diff", "--name-status", ref_range], timeout)
-    if name_status.exit_code != 0:
-        return []
-    return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
-
-
-async def _create_or_update_pr(
-    state: RepoState, title: str, description: str, base: str, timeout: int,
-) -> tuple[str | None, str | None]:
-    """Create a PR, or edit the existing one. Returns (url, error)."""
-    find = await _gh(
-        ["pr", "view", state.working_branch, "--repo", state.repo,
-         "--json", "url", "-q", ".url"],
-        timeout,
-    )
-    existing = find.stdout.strip() if find.exit_code == 0 else ""
-
-    if existing:
-        edit = await _gh(
-            ["pr", "edit", existing, "--title", title, "--body", description],
-            timeout,
-        )
-        if edit.exit_code != 0:
-            return existing, f"gh pr edit failed: {edit.stderr.strip()[:200]}"
-        return existing, None
-
-    create = await _gh(
-        [
-            "pr", "create",
-            "--repo", state.repo,
-            "--base", base,
-            "--head", state.working_branch,
-            "--title", title,
-            "--body", description,
-        ],
-        timeout,
-    )
-    if create.exit_code != 0:
-        return None, f"gh pr create failed: {create.stderr.strip()[:200]}"
-    return create.stdout.strip(), None
 
 
 # ── Handler: /repo/bootstrap ─────────────────────────────────────────
@@ -307,6 +173,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
             ["clone", "--depth", "50", "--no-single-branch", remote_url, "."],
             timeout,
             cwd=clone_tmp,
+            with_token=True,
         ),
         "git clone",
     )
@@ -330,13 +197,14 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         await _git(
             ["ls-remote", "--exit-code", "--heads", "origin", base_branch],
             timeout,
+            with_token=True,
         ),
         f"base branch '{base_branch}' not found on origin",
     )
 
-    _fail(await _git(["fetch", "origin", base_branch], timeout), "git fetch")
+    _fail(await _git(["fetch", "origin", base_branch], timeout, with_token=True), "git fetch")
     _fail(
-        await _git(["checkout", "-B", base_branch, f"origin/{base_branch}"], timeout),
+        await _git(["checkout", "-B", base_branch, f"origin/{base_branch}"], timeout, with_token=False),
         "git checkout base",
     )
 
@@ -344,15 +212,25 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     # Fresh run: create a new branch from base.
     ls_result = await _git(
         ["ls-remote", "--exit-code", "--heads", "origin", working_branch], timeout,
+        with_token=True,
     )
     if ls_result.exit_code == 0:
-        _fail(await _git(["fetch", "origin", working_branch], timeout), "git fetch working branch")
         _fail(
-            await _git(["checkout", "-b", working_branch, f"origin/{working_branch}"], timeout),
+            await _git(["fetch", "origin", working_branch], timeout, with_token=True),
+            "git fetch working branch",
+        )
+        _fail(
+            await _git(
+                ["checkout", "-b", working_branch, f"origin/{working_branch}"],
+                timeout, with_token=False,
+            ),
             "git checkout existing branch",
         )
     else:
-        _fail(await _git(["checkout", "-b", working_branch], timeout), "git checkout -b")
+        _fail(
+            await _git(["checkout", "-b", working_branch], timeout, with_token=False),
+            "git checkout -b",
+        )
 
     request.app["repo_state"] = RepoState(
         repo=repo,
@@ -477,9 +355,9 @@ async def handle_diff(request: web.Request) -> web.Response:
     if not state.working_branch or not state.base_branch:
         return web.json_response({"error": "No active branch"}, status=409)
 
-    await _git(["fetch", "origin", state.base_branch, "--depth", "1"], CMD_TIMEOUT)
+    await _git(["fetch", "origin", state.base_branch, "--depth", "1"], CMD_TIMEOUT, with_token=True)
     ref_range = f"origin/{state.base_branch}...{state.working_branch}"
-    result = await _git(["diff", ref_range], CMD_TIMEOUT)
+    result = await _git(["diff", ref_range], CMD_TIMEOUT, with_token=False)
     if result.exit_code != 0:
         return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
     return web.json_response({"diff": result.stdout})

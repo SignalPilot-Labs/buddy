@@ -27,6 +27,7 @@ INTERNAL_SECRET_ENV_VAR: str = "AGENT_INTERNAL_SECRET"
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg.get("credential_patterns", [])
 SECRET_ENV_VARS: str = _security_cfg.get("secret_env_vars", "")
+SECRET_ENV_KEYS: frozenset[str] = frozenset(SECRET_ENV_VARS.split("|")) if SECRET_ENV_VARS else frozenset()
 
 # ── Session ──
 MAX_CONCURRENT_SESSIONS: int = _cfg.get("max_concurrent_sessions", 5)
