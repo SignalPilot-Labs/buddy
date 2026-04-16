@@ -192,7 +192,7 @@ function EmptyState({ reason }: { reason: EmptyReason }) {
   const messages: Record<EmptyReason, string> = {
     "no-run": "Select a run to see file changes",
     loading: "Loading changes\u2026",
-    unavailable: "Diff unavailable \u2014 agent offline or branch deleted",
+    unavailable: "Diff unavailable",
     "active-no-changes": "No file changes yet",
     "completed-no-changes": "No file changes in this run",
   };

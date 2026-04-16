@@ -33,7 +33,8 @@ import {
   SIDEBAR_COLLAPSED_WIDTH,
   RIGHT_PANEL_DEFAULT_WIDTH,
   RIGHT_PANEL_MIN_WIDTH,
-  RIGHT_PANEL_MAX_WIDTH,
+  RIGHT_PANEL_MAX_WIDTH_PX,
+  RIGHT_PANEL_MAX_WIDTH_RATIO,
 } from "@/lib/constants";
 
 function MonitorPageInner() {
@@ -95,6 +96,7 @@ function MonitorPageInner() {
     defaultWidth: SIDEBAR_DEFAULT_WIDTH,
     minWidth: SIDEBAR_MIN_WIDTH,
     maxWidth: SIDEBAR_MAX_WIDTH,
+    maxWidthRatio: null,
     direction: "left",
   });
 
@@ -102,7 +104,8 @@ function MonitorPageInner() {
     storageKey: "right_panel",
     defaultWidth: RIGHT_PANEL_DEFAULT_WIDTH,
     minWidth: RIGHT_PANEL_MIN_WIDTH,
-    maxWidth: RIGHT_PANEL_MAX_WIDTH,
+    maxWidth: RIGHT_PANEL_MAX_WIDTH_PX,
+    maxWidthRatio: RIGHT_PANEL_MAX_WIDTH_RATIO,
     direction: "right",
   });
 

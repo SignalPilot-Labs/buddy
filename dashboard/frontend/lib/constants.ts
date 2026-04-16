@@ -185,7 +185,9 @@ export const SIDEBAR_MIN_WIDTH = 180;
 export const SIDEBAR_MAX_WIDTH = 400;
 export const RIGHT_PANEL_DEFAULT_WIDTH = 280;
 export const RIGHT_PANEL_MIN_WIDTH = 200;
-export const RIGHT_PANEL_MAX_WIDTH = 600;
+// Ratio of viewport width the right panel may occupy, capped by _PX for huge monitors.
+export const RIGHT_PANEL_MAX_WIDTH_RATIO = 0.7;
+export const RIGHT_PANEL_MAX_WIDTH_PX = 1600;
 export const SIDEBAR_COLLAPSED_WIDTH = 48;
 export const PANEL_WIDTH_STORAGE_PREFIX = "autofyn_panel_";
 
