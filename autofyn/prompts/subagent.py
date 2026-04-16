@@ -163,7 +163,7 @@ def build_agent_defs(
     — only the orchestrator acts on time.
     """
     prior_round_number = max(round_number - 1, 0)
-    environment = render_environment(
+    env_block = render_environment(
         round_number=round_number,
         tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
         host_mounts=host_mounts,
@@ -188,7 +188,7 @@ def build_agent_defs(
             round_number,
             prior_round_number,
         )
-        prompt_parts = [agent_body, environment, git_rules, dispatch_rules]
+        prompt_parts = [agent_body, env_block, git_rules, dispatch_rules]
         if path in AGENTS_WITH_VERIFICATION:
             prompt_parts.append(verification_rules)
         if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:

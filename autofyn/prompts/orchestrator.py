@@ -18,12 +18,12 @@ def build_round_system_prompt(context: RoundContext) -> SystemPromptPreset:
     template = load_markdown("system")
     body = _apply_placeholders(template, context)
 
-    environment = render_environment(
+    env_block = render_environment(
         round_number=context.round_number,
         tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
         host_mounts=context.host_mounts,
     )
-    sections: list[str] = [body, environment, load_markdown("query/git-rules")]
+    sections: list[str] = [body, env_block, load_markdown("query/git-rules")]
 
     if context.duration_minutes > 0:
         sections.append(
