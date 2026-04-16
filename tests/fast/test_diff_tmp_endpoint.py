@@ -54,6 +54,18 @@ class TestCollectTmpFromSandbox:
         assert entries == [("tmp/round-1/report.md", "hi")]
 
     @pytest.mark.asyncio
+    async def test_rejects_traversal_and_non_numeric_suffixes(self) -> None:
+        client = MagicMock()
+        client.file_system.ls = AsyncMock(return_value=[
+            "round-..", "round-/etc", "round-abc", "round-", "round-1",
+        ])
+        client.file_system.read_dir = AsyncMock(return_value={"x.md": "ok"})
+        entries = await _collect_tmp_from_sandbox(client)
+        # Only the strictly-valid "round-1" is passed to read_dir.
+        client.file_system.read_dir.assert_awaited_once_with("/tmp/round-1")
+        assert entries == [("tmp/round-1/x.md", "ok")]
+
+    @pytest.mark.asyncio
     async def test_multiple_rounds_are_sorted(self) -> None:
         client = MagicMock()
         client.file_system.ls = AsyncMock(return_value=["round-2", "round-1"])

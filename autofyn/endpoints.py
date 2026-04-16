@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -25,6 +26,7 @@ from utils.constants import (
     HEADER_GITHUB_TOKEN,
     MAX_CONCURRENT_RUNS,
     ROUND_ARCHIVE_AGENT_DIR,
+    ROUND_DIR_NAME_RE,
     RUN_ID_LOG_PREFIX_LEN,
 )
 from utils.models import (
@@ -120,14 +122,22 @@ def _build_tmp_diff(entries: list[tuple[str, str]]) -> str:
     return "\n".join(parts)
 
 
+_ROUND_DIR_NAME = re.compile(ROUND_DIR_NAME_RE)
+
+
 async def _collect_tmp_from_sandbox(
     client: "SandboxClient",
 ) -> list[tuple[str, str]]:
-    """Read /tmp/round-* from the live sandbox."""
-    round_names = [n for n in await client.file_system.ls("/tmp") if n.startswith("round-")]
+    """Read /tmp/round-* from the live sandbox. Rounds are fetched in parallel."""
+    entries_raw = await client.file_system.ls("/tmp")
+    round_names = sorted(n for n in entries_raw if _ROUND_DIR_NAME.match(n))
+    if not round_names:
+        return []
+    results = await asyncio.gather(*(
+        client.file_system.read_dir(f"/tmp/{n}") for n in round_names
+    ))
     entries: list[tuple[str, str]] = []
-    for round_name in sorted(round_names):
-        files = await client.file_system.read_dir(f"/tmp/{round_name}")
+    for round_name, files in zip(round_names, results):
         if not files:
             continue
         for fname, content in sorted(files.items()):
