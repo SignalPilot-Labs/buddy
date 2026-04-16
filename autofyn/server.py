@@ -28,6 +28,7 @@ from utils import db
 from utils.constants import (
     ACTIVE_RUN_STATUSES,
     AccessNoiseFilter,
+    ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_ANTHROPIC_API,
