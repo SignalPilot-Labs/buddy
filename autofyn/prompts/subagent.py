@@ -8,8 +8,8 @@ The orchestrator calls these subagents by name via the SDK's Agent tool.
 SubagentDef itself is defined in `utils.models`.
 """
 
-from prompts.loader import load_markdown, render_time_status
-from utils.constants import MODEL_OPUS, MODEL_SONNET
+from prompts.loader import load_markdown, render_environment
+from utils.constants import MODEL_OPUS, MODEL_SONNET, TOOL_CALL_TIMEOUT_SEC
 from utils.models import SubagentDef
 
 # ── Tool sets (shared across subagents with matching capabilities) ──
@@ -151,22 +151,23 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
 
 def build_agent_defs(
     round_number: int,
-    duration_minutes: float,
-    time_remaining_minutes: float,
+    host_mounts: list[dict[str, str]] | None,
 ) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
     Placeholders (`{ROUND_NUMBER}`, `{PRIOR_ROUND_NUMBER}`) in subagent
-    markdown are substituted with the live values. Conditional queries
-    are appended depending on run state:
-
-    - `query/prior-round-context`: appended for rounds > 1 to agents in
-      `AGENTS_WITH_PRIOR_CONTEXT` so they can read the previous round.
-    - `query/time-status`: appended to ALL subagents whenever the run is
-      time-locked (`duration_minutes > 0`). Each agent decides whether
-      to act on it based on its own time-management rules.
+    markdown are substituted with the live values. `query/environment` is
+    prepended to every subagent. `query/prior-round-context` is appended
+    for rounds > 1 to agents in `AGENTS_WITH_PRIOR_CONTEXT` so they can
+    read the previous round. Subagents never receive `query/time-status`
+    — only the orchestrator acts on time.
     """
     prior_round_number = max(round_number - 1, 0)
+    env_block = render_environment(
+        round_number=round_number,
+        tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
+        host_mounts=host_mounts,
+    )
     git_rules = load_markdown("query/git-rules")
     dispatch_rules = load_markdown("query/dispatch-rules")
     verification_rules = load_markdown("query/verification-rules")
@@ -179,12 +180,6 @@ def build_agent_defs(
         if round_number > 1
         else None
     )
-    time_status = (
-        render_time_status(duration_minutes, time_remaining_minutes)
-        if duration_minutes > 0
-        else None
-    )
-
     result: dict[str, dict] = {}
     for defn in SUBAGENT_DEFS:
         path = f"{defn.phase}/{defn.name}"
@@ -193,13 +188,11 @@ def build_agent_defs(
             round_number,
             prior_round_number,
         )
-        prompt_parts = [agent_body, git_rules, dispatch_rules]
+        prompt_parts = [agent_body, env_block, git_rules, dispatch_rules]
         if path in AGENTS_WITH_VERIFICATION:
             prompt_parts.append(verification_rules)
         if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:
             prompt_parts.append(prior_context)
-        if time_status:
-            prompt_parts.append(time_status)
         result[defn.name] = {
             "description": defn.description,
             "prompt": "\n\n".join(prompt_parts),

@@ -201,6 +201,7 @@ class AgentServer:
                 sandbox,
                 bootstrap,
                 self._exec_timeout,
+                body.host_mounts,
             )
             log.info("Run %s: round loop returned %s", run_id, terminal_status)
 

@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -26,6 +27,7 @@ from utils.constants import (
     BLOCKED_START_ENV_KEYS,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
+    GITHUB_DIFF_CACHE_MAX,
     HEADER_GITHUB_TOKEN,
     MAX_CONCURRENT_RUNS,
     ROUND_ARCHIVE_AGENT_DIR,
@@ -376,7 +378,11 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     # ── Diff ───────────────────────────────────────────────────────────
 
-    _diff_cache: dict[str, str] = {}
+    # LRU cache for completed-run diffs (GitHub API path). Live sandbox
+    # diffs are not cached — they change every round and caching them
+    # serves stale data forever. Bounded by GITHUB_DIFF_CACHE_MAX so the
+    # cache can't grow unbounded over the agent's lifetime.
+    _github_diff_cache: OrderedDict[str, str] = OrderedDict()
 
     @app.get("/diff/repo")
     async def diff_repo(
@@ -387,24 +393,42 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
     ):
         """Full unified diff. Sandbox for active runs, GitHub API for completed."""
-        if run_id in _diff_cache:
-            return {"diff": _diff_cache[run_id]}
-
         client = server.pool().get_client(run_id)
         if client:
             try:
-                data = await client.repo.diff()
-                _diff_cache[run_id] = data["diff"]
-                return data
+                return await client.repo.diff()
             except Exception as exc:
                 log.warning("Sandbox diff failed for %s: %s", run_id, exc)
                 raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
+        if run_id in _github_diff_cache:
+            _github_diff_cache.move_to_end(run_id)
+            return {"diff": _github_diff_cache[run_id]}
         result = await fetch_github_diff(repo, branch, base, token)
         if "error" in result:
             raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
-        _diff_cache[run_id] = result["diff"]
+        _github_diff_cache[run_id] = result["diff"]
+        if len(_github_diff_cache) > GITHUB_DIFF_CACHE_MAX:
+            _github_diff_cache.popitem(last=False)
         return result
+
+    @app.get("/diff/repo/stats")
+    async def diff_repo_stats(run_id: str):
+        """Per-file diff stats without transferring the full diff body.
+
+        Intended for the dashboard Changes-panel header poll. Only handles
+        live runs — completed-run stats live in the dashboard DB (written
+        at teardown) and the dashboard short-circuits before calling this.
+        """
+        client = server.pool().get_client(run_id)
+        if not client:
+            raise HTTPException(status_code=409, detail="No active sandbox for run")
+        try:
+            files = await client.repo.diff_stats()
+        except Exception as exc:
+            log.warning("Sandbox diff_stats failed for %s: %s", run_id, exc)
+            raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
+        return {"files": files}
 
     @app.get("/diff/tmp")
     async def diff_tmp(run_id: str):

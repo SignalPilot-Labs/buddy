@@ -202,6 +202,16 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         "git checkout base",
     )
 
+    # Freeze the base SHA now. Every subsequent diff (teardown stats,
+    # live /repo/diff/stats) uses this SHA — independent of base moving on.
+    sha_result = await _git(["rev-parse", f"origin/{base_branch}"], timeout)
+    _fail(sha_result, f"git rev-parse origin/{base_branch}")
+    base_sha = sha_result.stdout.strip()
+    if not base_sha:
+        raise web.HTTPInternalServerError(
+            reason=f"git rev-parse origin/{base_branch} returned empty SHA",
+        )
+
     # Resume: if the working branch already exists on origin, check it out.
     # Fresh run: create a new branch from base.
     ls_result = await _git(
@@ -230,6 +240,7 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
         repo=repo,
         base_branch=base_branch,
         working_branch=working_branch,
+        base_sha=base_sha,
     )
     return web.json_response({
         "ok": True,
@@ -304,7 +315,7 @@ async def handle_teardown(request: web.Request) -> web.Response:
 
     ahead = await _commits_ahead(base, timeout)
     if ahead == 0:
-        diff = await _branch_diff(state.working_branch, base, timeout)
+        diff = await _branch_diff(state.working_branch, state.base_sha, timeout)
         return web.json_response({
             "auto_committed": auto_committed,
             "commits_ahead": 0,
@@ -317,7 +328,7 @@ async def handle_teardown(request: web.Request) -> web.Response:
 
     push_error = await _push(state.working_branch, timeout)
     if push_error is not None:
-        diff = await _branch_diff(state.working_branch, base, timeout)
+        diff = await _branch_diff(state.working_branch, state.base_sha, timeout)
         return web.json_response({
             "auto_committed": auto_committed,
             "commits_ahead": ahead,
@@ -331,7 +342,7 @@ async def handle_teardown(request: web.Request) -> web.Response:
     pr_url, pr_error = await _create_or_update_pr(
         state, pr_title, pr_description, base, timeout,
     )
-    diff = await _branch_diff(state.working_branch, base, timeout)
+    diff = await _branch_diff(state.working_branch, state.base_sha, timeout)
     return web.json_response({
         "auto_committed": auto_committed,
         "commits_ahead": ahead,
@@ -344,17 +355,35 @@ async def handle_teardown(request: web.Request) -> web.Response:
 
 
 async def handle_diff(request: web.Request) -> web.Response:
-    """Return the full unified diff of the working branch against base."""
+    """Return the full unified diff of the working branch against base.
+
+    Diff target is the base-point SHA captured at bootstrap — stable even
+    if `origin/<base>` has since advanced or been force-updated.
+    """
     state = _state(request)
     if not state.working_branch or not state.base_branch:
         return web.json_response({"error": "No active branch"}, status=409)
 
-    await _git(["fetch", "origin", state.base_branch, "--depth", "1"], CMD_TIMEOUT, with_token=True)
-    ref_range = f"origin/{state.base_branch}...{state.working_branch}"
-    result = await _git(["diff", ref_range], CMD_TIMEOUT, with_token=False)
+    result = await _git(
+        ["diff", state.base_sha, state.working_branch], CMD_TIMEOUT, with_token=False,
+    )
     if result.exit_code != 0:
         return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
     return web.json_response({"diff": result.stdout})
+
+
+async def handle_diff_stats(request: web.Request) -> web.Response:
+    """Return per-file diff stats without transferring the full diff body.
+
+    Used by the dashboard Changes panel on every poll (~every 15s). The
+    full-diff endpoint streams megabytes; this one returns a few hundred
+    bytes derived from `git diff --numstat` + `--name-status`.
+    """
+    state = _state(request)
+    if not state.working_branch or not state.base_branch:
+        return web.json_response({"error": "No active branch"}, status=409)
+    files = await _branch_diff(state.working_branch, state.base_sha, CMD_TIMEOUT)
+    return web.json_response({"files": files})
 
 
 # ── Registration ─────────────────────────────────────────────────────
@@ -366,3 +395,4 @@ def register(app: web.Application) -> None:
     app.router.add_post("/repo/save", handle_save)
     app.router.add_post("/repo/teardown", handle_teardown)
     app.router.add_post("/repo/diff", handle_diff)
+    app.router.add_post("/repo/diff/stats", handle_diff_stats)

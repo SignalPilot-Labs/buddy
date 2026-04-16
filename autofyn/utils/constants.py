@@ -82,6 +82,10 @@ SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8500
 MAX_CONCURRENT_RUNS = 5
 ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
+# Bound on the completed-run GitHub-diff LRU. Each entry holds a full
+# unified diff blob; capping prevents unbounded growth over the agent's
+# lifetime (many completed runs viewed in dashboard).
+GITHUB_DIFF_CACHE_MAX = 32
 
 # ── Sandbox ──
 # Defaults — overridden by config.yml sandbox section at runtime.

@@ -1,11 +1,3 @@
-## Pre-installed Tools
-
-These are already available — do NOT pip/npm install them:
-- Python: `pytest`, `pytest-asyncio`, `pyright`, `mypy`, `ruff`, `black`
-- Node: `typescript` (tsc), `eslint`, `prettier`
-
-If `CLAUDE.md` specifies different tools or configs (e.g. biome instead of eslint, mypy instead of pyright), follow those instead.
-
 ## Verification
 
 Before considering work done, run:

@@ -160,15 +160,21 @@ async def _commits_ahead(base: str, timeout: int) -> int:
 
 
 async def _branch_diff(
-    working_branch: str, base: str, timeout: int,
+    working_branch: str, base_sha: str, timeout: int,
 ) -> list[dict]:
-    """File-level diff stats between the working branch and base."""
-    await _git(["fetch", "origin", base, "--depth", "1"], timeout, with_token=True)
-    ref_range = f"origin/{base}...{working_branch}"
-    numstat = await _git(["diff", "--numstat", ref_range], timeout, with_token=False)
+    """File-level diff stats between the working branch and the base-point SHA.
+
+    `base_sha` is captured once at bootstrap from `origin/<base_branch>`
+    and stored on `RepoState`. Diffing against it (rather than the
+    current `origin/<base>` tip) means only changes the branch
+    introduced are surfaced, and no extra fetch is needed per call.
+    Two-arg form (`git diff A B`) avoids the merge-base requirement
+    that three-dot form has.
+    """
+    numstat = await _git(["diff", "--numstat", base_sha, working_branch], timeout, with_token=False)
     if numstat.exit_code != 0 or not numstat.stdout.strip():
         return []
-    name_status = await _git(["diff", "--name-status", ref_range], timeout, with_token=False)
+    name_status = await _git(["diff", "--name-status", base_sha, working_branch], timeout, with_token=False)
     if name_status.exit_code != 0:
         return []
     return _parse_numstat(numstat.stdout, _parse_name_status(name_status.stdout))
