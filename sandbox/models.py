@@ -10,11 +10,18 @@ class RepoState:
     One sandbox container serves exactly one run, which owns exactly one
     working branch. `working_branch` is set at bootstrap time and never
     changes for the lifetime of the sandbox.
+
+    `base_sha` is the commit SHA of `origin/<base_branch>` captured at
+    bootstrap time. Using this frozen SHA as the diff base (instead of
+    re-resolving `origin/<base>` later) means diffs show only what the
+    working branch actually introduced — unaffected by post-bootstrap
+    movement on the base branch.
     """
 
     repo: str
     base_branch: str
     working_branch: str
+    base_sha: str
 
 
 @dataclass

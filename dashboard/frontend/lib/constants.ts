@@ -27,6 +27,11 @@ export const NETWORK_INFO_POLL_MS = 30_000;
 export const SSE_POLL_INTERVAL_MS = 1_000;
 export const SSE_FALLBACK_TIMEOUT_MS = 3_000;
 export const DIFF_POLL_INTERVAL_MS = 15_000;
+// Hard cap on diff text size held in memory. Enormous diffs (stale cache
+// bugs, unrelated-history merges) lock up the main thread on every parse.
+// Above this we drop the diff and the Changes panel shows a 'too large'
+// message instead of freezing.
+export const DIFF_MAX_BYTES = 10 * 1024 * 1024;
 
 // Fetch limits
 export const HISTORY_FETCH_LIMIT = 5000;

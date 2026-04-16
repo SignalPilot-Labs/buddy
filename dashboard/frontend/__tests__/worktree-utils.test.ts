@@ -6,6 +6,7 @@ import {
   buildTreeFromChanges,
   mergeTrees,
   parseTmpDiffStats,
+  resolveSessionTree,
 } from "@/lib/worktree-utils";
 
 describe("norm", () => {
@@ -228,6 +229,99 @@ describe("mergeTrees", () => {
     const session = buildTreeFromChanges([], null);
     const merged = mergeTrees(git, session);
     expect(merged.children.has("src")).toBe(true);
+  });
+});
+
+describe("mergeTrees tmpTree vs liveTree status preservation", () => {
+  // Regression for the bug where Write tool-call events populated liveTree
+  // with status "modified" for tmp/round-N files and clobbered the "added"
+  // classification that tmpTree assigned via forcedStatus.
+  it("preserves 'added' status from tmpTree when liveTree has same path as 'modified'", () => {
+    const liveTree = buildTreeFromChanges([
+      { path: "tmp/round-1/architect.md", action: "write", linesAdded: 10, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Write" },
+    ], null);
+    const tmpTree = buildTreeFromChanges([
+      { path: "tmp/round-1/architect.md", action: "edit", linesAdded: 10, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+    const merged = mergeTrees(liveTree, tmpTree);
+    const leaf = merged.children.get("tmp")!.children.get("round-1")!.children.get("architect.md")!;
+    expect(leaf.status).toBe("added");
+  });
+
+  it("keeps liveTree entries that are not in tmpTree", () => {
+    const liveTree = buildTreeFromChanges([
+      { path: "src/code.ts", action: "edit", linesAdded: 3, linesRemoved: 1, timestamp: "t1", toolCallId: 1, toolName: "Edit" },
+    ], null);
+    const tmpTree = buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "edit", linesAdded: 5, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+    const merged = mergeTrees(liveTree, tmpTree);
+    expect(merged.children.has("src")).toBe(true);
+    expect(merged.children.has("tmp")).toBe(true);
+  });
+});
+
+describe("liveTree + tmpTree forced-status partitioning", () => {
+  // Mirrors the partition WorkTree.tsx does: tmp/round-N changes go into a
+  // tree forced to "added", everything else into a tree with default status.
+  // Pins that if /diff/tmp fetch is racing, the user still sees 'A' on tmp
+  // files because the liveTree half already classified them correctly.
+  it("forces 'added' on tmp/round-N live writes even without tmpTree", () => {
+    const changes = [
+      { path: "src/main.ts", action: "edit" as const, linesAdded: 1, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Edit" },
+      { path: "tmp/round-1/plan.md", action: "write" as const, linesAdded: 5, linesRemoved: 0, timestamp: "t2", toolCallId: 2, toolName: "Write" },
+    ];
+    const tmpLive = changes.filter(c => c.path.startsWith("tmp/round-"));
+    const repoLive = changes.filter(c => !c.path.startsWith("tmp/round-"));
+    const liveTree = mergeTrees(
+      buildTreeFromChanges(repoLive, null),
+      buildTreeFromChanges(tmpLive, "added"),
+    );
+    const srcLeaf = liveTree.children.get("src")!.children.get("main.ts")!;
+    const tmpLeaf = liveTree.children.get("tmp")!.children.get("round-1")!.children.get("plan.md")!;
+    expect(srcLeaf.status).toBe("modified");
+    expect(tmpLeaf.status).toBe("added");
+  });
+});
+
+describe("resolveSessionTree", () => {
+  const emptyRoot = () =>
+    buildTreeFromChanges([], null);
+
+  const singleLive = () =>
+    buildTreeFromChanges([
+      { path: "src/a.ts", action: "edit", linesAdded: 1, linesRemoved: 0, timestamp: "t", toolCallId: 1, toolName: "Edit" },
+    ], null);
+
+  const singleTmp = () =>
+    buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "edit", linesAdded: 2, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+  it("returns null when both sides empty", () => {
+    expect(resolveSessionTree(emptyRoot(), null)).toBeNull();
+  });
+
+  it("returns liveTree when tmpTree is null", () => {
+    const live = singleLive();
+    expect(resolveSessionTree(live, null)).toBe(live);
+  });
+
+  it("returns tmpTree when liveTree has no children", () => {
+    const tmp = singleTmp();
+    expect(resolveSessionTree(emptyRoot(), tmp)).toBe(tmp);
+  });
+
+  it("merges so tmpTree wins on path conflict", () => {
+    const live = buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "write", linesAdded: 2, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Write" },
+    ], null);
+    const tmp = singleTmp();
+    const merged = resolveSessionTree(live, tmp);
+    const leaf = merged!.children.get("tmp")!.children.get("round-1")!.children.get("plan.md")!;
+    expect(leaf.status).toBe("added");
   });
 });
 

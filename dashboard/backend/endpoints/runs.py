@@ -250,20 +250,26 @@ async def agent_logs(
 # Diff
 # ---------------------------------------------------------------------------
 
-def _build_stored_diff(diff_stats: list) -> dict:
-    """Build a diff response from stored diff_stats."""
+def _stats_response(files: list, source: str) -> dict:
+    """Shape a list of {path, added, removed, status} into the response."""
     return {
-        "files": diff_stats,
-        "total_files": len(diff_stats),
-        "total_added": sum(f.get("added", 0) for f in diff_stats),
-        "total_removed": sum(f.get("removed", 0) for f in diff_stats),
-        "source": "stored",
+        "files": files,
+        "total_files": len(files),
+        "total_added": sum(f.get("added", 0) for f in files),
+        "total_removed": sum(f.get("removed", 0) for f in files),
+        "source": source,
     }
 
 
 @router.get("/runs/{run_id}/diff")
 async def get_run_diff(run_id: str = RunId) -> dict:
-    """Get diff stats for a run from stored diff_stats."""
+    """Diff stats for a run.
+
+    Stored (post-teardown) `run.diff_stats` wins when present. For live
+    runs mid-execution, teardown hasn't fired yet — call the agent's
+    cheap `/diff/repo/stats` endpoint instead (counts only, no diff body
+    transfer) and return `source: "live"`.
+    """
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
@@ -271,9 +277,24 @@ async def get_run_diff(run_id: str = RunId) -> dict:
         diff_stats = run.diff_stats
 
     if diff_stats:
-        return _build_stored_diff(diff_stats)
+        return _stats_response(diff_stats, "stored")
 
-    return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
+    # Live-run path: pull stats-only from the agent. Agent errors raise
+    # HTTPException (distinct failure mode from "no diff yet"); 409 means
+    # the sandbox is gone and there's nothing to fetch.
+    try:
+        result: dict = await agent_request(
+            "GET", "/diff/repo/stats", AGENT_TIMEOUT_SHORT,
+            None,
+            {"run_id": run_id},
+            None,  # no fallback: agent errors must surface, not masquerade as empty
+            extra_headers=None,
+        )
+    except HTTPException as exc:
+        if exc.status_code == 409:
+            return _stats_response([], "unavailable")
+        raise
+    return _stats_response(list(result["files"]), "live")
 
 
 @router.get("/runs/{run_id}/diff/repo")
