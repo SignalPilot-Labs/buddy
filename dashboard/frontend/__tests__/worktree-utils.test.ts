@@ -231,6 +231,37 @@ describe("mergeTrees", () => {
   });
 });
 
+describe("mergeTrees tmpTree vs liveTree status preservation", () => {
+  // Regression for the bug where Write tool-call events populated liveTree
+  // with status "modified" for tmp/round-N files and clobbered the "added"
+  // classification that tmpTree assigned via forcedStatus.
+  it("preserves 'added' status from tmpTree when liveTree has same path as 'modified'", () => {
+    const liveTree = buildTreeFromChanges([
+      { path: "tmp/round-1/architect.md", action: "write", linesAdded: 10, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Write" },
+    ], null);
+    const tmpTree = buildTreeFromChanges([
+      { path: "tmp/round-1/architect.md", action: "edit", linesAdded: 10, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+    const merged = mergeTrees(liveTree, tmpTree);
+    const leaf = merged.children.get("tmp")!.children.get("round-1")!.children.get("architect.md")!;
+    expect(leaf.status).toBe("added");
+  });
+
+  it("keeps liveTree entries that are not in tmpTree", () => {
+    const liveTree = buildTreeFromChanges([
+      { path: "src/code.ts", action: "edit", linesAdded: 3, linesRemoved: 1, timestamp: "t1", toolCallId: 1, toolName: "Edit" },
+    ], null);
+    const tmpTree = buildTreeFromChanges([
+      { path: "tmp/round-1/plan.md", action: "edit", linesAdded: 5, linesRemoved: 0, timestamp: "t", toolCallId: 0, toolName: "Archive" },
+    ], "added");
+
+    const merged = mergeTrees(liveTree, tmpTree);
+    expect(merged.children.has("src")).toBe(true);
+    expect(merged.children.has("tmp")).toBe(true);
+  });
+});
+
 describe("buildTreeFromChanges forcedStatus", () => {
   it("applies 'added' status to every leaf when forced", () => {
     const root = buildTreeFromChanges([

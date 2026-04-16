@@ -478,8 +478,12 @@ async def handle_diff(request: web.Request) -> web.Response:
         return web.json_response({"error": "No active branch"}, status=409)
 
     await _git(["fetch", "origin", state.base_branch, "--depth", "1"], CMD_TIMEOUT)
-    ref_range = f"origin/{state.base_branch}...{state.working_branch}"
-    result = await _git(["diff", ref_range], CMD_TIMEOUT)
+    # Two-arg diff (no `...`) — `...` needs a merge base, and shallow
+    # fetches on a force-updated base (squash merges) can destroy it.
+    result = await _git(
+        ["diff", f"origin/{state.base_branch}", state.working_branch],
+        CMD_TIMEOUT,
+    )
     if result.exit_code != 0:
         return web.json_response({"error": "git diff failed", "detail": result.stderr[:500]}, status=500)
     return web.json_response({"diff": result.stdout})

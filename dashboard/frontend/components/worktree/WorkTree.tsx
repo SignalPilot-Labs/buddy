@@ -14,7 +14,7 @@ import {
   parseTmpDiffStats,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
-import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { DIFF_MAX_BYTES, DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
 import { FileDiffViewer } from "./FileDiffViewer";
 
 /* ── Icons ── */
@@ -187,13 +187,14 @@ function SourceBadge({ source }: { source: DisplaySource }) {
 }
 
 /* ── Empty State ── */
-type EmptyReason = "no-run" | "loading" | "unavailable" | "active-no-changes" | "completed-no-changes";
+type EmptyReason = "no-run" | "loading" | "unavailable" | "too-large" | "active-no-changes" | "completed-no-changes";
 
 function EmptyState({ reason }: { reason: EmptyReason }) {
   const messages: Record<EmptyReason, string> = {
     "no-run": "Select a run to see file changes",
     loading: "Loading changes\u2026",
     unavailable: "Diff unavailable",
+    "too-large": "Diff too large to display — open the PR on GitHub instead",
     "active-no-changes": "No file changes yet",
     "completed-no-changes": "No file changes in this run",
   };
@@ -216,12 +217,19 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
   const [fullDiff, setFullDiff] = useState<string | null>(null);
+  const [diffTooLarge, setDiffTooLarge] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
   // Fetch diff stats (file list) when run changes
   useEffect(() => {
-    if (!runId) { setDiffData(null); setFullDiff(null); return; }
+    if (!runId) {
+      setDiffData(null);
+      setFullDiff(null);
+      setDiffTooLarge(false);
+      return;
+    }
     setSelectedFile(null);
+    setDiffTooLarge(false);
     setDiffLoading(true);
     fetchRunDiff(runId)
       .then(d => { setDiffData(d); setDiffLoading(false); })
@@ -229,11 +237,18 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
-    // Fetch full diff text: repo (git) + tmp (round files), concatenated
+    // Fetch full diff text: repo (git) + tmp (round files), concatenated.
+    // Drop the diff and flag 'too large' if either side exceeds the cap —
+    // parsing/searching multi-MB strings on every render locks the UI.
     Promise.all([
       fetchDiffRepo(runId).then(d => d.diff).catch(() => ""),
       fetchDiffTmp(runId).then(d => d.diff).catch(() => ""),
     ]).then(([repo, tmp]) => {
+      if (repo.length > DIFF_MAX_BYTES || tmp.length > DIFF_MAX_BYTES) {
+        setDiffTooLarge(true);
+        setFullDiff(null);
+        return;
+      }
       const combined = [repo, tmp].filter(Boolean).join("\n");
       setFullDiff(combined || null);
     });
@@ -279,14 +294,18 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const hasTmpFiles = tmpTree !== null;
   const hasContent = hasGitDiff || hasLiveChanges || hasTmpFiles;
 
-  // Merged tree: git diff + session/tmp, session wins on conflict
+  // Merged tree: git diff + session (live events + tmp/round-N files).
+  // Session wins over git on conflict; within session, tmpTree wins over
+  // liveTree so round-N files keep their 'added' status — otherwise the
+  // Write tool-call events clobber them as 'modified'.
   const mergedTree = useMemo(() => {
-    let tree: TreeNode | null = diffTree;
-    const sessionTree = liveTree.children.size > 0 ? liveTree : tmpTree;
-    if (!tree && !sessionTree) return null;
-    if (!tree) return sessionTree;
-    if (!sessionTree) return tree;
-    return mergeTrees(tree, sessionTree);
+    const sessionTree = tmpTree && liveTree.children.size > 0
+      ? mergeTrees(liveTree, tmpTree)
+      : (tmpTree ?? (liveTree.children.size > 0 ? liveTree : null));
+    if (!diffTree && !sessionTree) return null;
+    if (!diffTree) return sessionTree;
+    if (!sessionTree) return diffTree;
+    return mergeTrees(diffTree, sessionTree);
   }, [diffTree, liveTree, tmpTree]);
 
   const mergedRoots = useMemo(() => {
@@ -322,6 +341,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const emptyReason: EmptyReason = (() => {
     if (!runId) return "no-run";
     if (diffLoading && !diffData) return "loading";
+    if (diffTooLarge && !hasLiveChanges && !hasTmpFiles) return "too-large";
     if (diffData?.source === "unavailable" && !hasLiveChanges && !hasTmpFiles) return "unavailable";
     const isTerminal = runStatus !== null && TERMINAL_STATUSES.has(runStatus);
     return isTerminal ? "completed-no-changes" : "active-no-changes";

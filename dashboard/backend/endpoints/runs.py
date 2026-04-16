@@ -28,6 +28,7 @@ from backend.models import (
     StartRunRequest,
     StopRunRequest,
 )
+from backend.diff_parser import build_stats_response, parse_diff_stats
 from backend.utils import (
     agent_request,
     model_to_dict,
@@ -250,30 +251,68 @@ async def agent_logs(
 # Diff
 # ---------------------------------------------------------------------------
 
-def _build_stored_diff(diff_stats: list) -> dict:
-    """Build a diff response from stored diff_stats."""
-    return {
-        "files": diff_stats,
-        "total_files": len(diff_stats),
-        "total_added": sum(f.get("added", 0) for f in diff_stats),
-        "total_removed": sum(f.get("removed", 0) for f in diff_stats),
-        "source": "stored",
-    }
-
-
 @router.get("/runs/{run_id}/diff")
 async def get_run_diff(run_id: str = RunId) -> dict:
-    """Get diff stats for a run from stored diff_stats."""
+    """Diff stats for a run.
+
+    Stored (post-teardown) `run.diff_stats` wins when present. For live
+    runs mid-execution, teardown hasn't fired yet — fall back to the
+    agent's `/diff/repo` endpoint and derive stats on-demand so the
+    Changes panel can show real counts during the run.
+    """
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
         diff_stats = run.diff_stats
+        branch_name = run.branch_name
+        base_branch = run.base_branch or DEFAULT_BASE_BRANCH
+        github_repo = run.github_repo
 
     if diff_stats:
-        return _build_stored_diff(diff_stats)
+        return build_stats_response(diff_stats, "stored")
 
-    return {"files": [], "total_files": 0, "total_added": 0, "total_removed": 0, "source": "unavailable"}
+    # Live-run path: derive stats from the current unified diff.
+    live = await _fetch_live_diff_stats(run_id, branch_name, base_branch, github_repo)
+    if live is not None:
+        return build_stats_response(live, "live")
+
+    return build_stats_response([], "unavailable")
+
+
+async def _fetch_live_diff_stats(
+    run_id: str,
+    branch_name: str,
+    base_branch: str,
+    github_repo: str | None,
+) -> list[dict] | None:
+    """Pull /diff/repo from the agent and parse it into per-file stats.
+
+    Returns None when we can't get a usable diff (no repo configured,
+    no token, agent proxy failed). The caller maps None to "unavailable".
+    """
+    if not github_repo:
+        return None
+    creds = await read_credentials(github_repo)
+    token = creds.get("git_token")
+    if not token:
+        return None
+    result = await agent_request(
+        "GET", "/diff/repo", AGENT_TIMEOUT_LONG,
+        None,
+        {
+            "run_id": run_id,
+            "branch": branch_name,
+            "base": base_branch,
+            "repo": github_repo,
+        },
+        {"diff": ""},  # fallback — treat agent errors as "no diff yet"
+        extra_headers={HEADER_GITHUB_TOKEN: token},
+    )
+    diff_text = result.get("diff", "") if isinstance(result, dict) else ""
+    if not diff_text:
+        return None
+    return parse_diff_stats(diff_text)
 
 
 @router.get("/runs/{run_id}/diff/repo")

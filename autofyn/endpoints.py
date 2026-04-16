@@ -329,7 +329,9 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     # ── Diff ───────────────────────────────────────────────────────────
 
-    _diff_cache: dict[str, str] = {}
+    # Cache only completed-run diffs (GitHub API path). Live sandbox diffs
+    # change every round, so caching them serves stale data forever.
+    _github_diff_cache: dict[str, str] = {}
 
     @app.get("/diff/repo")
     async def diff_repo(
@@ -340,23 +342,20 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
     ):
         """Full unified diff. Sandbox for active runs, GitHub API for completed."""
-        if run_id in _diff_cache:
-            return {"diff": _diff_cache[run_id]}
-
         client = server.pool().get_client(run_id)
         if client:
             try:
-                data = await client.repo.diff()
-                _diff_cache[run_id] = data["diff"]
-                return data
+                return await client.repo.diff()
             except Exception as exc:
                 log.warning("Sandbox diff failed for %s: %s", run_id, exc)
                 raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
+        if run_id in _github_diff_cache:
+            return {"diff": _github_diff_cache[run_id]}
         result = await fetch_github_diff(repo, branch, base, token)
         if "error" in result:
             raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
-        _diff_cache[run_id] = result["diff"]
+        _github_diff_cache[run_id] = result["diff"]
         return result
 
     @app.get("/diff/tmp")
