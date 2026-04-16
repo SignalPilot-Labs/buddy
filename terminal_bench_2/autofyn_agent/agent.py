@@ -7,12 +7,12 @@ from pathlib import Path
 from terminal_bench.agents.installed_agents.abstract_installed_agent import AbstractInstalledAgent
 from terminal_bench.terminal.models import TerminalCommand
 
-from terminal_bench.constants import DEFAULT_MAX_TURNS, DEFAULT_MODEL, TASK_CWD
+from terminal_bench.constants import DEFAULT_CLAUDE_BIN, DEFAULT_MAX_TURNS, DEFAULT_MODEL, TASK_CWD
 from terminal_bench.orchestrator import build_cli_command
 
 
 class AutoFynAgent(AbstractInstalledAgent):
-    """AutoFyn multi-subagent orchestrator running inside the task container."""
+    """AutoFyn single-session agent for Terminal-Bench task containers."""
 
     def __init__(self, model_name: str | None = None, **kwargs: object) -> None:
         super().__init__(**kwargs)
@@ -49,7 +49,7 @@ class AutoFynAgent(AbstractInstalledAgent):
         max_turns_str = os.environ.get("AUTOFYN_MAX_TURNS")
         max_turns = int(max_turns_str) if max_turns_str else DEFAULT_MAX_TURNS
 
-        claude_cmd = build_cli_command(instruction, model, max_turns, "claude")
+        claude_cmd = build_cli_command(instruction, model, max_turns, DEFAULT_CLAUDE_BIN)
         cmd = f'export PATH="$HOME/.local/bin:$PATH"; cd {shlex.quote(TASK_CWD)}; {claude_cmd} || true'
         return [
             TerminalCommand(
