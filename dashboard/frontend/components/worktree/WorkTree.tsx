@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
@@ -227,7 +227,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // can call it — before this, bodies were one-shot on mount so newly
   // written round reports were visible in the tree (via liveTree from
   // the event stream) but couldn't be opened until a manual refresh.
-  const fetchDiffBodies = (id: string) => {
+  const fetchDiffBodies = useCallback((id: string) => {
     Promise.all([
       fetchDiffRepo(id).then(d => d.diff).catch(() => ""),
       fetchDiffTmp(id).then(d => d.diff).catch(() => ""),
@@ -240,7 +240,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       setTmpDiff(tmpSafe);
       setDiffTooLarge((repoOversize || tmpOversize) && !repoSafe && !tmpSafe);
     });
-  };
+  }, []);
 
   // Fetch diff stats (file list) when run changes
   useEffect(() => {

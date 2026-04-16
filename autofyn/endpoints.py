@@ -13,7 +13,7 @@ import re
 import uuid
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Literal
 
 import httpx
 
@@ -344,7 +344,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         base: str,
         repo: str,
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
-        source: str = "sandbox",
+        source: Literal["sandbox", "github"] = "sandbox",
     ):
         """Full unified diff.
 
