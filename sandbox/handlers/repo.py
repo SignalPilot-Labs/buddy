@@ -359,6 +359,10 @@ async def handle_bootstrap(request: web.Request) -> web.Response:
     sha_result = await _git(["rev-parse", f"origin/{base_branch}"], timeout)
     _fail(sha_result, f"git rev-parse origin/{base_branch}")
     base_sha = sha_result.stdout.strip()
+    if not base_sha:
+        raise web.HTTPInternalServerError(
+            reason=f"git rev-parse origin/{base_branch} returned empty SHA",
+        )
 
     # Resume: if the working branch already exists on origin, check it out.
     # Fresh run: create a new branch from base.

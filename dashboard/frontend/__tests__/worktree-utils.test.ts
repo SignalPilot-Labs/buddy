@@ -263,6 +263,29 @@ describe("mergeTrees tmpTree vs liveTree status preservation", () => {
   });
 });
 
+describe("liveTree + tmpTree forced-status partitioning", () => {
+  // Mirrors the partition WorkTree.tsx does: tmp/round-N changes go into a
+  // tree forced to "added", everything else into a tree with default status.
+  // Pins that if /diff/tmp fetch is racing, the user still sees 'A' on tmp
+  // files because the liveTree half already classified them correctly.
+  it("forces 'added' on tmp/round-N live writes even without tmpTree", () => {
+    const changes = [
+      { path: "src/main.ts", action: "edit" as const, linesAdded: 1, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Edit" },
+      { path: "tmp/round-1/plan.md", action: "write" as const, linesAdded: 5, linesRemoved: 0, timestamp: "t2", toolCallId: 2, toolName: "Write" },
+    ];
+    const tmpLive = changes.filter(c => c.path.startsWith("tmp/round-"));
+    const repoLive = changes.filter(c => !c.path.startsWith("tmp/round-"));
+    const liveTree = mergeTrees(
+      buildTreeFromChanges(repoLive, null),
+      buildTreeFromChanges(tmpLive, "added"),
+    );
+    const srcLeaf = liveTree.children.get("src")!.children.get("main.ts")!;
+    const tmpLeaf = liveTree.children.get("tmp")!.children.get("round-1")!.children.get("plan.md")!;
+    expect(srcLeaf.status).toBe("modified");
+    expect(tmpLeaf.status).toBe("added");
+  });
+});
+
 describe("resolveSessionTree", () => {
   const emptyRoot = () =>
     buildTreeFromChanges([], null);

@@ -217,7 +217,12 @@ export interface WorkTreeProps {
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
-  const [fullDiff, setFullDiff] = useState<string | null>(null);
+  // Repo and tmp diffs are separate sources — one is git working-branch-vs-base,
+  // the other is sandbox filesystem reads of `/tmp/round-*`. Keeping them as
+  // distinct state avoids a combined blob that's awkward to size-cap, parse,
+  // and route file-click lookups through.
+  const [repoDiff, setRepoDiff] = useState<string | null>(null);
+  const [tmpDiff, setTmpDiff] = useState<string | null>(null);
   const [diffTooLarge, setDiffTooLarge] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
@@ -225,7 +230,8 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   useEffect(() => {
     if (!runId) {
       setDiffData(null);
-      setFullDiff(null);
+      setRepoDiff(null);
+      setTmpDiff(null);
       setDiffTooLarge(false);
       return;
     }
@@ -238,20 +244,21 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         console.warn("WorkTree: diff stats fetch failed:", err);
         setDiffLoading(false);
       });
-    // Fetch full diff text: repo (git) + tmp (round files), concatenated.
-    // Drop the diff and flag 'too large' if either side exceeds the cap —
-    // parsing/searching multi-MB strings on every render locks the UI.
+    // Cap each side independently — a huge repo diff still lets tmp files
+    // render, and a huge tmp diff still lets git files render. Flag 'too
+    // large' only when *both* sides came back empty because of size (not
+    // because a run has no diff yet).
     Promise.all([
       fetchDiffRepo(runId).then(d => d.diff).catch(() => ""),
       fetchDiffTmp(runId).then(d => d.diff).catch(() => ""),
     ]).then(([repo, tmp]) => {
-      if (repo.length > DIFF_MAX_BYTES || tmp.length > DIFF_MAX_BYTES) {
-        setDiffTooLarge(true);
-        setFullDiff(null);
-        return;
-      }
-      const combined = [repo, tmp].filter(Boolean).join("\n");
-      setFullDiff(combined || null);
+      const repoOversize = repo.length > DIFF_MAX_BYTES;
+      const tmpOversize = tmp.length > DIFF_MAX_BYTES;
+      const repoSafe = repoOversize ? null : (repo || null);
+      const tmpSafe = tmpOversize ? null : (tmp || null);
+      setRepoDiff(repoSafe);
+      setTmpDiff(tmpSafe);
+      setDiffTooLarge((repoOversize || tmpOversize) && !repoSafe && !tmpSafe);
     });
   }, [runId]);
 
@@ -265,20 +272,30 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     return () => clearInterval(id);
   }, [runId, isPollingSource]);
 
-  // Live changes from event stream
+  // Live changes from event stream. Split tmp/round-N writes off from the
+  // rest: those are always new files (correctly 'added'), while other
+  // writes are mid-run edits in the working tree (correctly 'modified').
+  // This lets the status badges be right during the race window where
+  // /diff/tmp hasn't returned yet but the Write event is already in feed.
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
-  const liveTree = useMemo(() => buildTreeFromChanges(liveChanges, null), [liveChanges]);
   const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
+  const liveTree = useMemo(() => {
+    const tmpLive = liveChanges.filter(c => c.path.startsWith("tmp/round-"));
+    const repoLive = liveChanges.filter(c => !c.path.startsWith("tmp/round-"));
+    return mergeTrees(
+      buildTreeFromChanges(repoLive, null),
+      buildTreeFromChanges(tmpLive, "added"),
+    );
+  }, [liveChanges]);
 
   // Git diff tree (from stats endpoint)
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
-  // Tmp files tree (from full diff text — files under round-N/).
-  // These are always new files, so we mark them "added" and count the actual
-  // number of "+" lines in each section instead of zeroing them out.
+  // Tmp tree: parsed from the dedicated /diff/tmp source. Authoritative
+  // for line counts (liveTree only knows what Write events reported).
   const tmpTree = useMemo(() => {
-    if (!fullDiff) return null;
-    const tmpChanges = parseTmpDiffStats(fullDiff);
+    if (!tmpDiff) return null;
+    const tmpChanges = parseTmpDiffStats(tmpDiff);
     if (tmpChanges.length === 0) return null;
     return buildTreeFromChanges(
       tmpChanges.map(c => ({
@@ -288,7 +305,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       })),
       "added",
     );
-  }, [fullDiff]);
+  }, [tmpDiff]);
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
   const hasLiveChanges = writeChanges.length > 0;
@@ -345,7 +362,13 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     return isTerminal ? "completed-no-changes" : "active-no-changes";
   })();
 
-  const onFileClick = fullDiff !== null
+  // Each clicked path is backed by one of two diff sources: tmp/round-N
+  // files come from the tmp diff, everything else from the repo diff.
+  // Pick the right source here so FileDiffViewer is simple.
+  const diffForPath = (path: string): string | null =>
+    path.startsWith("tmp/round-") ? tmpDiff : repoDiff;
+
+  const onFileClick = (repoDiff !== null || tmpDiff !== null)
     ? (path: string, status: string) => setSelectedFile({ path, status })
     : null;
 
@@ -376,9 +399,9 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
       {/* Content */}
       <div className={clsx("flex-1 overflow-y-auto", selectedFile === null && "py-1")}>
-        {selectedFile !== null && fullDiff !== null ? (
+        {selectedFile !== null && diffForPath(selectedFile.path) !== null ? (
           <FileDiffViewer
-            fullDiff={fullDiff}
+            fullDiff={diffForPath(selectedFile.path)!}
             filePath={selectedFile.path}
             fileStatus={selectedFile.status}
             onBack={() => setSelectedFile(null)}
