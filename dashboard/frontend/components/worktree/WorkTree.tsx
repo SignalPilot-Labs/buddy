@@ -11,6 +11,7 @@ import {
   buildTreeFromDiff,
   buildTreeFromChanges,
   mergeTrees,
+  parseTmpDiffStats,
 } from "@/lib/worktree-utils";
 import type { TreeNode } from "@/lib/worktree-utils";
 import { DIFF_POLL_INTERVAL_MS, TERMINAL_STATUSES } from "@/lib/constants";
@@ -250,35 +251,27 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
 
   // Live changes from event stream
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
-  const liveTree = useMemo(() => buildTreeFromChanges(liveChanges), [liveChanges]);
+  const liveTree = useMemo(() => buildTreeFromChanges(liveChanges, null), [liveChanges]);
   const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
 
   // Git diff tree (from stats endpoint)
   const diffTree = useMemo(() => diffData?.files ? buildTreeFromDiff(diffData.files) : null, [diffData]);
 
-  // Tmp files tree (from full diff text — files under round-N/)
+  // Tmp files tree (from full diff text — files under round-N/).
+  // These are always new files, so we mark them "added" and count the actual
+  // number of "+" lines in each section instead of zeroing them out.
   const tmpTree = useMemo(() => {
     if (!fullDiff) return null;
-    // Extract tmp file paths from the combined diff
-    const tmpPaths: string[] = [];
-    const sections = fullDiff.split("\ndiff --git ");
-    for (let i = 0; i < sections.length; i++) {
-      let s = sections[i];
-      if (i === 0 && s.startsWith("diff --git ")) s = s.slice("diff --git ".length);
-      else if (i === 0) continue;
-      const nl = s.indexOf("\n");
-      if (nl === -1) continue;
-      const header = s.slice(0, nl);
-      const bIdx = header.lastIndexOf(" b/");
-      if (bIdx === -1) continue;
-      const path = header.slice(bIdx + 3);
-      if (path.startsWith("tmp/round-")) tmpPaths.push(path);
-    }
-    if (tmpPaths.length === 0) return null;
-    return buildTreeFromChanges(tmpPaths.map(p => ({
-      path: p, action: "edit" as const, linesAdded: 0, linesRemoved: 0,
-      timestamp: "", toolCallId: 0, toolName: "Archive",
-    })));
+    const tmpChanges = parseTmpDiffStats(fullDiff);
+    if (tmpChanges.length === 0) return null;
+    return buildTreeFromChanges(
+      tmpChanges.map(c => ({
+        path: c.path, action: "edit" as const,
+        linesAdded: c.linesAdded, linesRemoved: 0,
+        timestamp: "", toolCallId: 0, toolName: "Archive",
+      })),
+      "added",
+    );
   }, [fullDiff]);
 
   const hasGitDiff = diffData !== null && diffData.files.length > 0;
