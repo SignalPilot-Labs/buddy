@@ -63,6 +63,9 @@ export function usePanelResize({
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
   const currentWidthRef = useRef(width);
+  // Cached once on mousedown — viewport can't change mid-drag, so we avoid
+  // re-reading window.innerWidth on every mousemove event.
+  const dragMaxRef = useRef(0);
 
   // Keep ref in sync with state (for mouseUp to persist correct value).
   useEffect(() => {
@@ -79,8 +82,7 @@ export function usePanelResize({
       direction === "left"
         ? startWidthRef.current + delta
         : startWidthRef.current - delta;
-    const max = effectiveMax(maxWidth, maxWidthRatio);
-    const clamped = Math.min(max, Math.max(minWidth, raw));
+    const clamped = Math.min(dragMaxRef.current, Math.max(minWidth, raw));
     currentWidthRef.current = clamped;
     if (panelRef.current) {
       panelRef.current.style.width = `${clamped}px`;
@@ -116,6 +118,7 @@ export function usePanelResize({
     e.preventDefault();
     startXRef.current = e.clientX;
     startWidthRef.current = currentWidthRef.current;
+    dragMaxRef.current = effectiveMax(maxWidth, maxWidthRatio);
     if (panelRef.current) {
       panelRef.current.style.transition = "none";
     }

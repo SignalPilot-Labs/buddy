@@ -102,7 +102,7 @@ function DiffLineRow({
 
   if (line.type === "hunk-header") {
     return (
-      <div className={clsx("font-mono text-content text-[#88ccff]/60 px-2 py-0.5 leading-relaxed")}>
+      <div className={clsx("font-mono text-content text-[#88ccff]/60 px-2 py-0.5 leading-relaxed whitespace-pre")}>
         {line.content}
       </div>
     );
@@ -110,7 +110,7 @@ function DiffLineRow({
 
   if (line.type === "meta") {
     return (
-      <div className="font-mono text-content text-text-dim px-2 py-0.5 leading-relaxed">
+      <div className="font-mono text-content text-text-dim px-2 py-0.5 leading-relaxed whitespace-pre">
         {line.content}
       </div>
     );
