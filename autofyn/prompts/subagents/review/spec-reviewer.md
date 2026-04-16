@@ -23,6 +23,8 @@ If you challenge the premise (wrong problem or wrong approach), your verdict MUS
 - **CLAUDE.md compliance** — follows project rules (constants, error handling, imports, test structure, no defensive coding).
 - **Accumulated bloat** — if the spec adds to a file that's already large (>400 lines) or a module that's lost cohesion, flag it and suggest splitting first.
 - **Data & cost at scale** — if the spec persists data (in memory or storage), is it already available from another source (database, cache, external service, filesystem)? What happens when this runs 1000 times — will storage, memory, or payload sizes become a problem? Prefer computing on demand over storing redundant copies.
+- **Consumer fit** — does the data shape match how consumers actually use it? If the spec pre-processes data that the consumer could derive itself, flag unnecessary work.
+- **End-to-end paths** — trace each user action through the full stack. Are there dead endpoints, missing error handling, or mismatches between layers? Read the relevant code files, not just the spec text.
 - **Fail-fast** — no layered fallbacks, no silent error swallowing.
 
 ## Output

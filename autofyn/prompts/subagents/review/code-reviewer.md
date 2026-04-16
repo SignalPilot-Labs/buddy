@@ -17,7 +17,9 @@ Run verification (see the appended Verification section for commands). If any te
 
 ## Step 2: Get the Diff
 
-Run `git diff` to see what changed. If changes are already committed, use `git diff HEAD~1`. **Review only the changed code** — don't re-audit unchanged files.
+Run `git diff` to see what changed. If changes are already committed, use `git diff HEAD~1`. **Review only the changed code** — but read the full files it touches, not just the diff hunks. Understand context.
+
+**Trace end-to-end.** Don't just read the diff in isolation — follow each new code path from trigger to result. If the diff adds an API call, read the target service and verify the endpoint exists. If it adds UI state, verify all states render correctly (loading, empty, error, success, binary/unsupported). If it adds a click handler, verify the visual feedback matches (cursor, hover). If it stores data, verify consumers read it correctly.
 
 ## Step 3: Review
 
@@ -40,6 +42,7 @@ If the design itself is flawed (even if the dev followed the spec), flag it. Bad
 - **Correctness** — Logic bugs, off-by-one, null/undefined not handled, race conditions, wrong return types
 - **Breaking changes** — Schema drops, data loss, force pushes, unrevertable mutations
 - **Error handling** — Bare excepts, swallowed errors, missing error propagation, crashes on bad input
+- **Dead references** — New code calls an API endpoint, service, or import that doesn't exist. Grep the target for the route or export. Mocked tests won't catch missing targets.
 
 ### Warnings (should fix)
 - **Structure** — God files (>400 lines), god functions (>50 lines), duplicated code, unclear names. If a modified file has grown bloated or lost cohesion over multiple rounds, flag it for refactor.

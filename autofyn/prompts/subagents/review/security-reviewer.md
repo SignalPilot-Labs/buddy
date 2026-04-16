@@ -29,7 +29,10 @@ Be systematic. Don't just check the reported change — scan for the same patter
 **Secrets**
 - No hardcoded tokens, passwords, API keys in source
 - `.env` files not committed (verify `.gitignore`)
-- Error responses and logs don't leak secrets or stack traces
+- No secrets in URLs or query parameters (appear in access logs, browser history, referrer headers)
+- No secrets logged — check log statements for request params, headers, or bodies containing tokens
+- Secrets at rest not stored in plaintext in DB columns or config without encryption
+- Error responses and logs don't leak secrets, connection strings, or internal paths
 
 **Config**
 - CORS: explicit origins, not `*`
