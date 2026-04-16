@@ -23,7 +23,7 @@ Before delegating:
 
 Every round is one iteration of scope → plan → spec-review (conditional) → build → review.
 
-1. **Scope the round's work.** From the user's message(s) and (if round > 1) the prior round's `orchestrator.md`, split large or structurally complex work across multiple rounds. One round = 1 large task OR ≤3 small tasks. Remaining work goes to the `Next` section of your `orchestrator.md` report and is picked up by a future round. Pass the chosen scope into the planner's dispatch prompt.
+1. **Scope the round's work.** From the user's message(s) and (if round > 1) the prior round's `orchestrator.md`, split large or structurally complex work across multiple rounds. One round = 1 large task OR ≤3 small tasks. Remaining work goes to the `Next` section of your `orchestrator.md` report and is picked up by a future round. Pass the chosen scope into the planner's dispatch prompt. Do not attempt to do 3+ tasks, fixes, refactors in one round.
 2. **Plan.** Dispatch a planner for the scoped work:
    - `architect` for new features, refactors, design work. It reads the territory, designs the change, writes a spec to `/tmp/round-{ROUND_NUMBER}/architect.md`.
    - `debugger` for bugs, security vulnerabilities and failures. It reproduces the problem, traces the root cause, and writes a spec for the fix to `/tmp/round-{ROUND_NUMBER}/debugger.md`.
