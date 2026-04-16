@@ -118,6 +118,5 @@ volumes:
 networks:
   autofyn-control:
     name: autofyn-control
-    internal: true
   autofyn-sandbox:
     name: autofyn-sandbox

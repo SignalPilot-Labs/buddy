@@ -1,11 +1,16 @@
 """F2: docker-compose.yml network topology matches the spec.
 
 Static analysis of docker-compose.yml to verify:
-- autofyn-control (internal) has dashboard + agent + db but NOT sandbox
+- autofyn-control has dashboard + agent + db but NOT sandbox
 - autofyn-sandbox has agent + sandbox but NOT dashboard
-- agent is on BOTH networks
+- agent is on BOTH networks (the only bridge)
 - db is on autofyn-control ONLY
 - Explicit name: overrides are present
+
+Sandbox isolation from the control plane comes from *network membership*
+(sandbox containers are not attached to autofyn-control), not from
+marking the network internal — `internal: true` breaks host port
+publishing, which we need for LAN-reachable dashboard ports.
 """
 
 from pathlib import Path
@@ -48,10 +53,6 @@ class TestComposeNetworks:
     def test_autofyn_sandbox_has_name_override(self) -> None:
         sand = self._networks["autofyn-sandbox"]
         assert sand.get("name") == "autofyn-sandbox"
-
-    def test_autofyn_control_is_internal(self) -> None:
-        ctrl = self._networks["autofyn-control"]
-        assert ctrl.get("internal") is True
 
     def test_agent_on_both_networks(self) -> None:
         nets = self._service_networks("agent")
