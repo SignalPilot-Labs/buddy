@@ -12,6 +12,7 @@ __pycache__/
 benchmark/datasets/
 benchmark/results/
 benchmark/skills/improvements_*.json
+terminal_bench_2/jobs/
 
 # Build artifacts
 autofyn/monitor-web/.next/

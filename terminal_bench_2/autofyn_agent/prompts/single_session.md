@@ -44,26 +44,44 @@ Commit your work: `cd /app && git add -A && git commit -m "[Final] solution"`
 
 ## Task-Specific Guidance
 
+### Security Vulnerability Tasks
+
+STOP. Do not explore the codebase. Follow these exact steps in order.
+
+1. **Write the report file FIRST.** The task instruction tells you the output file path and the CWE. Write the report immediately — before reading any code. Format: `{"file_path": "/app/example.py", "cwe_id": ["cwe-93"]}`.
+2. **Use `grep -n`** to find the function(s) related to the vulnerability type (e.g., for CRLF injection, grep for header-setting functions). Read ONLY the 20 lines around each match. NEVER `cat` or read the full source file.
+3. **Apply the fix.** For CWE-93 (CRLF injection): after any string normalization or encoding call in header functions, add validation that raises `ValueError` if the value contains `\r`, `\n`, or `\0`.
+4. **Run `pytest -rA`.** Fix failures. Commit.
+
+**HARD BUDGET: 8 tool calls before running pytest.** Write report → grep functions → read 20-line snippets → apply fix. If you exceed 8 calls before running pytest, you are doing it wrong. Do NOT read the full source file — it will waste your entire time budget on a 4000+ line file.
+
 ### Spectroscopy / Curve-Fitting Tasks
+
 - **Data format**: Scientific data files often use European format — commas as decimal separators and tabs as column delimiters. Always check with `head -3 <datafile>`. If you see commas where decimal points should be, replace them: `str.replace(",", ".")`. Split on tabs if tab-delimited.
-- **Unit conversion**: Raman data may use wavelength instead of wavenumber. If x-axis values are NOT in the typical Raman range (100-4000 cm⁻¹), convert: `wavenumber_cm1 = 1e7 / wavelength_nm`. For graphene, expect G peak ~1580 cm⁻¹ and 2D peak ~2670 cm⁻¹ after conversion.
-- **Lorentzian fitting**: Use `scipy.optimize.curve_fit`. The standard Lorentzian form is: `L(x) = A * gamma**2 / ((x - x0)**2 + gamma**2) + offset`. Always provide initial guesses based on visible peak positions in the data.
-- **Subset your data** around each peak region before fitting. Do not fit the entire spectrum at once.
+- **Unit conversion**: Raman data may use wavelength instead of wavenumber. If x-axis values are NOT in the typical Raman range (100-4000 cm⁻¹), convert: `wavenumber_cm1 = 1e7 / wavelength_nm`. After converting, **print min/max values to verify they are in the expected Raman range (100-4000 cm⁻¹). If not, your conversion formula is wrong.**
+- **Lorentzian fitting**: Use `scipy.optimize.curve_fit`. The standard Lorentzian form is: `L(x) = A * gamma**2 / ((x - x0)**2 + gamma**2) + offset`. BEFORE calling `curve_fit`, you MUST crop the data to a window around the peak. For graphene Raman, use EXACTLY these ranges — do NOT use narrower ranges (the baseline needs room to determine the offset): G peak [1500, 1700] cm⁻¹, 2D peak [2500, 2900] cm⁻¹. Pass initial guesses: for G use `p0=[1580, 10, peak_height, min_y]`, for 2D use `p0=[2670, 10, peak_height, min_y]` where `peak_height = max(y_cropped) - min(y_cropped)` and `min_y = min(y_cropped)`. Fitting the full spectrum or using a narrower crop window will cause `curve_fit` to converge on wrong parameters.
 - Install scipy and numpy first: `pip install scipy numpy`.
 
-### Security Vulnerability Tasks
-- **Write the report file FIRST.** The report (e.g., `/app/report.jsonl`) is always required for scoring. Write it before modifying any code.
-- **Do NOT read entire large source files.** Use `grep -n` to find the specific functions mentioned in the task or related to the vulnerability type. Read only the relevant function bodies (10-20 lines).
-- **For CRLF injection (CWE-93)**: Find header-handling functions. After any string normalization/conversion call, add validation that rejects `\r`, `\n`, `\0` by raising `ValueError`.
-- **report.jsonl format**: `{"file_path": "/app/example.py", "cwe_id": ["cwe-93"]}`
-- **Run `pytest -rA` to verify** both the original repo tests and your fix.
-- **Budget: 10 tool calls total.** Write report → grep functions → read function bodies → apply fix → run tests → commit. Do not explore the rest of the codebase.
-
 ### Code-Golf / Compact Implementation Tasks
+
 - These tasks are extremely difficult under time constraints. Write the solution in one pass, compile and test immediately.
 - Focus on getting a correct, compiling solution first. Minimize only if you have time remaining.
 - Check file size constraints immediately after writing: `wc -c /app/solution.c`.
 - Limit to 2 compile-fix cycles. If it does not work after that, simplify your approach.
+
+#### If the task involves implementing a neural network (e.g., GPT-2, transformer) in C:
+
+**Checkpoint layout**: TF checkpoints for GPT-2-124M store weights as contiguous float32 arrays. The filename encodes the config: 124M means 12 layers, 768 embedding dim, 12 attention heads. Weight order in file: token embeddings (vocab_size × dim), position embeddings (max_seq × dim), then for each layer: LayerNorm1 (scale, bias), attention Q/K/V/O weights and biases, LayerNorm2, MLP fc_in (dim × 4\*dim), MLP fc_out (4\*dim × dim), and their biases. Final LayerNorm at the end.
+
+**BPE vocab**: The `.bpe` file has byte-pair merge rules, one per line. Each line is two tokens separated by space. Build a greedy BPE encoder: repeatedly find the highest-priority pair in the input and merge.
+
+**Inference pipeline**: embedding lookup (token + position) → for each layer: layer_norm → self_attention (Q\*K^T/sqrt(d), causal mask, softmax, \*V, output projection) → residual add → layer_norm → MLP (GELU activation: `x*0.5*(1+tanh(sqrt(2/pi)*(x+0.044715*x^3)))`) → residual add → final layer_norm → multiply by token embedding transposed to get logits → argmax.
+
+**Code-golf techniques**: Use single-letter variable names. Define macros for repeated patterns (loop over layers, matrix multiply). Use `mmap` to load the checkpoint file (avoids malloc/read code). Reuse buffers. Combine layer norm scale+bias into one pass.
+
+**Target size**: ~200-250 lines of dense C, ~4000-4800 bytes. No comments, no whitespace, short names.
+
+**Common pitfalls**: Forgetting position embeddings. Wrong attention head splitting (each head is dim/n_heads wide). Not applying the causal mask (future token positions must be -inf before softmax). Wrong GELU approximation.
 
 ## Rules
 
@@ -73,3 +91,4 @@ Commit your work: `cd /app && git add -A && git commit -m "[Final] solution"`
 - Prioritize: working solution > clean code > comprehensive testing.
 - Do not create spec files, planning documents, or design docs.
 - Never create multiple files when one file suffices.
+- **If the task instruction specifies exactly what CWE or vulnerability to fix, treat the task as fully specified — skip Phase 1 exploration entirely and go straight to Phase 2.**
