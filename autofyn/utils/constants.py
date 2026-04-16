@@ -120,3 +120,10 @@ SANDBOX_POOL_HEALTH_POLL_SEC = 2
 SANDBOX_POOL_ENV_PASSTHROUGH = [
     "SANDBOX_INTERNAL_SECRET",
 ]
+
+# URL pool sandboxes use to reach the agent container on the compose network.
+# Static sandbox gets its URL from docker-compose.yml AF_AGENT_URL env var.
+SANDBOX_POOL_AGENT_URL = "http://autofyn-agent:8500"
+
+# Env var name for the agent URL passed into sandbox containers.
+ENV_KEY_AGENT_URL = "AF_AGENT_URL"

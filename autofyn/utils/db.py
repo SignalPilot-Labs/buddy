@@ -295,6 +295,42 @@ async def log_audit(run_id: str, event_type: str, details: dict | None) -> None:
 
 
 @swallow_errors
+async def log_tool_call(
+    run_id: str,
+    phase: str,
+    tool_name: str,
+    input_data: dict | None,
+    output_data: dict | None,
+    duration_ms: int | None,
+    permitted: bool,
+    deny_reason: str | None,
+    agent_role: str,
+    tool_use_id: str | None,
+    session_id: str | None,
+    agent_id: str | None,
+) -> None:
+    """Log a tool call event on behalf of the sandbox."""
+    async with get_session_factory()() as s:
+        s.add(
+            ToolCall(
+                run_id=run_id,
+                phase=phase,
+                tool_name=tool_name,
+                input_data=input_data,
+                output_data=output_data,
+                duration_ms=duration_ms,
+                permitted=permitted,
+                deny_reason=deny_reason,
+                agent_role=agent_role,
+                tool_use_id=tool_use_id,
+                session_id=session_id,
+                agent_id=agent_id,
+            )
+        )
+        await s.commit()
+
+
+@swallow_errors
 async def update_run_status(run_id: str, status: str) -> None:
     """Update the run status (e.g. to 'paused')."""
     async with get_session_factory()() as s:

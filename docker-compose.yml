@@ -82,6 +82,7 @@ services:
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET:-autofyn-dev-sandbox-secret}
+      AF_AGENT_URL: http://agent:8500
     depends_on:
       dashboard:
         condition: service_started

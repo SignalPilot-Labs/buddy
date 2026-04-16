@@ -15,8 +15,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from constants import SESSION_EVENT_QUEUE_SIZE
-from db.constants import resolve_sdk_model
+from constants import SESSION_EVENT_QUEUE_SIZE, resolve_sdk_model
 from session.gate import SessionGate
 from session.hooks import SessionHooks
 from session.security import SecurityGate

@@ -1,12 +1,18 @@
-"""Session utility functions — DB logging, serialization, agent parsing.
+"""Session utility functions — HTTP audit logging, serialization, agent parsing.
 
-Shared by SessionManager and Session. All DB writes go directly to
-PostgreSQL — no round-trip to the agent container.
+Audit and tool-call logging is done via HTTP POST to the agent container.
+The sandbox no longer has a direct DB connection.
+
+Failures in log_audit / log_tool_call are caught and logged as warnings —
+audit logging must never crash the SDK session.
 """
 
 import json
 import logging
+import os
 from typing import Any
+
+import aiohttp
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -21,12 +27,53 @@ from claude_agent_sdk.types import (
     StreamEvent,
 )
 
-from constants import INPUT_CONTENT_MAX_LEN, INPUT_SUMMARY_MAX_LEN
-from db.connection import get_session_factory
-from db.models import AuditLog, ToolCall
+from constants import (
+    AGENT_URL_ENV_VAR,
+    INPUT_CONTENT_MAX_LEN,
+    INPUT_SUMMARY_MAX_LEN,
+    INTERNAL_SECRET_ENV_VAR,
+    INTERNAL_SECRET_HEADER,
+)
 from models import ToolContext
 
 log = logging.getLogger("sandbox.session_utils")
+
+# Module-level lazy aiohttp session. Created on first use so env vars are
+# available at call time. Closed explicitly via close_agent_client() on
+# server shutdown.
+_agent_client: aiohttp.ClientSession | None = None
+
+
+def _get_agent_client() -> aiohttp.ClientSession:
+    """Return the module-level aiohttp session, creating it on first call."""
+    global _agent_client
+    if _agent_client is None or _agent_client.closed:
+        _agent_client = aiohttp.ClientSession()
+    return _agent_client
+
+
+async def close_agent_client() -> None:
+    """Close the module-level aiohttp session. Called on server shutdown."""
+    global _agent_client
+    if _agent_client is not None and not _agent_client.closed:
+        await _agent_client.close()
+    _agent_client = None
+
+
+def _agent_url() -> str:
+    """Read the agent base URL from env. Raises if not set."""
+    url = os.environ.get(AGENT_URL_ENV_VAR, "")
+    if not url:
+        raise RuntimeError(f"{AGENT_URL_ENV_VAR} is not set — cannot reach agent")
+    return url
+
+
+def _sandbox_secret() -> str:
+    """Read the sandbox internal secret from env. Raises if not set."""
+    secret = os.environ.get(INTERNAL_SECRET_ENV_VAR, "")
+    if not secret:
+        raise RuntimeError(f"{INTERNAL_SECRET_ENV_VAR} is not set")
+    return secret
 
 
 async def log_tool_call(
@@ -36,36 +83,56 @@ async def log_tool_call(
     input_data: dict | None,
     output_data: dict | None,
 ) -> None:
-    """Insert a tool call row into the database."""
+    """POST a tool call event to the agent's /internal/tool-call endpoint."""
     try:
-        async with get_session_factory()() as s:
-            s.add(
-                ToolCall(
-                    run_id=run_id,
-                    phase=phase,
-                    tool_name=context.tool_name,
-                    input_data=input_data,
-                    output_data=output_data,
-                    duration_ms=context.duration_ms,
-                    permitted=True,
-                    deny_reason=None,
-                    agent_role=context.role,
-                    tool_use_id=context.tool_use_id,
-                    session_id=context.session_id,
-                    agent_id=context.agent_id,
+        client = _get_agent_client()
+        headers = {INTERNAL_SECRET_HEADER: _sandbox_secret()}
+        payload = {
+            "run_id": run_id,
+            "phase": phase,
+            "tool_name": context.tool_name,
+            "input_data": input_data,
+            "output_data": output_data,
+            "duration_ms": context.duration_ms,
+            "permitted": True,
+            "deny_reason": None,
+            "agent_role": context.role,
+            "tool_use_id": context.tool_use_id,
+            "session_id": context.session_id,
+            "agent_id": context.agent_id,
+        }
+        async with client.post(
+            f"{_agent_url()}/internal/tool-call",
+            json=payload,
+            headers=headers,
+        ) as resp:
+            if resp.status >= 400:
+                log.warning(
+                    "Failed to log tool call: agent returned %d", resp.status
                 )
-            )
-            await s.commit()
     except Exception as e:
         log.warning("Failed to log tool call: %s", e)
 
 
 async def log_audit(run_id: str, event_type: str, details: dict) -> None:
-    """Insert an audit log row into the database."""
+    """POST an audit event to the agent's /internal/audit endpoint."""
     try:
-        async with get_session_factory()() as s:
-            s.add(AuditLog(run_id=run_id, event_type=event_type, details=details))
-            await s.commit()
+        client = _get_agent_client()
+        headers = {INTERNAL_SECRET_HEADER: _sandbox_secret()}
+        payload = {
+            "run_id": run_id,
+            "event_type": event_type,
+            "details": details,
+        }
+        async with client.post(
+            f"{_agent_url()}/internal/audit",
+            json=payload,
+            headers=headers,
+        ) as resp:
+            if resp.status >= 400:
+                log.warning(
+                    "Failed to log audit event: agent returned %d", resp.status
+                )
     except Exception as e:
         log.warning("Failed to log audit event: %s", e)
 
