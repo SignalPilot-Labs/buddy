@@ -102,8 +102,6 @@ function NodeItem({
           "flex items-center gap-1.5 py-[3px] px-1 rounded transition-colors text-content",
           isDir ? "cursor-pointer" : isClickable ? "cursor-pointer" : "cursor-default",
           isClickable ? "hover:bg-white/[0.06]" : "hover:bg-white/[0.03]",
-          node.status === "added" && "bg-[#00ff88]/[0.02]",
-          node.status === "deleted" && "bg-[#ff4444]/[0.02]",
         )}
         style={{ paddingLeft: depth * 14 + 4 }}
         onClick={handleClick}
@@ -117,7 +115,7 @@ function NodeItem({
 
         {isDir ? <DirIcon open={open} /> : <FileIcon name={node.name} status={node.status} />}
 
-        <span className={clsx("flex-1 truncate", node.status === "deleted" ? "text-[#ff4444]/80 line-through" : node.status === "added" ? "text-[#00ff88]" : "text-accent-hover")}>
+        <span className={clsx("flex-1 truncate", node.status === "deleted" ? "text-accent-hover line-through" : "text-accent-hover")}>
           {node.name}
         </span>
 
