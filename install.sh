@@ -38,11 +38,18 @@ fi
 # Seed .env with a random AGENT_INTERNAL_SECRET on first install.
 # up.sh also does this, so either can run first — both are idempotent.
 ENV_FILE="$AUTOFYN_HOME/.env"
+# Seed both secrets. AGENT_INTERNAL_SECRET is dashboard↔agent;
+# SANDBOX_INTERNAL_SECRET is agent↔sandbox. Keeping them separate means
+# a compromised sandbox cannot forge /start requests.
 if [ ! -f "$ENV_FILE" ] || ! grep -q "^AGENT_INTERNAL_SECRET=" "$ENV_FILE"; then
-    NEW_SECRET="$(openssl rand -hex 32)"
-    echo "AGENT_INTERNAL_SECRET=${NEW_SECRET}" >> "$ENV_FILE"
+    echo "AGENT_INTERNAL_SECRET=$(openssl rand -hex 32)" >> "$ENV_FILE"
     chmod 600 "$ENV_FILE"
     echo "[install] Generated AGENT_INTERNAL_SECRET and wrote to ${ENV_FILE}"
+fi
+if ! grep -q "^SANDBOX_INTERNAL_SECRET=" "$ENV_FILE"; then
+    echo "SANDBOX_INTERNAL_SECRET=$(openssl rand -hex 32)" >> "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    echo "[install] Generated SANDBOX_INTERNAL_SECRET and wrote to ${ENV_FILE}"
 fi
 
 # Install CLI

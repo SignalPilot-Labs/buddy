@@ -396,6 +396,35 @@ class StopRequest(BaseModel):
     skip_pr: bool
 
 
+class ToolCallEvent(BaseModel):
+    """POST /events/tool_call body — sandbox reports a tool invocation.
+
+    The agent writes this straight to the `tool_calls` table on behalf
+    of the sandbox so the sandbox does not need direct DB access.
+    """
+
+    run_id: str
+    phase: str  # "pre" or "post"
+    tool_name: str
+    input_data: dict | None = None
+    output_data: dict | None = None
+    duration_ms: int | None = None
+    permitted: bool = True
+    deny_reason: str | None = None
+    agent_role: str = "worker"
+    tool_use_id: str | None = None
+    session_id: str | None = None
+    agent_id: str | None = None
+
+
+class AuditEvent(BaseModel):
+    """POST /events/audit body — sandbox reports an audit-log event."""
+
+    run_id: str
+    event_type: str
+    details: dict | None = None
+
+
 class ResumeRequest(BaseModel):
     """POST /resume request body for restarting a terminal run."""
 

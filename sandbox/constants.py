@@ -23,7 +23,12 @@ SANDBOX_HOST: str = "0.0.0.0"
 
 # ── Security ──
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"
-INTERNAL_SECRET_ENV_VAR: str = "AGENT_INTERNAL_SECRET"
+# Sandbox-scoped secret. Distinct from AGENT_INTERNAL_SECRET (dashboard↔agent)
+# so a compromised sandbox cannot forge calls to the agent's control plane.
+INTERNAL_SECRET_ENV_VAR: str = "SANDBOX_INTERNAL_SECRET"
+# URL the sandbox uses to POST tool-call / audit events back to the agent.
+# Set by the agent when the sandbox container is spawned.
+AGENT_CALLBACK_URL_ENV_VAR: str = "AGENT_CALLBACK_URL"
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg.get("credential_patterns", [])
 SECRET_ENV_VARS: str = _security_cfg.get("secret_env_vars", "")

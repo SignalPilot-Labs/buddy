@@ -15,8 +15,10 @@ from docker.models.containers import Container
 
 from db.constants import validate_host_mount
 from utils.constants import (
+    AGENT_CALLBACK_URL,
     AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
+    ENV_KEY_AGENT_CALLBACK_URL,
     ENV_KEY_ALLOW_DOCKER,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
@@ -44,8 +46,13 @@ class SandboxPool:
 
         Passes auth tokens so the Claude SDK and git operations work inside
         the sandbox. These are stripped from subprocess env by _safe_env().
+        Also plumbs AGENT_CALLBACK_URL so the sandbox knows where to POST
+        tool-call / audit events.
         """
-        env: dict[str, str] = {"GIT_TERMINAL_PROMPT": "0"}
+        env: dict[str, str] = {
+            "GIT_TERMINAL_PROMPT": "0",
+            ENV_KEY_AGENT_CALLBACK_URL: AGENT_CALLBACK_URL,
+        }
         for key in _PASSTHROUGH_ENV_VARS:
             val = os.environ.get(key, "")
             if val:

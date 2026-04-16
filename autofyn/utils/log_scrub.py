@@ -13,7 +13,7 @@ _CLAUDE_API_KEY_PATTERN = r"sk-ant-[A-Za-z0-9_\-]{20,}"
 _GITHUB_PAT_PATTERN = r"ghp_[A-Za-z0-9]{20,}"
 _GITHUB_PAT_LONG_PATTERN = r"github_pat_[A-Za-z0-9_]{20,}"
 _BEARER_HEADER_PATTERN = r"(?:X-API-Key|X-Internal-Secret|Authorization):\s*.+"
-_AGENT_SECRET_PATTERN = r"AGENT_INTERNAL_SECRET[=:]\s*\S+"
+_AGENT_SECRET_PATTERN = r"(?:AGENT|SANDBOX)_INTERNAL_SECRET[=:]\s*\S+"
 _API_KEY_QUERY_PATTERN = r"api_key=[A-Za-z0-9%\-_]{8,}"
 _DASHBOARD_API_KEY_LOG_PATTERN = r"\[dashboard\] API key: [A-Za-z0-9_\-]{20,}"
 

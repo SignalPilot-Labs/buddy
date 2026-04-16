@@ -17,6 +17,7 @@ class TestSecretEnvKeysPin:
             "GH_TOKEN",
             "CLAUDE_CODE_OAUTH_TOKEN",
             "AGENT_INTERNAL_SECRET",
+            "SANDBOX_INTERNAL_SECRET",
             "ANTHROPIC_API_KEY",
             "FGAT_GIT_TOKEN",
         })

@@ -10,10 +10,14 @@ echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 # Compose auto-loads .env from cwd ($HOME/.autofyn) — no need to export.
 ENV_FILE="$HOME/.autofyn/.env"
 if [ ! -f "$ENV_FILE" ] || ! grep -q "^AGENT_INTERNAL_SECRET=" "$ENV_FILE"; then
-    NEW_SECRET="$(openssl rand -hex 32)"
-    echo "AGENT_INTERNAL_SECRET=${NEW_SECRET}" >> "$ENV_FILE"
+    echo "AGENT_INTERNAL_SECRET=$(openssl rand -hex 32)" >> "$ENV_FILE"
     chmod 600 "$ENV_FILE"
     echo "[autofyn] Generated new AGENT_INTERNAL_SECRET and wrote to ${ENV_FILE}"
+fi
+if ! grep -q "^SANDBOX_INTERNAL_SECRET=" "$ENV_FILE"; then
+    echo "SANDBOX_INTERNAL_SECRET=$(openssl rand -hex 32)" >> "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+    echo "[autofyn] Generated new SANDBOX_INTERNAL_SECRET and wrote to ${ENV_FILE}"
 fi
 
 docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true

@@ -15,8 +15,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# server.py reads this at import time
+# server.py reads these at import time
 os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
+os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 
 from server import AgentServer
 from utils.models import ActiveRun, StartRequest

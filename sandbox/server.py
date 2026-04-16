@@ -20,7 +20,6 @@ from constants import (
     SANDBOX_HOST,
     SANDBOX_PORT,
 )
-from db.connection import connect as db_connect, close as db_close
 from handlers.execute import register as register_execute
 from handlers.file_system import register as register_file_system
 from handlers.health import register as register_health
@@ -70,18 +69,16 @@ async def auth_middleware(
 
 
 async def on_startup(app: web.Application) -> None:
-    """Initialize DB and session manager."""
-    await db_connect()
-    log.info("Database connection pool initialized")
+    """Initialize session manager. Sandbox does not connect to the DB —
+    audit events flow through the agent's /events/* endpoints.
+    """
     app["sessions"] = SessionManager()
 
 
 async def on_shutdown(app: web.Application) -> None:
-    """Stop all sessions and close DB."""
+    """Stop all sessions."""
     sessions: SessionManager = app["sessions"]
     await sessions.stop_all()
-    await db_close()
-    log.info("Database connection pool closed")
 
 
 def main() -> None:

@@ -246,7 +246,7 @@ class SecurityGate:
 
     def _check_secret_var_refs(self, cmd: str) -> str | None:
         """Block commands that name our internal secret env vars."""
-        for name in ("AGENT_INTERNAL_SECRET", "GH_TOKEN", "GIT_TOKEN"):
+        for name in ("AGENT_INTERNAL_SECRET", "SANDBOX_INTERNAL_SECRET", "GH_TOKEN", "GIT_TOKEN"):
             if name in cmd:
                 return f"Commands that reference {name} are blocked"
         return None

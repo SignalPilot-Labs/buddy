@@ -54,6 +54,7 @@ services:
       GIT_TERMINAL_PROMPT: "0"
       AF_SANDBOX_URL: http://sandbox:8080
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:?AGENT_INTERNAL_SECRET must be set — run up.sh or define it in .env}
+      SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET:?SANDBOX_INTERNAL_SECRET must be set — run up.sh or define it in .env}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
@@ -87,7 +88,11 @@ services:
     restart: unless-stopped
     environment:
       GIT_TERMINAL_PROMPT: "0"
-      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:?AGENT_INTERNAL_SECRET must be set — run up.sh or define it in .env}
+      # Sandbox only holds the sandbox-scoped secret. It does NOT hold
+      # AGENT_INTERNAL_SECRET, so a compromised sandbox cannot forge
+      # control-plane calls to the agent (/start, /stop, etc.).
+      SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET:?SANDBOX_INTERNAL_SECRET must be set — run up.sh or define it in .env}
+      AGENT_CALLBACK_URL: http://autofyn-agent:8500
     depends_on:
       dashboard:
         condition: service_started

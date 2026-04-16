@@ -37,12 +37,14 @@ from utils.constants import (
 from db.constants import validate_host_mount
 from utils.models import (
     ActiveRun,
+    AuditEvent,
     HealthResponse,
     HealthRunEntry,
     InjectRequest,
     ResumeRequest,
     StartRequest,
     StopRequest,
+    ToolCallEvent,
 )
 
 if TYPE_CHECKING:
@@ -474,3 +476,36 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             )
         data = resp.json()
         return [b["name"] for b in data if isinstance(b, dict) and "name" in b]
+
+    # ── Sandbox-callback endpoints (agent↔sandbox auth, not dashboard↔agent) ──
+
+    @app.post("/events/tool_call")
+    async def events_tool_call(body: ToolCallEvent):
+        """Write a tool-call row to the DB on behalf of a sandbox.
+
+        Sandboxes do not have direct DB access — they POST here with the
+        sandbox-scoped secret and the agent persists the row. The split
+        auth middleware enforces that this path requires
+        SANDBOX_INTERNAL_SECRET, not AGENT_INTERNAL_SECRET.
+        """
+        await db.log_tool_call(
+            run_id=body.run_id,
+            phase=body.phase,
+            tool_name=body.tool_name,
+            input_data=body.input_data,
+            output_data=body.output_data,
+            duration_ms=body.duration_ms,
+            permitted=body.permitted,
+            deny_reason=body.deny_reason,
+            agent_role=body.agent_role,
+            tool_use_id=body.tool_use_id,
+            session_id=body.session_id,
+            agent_id=body.agent_id,
+        )
+        return {"ok": True}
+
+    @app.post("/events/audit")
+    async def events_audit(body: AuditEvent):
+        """Write an audit-log row to the DB on behalf of a sandbox."""
+        await db.log_audit(body.run_id, body.event_type, body.details)
+        return {"ok": True}

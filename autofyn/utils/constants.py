@@ -101,6 +101,10 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
 ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
+# Separate secret for the agent↔sandbox channel. Sandbox holds ONLY this,
+# not AGENT_INTERNAL_SECRET — so a compromised sandbox cannot forge calls
+# to the agent's control endpoints (/start, /stop, etc.).
+ENV_KEY_SANDBOX_SECRET = "SANDBOX_INTERNAL_SECRET"
 
 # ── HTTP headers ──
 # Sync: dashboard/backend/constants.py must define the same constant.
@@ -117,14 +121,21 @@ AGENT_CONTROL_NETWORK = "autofyn-control"  # internal network: agent ↔ dashboa
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
 SANDBOX_POOL_ENV_PASSTHROUGH = [
-    "AGENT_INTERNAL_SECRET",
+    "SANDBOX_INTERNAL_SECRET",
 ]
+
+# URL sandboxes use to POST event callbacks to the agent. Agent listens
+# on SERVER_PORT inside the `autofyn-sandbox` network via the AGENT_CONTAINER_NAME
+# hostname. Sandboxes never initiate control-plane requests — only /events/*.
+ENV_KEY_AGENT_CALLBACK_URL = "AGENT_CALLBACK_URL"
+AGENT_CALLBACK_URL = f"http://{AGENT_CONTAINER_NAME}:{SERVER_PORT}"
 
 # ── Start validation ──
 # Keys and prefixes that must never appear in the env dict posted to /start.
 # Only the agent validates /start bodies — do NOT duplicate in db/constants.py.
 BLOCKED_START_ENV_KEYS: frozenset[str] = frozenset({
     "AGENT_INTERNAL_SECRET",
+    "SANDBOX_INTERNAL_SECRET",
     "DASHBOARD_API_KEY",
     "LD_PRELOAD",
     "LD_LIBRARY_PATH",

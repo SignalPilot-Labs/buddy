@@ -30,6 +30,7 @@ from utils.constants import (
     AccessNoiseFilter,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
     MAX_CONCURRENT_RUNS,
     SANDBOX_CLONE_TIMEOUT_DEFAULT,
     SANDBOX_EXEC_TIMEOUT_DEFAULT,
@@ -67,19 +68,36 @@ class AgentServer:
         self._internal_secret = os.environ[ENV_KEY_INTERNAL_SECRET]
         if not self._internal_secret:
             raise RuntimeError(f"{ENV_KEY_INTERNAL_SECRET} is empty")
+        self._sandbox_secret = os.environ[ENV_KEY_SANDBOX_SECRET]
+        if not self._sandbox_secret:
+            raise RuntimeError(f"{ENV_KEY_SANDBOX_SECRET} is empty")
         self._install_internal_auth()
         register_routes(self.app, self)
 
     def _install_internal_auth(self) -> None:
-        """Require the internal secret header on every endpoint except /health."""
-        secret = self._internal_secret
+        """Route-scoped secret check.
+
+        Two secrets, two trust zones:
+        - `/events/*` endpoints accept sandbox reports (tool calls, audit).
+          They require SANDBOX_INTERNAL_SECRET (held by sandboxes).
+        - Every other endpoint is the control plane (/start, /stop, etc.)
+          and requires AGENT_INTERNAL_SECRET (held by the dashboard only).
+
+        Sandboxes do NOT hold AGENT_INTERNAL_SECRET — compromise of a
+        sandbox cannot forge a /start request to spawn attacker runs.
+        /health is public.
+        """
+        agent_secret = self._internal_secret
+        sandbox_secret = self._sandbox_secret
 
         @self.app.middleware("http")
         async def check_internal_secret(request, call_next):
-            if request.url.path == "/health":
+            path = request.url.path
+            if path == "/health":
                 return await call_next(request)
             provided = request.headers.get("X-Internal-Secret", "")
-            if not hmac.compare_digest(provided, secret):
+            expected = sandbox_secret if path.startswith("/events/") else agent_secret
+            if not hmac.compare_digest(provided, expected):
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Unauthorized"},
