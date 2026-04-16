@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -23,6 +24,7 @@ from utils.diff import fetch_github_diff
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
+    GITHUB_DIFF_CACHE_MAX,
     HEADER_GITHUB_TOKEN,
     MAX_CONCURRENT_RUNS,
     ROUND_ARCHIVE_AGENT_DIR,
@@ -329,9 +331,11 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     # ── Diff ───────────────────────────────────────────────────────────
 
-    # Cache only completed-run diffs (GitHub API path). Live sandbox diffs
-    # change every round, so caching them serves stale data forever.
-    _github_diff_cache: dict[str, str] = {}
+    # LRU cache for completed-run diffs (GitHub API path). Live sandbox
+    # diffs are not cached — they change every round and caching them
+    # serves stale data forever. Bounded by GITHUB_DIFF_CACHE_MAX so the
+    # cache can't grow unbounded over the agent's lifetime.
+    _github_diff_cache: OrderedDict[str, str] = OrderedDict()
 
     @app.get("/diff/repo")
     async def diff_repo(
@@ -351,11 +355,14 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
                 raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
         if run_id in _github_diff_cache:
+            _github_diff_cache.move_to_end(run_id)
             return {"diff": _github_diff_cache[run_id]}
         result = await fetch_github_diff(repo, branch, base, token)
         if "error" in result:
             raise HTTPException(status_code=result.get("status", 502), detail=result["error"])
         _github_diff_cache[run_id] = result["diff"]
+        if len(_github_diff_cache) > GITHUB_DIFF_CACHE_MAX:
+            _github_diff_cache.popitem(last=False)
         return result
 
     @app.get("/diff/repo/stats")

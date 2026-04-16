@@ -97,10 +97,6 @@ class Repo:
         polling of the Changes-panel header.
         """
         data = await self._post("/repo/diff/stats", {})
-        if "error" in data:
-            raise RuntimeError(f"sandbox /repo/diff/stats error: {data['error']}")
-        if "files" not in data:
-            raise RuntimeError("sandbox /repo/diff/stats returned no 'files' key")
         return list(data["files"])
 
     # ── Private ────────────────────────────────────────────────────────
