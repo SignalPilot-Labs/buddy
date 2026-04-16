@@ -16,5 +16,5 @@ if [ ! -f "$ENV_FILE" ] || ! grep -q "^AGENT_INTERNAL_SECRET=" "$ENV_FILE"; then
     echo "[autofyn] Generated new AGENT_INTERNAL_SECRET and wrote to ${ENV_FILE}"
 fi
 
-docker compose down --remove-orphans 2>/dev/null || true
-docker compose up -d "$@"
+docker compose --env-file "$ENV_FILE" down --remove-orphans 2>/dev/null || true
+docker compose --env-file "$ENV_FILE" up -d "$@"
