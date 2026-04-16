@@ -20,6 +20,7 @@ from fastapi import FastAPI, Header, HTTPException
 
 from utils import db
 from utils.diff import fetch_github_diff
+from utils.log_scrub import scrub_lines
 from utils.constants import (
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
@@ -314,7 +315,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         A line is a "new entry" if it starts with ``[`` (our log format)
         or a timestamp digit. Everything else is a continuation.
         """
-        lines = await server.pool().get_self_logs(tail)
+        lines = scrub_lines(await server.pool().get_self_logs(tail))
         if run_id:
             prefix = run_id[:RUN_ID_LOG_PREFIX_LEN]
             filtered: list[str] = []

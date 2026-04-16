@@ -108,6 +108,10 @@ autofyn start --allow-docker
 
 This mounts the host Docker socket into sandbox containers, giving the agent full Docker daemon access. Only use this if you trust the prompts you send — the agent can create, inspect, and remove any container on the host.
 
+### Network exposure
+
+The dashboard (port 3400) and API (3401) bind to `127.0.0.1` only — other devices on your Wi-Fi/LAN cannot reach them. Access the dashboard from the same machine at [http://localhost:3400](http://localhost:3400). If you need LAN access, front the dashboard with a reverse proxy that enforces its own authentication; do not rebind the compose ports to `0.0.0.0` without one.
+
 ---
 
 Built with the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk). MIT License.

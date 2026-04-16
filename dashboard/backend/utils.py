@@ -1,4 +1,9 @@
-"""Dashboard utility functions — agent HTTP proxy, ORM helpers, DB access helpers."""
+"""Dashboard utility functions — agent HTTP proxy, ORM helpers, DB access helpers.
+
+Log scrubbing note: /api/agent/logs proxies the already-scrubbed payload from
+the agent's /logs endpoint. Credential redaction lives in autofyn/utils/log_scrub.py
+(scrub_lines). Do NOT add a second scrub here — one scrub, one home.
+"""
 
 import json
 import logging

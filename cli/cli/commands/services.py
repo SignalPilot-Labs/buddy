@@ -19,10 +19,19 @@ from cli.output import console
 
 
 def _compose(args: list[str]) -> None:
-    """Run ``docker compose <args>`` in the AutoFyn home directory."""
+    """Run ``docker compose <args>`` in the AutoFyn home directory.
+
+    Docker Compose auto-loads ~/.autofyn/.env (cwd=AUTOFYN_HOME), so
+    AGENT_INTERNAL_SECRET is substituted from there. Do not re-parse
+    .env here — compose owns that contract.
+
+    Note: the CLI talks directly to FastAPI at http://localhost:3401 via
+    loopback, not through the Next.js proxy on :3400. This is intentional:
+    the CLI is a trusted local process and routing through :3400 would
+    require Next.js to be running. Do not redirect the CLI to :3400.
+    """
     cmd = ["docker", "compose"] + args
     console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
-    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default")
     result = subprocess.run(cmd, cwd=AUTOFYN_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")

@@ -53,7 +53,6 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap"
           rel="stylesheet"
         />
-        <script src="/config.js" />
       </head>
       <body><MotionProvider>{children}</MotionProvider></body>
     </html>

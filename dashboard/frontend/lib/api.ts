@@ -1,5 +1,5 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_KEY, getApiBase, UI_PORT } from "./constants";
+import { UI_PORT } from "./constants";
 
 import { apiFetch } from "./fetch";
 
@@ -80,7 +80,7 @@ export function createSSE(
   afterAudit: number,
 ): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
+    `/api/stream/${runId}?after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
 }
 
