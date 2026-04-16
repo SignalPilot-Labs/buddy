@@ -13,7 +13,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Literal, TYPE_CHECKING
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
@@ -333,8 +333,8 @@ class StartRequest(BaseModel):
     base_branch: str = "main"
     model: str = DEFAULT_MODEL
     effort: str = DEFAULT_EFFORT
-    claude_token: str | None = None
-    git_token: str | None = None
+    claude_token: str | None = Field(default=None, repr=False)
+    git_token: str | None = Field(default=None, repr=False)
     github_repo: str | None = None
     env: dict[str, str] | None = None
     host_mounts: list[dict[str, str]] | None = None
@@ -401,8 +401,8 @@ class ResumeRequest(BaseModel):
 
     run_id: str
     prompt: str | None
-    claude_token: str | None
-    git_token: str | None
+    claude_token: str | None = Field(repr=False)
+    git_token: str | None = Field(repr=False)
     github_repo: str | None
     env: dict[str, str] | None
 
