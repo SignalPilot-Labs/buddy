@@ -28,6 +28,7 @@ from utils import db
 from utils.constants import (
     ACTIVE_RUN_STATUSES,
     AccessNoiseFilter,
+    ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
     MAX_CONCURRENT_RUNS,
@@ -40,6 +41,34 @@ from utils.constants import (
 from utils.models import ActiveRun, StartRequest
 
 log = logging.getLogger("server")
+
+_SECRET_MASK: str = "***REDACTED***"
+_SECRET_ENV_KEYS: tuple[str, ...] = (
+    ENV_KEY_GIT_TOKEN,
+    ENV_KEY_CLAUDE_TOKEN,
+    ENV_KEY_INTERNAL_SECRET,
+    "ANTHROPIC_API_KEY",
+)
+
+
+def _scrub_secrets(text: str) -> str:
+    """Replace any in-process agent-env secret value with `_SECRET_MASK`.
+
+    The agent container holds these secrets in its own `os.environ` at the
+    time any audit-write or run-finalisation runs. Substring-replace the
+    live values out of exception strings, tracebacks, and sandbox-log tails
+    before the text crosses the DB / log / in-memory boundary.
+
+    Reads `os.environ` at call time — not a cached snapshot — because the
+    run env can be merged late (see `endpoints.py:63`) and tests mutate env
+    between cases.
+    """
+    scrubbed = text
+    for key in _SECRET_ENV_KEYS:
+        value = os.environ.get(key)
+        if value:
+            scrubbed = scrubbed.replace(value, _SECRET_MASK)
+    return scrubbed
 
 
 class AgentServer:
@@ -220,19 +249,20 @@ class AgentServer:
             # them as an audit event so they survive container cleanup and
             # show up in the dashboard timeline.
             tail_lines = await self._pool.get_sandbox_logs(run_id, tail=200)
+            sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
             await db.log_audit(
                 run_id,
                 "sandbox_crash",
                 {
-                    "error": str(exc),
-                    "sandbox_logs": "\n".join(tail_lines) if tail_lines else "",
+                    "error": _scrub_secrets(str(exc)),
+                    "sandbox_logs": sandbox_logs,
                 },
             )
             if tail_lines:
                 log.error(
                     "Run %s sandbox tail logs:\n%s",
                     run_id,
-                    "\n".join(tail_lines),
+                    sandbox_logs,
                 )
             raise
         finally:
@@ -259,9 +289,9 @@ class AgentServer:
                 tb = "".join(
                     traceback.format_exception(type(exc), exc, exc.__traceback__),
                 )
-                log.error("Run %s crashed:\n%s", active.run_id, tb)
+                log.error("Run %s crashed:\n%s", active.run_id, _scrub_secrets(tb))
                 active.status = "crashed"
-                active.error_message = str(exc)
+                active.error_message = _scrub_secrets(str(exc))
                 if active.run_id and context is not None:
                     asyncio.create_task(
                         db.finish_run(
@@ -271,7 +301,7 @@ class AgentServer:
                             context.total_cost,
                             context.total_input_tokens,
                             context.total_output_tokens,
-                            str(exc),
+                            active.error_message,
                             None,
                             None,
                             context.cache_creation_input_tokens,
