@@ -56,7 +56,7 @@ class TestBranchesHeaderAuth:
 class TestDiffRepoHeaderAuth:
     """/diff/repo must accept token via X-GitHub-Token header and reject query param."""
 
-    _PARAMS = {"run_id": "r1", "branch": "feature", "base": "main", "repo": "owner/name"}
+    _PARAMS = {"run_id": "r1", "branch": "feature", "base": "main", "repo": "owner/name", "source": "github"}
 
     def test_missing_header_returns_422(self, client: TestClient) -> None:
         res = client.get("/diff/repo", params=self._PARAMS)

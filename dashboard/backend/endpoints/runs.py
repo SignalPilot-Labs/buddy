@@ -35,7 +35,6 @@ from backend.utils import (
     send_control_signal,
     session,
 )
-from db.constants import BRANCH_PENDING_PLACEHOLDER
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.endpoints")
@@ -300,7 +299,12 @@ async def get_run_diff(run_id: str = RunId) -> dict:
 
 @router.get("/runs/{run_id}/diff/repo")
 async def get_diff_repo(run_id: str = RunId) -> dict:
-    """Full unified diff — proxies to agent (sandbox or GitHub API). Cached on agent."""
+    """Full unified diff — routes to sandbox (active) or GitHub (completed).
+
+    The dashboard decides the source based on run status. The agent never
+    silently falls through from sandbox to GitHub — that was the root cause
+    of the 'pending' branch collision bug.
+    """
     async with session() as s:
         run = await s.get(Run, run_id)
         if not run:
@@ -308,19 +312,19 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
         branch_name = run.branch_name
         base_branch = run.base_branch or DEFAULT_BASE_BRANCH
         github_repo = run.github_repo
+        run_status = run.status
 
     if not github_repo:
         raise HTTPException(status_code=404, detail="Run has no github_repo")
 
-    # Bootstrap hasn't assigned a real working branch yet — do NOT proxy to
-    # the agent. Without a sandbox in the pool the agent falls through to
-    # GitHub's compare API, and "pending" can collide with a real branch
-    # of that name on the remote (it does on this repo), returning a large
-    # unrelated diff that the worktree panel then renders as "too large".
-    # 409 mirrors /diff/repo/stats for the same pre-bootstrap condition and
-    # keeps this distinct from a run that genuinely has an empty diff.
-    if branch_name == BRANCH_PENDING_PLACEHOLDER:
+    if not branch_name:
         raise HTTPException(status_code=409, detail="Run has not bootstrapped a working branch yet")
+
+    # Active runs: ask the sandbox for a live working-tree diff. GitHub
+    # is never consulted — no chance of placeholder-branch collision.
+    # Terminal runs: sandbox is gone, use GitHub compare API.
+    is_active = run_status in ACTIVE_STATUSES or run_status == "starting"
+    source = "sandbox" if is_active else "github"
 
     creds = await read_credentials(github_repo)
     token = creds.get("git_token")
@@ -335,6 +339,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
             "branch": branch_name,
             "base": base_branch,
             "repo": github_repo,
+            "source": source,
         },
         None,
         extra_headers={HEADER_GITHUB_TOKEN: token},

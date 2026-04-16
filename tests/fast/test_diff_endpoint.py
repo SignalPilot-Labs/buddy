@@ -137,23 +137,19 @@ class TestGetRunDiffLivePath:
         assert exc_info.value.status_code == 502
 
 
-class TestGetDiffRepoPendingBranch:
-    """get_diff_repo must refuse pre-bootstrap runs instead of proxying.
-
-    Placeholder branch 'pending' can collide with a real branch on the
-    remote (it does on this repo) — if proxied, the agent's GitHub-API
-    fallback returns a large unrelated diff that the worktree panel then
-    misrenders as 'too large'. The endpoint must 409 before any agent
-    or GitHub call happens.
+class TestGetDiffRepoBranchGating:
+    """get_diff_repo must refuse pre-bootstrap runs and route active/terminal
+    runs to sandbox/github source respectively.
     """
 
     @pytest.mark.asyncio
-    async def test_pending_branch_returns_409_and_skips_agent(
+    async def test_null_branch_returns_409_and_skips_agent(
         self, monkeypatch: pytest.MonkeyPatch, db_session, run_record: MagicMock,
     ) -> None:
-        run_record.branch_name = "pending"
+        run_record.branch_name = None
         run_record.base_branch = "main"
         run_record.github_repo = "owner/repo"
+        run_record.status = "starting"
 
         agent = AsyncMock()
         creds = AsyncMock()
@@ -164,18 +160,17 @@ class TestGetDiffRepoPendingBranch:
             await runs.get_diff_repo("run-1")
 
         assert exc_info.value.status_code == 409
-        # Neither the agent nor credential lookup must run — the whole
-        # point of the short-circuit is to avoid that network/IO path.
         agent.assert_not_called()
         creds.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_real_branch_still_proxies_to_agent(
+    async def test_active_run_passes_source_sandbox(
         self, monkeypatch: pytest.MonkeyPatch, db_session, run_record: MagicMock,
     ) -> None:
         run_record.branch_name = "autofyn/real-branch"
         run_record.base_branch = "main"
         run_record.github_repo = "owner/repo"
+        run_record.status = "running"
 
         agent = AsyncMock(return_value={"diff": "diff --git a/x b/x\n"})
         monkeypatch.setattr(runs, "agent_request", agent)
@@ -184,4 +179,25 @@ class TestGetDiffRepoPendingBranch:
         result = await runs.get_diff_repo("run-1")
 
         agent.assert_called_once()
+        # agent_request(method, path, timeout, json_body, params, ...)
+        call_params = agent.call_args[0][4]
+        assert call_params["source"] == "sandbox"
         assert result["diff"].startswith("diff --git")
+
+    @pytest.mark.asyncio
+    async def test_terminal_run_passes_source_github(
+        self, monkeypatch: pytest.MonkeyPatch, db_session, run_record: MagicMock,
+    ) -> None:
+        run_record.branch_name = "autofyn/real-branch"
+        run_record.base_branch = "main"
+        run_record.github_repo = "owner/repo"
+        run_record.status = "completed"
+
+        agent = AsyncMock(return_value={"diff": "diff --git a/x b/x\n"})
+        monkeypatch.setattr(runs, "agent_request", agent)
+        monkeypatch.setattr(runs, "read_credentials", AsyncMock(return_value={"git_token": "tok"}))
+
+        await runs.get_diff_repo("run-1")
+
+        call_params = agent.call_args[0][4]
+        assert call_params["source"] == "github"
