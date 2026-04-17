@@ -85,6 +85,7 @@ If a spec has both backend and frontend slices, dispatch `backend-dev` and `fron
 - **NOT commit, push, or create PRs.** The Python round loop handles that from your `end_round` summary.
 - **NOT create, switch, or reset branches.** You are already on the correct working branch.
 - **NOT write to `rounds[]` in `/tmp/rounds.json`.** Python appends your round entry automatically when you call `end_round`. You only own `pr_title` and `pr_description` in that file.
+- **NEVER background commands yourself** (`&`, `nohup`, `disown`). Background commands return instantly and your turn ends — you lose the output. Run commands in the foreground, and delegate long-running work to a subagent.
 
 ## Before Ending
 
