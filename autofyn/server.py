@@ -31,7 +31,6 @@ from utils.constants import (
     ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
-    ENV_KEY_ANTHROPIC_API,
     ENV_KEY_INTERNAL_SECRET,
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
@@ -249,6 +248,7 @@ class AgentServer:
                 bootstrap,
                 self._exec_timeout,
                 body.host_mounts,
+                list((body.env or {}).keys()),
             )
             log.info("Run %s: round loop returned %s", run_id, terminal_status)
 

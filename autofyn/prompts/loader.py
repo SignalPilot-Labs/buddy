@@ -65,6 +65,7 @@ def render_environment(
     round_number: int,
     tool_call_timeout_min: int,
     host_mounts: list[dict[str, str]] | None,
+    user_env_keys: list[str],
 ) -> str:
     """Render `query/environment.md` with runtime values and host mounts."""
     template = load_markdown("query/environment")
@@ -73,7 +74,16 @@ def render_environment(
         .replace("{ROUND_NUMBER}", str(round_number))
         .replace("{TOOL_CALL_TIMEOUT_MIN}", str(tool_call_timeout_min))
         .replace("{HOST_MOUNTS_BLOCK}", _host_mounts_block(host_mounts))
+        .replace("{USER_ENV_BLOCK}", _user_env_block(user_env_keys))
     )
+
+
+def _user_env_block(keys: list[str]) -> str:
+    """Render a list of user-provided env var names, or empty string when none."""
+    if not keys:
+        return ""
+    safe = ", ".join(f"`{k}`" for k in keys)
+    return f"User-provided environment variables available in this container: {safe}."
 
 
 def _host_mounts_block(host_mounts: list[dict[str, str]] | None) -> str:

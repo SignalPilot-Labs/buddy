@@ -206,6 +206,7 @@ class RoundContext:
     previous_round_reports: list[str]
     user_activity: list[UserAction]
     host_mounts: list[dict[str, str]] | None
+    user_env_keys: list[str]
 
 
 # ── Bootstrap ───────────────────────────────────────────────────────

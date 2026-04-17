@@ -152,6 +152,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
 def build_agent_defs(
     round_number: int,
     host_mounts: list[dict[str, str]] | None,
+    user_env_keys: list[str],
 ) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
@@ -167,6 +168,7 @@ def build_agent_defs(
         round_number=round_number,
         tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
         host_mounts=host_mounts,
+        user_env_keys=user_env_keys,
     )
     git_rules = load_markdown("query/git-rules")
     dispatch_rules = load_markdown("query/dispatch-rules")
