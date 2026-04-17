@@ -60,7 +60,7 @@ export function extractBashCommands(tools: ToolCall[]): Array<{
     const stdout = (output.stdout as string) || "";
     const stderr = (output.stderr as string) || "";
     return {
-      cmd: desc || cmd.slice(0, 120),
+      cmd: cmd || desc,
       desc,
       output: stderr ? `[stderr] ${stderr}\n${stdout}` : stdout,
       exitOk: !stderr,

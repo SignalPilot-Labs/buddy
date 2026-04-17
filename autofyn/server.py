@@ -31,7 +31,10 @@ from utils.constants import (
     ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
+    ENV_KEY_ANTHROPIC_API,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
+    INTERNAL_SECRET_HEADER,
     MAX_CONCURRENT_RUNS,
     SANDBOX_CLONE_TIMEOUT_DEFAULT,
     SANDBOX_EXEC_TIMEOUT_DEFAULT,
@@ -39,6 +42,7 @@ from utils.constants import (
     SERVER_HOST,
     SERVER_PORT,
 )
+from internal_endpoints import register_internal_routes
 from utils.models import ActiveRun, StartRequest
 
 log = logging.getLogger("server")
@@ -48,6 +52,7 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
     ENV_KEY_ANTHROPIC_API,
 )
 
@@ -97,19 +102,31 @@ class AgentServer:
         self._internal_secret = os.environ[ENV_KEY_INTERNAL_SECRET]
         if not self._internal_secret:
             raise RuntimeError(f"{ENV_KEY_INTERNAL_SECRET} is empty")
+        self._sandbox_secret = os.environ[ENV_KEY_SANDBOX_SECRET]
+        if not self._sandbox_secret:
+            raise RuntimeError(f"{ENV_KEY_SANDBOX_SECRET} is empty")
         self._install_internal_auth()
         register_routes(self.app, self)
+        register_internal_routes(self.app)
 
     def _install_internal_auth(self) -> None:
-        """Require the internal secret header on every endpoint except /health."""
-        secret = self._internal_secret
+        """Require the internal secret header on every endpoint except /health.
+
+        Accepts either AGENT_INTERNAL_SECRET (from dashboard) or
+        SANDBOX_INTERNAL_SECRET (from sandbox containers). Both are always
+        compared using constant-time comparison to prevent timing attacks.
+        """
+        agent_secret = self._internal_secret
+        sandbox_secret = self._sandbox_secret
 
         @self.app.middleware("http")
         async def check_internal_secret(request, call_next):
             if request.url.path == "/health":
                 return await call_next(request)
-            provided = request.headers.get("X-Internal-Secret", "")
-            if not hmac.compare_digest(provided, secret):
+            provided = request.headers.get(INTERNAL_SECRET_HEADER, "")
+            match_agent = hmac.compare_digest(provided, agent_secret)
+            match_sandbox = hmac.compare_digest(provided, sandbox_secret)
+            if not (match_agent or match_sandbox):
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Unauthorized"},

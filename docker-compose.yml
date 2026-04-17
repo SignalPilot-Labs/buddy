@@ -50,6 +50,7 @@ services:
       GIT_TERMINAL_PROMPT: "0"
       AF_SANDBOX_URL: http://sandbox:8080
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-autofyn-dev-secret}
+      SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET:-autofyn-dev-sandbox-secret}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
@@ -80,7 +81,8 @@ services:
     restart: unless-stopped
     environment:
       GIT_TERMINAL_PROMPT: "0"
-      AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET:-autofyn-dev-secret}
+      SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET:-autofyn-dev-sandbox-secret}
+      AF_AGENT_URL: http://agent:8500
     depends_on:
       dashboard:
         condition: service_started

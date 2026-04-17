@@ -2,8 +2,8 @@
 
 Pins five guarantees:
 1. `_scrub_secrets` replaces GIT_TOKEN, CLAUDE_CODE_OAUTH_TOKEN, AGENT_INTERNAL_SECRET,
-   and ANTHROPIC_API_KEY values with `***REDACTED***` and passes text through unchanged
-   when no token is set (the `if value:` guard).
+   SANDBOX_INTERNAL_SECRET, and ANTHROPIC_API_KEY values with `***REDACTED***` and passes
+   text through unchanged when no token is set (the `if value:` guard).
 2. Site A: `db.log_audit("sandbox_crash")` details.error and details.sandbox_logs are scrubbed.
 3. Site B: the `log.error` sandbox tail record does not contain the raw token.
 4. Sites C/D/E: traceback log, ActiveRun.error_message, and db.finish_run error_message
@@ -22,13 +22,14 @@ import pytest
 # server.py reads AGENT_INTERNAL_SECRET at import time via AgentServer.__init__.
 # Set it before the import so the module-level `_server = AgentServer()` succeeds.
 os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
+os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 
 # The module-level `_server = AgentServer()` in server.py calls SandboxPool() which
 # calls docker.from_env(). Patch it before import so tests can run without Docker.
 with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer, _scrub_secrets
 
-from utils.constants import ENV_KEY_ANTHROPIC_API, ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET
+from utils.constants import ENV_KEY_ANTHROPIC_API, ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET, ENV_KEY_SANDBOX_SECRET
 from utils.models import ActiveRun, StartRequest
 
 
@@ -81,10 +82,17 @@ class TestServerAuditRedaction:
         assert "INT_SENTINEL_C" not in result
         assert "***REDACTED***" in result
 
+    def test_scrubs_sandbox_secret(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(ENV_KEY_SANDBOX_SECRET, "SBX_SENTINEL_D")
+        result = _scrub_secrets("auth failed SBX_SENTINEL_D in header")
+        assert "SBX_SENTINEL_D" not in result
+        assert "***REDACTED***" in result
+
     def test_no_tokens_in_env_passthrough(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(ENV_KEY_GIT_TOKEN, raising=False)
         monkeypatch.delenv(ENV_KEY_CLAUDE_TOKEN, raising=False)
         monkeypatch.delenv(ENV_KEY_INTERNAL_SECRET, raising=False)
+        monkeypatch.delenv(ENV_KEY_SANDBOX_SECRET, raising=False)
         monkeypatch.delenv(ENV_KEY_ANTHROPIC_API, raising=False)
         text = "benign traceback text"
         result = _scrub_secrets(text)

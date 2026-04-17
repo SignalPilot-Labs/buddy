@@ -47,11 +47,11 @@ export function BashGroupCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-title font-medium text-[#00ff88]">
-            Terminal · {commands.length} command
+            Bash · {commands.length} command
             {commands.length !== 1 ? "s" : ""}
           </div>
           <div className="text-body text-text-secondary mt-0.5 truncate">
-            {commands[0]?.cmd}
+            {commands[0]?.desc || commands[0]?.cmd}
             {commands.length > 1 ? ` + ${commands.length - 1} more` : ""}
           </div>
         </div>
@@ -82,6 +82,9 @@ export function BashGroupCard({
             <div className="bg-black/40 p-3 space-y-3 max-h-[500px] overflow-y-auto font-mono text-caption">
               {commands.map((cmd, i) => (
                 <div key={i}>
+                  {cmd.desc && (
+                    <div className="text-meta text-text-dim mb-0.5">{cmd.desc}</div>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <span className="text-[#00ff88]/60">$</span>
                     <span className="text-accent-hover flex-1">{cmd.cmd}</span>
@@ -215,8 +218,8 @@ export function SingleToolCard({ tool }: { tool: ToolCall }) {
   switch (cat) {
     case "bash":
       summary =
-        (input.description as string) ||
         (input.command as string)?.slice(0, 100) ||
+        (input.description as string) ||
         "";
       break;
     case "read":

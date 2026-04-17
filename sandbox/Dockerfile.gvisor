@@ -85,12 +85,6 @@ RUN uv pip install --system --no-cache "/opt/autofyn/[dev]"
 # Source code (changes here don't bust dep install cache)
 COPY --chown=agentuser:agentuser sandbox/ /opt/autofyn/
 
-# Shared DB package — deps first for layer caching
-COPY --chown=agentuser:agentuser db/pyproject.toml /opt/autofyn/db/pyproject.toml
-COPY --chown=agentuser:agentuser db/__init__.py /opt/autofyn/db/__init__.py
-RUN uv pip install --system --no-cache /opt/autofyn/db/
-COPY --chown=agentuser:agentuser db/ /opt/autofyn/db/
-
 # Skills — under /opt/autofyn/.claude/skills/ (discovered via add_dirs, not ~/.claude volume)
 COPY --chown=agentuser:agentuser autofyn/skills/ /opt/autofyn/.claude/skills/
 

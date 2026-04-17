@@ -13,19 +13,20 @@ from aiohttp import web
 
 from config.loader import sandbox_config
 from constants import (
+    AGENT_URL_ENV_VAR,
     HealthLogFilter,
     INTERNAL_SECRET_ENV_VAR,
     INTERNAL_SECRET_HEADER,
     SANDBOX_HOST,
     SANDBOX_PORT,
 )
-from db.connection import connect as db_connect, close as db_close
 from handlers.execute import register as register_execute
 from handlers.file_system import register as register_file_system
 from handlers.health import register as register_health
 from handlers.repo import register as register_repo
 from handlers.session import register as register_session
 from session.manager import SessionManager
+from session.utils import close_agent_client
 
 cfg = sandbox_config()
 
@@ -69,18 +70,22 @@ async def auth_middleware(
 
 
 async def on_startup(app: web.Application) -> None:
-    """Initialize DB and session manager."""
-    await db_connect()
-    log.info("Database connection pool initialized")
+    """Initialize session manager and validate agent URL config."""
+    agent_url = os.environ.get(AGENT_URL_ENV_VAR, "")
+    if agent_url:
+        app["agent_url"] = agent_url
+        log.info("Agent URL: %s", agent_url)
+    else:
+        log.warning("%s is not set — audit logging to agent will fail", AGENT_URL_ENV_VAR)
     app["sessions"] = SessionManager()
 
 
 async def on_shutdown(app: web.Application) -> None:
-    """Stop all sessions and close DB."""
+    """Stop all sessions and close aiohttp client."""
     sessions: SessionManager = app["sessions"]
     await sessions.stop_all()
-    await db_close()
-    log.info("Database connection pool closed")
+    await close_agent_client()
+    log.info("Agent HTTP client closed")
 
 
 def main() -> None:

@@ -425,3 +425,28 @@ class HealthResponse(BaseModel):
     active_runs: int
     max_concurrent: int
     runs: list[HealthRunEntry]
+
+
+class InternalAuditRequest(BaseModel):
+    """POST /internal/audit request body (sandbox → agent)."""
+
+    run_id: str
+    event_type: str
+    details: dict | None
+
+
+class InternalToolCallRequest(BaseModel):
+    """POST /internal/tool-call request body (sandbox → agent)."""
+
+    run_id: str
+    phase: str
+    tool_name: str
+    input_data: dict | None
+    output_data: dict | None
+    duration_ms: int | None
+    permitted: bool
+    deny_reason: str | None
+    agent_role: str
+    tool_use_id: str | None
+    session_id: str | None
+    agent_id: str | None

@@ -101,11 +101,13 @@ SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"
 ENV_KEY_GIT_TOKEN = "GIT_TOKEN"
 ENV_KEY_INTERNAL_SECRET = "AGENT_INTERNAL_SECRET"
+ENV_KEY_SANDBOX_SECRET = "SANDBOX_INTERNAL_SECRET"
 ENV_KEY_ANTHROPIC_API = "ANTHROPIC_API_KEY"
 
 # ── HTTP headers ──
 # Sync: dashboard/backend/constants.py must define the same constant.
 HEADER_GITHUB_TOKEN = "X-GitHub-Token"
+INTERNAL_SECRET_HEADER = "X-Internal-Secret"
 
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"
@@ -117,5 +119,12 @@ SANDBOX_POOL_NETWORK = "autofyn_default"  # compose default network
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
 SANDBOX_POOL_ENV_PASSTHROUGH = [
-    "AGENT_INTERNAL_SECRET",
+    "SANDBOX_INTERNAL_SECRET",
 ]
+
+# URL pool sandboxes use to reach the agent container on the compose network.
+# Static sandbox gets its URL from docker-compose.yml AF_AGENT_URL env var.
+SANDBOX_POOL_AGENT_URL = "http://autofyn-agent:8500"
+
+# Env var name for the agent URL passed into sandbox containers.
+ENV_KEY_AGENT_URL = "AF_AGENT_URL"

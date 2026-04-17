@@ -23,7 +23,25 @@ SANDBOX_HOST: str = "0.0.0.0"
 
 # ── Security ──
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"
-INTERNAL_SECRET_ENV_VAR: str = "AGENT_INTERNAL_SECRET"
+INTERNAL_SECRET_ENV_VAR: str = "SANDBOX_INTERNAL_SECRET"
+
+# ── Agent HTTP client ──
+# Env var name for the agent URL. Set by docker-compose.yml for the static
+# sandbox; injected directly by pool.py for pool-created sandboxes.
+AGENT_URL_ENV_VAR: str = "AF_AGENT_URL"
+
+# ── Model translation ──
+# NOTE: This dict is duplicated from db/constants.py. The sandbox and agent
+# are separate deployment units; the sandbox cannot import db/ after this
+# refactor. Keep both in sync when adding new model aliases.
+MODEL_ID_TRANSLATION: dict[str, str] = {
+    "opus-4-5": "claude-opus-4-5",
+}
+
+
+def resolve_sdk_model(model: str) -> str:
+    """Translate an internal model key to the SDK model ID, or pass through."""
+    return MODEL_ID_TRANSLATION.get(model, model)
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg.get("credential_patterns", [])
 SECRET_ENV_VARS: str = _security_cfg.get("secret_env_vars", "")

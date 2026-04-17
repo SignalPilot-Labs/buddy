@@ -193,7 +193,7 @@ describe("extractBashCommands", () => {
     expect(extractBashCommands([])).toEqual([]);
   });
 
-  it("uses command as cmd when no description, exitOk true with no stderr", () => {
+  it("uses command as cmd, exitOk true with no stderr", () => {
     const tools = [
       makeToolCall({ input_data: { command: "ls -la", description: "" }, output_data: {} }),
     ];
@@ -202,19 +202,28 @@ describe("extractBashCommands", () => {
     expect(result[0].exitOk).toBe(true);
   });
 
-  it("uses description as cmd when description is present", () => {
+  it("uses command as cmd even when description is present", () => {
     const tools = [
       makeToolCall({ input_data: { command: "ls -la", description: "List files" }, output_data: {} }),
+    ];
+    const result = extractBashCommands(tools);
+    expect(result[0].cmd).toBe("ls -la");
+    expect(result[0].desc).toBe("List files");
+  });
+
+  it("falls back to description when command is empty", () => {
+    const tools = [
+      makeToolCall({ input_data: { command: "", description: "List files" }, output_data: {} }),
     ];
     const result = extractBashCommands(tools);
     expect(result[0].cmd).toBe("List files");
   });
 
-  it("truncates long command to 120 characters when no description", () => {
+  it("does not truncate long commands", () => {
     const longCmd = "a".repeat(150);
     const tools = [makeToolCall({ input_data: { command: longCmd, description: "" }, output_data: {} })];
     const result = extractBashCommands(tools);
-    expect(result[0].cmd).toBe("a".repeat(120));
+    expect(result[0].cmd).toBe(longCmd);
   });
 
   it("sets exitOk false and prepends [stderr] when stderr is present", () => {
