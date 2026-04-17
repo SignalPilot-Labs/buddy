@@ -7,11 +7,12 @@ from config.loader import sandbox_config, security_config
 
 
 # ── Logging ──
-class HealthLogFilter(logging.Filter):
-    """Drop access log lines for /health — they flood logs every 10s."""
+class AccessNoiseFilter(logging.Filter):
+    """Drop health checks and high-frequency polling from access logs."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        return "GET /health" not in record.getMessage()
+        msg = record.getMessage()
+        return "GET /health" not in msg and "/diff" not in msg
 
 _cfg = sandbox_config()
 _security_cfg = security_config()
