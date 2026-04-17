@@ -55,13 +55,6 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
     ENV_KEY_ANTHROPIC_API,
 )
 
-# Keys merged into body.env by _merge_tokens_into_env — not user-provided,
-# must be excluded when surfacing env var names in the subagent prompt.
-_INTERNAL_ENV_KEYS: frozenset[str] = frozenset({
-    ENV_KEY_GIT_TOKEN,
-    ENV_KEY_CLAUDE_TOKEN,
-})
-
 
 def _scrub_secrets(text: str) -> str:
     """Replace any in-process agent-env secret value with `_SECRET_MASK`.
@@ -255,7 +248,7 @@ class AgentServer:
                 bootstrap,
                 self._exec_timeout,
                 body.host_mounts,
-                [k for k in (body.env or {}) if k not in _INTERNAL_ENV_KEYS],
+                list((body.env or {}).keys()),
             )
             log.info("Run %s: round loop returned %s", run_id, terminal_status)
 
