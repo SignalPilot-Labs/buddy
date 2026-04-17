@@ -22,6 +22,7 @@ def build_round_system_prompt(context: RoundContext) -> SystemPromptPreset:
         round_number=context.round_number,
         tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
         host_mounts=context.host_mounts,
+        user_env_keys=context.user_env_keys,
     )
     sections: list[str] = [body, env_block, load_markdown("query/git-rules")]
 

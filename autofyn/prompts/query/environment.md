@@ -5,3 +5,5 @@ You run in a gVisor-sandboxed Docker container. Repo at `/home/agentuser/repo`, 
 Pre-installed — do NOT install these: `pytest`, `pytest-asyncio`, `pyright`, `mypy`, `ruff`, `black`, `npm`, `typescript` (tsc), `eslint`, `prettier`. If `CLAUDE.md` specifies different tools (e.g. biome, vitest, uv), follow that.
 
 {HOST_MOUNTS_BLOCK}
+
+{USER_ENV_BLOCK}
