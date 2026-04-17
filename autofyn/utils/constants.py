@@ -10,7 +10,7 @@ class AccessNoiseFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return "GET /health" not in msg and "GET /logs" not in msg
+        return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
 # ── Timeouts ──
 TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call

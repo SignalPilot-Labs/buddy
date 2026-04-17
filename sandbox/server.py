@@ -14,7 +14,7 @@ from aiohttp import web
 from config.loader import sandbox_config
 from constants import (
     AGENT_URL_ENV_VAR,
-    HealthLogFilter,
+    AccessNoiseFilter,
     INTERNAL_SECRET_ENV_VAR,
     INTERNAL_SECRET_HEADER,
     SANDBOX_HOST,
@@ -36,7 +36,7 @@ log = logging.getLogger("sandbox.server")
 
 # Suppress health check noise from EVERY logger that could emit it.
 # aiohttp.access is the main offender; apply to root as a safety net.
-_health_filter = HealthLogFilter()
+_health_filter = AccessNoiseFilter()
 for _logger_name in ("aiohttp.access", "aiohttp.server", "aiohttp.web", ""):
     logging.getLogger(_logger_name).addFilter(_health_filter)
 
