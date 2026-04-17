@@ -35,6 +35,7 @@ from backend.utils import (
     send_control_signal,
     session,
 )
+from db.constants import DEFAULT_MODEL, SUPPORTED_MODELS
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.endpoints")
@@ -353,3 +354,9 @@ async def get_diff_tmp(run_id: str = RunId) -> dict:
         "GET", "/diff/tmp", AGENT_TIMEOUT_LONG,
         None, {"run_id": run_id}, None, extra_headers=None,
     )
+
+
+@router.get("/models")
+async def get_models() -> dict:
+    """Return the list of supported models and the default."""
+    return {"models": SUPPORTED_MODELS, "default": DEFAULT_MODEL}

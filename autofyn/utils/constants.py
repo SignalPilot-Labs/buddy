@@ -25,9 +25,12 @@ IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
 # a runaway orchestrator that never judges the task done.
 MAX_ROUNDS = 128
 
-# ── Agent Models ──
-MODEL_OPUS = "opus"
-MODEL_SONNET = "sonnet"
+# ── Subagent Model Tiers ──
+# Each subagent declares a tier ("opus" or "sonnet"). At runtime,
+# build_agent_defs resolves the tier to the actual model based on the
+# user's selection. See resolve_subagent_model() in prompts/subagent.py.
+TIER_OPUS: str = "opus"
+TIER_SONNET: str = "sonnet"
 DEFAULT_AGENT_ROLE = "worker"
 SESSION_PERMISSION_MODE = "bypassPermissions"
 

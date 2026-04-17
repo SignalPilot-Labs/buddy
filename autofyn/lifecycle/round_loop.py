@@ -100,6 +100,7 @@ async def run_rounds(
             round_number=round_number,
             host_mounts=host_mounts,
             user_env_keys=user_env_keys,
+            user_model=options["model"],
         )
         options["system_prompt"] = {
             "type": system_prompt["type"],

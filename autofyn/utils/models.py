@@ -15,13 +15,13 @@ from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, VALID_EFFORTS, VALID_MODELS
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, SUPPORTED_SONNET, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 _FALLBACK_MAP: dict[str, str | None] = {
-    "opus": "sonnet",
-    "sonnet": None,
-    "opus-4-5": "sonnet",
+    "claude-opus-4-6": SUPPORTED_SONNET,
+    "claude-sonnet-4-6": None,
+    "claude-opus-4-5": SUPPORTED_SONNET,
 }
 
 
