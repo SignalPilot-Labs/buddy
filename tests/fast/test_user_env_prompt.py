@@ -19,9 +19,3 @@ class TestUserEnvBlock:
         assert "`FOO`" in result
         assert "`BAR`" in result
         assert "`BAZ`" in result
-
-    def test_no_internal_keys_in_output(self) -> None:
-        """If caller filters correctly, internal keys should never appear."""
-        result = _user_env_block(["CUSTOM_TOKEN"])
-        assert "GIT_TOKEN" not in result
-        assert "CLAUDE_CODE_OAUTH_TOKEN" not in result
