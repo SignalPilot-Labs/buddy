@@ -15,7 +15,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from constants import SESSION_EVENT_QUEUE_SIZE, resolve_sdk_model
+from constants import SESSION_EVENT_QUEUE_SIZE
 from session.gate import SessionGate
 from session.hooks import SessionHooks
 from session.security import SecurityGate
@@ -112,12 +112,8 @@ class Session:
         agents = parse_agents(agents_raw) if agents_raw else None
 
         return ClaudeAgentOptions(
-            model=resolve_sdk_model(opts["model"]),
-            fallback_model=(
-                resolve_sdk_model(opts["fallback_model"])
-                if opts.get("fallback_model")
-                else None
-            ),
+            model=opts["model"],
+            fallback_model=opts.get("fallback_model"),
             effort=opts["effort"],
             system_prompt=opts["system_prompt"],
             permission_mode="bypassPermissions",

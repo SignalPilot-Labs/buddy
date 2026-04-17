@@ -9,7 +9,8 @@ SubagentDef itself is defined in `utils.models`.
 """
 
 from prompts.loader import load_markdown, render_environment
-from utils.constants import MODEL_OPUS, MODEL_SONNET, TOOL_CALL_TIMEOUT_SEC
+from db.constants import SUPPORTED_SONNET
+from utils.constants import TIER_OPUS, TIER_SONNET, TOOL_CALL_TIMEOUT_SEC
 from utils.models import SubagentDef
 
 # ── Tool sets (shared across subagents with matching capabilities) ──
@@ -53,7 +54,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " Call when you need to understand how code is organized or where"
             " something lives. Be targeted — tell it what to look for."
         ),
-        model=MODEL_SONNET,
+        model=TIER_SONNET,
         tools=TOOLS_RESEARCH,
     ),
     # ── Plan phase ──
@@ -65,7 +66,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " and writes a fix spec a dev can implement. Call when something"
             " is broken."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_RESEARCH,
     ),
     SubagentDef(
@@ -76,7 +77,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " structural decisions, writes the round's spec. Call at the start"
             " of each round, and again to re-plan on RETHINK."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_RESEARCH,
     ),
     # ── Build phase ──
@@ -87,7 +88,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             "Implements Python, APIs, database, and infrastructure code from"
             " the architect's spec. Never use for React/Next.js/CSS/UI work."
         ),
-        model=MODEL_SONNET,
+        model=TIER_SONNET,
         tools=TOOLS_BUILD,
     ),
     SubagentDef(
@@ -97,7 +98,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             "Implements React, Next.js, TypeScript UI, CSS, and styling from"
             " the architect's spec. Never use for Python/backend work."
         ),
-        model=MODEL_SONNET,
+        model=TIER_SONNET,
         tools=TOOLS_BUILD,
     ),
     # ── Review phase ──
@@ -110,7 +111,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " and CLAUDE.md compliance. Call on every spec marked"
             " `Spec review: required`."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_REVIEW,
     ),
     SubagentDef(
@@ -121,7 +122,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " and quality. Runs tests, linter, typechecker. Call after every"
             " build."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_REVIEW_FULL,
     ),
     SubagentDef(
@@ -132,7 +133,7 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " accessibility, and AI slop. Call alongside code-reviewer whenever"
             " frontend-dev made changes."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_REVIEW,
     ),
     SubagentDef(
@@ -143,16 +144,33 @@ SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
             " leaked secrets, unsafe config. Call when changes touch auth,"
             " user input, APIs, or secrets."
         ),
-        model=MODEL_OPUS,
+        model=TIER_OPUS,
         tools=TOOLS_REVIEW,
     ),
 )
+
+
+def _resolve_subagent_model(tier: str, user_model: str) -> str:
+    """Resolve a subagent tier to a concrete model ID based on user selection.
+
+    - User picks an opus model → opus-tier subagents get that model,
+      sonnet-tier subagents get SUPPORTED_SONNET.
+    - User picks a sonnet model → ALL subagents (including opus-tier) get
+      that sonnet model. Sonnet runs are cost-conscious — no opus anywhere.
+    """
+    is_sonnet_run = "sonnet" in user_model
+    if is_sonnet_run:
+        return user_model
+    if tier == TIER_OPUS:
+        return user_model
+    return SUPPORTED_SONNET
 
 
 def build_agent_defs(
     round_number: int,
     host_mounts: list[dict[str, str]] | None,
     user_env_keys: list[str],
+    user_model: str,
 ) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
@@ -198,7 +216,7 @@ def build_agent_defs(
         result[defn.name] = {
             "description": defn.description,
             "prompt": "\n\n".join(prompt_parts),
-            "model": defn.model,
+            "model": _resolve_subagent_model(defn.model, user_model),
             "tools": defn.tools,
         }
     return result

@@ -23,7 +23,7 @@ from session.session import Session
 
 BASE_OPTS = {
     "run_id": "run-integration",
-    "model": "opus",
+    "model": "claude-opus-4-6",
     "effort": "high",
     "system_prompt": "test",
     "cwd": "/tmp",

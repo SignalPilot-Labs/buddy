@@ -6,36 +6,30 @@ The `db` package is the only Python package imported by both `autofyn/` and
 
 import posixpath
 
-# Valid Claude model identifiers accepted at the run-start boundary.
-# Source of truth for: agent validation, dashboard Pydantic regex, fallback map.
-# "opus" and "sonnet" are Claude Code aliases resolved by the CLI to the latest
-# snapshot. "opus-4-5" is our own key for the previous Opus generation and is
-# translated to the full model ID "claude-opus-4-5" at the SDK boundary.
-VALID_MODELS: tuple[str, ...] = ("opus", "sonnet", "opus-4-5")
+# ── Models ──
+# Pinned to exact SDK model IDs. No aliases, no translation layer.
+SUPPORTED_OPUS: str = "claude-opus-4-6"
+SUPPORTED_SONNET: str = "claude-sonnet-4-6"
+LEGACY_OPUS: str = "claude-opus-4-5"
 
-# Default model used when the caller does not specify one.
-DEFAULT_MODEL: str = "opus"
-
-# Pydantic/regex-friendly alternation pattern built from VALID_MODELS.
+VALID_MODELS: tuple[str, ...] = (SUPPORTED_OPUS, SUPPORTED_SONNET, LEGACY_OPUS)
+DEFAULT_MODEL: str = SUPPORTED_OPUS
 VALID_MODELS_PATTERN: str = f"^({'|'.join(VALID_MODELS)})$"
 
-# Translation from our internal model keys to the exact model IDs the Claude
-# Agent SDK forwards to the Anthropic API. Keys not present here are passed
-# through unchanged (the CLI resolves "opus"/"sonnet" aliases itself).
-MODEL_ID_TRANSLATION: dict[str, str] = {
-    "opus-4-5": "claude-opus-4-5",
-}
+# Structured metadata for /api/models endpoint.
+SUPPORTED_MODELS: list[dict[str, str]] = [
+    {"id": SUPPORTED_OPUS, "label": "Claude Opus 4.6", "badge": "Opus", "tier": "opus"},
+    {"id": SUPPORTED_SONNET, "label": "Claude Sonnet 4.6", "badge": "Sonnet", "tier": "sonnet"},
+    {"id": LEGACY_OPUS, "label": "Claude Opus 4.5", "badge": "Opus 4.5", "tier": "legacy"},
+]
 
 # ── Effort ──
-# Valid effort levels for the Claude Agent SDK.
-# "max" is only supported on 4.6 models (opus, sonnet); for older models
-# it is silently downgraded to "high" at the bootstrap boundary.
 VALID_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "max")
 DEFAULT_EFFORT: str = "medium"
 VALID_EFFORTS_PATTERN: str = f"^({'|'.join(VALID_EFFORTS)})$"
 
 # Models that support effort="max". Others get downgraded to "high".
-MODELS_SUPPORTING_MAX_EFFORT: frozenset[str] = frozenset({"opus", "sonnet"})
+MODELS_SUPPORTING_MAX_EFFORT: frozenset[str] = frozenset({SUPPORTED_OPUS, SUPPORTED_SONNET})
 
 
 # ── Host Mounts ──
@@ -161,8 +155,3 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "llm_thinking",
     "usage",
 })
-
-
-def resolve_sdk_model(model: str) -> str:
-    """Translate an internal model key to the SDK model ID, or pass through."""
-    return MODEL_ID_TRANSLATION.get(model, model)
