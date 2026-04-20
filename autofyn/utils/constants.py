@@ -17,10 +17,10 @@ class AccessNoiseFilter(logging.Filter):
         return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
 # ── Timeouts ──
-PULSE_CHECK_INTERVAL_SEC = 30
+PULSE_CHECK_INTERVAL_SEC: int = _agent_cfg["pulse_check_interval_sec"]
 
 # ── Run Limits ──
-IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
+IDLE_NUDGE_MAX_ATTEMPTS: int = _agent_cfg["idle_nudge_max_attempts"]
 
 # ── Subagent Model Tiers ──
 # Each subagent declares a tier ("opus" or "sonnet"). At runtime,
@@ -62,8 +62,8 @@ GIT_RETRY_ATTEMPTS = 3
 GIT_RETRY_DELAY_SEC = 2.0
 
 # ── Session Error Retry ──
-SESSION_ERROR_MAX_RETRIES = 3
-SESSION_ERROR_BASE_BACKOFF_SEC = 2  # Exponential: 2, 4, 8
+SESSION_ERROR_MAX_RETRIES: int = _agent_cfg["session_error_max_retries"]
+SESSION_ERROR_BASE_BACKOFF_SEC: int = _agent_cfg["session_error_base_backoff_sec"]
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
@@ -72,10 +72,10 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
 # ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
-COST_PER_INPUT = 15.0 / 1_000_000
-COST_PER_OUTPUT = 75.0 / 1_000_000
-COST_PER_CACHE_WRITE = 18.75 / 1_000_000
-COST_PER_CACHE_READ = 1.50 / 1_000_000
+COST_PER_INPUT: float = _agent_cfg["cost_per_input_token"]
+COST_PER_OUTPUT: float = _agent_cfg["cost_per_output_token"]
+COST_PER_CACHE_WRITE: float = _agent_cfg["cost_per_cache_write_token"]
+COST_PER_CACHE_READ: float = _agent_cfg["cost_per_cache_read_token"]
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"

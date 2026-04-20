@@ -29,6 +29,9 @@ sandbox:
   session_event_queue_size: 1000
   log_level: info
   allow_docker: false  # mount Docker socket into sandbox (--allow-docker flag)
+  retry_max_attempts: 3
+  retry_base_delay_sec: 2.0
+  early_exit_threshold_min: 5.0
 
 agent:
   port: 8500
@@ -38,6 +41,14 @@ agent:
   session_idle_timeout_sec: 120
   subagent_idle_kill_sec: 600
   max_concurrent_runs: 5
+  cost_per_input_token: 0.000015        # 15.0 / 1_000_000
+  cost_per_output_token: 0.000075       # 75.0 / 1_000_000
+  cost_per_cache_read_token: 0.0000015  # 1.50 / 1_000_000
+  cost_per_cache_write_token: 0.00001875 # 18.75 / 1_000_000
+  session_error_max_retries: 3
+  session_error_base_backoff_sec: 2
+  idle_nudge_max_attempts: 3
+  pulse_check_interval_sec: 30
 
 dashboard:
   api_port: 3401

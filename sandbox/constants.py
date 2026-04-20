@@ -40,7 +40,7 @@ MAX_CONCURRENT_SESSIONS: int = _cfg["max_concurrent_sessions"]
 SESSION_EVENT_QUEUE_SIZE: int = _cfg["session_event_queue_size"]
 
 # ── Time Lock ──
-EARLY_EXIT_THRESHOLD_MIN: float = 5.0  # Allow end_session when < 5 min remain
+EARLY_EXIT_THRESHOLD_MIN: float = _cfg["early_exit_threshold_min"]
 SECONDS_PER_MINUTE: int = 60
 
 INPUT_SUMMARY_MAX_LEN: int = 1000
@@ -58,8 +58,8 @@ TASK_TOOL_NAME: str = "Agent"
 FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
 
 # ── Retry (transient network errors on git/gh commands) ──
-RETRY_MAX_ATTEMPTS: int = 3
-RETRY_BASE_DELAY_SEC: float = 2.0
+RETRY_MAX_ATTEMPTS: int = _cfg["retry_max_attempts"]
+RETRY_BASE_DELAY_SEC: float = _cfg["retry_base_delay_sec"]
 RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
     "error connecting",
     "connection refused",

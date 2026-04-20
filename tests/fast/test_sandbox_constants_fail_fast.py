@@ -12,6 +12,9 @@ _FULL_SANDBOX_CFG: dict = {
     "max_concurrent_sessions": 5,
     "session_event_queue_size": 1000,
     "log_level": "info",
+    "retry_max_attempts": 3,
+    "retry_base_delay_sec": 2.0,
+    "early_exit_threshold_min": 5.0,
 }
 
 _FULL_SECURITY_CFG: dict = {
@@ -64,3 +67,18 @@ class TestSandboxConstantsFailFast:
         incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "log_level"}
         with pytest.raises(KeyError):
             _ = incomplete["log_level"]
+
+    def test_missing_retry_max_attempts_raises(self) -> None:
+        incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "retry_max_attempts"}
+        with pytest.raises(KeyError):
+            _reload_constants(incomplete, _FULL_SECURITY_CFG)
+
+    def test_missing_retry_base_delay_sec_raises(self) -> None:
+        incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "retry_base_delay_sec"}
+        with pytest.raises(KeyError):
+            _reload_constants(incomplete, _FULL_SECURITY_CFG)
+
+    def test_missing_early_exit_threshold_min_raises(self) -> None:
+        incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "early_exit_threshold_min"}
+        with pytest.raises(KeyError):
+            _reload_constants(incomplete, _FULL_SECURITY_CFG)
