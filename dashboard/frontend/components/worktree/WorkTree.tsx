@@ -419,13 +419,20 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         ) : selectedFile !== null ? (
           /* File selected but diff body still loading */
           <div>
-            <button
-              onClick={() => setSelectedFile(null)}
-              className="flex items-center gap-1 px-3 py-2 text-content text-text-secondary hover:text-accent-hover transition-colors"
-            >
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polyline points="5 1 2 4 5 7" /></svg>
-              Back
-            </button>
+            <div className="flex items-center gap-2 px-2 py-2 border-b border-border shrink-0">
+              <button
+                onClick={() => setSelectedFile(null)}
+                className="p-2 rounded hover:bg-white/[0.06] transition-colors text-text-dim hover:text-text cursor-pointer min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Back to file tree"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <polyline points="7 2 3 6 7 10" />
+                </svg>
+              </button>
+              <span className="flex-1 text-content text-accent-hover font-mono truncate" title={selectedFile.path}>
+                {selectedFile.path}
+              </span>
+            </div>
             <div className="flex items-center justify-center py-8" role="status" aria-label="Loading diff">
               <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
             </div>
