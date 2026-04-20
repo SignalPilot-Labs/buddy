@@ -104,6 +104,7 @@ These rules are mandatory. All AI agents must follow them. No exceptions.
 ## Tests
 
 - One test class per file. Test files share fixtures, mocks, and conftest helpers — but each class lives in its own file.
+- Every bug fix must include a regression test that would have caught the bug. No exceptions.
 
 ## Verification
 
