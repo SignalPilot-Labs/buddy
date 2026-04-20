@@ -31,7 +31,13 @@ export function mergeToolEvent(prev: FeedEvent[], data: ToolCall): FeedEvent[] {
   }
   for (let i = 0; i < prev.length; i++) {
     const ev = prev[i];
-    if (ev._kind === "tool" && ev.data.id === data.id) return prev;
+    if (ev._kind !== "tool") continue;
+    if (ev.data.id === data.id) return prev;
+    if (
+      data.phase === "post" &&
+      data.tool_use_id &&
+      ev.data.tool_use_id === data.tool_use_id
+    ) return prev;
   }
   return [...prev, { _kind: "tool", data }];
 }
