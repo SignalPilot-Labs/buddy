@@ -2,8 +2,9 @@
 
 One SubagentTracker per round. Records when subagents start, when they
 last used a tool, and flags ones that have been idle longer than
-SUBAGENT_IDLE_KILL_SEC. Also tracks per-agent tool start times so the
-pulse loop can detect tool calls exceeding TOOL_CALL_TIMEOUT_SEC.
+run_config.subagent_idle_kill_sec. Also tracks per-agent tool start times
+so the pulse loop can detect tool calls exceeding
+run_config.tool_call_timeout_sec.
 
 The StuckSubagent dataclass lives in utils.models.
 """
@@ -11,8 +12,8 @@ The StuckSubagent dataclass lives in utils.models.
 import logging
 import time
 
-from utils.constants import SUBAGENT_IDLE_KILL_SEC, TOOL_CALL_TIMEOUT_SEC
 from utils.models import StuckSubagent
+from utils.run_config import RunAgentConfig
 
 log = logging.getLogger("session.tracker")
 
@@ -34,7 +35,8 @@ class SubagentTracker:
         timed_out_tools()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, run_config: RunAgentConfig) -> None:
+        self._run_config = run_config
         self._started_at: dict[str, float] = {}
         self._last_tool_at: dict[str, float] = {}
         self._types: dict[str, str] = {}
@@ -91,7 +93,7 @@ class SubagentTracker:
         return any(c > 0 for c in self._tools_in_flight.values())
 
     def stuck_subagents(self) -> list[StuckSubagent]:
-        """Return subagents idle longer than SUBAGENT_IDLE_KILL_SEC.
+        """Return subagents idle longer than subagent_idle_kill_sec.
 
         Subagents with tools still in-flight are never considered stuck.
         """
@@ -102,10 +104,10 @@ class SubagentTracker:
                 continue
             last = self._last_tool_at.get(agent_id, started)
             idle = now - last
-            if idle > SUBAGENT_IDLE_KILL_SEC:
+            if idle > self._run_config.subagent_idle_kill_sec:
                 result.append(StuckSubagent(
                     agent_id=agent_id,
-                    agent_type=self._types.get(agent_id, "unknown"),
+                    agent_type=self._types[agent_id],
                     idle_seconds=int(idle),
                     total_seconds=int(now - started),
                 ))
@@ -117,11 +119,11 @@ class SubagentTracker:
         self._tool_started_at.pop(key, None)
 
     def timed_out_tools(self) -> list[tuple[str, int]]:
-        """Return (agent_key, elapsed_sec) for tools exceeding TOOL_CALL_TIMEOUT_SEC."""
+        """Return (agent_key, elapsed_sec) for tools exceeding tool_call_timeout_sec."""
         now = time.time()
         result: list[tuple[str, int]] = []
         for key, started in self._tool_started_at.items():
             elapsed = int(now - started)
-            if elapsed > TOOL_CALL_TIMEOUT_SEC:
+            if elapsed > self._run_config.tool_call_timeout_sec:
                 result.append((key, elapsed))
         return result

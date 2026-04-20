@@ -7,12 +7,20 @@ Verifies that:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 from agent_session.runner import RoundRunner
 from agent_session.stream import StreamDispatcher
 from agent_session.tracker import SubagentTracker
 from utils.models import RunContext, StreamSignal
+from utils.run_config import RunAgentConfig
+
+_DEFAULT_RUN_CONFIG = RunAgentConfig(
+    max_rounds=128,
+    tool_call_timeout_sec=3600,
+    session_idle_timeout_sec=120,
+    subagent_idle_kill_sec=600,
+)
 
 
 def _make_run() -> RunContext:
@@ -38,7 +46,7 @@ def _make_dispatcher() -> StreamDispatcher:
     return StreamDispatcher(
         run=_make_run(),
         round_number=1,
-        tracker=SubagentTracker(),
+        tracker=SubagentTracker(_DEFAULT_RUN_CONFIG),
     )
 
 
@@ -89,6 +97,7 @@ class TestApplySignalSessionError:
             run=_make_run(),
             inbox=MagicMock(),
             time_lock=MagicMock(),
+            run_config=_DEFAULT_RUN_CONFIG,
         )
         signal = StreamSignal(kind="session_error", error="401 Unauthorized")
         control = MagicMock()
@@ -108,6 +117,7 @@ class TestApplySignalSessionError:
             run=_make_run(),
             inbox=MagicMock(),
             time_lock=MagicMock(),
+            run_config=_DEFAULT_RUN_CONFIG,
         )
         signal = StreamSignal(kind="round_complete", round_summary="done")
         control = MagicMock()

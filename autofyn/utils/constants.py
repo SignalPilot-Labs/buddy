@@ -17,17 +17,10 @@ class AccessNoiseFilter(logging.Filter):
         return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
 # ── Timeouts ──
-TOOL_CALL_TIMEOUT_SEC: int = _agent_cfg["tool_call_timeout_sec"]
-SUBAGENT_IDLE_KILL_SEC: int = _agent_cfg["subagent_idle_kill_sec"]
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
-SESSION_IDLE_TIMEOUT_SEC: int = _agent_cfg["session_idle_timeout_sec"]
 IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
-# Backstop for runs without a time lock. 128 rounds is enough for a
-# very long autonomous session (~8h at ~4 min/round) while still stopping
-# a runaway orchestrator that never judges the task done.
-MAX_ROUNDS: int = _agent_cfg["max_rounds"]
 
 # ── Subagent Model Tiers ──
 # Each subagent declares a tier ("opus" or "sonnet"). At runtime,

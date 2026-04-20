@@ -25,12 +25,12 @@ _GLOBAL_CONFIG = Path.home() / ".autofyn" / "config.yml"
 _PROJECT_CONFIG = _REPO_ROOT / ".autofyn" / "config.yml"
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
+def deep_merge(base: dict, override: dict) -> dict:
     """Merge override into base, recursing into nested dicts."""
     merged = base.copy()
     for key, value in override.items():
         if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
-            merged[key] = _deep_merge(merged[key], value)
+            merged[key] = deep_merge(merged[key], value)
         else:
             merged[key] = value
     return merged
@@ -131,10 +131,10 @@ def load(repo_path: Path | None) -> dict:
     """
     _ensure_project_config()
     config = _load_yaml(_DEFAULT_CONFIG)
-    config = _deep_merge(config, _load_yaml(_GLOBAL_CONFIG))
-    config = _deep_merge(config, _load_yaml(_PROJECT_CONFIG))
+    config = deep_merge(config, _load_yaml(_GLOBAL_CONFIG))
+    config = deep_merge(config, _load_yaml(_PROJECT_CONFIG))
     if repo_path is not None:
-        config = _deep_merge(config, _load_yaml(repo_path / ".autofyn" / "config.yml"))
+        config = deep_merge(config, _load_yaml(repo_path / ".autofyn" / "config.yml"))
     config = _apply_env_overrides(config)
     return config
 

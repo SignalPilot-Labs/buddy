@@ -10,7 +10,7 @@ SubagentDef itself is defined in `utils.models`.
 
 from prompts.loader import load_markdown, render_environment
 from db.constants import SUPPORTED_SONNET
-from utils.constants import TIER_OPUS, TIER_SONNET, TOOL_CALL_TIMEOUT_SEC
+from utils.constants import TIER_OPUS, TIER_SONNET
 from utils.models import SubagentDef
 
 # ── Tool sets (shared across subagents with matching capabilities) ──
@@ -171,6 +171,7 @@ def build_agent_defs(
     host_mounts: list[dict[str, str]] | None,
     user_env_keys: list[str],
     user_model: str,
+    tool_call_timeout_sec: int,
 ) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
@@ -184,7 +185,7 @@ def build_agent_defs(
     prior_round_number = max(round_number - 1, 0)
     env_block = render_environment(
         round_number=round_number,
-        tool_call_timeout_min=TOOL_CALL_TIMEOUT_SEC // 60,
+        tool_call_timeout_min=tool_call_timeout_sec // 60,
         host_mounts=host_mounts,
         user_env_keys=user_env_keys,
     )

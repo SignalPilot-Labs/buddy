@@ -32,10 +32,9 @@ from utils import db
 from utils.constants import (
     IDLE_NUDGE_MAX_ATTEMPTS,
     PULSE_CHECK_INTERVAL_SEC,
-    SESSION_IDLE_TIMEOUT_SEC,
-    SUBAGENT_IDLE_KILL_SEC,
 )
 from utils.models import RoundResult, RunContext
+from utils.run_config import RunAgentConfig
 
 log = logging.getLogger("session.runner")
 
@@ -53,11 +52,13 @@ class RoundRunner:
         run: RunContext,
         inbox: UserInbox,
         time_lock: TimeLock,
+        run_config: RunAgentConfig,
     ) -> None:
         self._sandbox = sandbox
         self._run = run
         self._inbox = inbox
         self._time_lock = time_lock
+        self._run_config = run_config
         self._rid = run.run_id[:8]
 
     async def run(
@@ -68,7 +69,7 @@ class RoundRunner:
     ) -> RoundResult:
         """Start the sandbox session and run until the round ends."""
         session_id: str | None = None
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(self._run_config)
         dispatcher = StreamDispatcher(self._run, round_number, tracker)
 
         try:
@@ -144,7 +145,7 @@ class RoundRunner:
         sse_task = asyncio.create_task(_next_event(stream_iter))
         op_task = asyncio.create_task(self._inbox.next_event())
         idle_task: asyncio.Task[None] | None = asyncio.create_task(
-            asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
+            asyncio.sleep(self._run_config.session_idle_timeout_sec),
         )
         nudge_count = 0
         idle_since: float = asyncio.get_event_loop().time()
@@ -217,7 +218,7 @@ class RoundRunner:
                         idle_task = None
                     else:
                         idle_task = asyncio.create_task(
-                            asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
+                            asyncio.sleep(self._run_config.session_idle_timeout_sec),
                         )
                     # Any real SSE activity resets the nudge counter and timer.
                     nudge_count = 0
@@ -245,7 +246,7 @@ class RoundRunner:
                             session_id=session_id,
                         )
                     # Nudge: interrupt + inject, then backoff exponentially.
-                    backoff = SESSION_IDLE_TIMEOUT_SEC * (2 ** (nudge_count - 1))
+                    backoff = self._run_config.session_idle_timeout_sec * (2 ** (nudge_count - 1))
                     idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
                     log.info(
                         "[%s] Round %d idle nudge %d/%d — next in %ds",
@@ -394,7 +395,7 @@ class RoundRunner:
         agent_names = ", ".join(s.agent_type for s in stuck)
         self._inbox.push(
             "inject",
-            render_stuck_recovery(agent_names, SUBAGENT_IDLE_KILL_SEC // 60),
+            render_stuck_recovery(agent_names, self._run_config.subagent_idle_kill_sec // 60),
         )
         return True
 

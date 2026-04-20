@@ -66,6 +66,7 @@ class TestSessionErrorRetry:
                 metadata_store=MagicMock(),
                 exec_timeout=120,
                 consecutive_session_errors=0,
+                max_rounds=128,
             )
 
             assert terminal is None, "Should retry, not terminate"
@@ -90,6 +91,7 @@ class TestSessionErrorRetry:
                 metadata_store=MagicMock(),
                 exec_timeout=120,
                 consecutive_session_errors=1,
+                max_rounds=128,
             )
 
             assert terminal is None
@@ -114,6 +116,7 @@ class TestSessionErrorRetry:
                 metadata_store=MagicMock(),
                 exec_timeout=120,
                 consecutive_session_errors=SESSION_ERROR_MAX_RETRIES - 1,
+                max_rounds=128,
             )
 
             assert terminal == "error", "Should give up after max retries"
@@ -138,6 +141,7 @@ class TestSessionErrorRetry:
                 metadata_store=MagicMock(),
                 exec_timeout=120,
                 consecutive_session_errors=2,
+                max_rounds=128,
             )
 
             assert terminal is None
@@ -172,6 +176,7 @@ class TestSessionErrorRetry:
                 metadata_store=MagicMock(),
                 exec_timeout=120,
                 consecutive_session_errors=1,
+                max_rounds=128,
             )
 
             mock_db.log_audit.assert_called_once()
