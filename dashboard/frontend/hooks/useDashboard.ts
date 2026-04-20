@@ -186,7 +186,7 @@ export function useDashboard(): DashboardState {
             ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
             : true;
           if (currentId === null || currentIsTerminal) {
-            setSelectedRunId(newRun.run_id);
+            void handleSelectRun(newRun.run_id);
           }
         }
         return h;
@@ -195,7 +195,7 @@ export function useDashboard(): DashboardState {
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
-  }, []);
+  }, [handleSelectRun]);
 
   useEffect(() => {
     fetchSettingsStatus().then((s) => {
@@ -251,6 +251,13 @@ export function useDashboard(): DashboardState {
   useEffect(() => {
     if (!selectedRunId && runs.length > 0) {
       if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
+      // Active runs always win — a running agent is what the user cares about.
+      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+      if (active) {
+        handleSelectRun(active.id);
+        return;
+      }
+      // No active run — try restoring from localStorage (last viewed run).
       const skipRestore = skipLastRunRestoreRef.current;
       skipLastRunRestoreRef.current = false;
       if (!skipRestore) {
@@ -260,8 +267,7 @@ export function useDashboard(): DashboardState {
           return;
         }
       }
-      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
-      handleSelectRun(active?.id || runs[0].id);
+      handleSelectRun(runs[0].id);
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
