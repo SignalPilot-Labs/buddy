@@ -163,7 +163,7 @@ export function ToolCardBase({ tool, variant, isLast }: ToolCardBaseProps) {
     >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
+        className="w-full flex items-center gap-3 px-4 py-3 text-body hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
       >
         {headerContent}
       </button>
