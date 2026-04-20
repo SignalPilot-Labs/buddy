@@ -19,7 +19,7 @@ from sandbox_client.handlers.execute import Execute
 from sandbox_client.handlers.file_system import FileSystem
 from sandbox_client.handlers.repo import Repo
 from sandbox_client.handlers.session import Session
-from utils.constants import ENV_KEY_SANDBOX_SECRET, INTERNAL_SECRET_HEADER, SANDBOX_CLIENT_DEFAULT_TIMEOUT
+from utils.constants import ENV_KEY_SANDBOX_SECRET, INTERNAL_SECRET_HEADER
 
 log = logging.getLogger("sandbox_client.client")
 
@@ -38,7 +38,7 @@ class SandboxClient:
         close()  -> None
     """
 
-    def __init__(self, base_url: str, health_timeout: int) -> None:
+    def __init__(self, base_url: str, health_timeout: int, timeout: int) -> None:
         self._base_url = base_url.rstrip("/")
         self._health_timeout = health_timeout
         secret = os.environ[ENV_KEY_SANDBOX_SECRET]
@@ -48,7 +48,7 @@ class SandboxClient:
             )
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
-            timeout=httpx.Timeout(SANDBOX_CLIENT_DEFAULT_TIMEOUT),
+            timeout=httpx.Timeout(timeout),
             headers={INTERNAL_SECRET_HEADER: secret},
         )
         self.execute: Execute = Execute(self._http)

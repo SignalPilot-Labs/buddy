@@ -35,9 +35,6 @@ from utils.constants import (
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
     MAX_CONCURRENT_RUNS,
-    SANDBOX_CLONE_TIMEOUT_DEFAULT,
-    SANDBOX_EXEC_TIMEOUT_DEFAULT,
-    SANDBOX_HEALTH_TIMEOUT_DEFAULT,
     SERVER_HOST,
     SERVER_PORT,
 )
@@ -81,18 +78,9 @@ class AgentServer:
 
     def __init__(self) -> None:
         cfg = sandbox_config()
-        self._health_timeout: int = cfg.get(
-            "health_timeout_sec",
-            SANDBOX_HEALTH_TIMEOUT_DEFAULT,
-        )
-        self._exec_timeout: int = cfg.get(
-            "exec_timeout_sec",
-            SANDBOX_EXEC_TIMEOUT_DEFAULT,
-        )
-        self._clone_timeout: int = cfg.get(
-            "clone_timeout_sec",
-            SANDBOX_CLONE_TIMEOUT_DEFAULT,
-        )
+        self._health_timeout: int = cfg["health_timeout_sec"]
+        self._exec_timeout: int = cfg["exec_timeout_sec"]
+        self._clone_timeout: int = cfg["clone_timeout_sec"]
 
         self._pool = SandboxPool()
         self._runs: dict[str, ActiveRun] = {}
