@@ -270,6 +270,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     onChange={(e) => { setCustomPrompt(e.target.value); setSelectedQuick(null); }}
                     onKeyDown={handleKeyDown}
                     placeholder="e.g., Refactor the auth module to use JWT tokens instead of session cookies..."
+                    rows={PROMPT_MIN_ROWS}
                     className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-none leading-6 transition-[height] duration-100 focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
                     style={{ minHeight: `${PROMPT_MIN_ROWS * PROMPT_LINE_HEIGHT + PROMPT_VERTICAL_PADDING}px` }}
                   />
