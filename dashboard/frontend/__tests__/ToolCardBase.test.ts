@@ -9,7 +9,14 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { buildSummary } from "@/components/feed/ToolCardBase";
+import { getToolCategory } from "@/lib/types";
 import { makeToolCall } from "./testFactories";
+
+/** Helper: build summary with auto-resolved category. */
+function summary(tool_name: string, input_data: Record<string, unknown> | null): string {
+  const tool = makeToolCall({ tool_name, input_data });
+  return buildSummary(tool, getToolCategory(tool_name));
+}
 
 const SRC = readFileSync(
   join(__dirname, "..", "components", "feed", "ToolCardBase.tsx"),
@@ -21,44 +28,37 @@ const SRC = readFileSync(
 describe("buildSummary", () => {
   it("bash: returns command sliced to 100 chars", () => {
     const cmd = "x".repeat(200);
-    const result = buildSummary(makeToolCall({ tool_name: "Bash", input_data: { command: cmd } }));
-    expect(result).toHaveLength(100);
+    expect(summary("Bash", { command: cmd })).toHaveLength(100);
   });
 
   it("bash: falls back to description when no command", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Bash", input_data: { description: "install deps" } }));
-    expect(result).toBe("install deps");
+    expect(summary("Bash", { description: "install deps" })).toBe("install deps");
   });
 
   it("read: returns shortened file path", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Read", input_data: { file_path: "/a/b/c/deep/file.ts" } }));
-    expect(result).toContain("file.ts");
+    expect(summary("Read", { file_path: "/a/b/c/deep/file.ts" })).toContain("file.ts");
   });
 
   it("edit: returns shortened file path", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Edit", input_data: { file_path: "/src/index.ts" } }));
-    expect(result).toContain("index.ts");
+    expect(summary("Edit", { file_path: "/src/index.ts" })).toContain("index.ts");
   });
 
   it("write: returns shortened file path", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Write", input_data: { file_path: "/out/bundle.js" } }));
-    expect(result).toContain("bundle.js");
+    expect(summary("Write", { file_path: "/out/bundle.js" })).toContain("bundle.js");
   });
 
   it("glob: returns pattern", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Glob", input_data: { pattern: "**/*.ts" } }));
-    expect(result).toBe("**/*.ts");
+    expect(summary("Glob", { pattern: "**/*.ts" })).toBe("**/*.ts");
   });
 
   it("grep: returns /pattern/ in path", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Grep", input_data: { pattern: "TODO", path: "/src" } }));
+    const result = summary("Grep", { pattern: "TODO", path: "/src" });
     expect(result).toContain("/TODO/");
     expect(result).toContain("src");
   });
 
   it("grep: returns /pattern/ without path when absent", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Grep", input_data: { pattern: "TODO" } }));
-    expect(result).toBe("/TODO/");
+    expect(summary("Grep", { pattern: "TODO" })).toBe("/TODO/");
   });
 
   it("todo: returns status counts", () => {
@@ -69,31 +69,32 @@ describe("buildSummary", () => {
       { status: "pending" },
       { status: "pending" },
     ];
-    const result = buildSummary(makeToolCall({ tool_name: "TodoWrite", input_data: { todos } }));
+    const result = summary("TodoWrite", { todos });
     expect(result).toContain("2✓");
     expect(result).toContain("1◉");
     expect(result).toContain("2○");
   });
 
+  it("skill: returns skill name", () => {
+    expect(summary("Skill", { skill: "commit" })).toBe("commit");
+  });
+
   it("web_search: returns query", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "WebSearch", input_data: { query: "vitest docs" } }));
-    expect(result).toBe("vitest docs");
+    expect(summary("WebSearch", { query: "vitest docs" })).toBe("vitest docs");
   });
 
   it("web_fetch: returns url", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "WebFetch", input_data: { url: "https://example.com" } }));
-    expect(result).toBe("https://example.com");
+    expect(summary("WebFetch", { url: "https://example.com" })).toBe("https://example.com");
   });
 
   it("unknown tool: returns truncated JSON", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "CustomTool", input_data: { foo: "bar" } }));
+    const result = summary("CustomTool", { foo: "bar" });
     expect(result).toContain("foo");
     expect(result.length).toBeLessThanOrEqual(80);
   });
 
   it("returns empty string for null input_data", () => {
-    const result = buildSummary(makeToolCall({ tool_name: "Read", input_data: null }));
-    expect(result).toBe("");
+    expect(summary("Read", null)).toBe("");
   });
 });
 

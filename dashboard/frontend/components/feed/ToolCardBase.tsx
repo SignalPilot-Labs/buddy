@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { clsx } from "clsx";
-import type { ToolCall } from "@/lib/types";
+import type { ToolCall, ToolCategory } from "@/lib/types";
 import { getToolCategory, TOOL_COLORS } from "@/lib/types";
 import { getToolIcon } from "@/components/ui/ToolIcons";
 import { Chevron } from "@/components/feed/ToolDisplayCards";
@@ -29,8 +29,7 @@ interface ToolCardBaseProps {
 }
 
 /** Build one-line summary from tool input data. */
-export function buildSummary(tool: ToolCall): string {
-  const cat = getToolCategory(tool.tool_name);
+export function buildSummary(tool: ToolCall, cat: ToolCategory): string {
   const input = tool.input_data || {};
   switch (cat) {
     case "bash":
@@ -71,7 +70,7 @@ export function ToolCardBase({ tool, variant, isLast }: ToolCardBaseProps) {
   const denied = variant === "card" && !tool.permitted;
   const isPending = variant === "card" && tool.phase === "pre" && !tool.output_data;
   const hasOutput = !!tool.output_data;
-  const summary = denied ? (tool.deny_reason || "") : buildSummary(tool);
+  const summary = denied ? (tool.deny_reason || "") : buildSummary(tool, cat);
   const iconColor = denied ? "#ff4444" : (colors?.iconColor || "#888");
 
   const isCard = variant === "card";
