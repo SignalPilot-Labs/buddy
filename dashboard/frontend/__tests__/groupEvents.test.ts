@@ -7,33 +7,8 @@ import {
   extractBashCommands,
   groupEvents,
 } from "@/lib/groupEvents";
-import type { ToolCall, FeedEvent } from "@/lib/types";
-
-/* ── Test Data Factory ── */
-
-function makeToolCall(overrides?: Partial<ToolCall>): ToolCall {
-  return {
-    id: 1,
-    run_id: "test-run",
-    ts: new Date().toISOString(),
-    phase: "pre",
-    tool_name: "Bash",
-    input_data: null,
-    output_data: null,
-    duration_ms: null,
-    permitted: true,
-    deny_reason: null,
-    agent_role: "builder",
-    tool_use_id: null,
-    session_id: null,
-    agent_id: null,
-    ...overrides,
-  };
-}
-
-function makeToolEvent(overrides?: Partial<ToolCall>): FeedEvent {
-  return { _kind: "tool", data: makeToolCall(overrides) };
-}
+import type { FeedEvent } from "@/lib/types";
+import { makeToolCall, makeToolEvent, makeAuditEvent } from "./testFactories";
 
 /* ── getToolCategory ── */
 
@@ -435,13 +410,6 @@ describe("groupEvents", () => {
   });
 });
 
-function makeAuditEvent(id: number, eventType: string, details: Record<string, unknown>, ts: string): FeedEvent {
-  return {
-    _kind: "audit",
-    data: { id, run_id: "r", ts, event_type: eventType, details },
-  };
-}
-
 /* ── inject vs submit prompt distinction ── */
 
 describe("prompt_injected vs prompt_submitted", () => {
@@ -641,6 +609,122 @@ describe("groupEvents subagent attribution", () => {
     expect(agentRuns).toHaveLength(1);
     if (agentRuns[0].type === "agent_run") {
       expect(agentRuns[0].tool.tool_use_id).toBe("toolu_legit");
+    }
+  });
+});
+
+/* ── agent_run implicit completion ── */
+
+describe("agent_run implicit completion", () => {
+  const ts = new Date("2026-04-10T12:00:00Z").toISOString();
+
+  it("marks agent_run as implicitly complete when a later non-subagent tool exists", () => {
+    // Agent tool id=10, later Bash tool id=20 — proves orchestrator moved on.
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 10, tool_name: "Agent", ts, tool_use_id: "toolu_a",
+        input_data: { description: "Do stuff", subagent_type: "builder", prompt: "go" },
+      }),
+      makeAuditEvent(100, "subagent_start", {
+        agent_id: "aA", agent_type: "builder", parent_tool_use_id: "toolu_a",
+      }, ts),
+      makeToolEvent({ id: 20, tool_name: "Bash", ts }),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.tool.phase).toBe("post");
+      expect(agentRun.tool.output_data).toBeTruthy();
+    }
+  });
+
+  it("leaves agent_run as phase=pre when it is the last event (no later non-subagent tool)", () => {
+    // Agent tool id=10, no tool after it.
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 10, tool_name: "Agent", ts, tool_use_id: "toolu_b",
+        input_data: { description: "Do stuff", subagent_type: "builder", prompt: "go" },
+      }),
+      makeAuditEvent(100, "subagent_start", {
+        agent_id: "aB", agent_type: "builder", parent_tool_use_id: "toolu_b",
+      }, ts),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.tool.phase).toBe("pre");
+      expect(agentRun.tool.output_data).toBeNull();
+    }
+  });
+
+  it("does not modify an agent_run that already has output_data", () => {
+    // Agent tool already has output_data — should not be overwritten.
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 10, tool_name: "Agent", ts, tool_use_id: "toolu_c", phase: "post",
+        output_data: { result: "done" },
+        input_data: { description: "Do stuff", subagent_type: "builder", prompt: "go" },
+      }),
+      makeAuditEvent(100, "subagent_start", {
+        agent_id: "aC", agent_type: "builder", parent_tool_use_id: "toolu_c",
+      }, ts),
+      makeToolEvent({ id: 20, tool_name: "Bash", ts }),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.tool.output_data).toEqual({ result: "done" });
+    }
+  });
+
+  it("subagent child tools do NOT trigger implicit completion", () => {
+    // Agent tool id=10, child tools ids 11, 12, 13 — all in subagentToolIds.
+    // No non-subagent tool with id > 10.
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 10, tool_name: "Agent", ts, tool_use_id: "toolu_d",
+        input_data: { description: "Do stuff", subagent_type: "builder", prompt: "go" },
+      }),
+      makeAuditEvent(100, "subagent_start", {
+        agent_id: "aD", agent_type: "builder", parent_tool_use_id: "toolu_d",
+      }, ts),
+      makeToolEvent({ id: 11, tool_name: "Read", ts, agent_id: "aD" }),
+      makeToolEvent({ id: 12, tool_name: "Edit", ts, agent_id: "aD" }),
+      makeToolEvent({ id: 13, tool_name: "Bash", ts, agent_id: "aD" }),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.tool.phase).toBe("pre");
+      expect(agentRun.tool.output_data).toBeNull();
+    }
+  });
+
+  it("subagent child tools + a later non-subagent tool DOES trigger implicit completion", () => {
+    // Same as above but now there is a non-subagent Bash tool with id=20.
+    const events: FeedEvent[] = [
+      makeToolEvent({
+        id: 10, tool_name: "Agent", ts, tool_use_id: "toolu_e",
+        input_data: { description: "Do stuff", subagent_type: "builder", prompt: "go" },
+      }),
+      makeAuditEvent(100, "subagent_start", {
+        agent_id: "aE", agent_type: "builder", parent_tool_use_id: "toolu_e",
+      }, ts),
+      makeToolEvent({ id: 11, tool_name: "Read", ts, agent_id: "aE" }),
+      makeToolEvent({ id: 12, tool_name: "Edit", ts, agent_id: "aE" }),
+      makeToolEvent({ id: 13, tool_name: "Bash", ts, agent_id: "aE" }),
+      makeToolEvent({ id: 20, tool_name: "Bash", ts }),
+    ];
+    const result = groupEvents(events);
+    const agentRun = result.find((g) => g.type === "agent_run");
+    expect(agentRun).toBeDefined();
+    if (agentRun?.type === "agent_run") {
+      expect(agentRun.tool.phase).toBe("post");
+      expect(agentRun.tool.output_data).toEqual({ implicit: true });
     }
   });
 });
