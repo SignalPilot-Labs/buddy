@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
@@ -45,6 +45,11 @@ function countEnvVars(text: string): number {
 function envToText(env: Record<string, string>): string {
   return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
+
+const PROMPT_LINE_HEIGHT = 24; // matches leading-6
+const PROMPT_VERTICAL_PADDING = 20; // py-2.5 = 10px top + 10px bottom
+const PROMPT_MIN_ROWS = 3;
+const PROMPT_MAX_ROWS = 10;
 
 const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
 type EffortLevel = typeof EFFORT_LEVELS[number];
@@ -107,6 +112,21 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [mounts, setMounts] = useState<HostMount[]>([]);
   const [mountError, setMountError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustPromptHeight = useCallback((): void => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const maxHeight = PROMPT_MAX_ROWS * PROMPT_LINE_HEIGHT + PROMPT_VERTICAL_PADDING;
+    const minHeight = PROMPT_MIN_ROWS * PROMPT_LINE_HEIGHT + PROMPT_VERTICAL_PADDING;
+    const clamped = Math.min(Math.max(el.scrollHeight, minHeight), maxHeight);
+    el.style.height = `${clamped}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
+
+  useEffect(() => {
+    adjustPromptHeight();
+  }, [customPrompt, adjustPromptHeight]);
 
   useEffect(() => {
     if (open && activeRepo) {
@@ -250,8 +270,8 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     onChange={(e) => { setCustomPrompt(e.target.value); setSelectedQuick(null); }}
                     onKeyDown={handleKeyDown}
                     placeholder="e.g., Refactor the auth module to use JWT tokens instead of session cookies..."
-                    rows={3}
-                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                    className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-none leading-6 transition-[height] duration-100 focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
+                    style={{ minHeight: `${PROMPT_MIN_ROWS * PROMPT_LINE_HEIGHT + PROMPT_VERTICAL_PADDING}px` }}
                   />
                 </div>
 
