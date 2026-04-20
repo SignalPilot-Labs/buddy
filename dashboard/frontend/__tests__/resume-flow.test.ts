@@ -53,8 +53,21 @@ describe("resume flow: all paths use handleRestart", () => {
 });
 
 describe("resume flow: SSE cursor reset", () => {
-  it("handleRestart resets cursors to -1 before reconnect", () => {
-    expect(USE_RUN_ACTIONS_SRC).toContain("afterTool: -1, afterAudit: -1");
+  it("handleRestart calls handleSelectRun after resume", () => {
+    // handleSelectRun reloads history from DB and reconnects SSE with correct cursors
+    const restartBlock = USE_RUN_ACTIONS_SRC.slice(
+      USE_RUN_ACTIONS_SRC.indexOf("handleRestart"),
+    );
+    expect(restartBlock).toContain("handleSelectRun(selectedRunId)");
+  });
+
+  it("handleRestart does NOT directly call sseRef.current.connect", () => {
+    // Direct SSE reconnect bypasses history reload — must go through handleSelectRun
+    const restartBlock = USE_RUN_ACTIONS_SRC.slice(
+      USE_RUN_ACTIONS_SRC.indexOf("handleRestart"),
+    );
+    const nextFnBlock = restartBlock.slice(0, restartBlock.indexOf("handleStopClick"));
+    expect(nextFnBlock).not.toContain("sseRef.current.connect");
   });
 
   it("handleRestart calls refreshRunsRef after resume", () => {
