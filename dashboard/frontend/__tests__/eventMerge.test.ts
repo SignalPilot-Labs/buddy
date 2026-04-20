@@ -109,7 +109,7 @@ describe("mergeToolEvent", () => {
     expect(result).toHaveLength(2);
   });
 
-  it("duplicate post re-merges harmlessly", () => {
+  it("drops a duplicate post with the same tool_use_id after merge", () => {
     const pre = makeToolEvent({
       id: 1,
       tool_use_id: "toolu_abc",
@@ -128,10 +128,6 @@ describe("mergeToolEvent", () => {
     expect(afterPost).toHaveLength(1);
 
     const afterDuplicatePost = mergeToolEvent(afterPost, postData);
-    expect(afterDuplicatePost).toHaveLength(2);
-    const appended = afterDuplicatePost[1];
-    if (appended._kind === "tool") {
-      expect(appended.data.output_data).toEqual({ result: "done" });
-    }
+    expect(afterDuplicatePost).toHaveLength(1);
   });
 });

@@ -282,6 +282,9 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
   //
   // Only tool-kind event IDs are compared (audit IDs use a different DB sequence).
   // Subagent child tool IDs are excluded — they are created DURING the agent call.
+  const hasAgentRun = result.some((e) => e.type === "agent_run");
+  if (!hasAgentRun) return result;
+
   let maxNonSubagentToolId = -Infinity;
   for (const ev of events) {
     if (ev._kind === "tool" && !subagentToolIds.has(ev.data.id)) {

@@ -105,8 +105,8 @@ describe("CSS lint", () => {
       // Feed body text — must be text-body
       ["components/feed/AgentRunCard.tsx", /text-text-secondary mt-0\.5 truncate/, "text-body", "AgentRunCard description"],
       // Tool call rows — must be text-content
-      ["components/feed/GroupCards.tsx", /w-full.*text-left.*hover:bg-white.*cursor-pointer/, "text-content", "ChildToolRow"],
-      ["components/feed/ToolGroupCards.tsx", /font-semibold shrink-0/, "text-content", "SingleToolCard tool name"],
+      ["components/feed/ToolCardBase.tsx", /text-content w-full text-left/, "text-content", "ToolCardBase inline variant"],
+      ["components/feed/ToolCardBase.tsx", /isCard.*text-content.*text-text-secondary/, "text-content", "ToolCardBase card variant summary"],
       // Tool output — must be text-meta
       ["components/feed/StyledToolOutput.tsx", /font-mono whitespace-pre-wrap break-all/, "text-meta", "error output"],
       ["components/feed/StyledToolOutput.tsx", /flex items-center gap-1\.5 font-mono/, "text-meta", "bash command line"],

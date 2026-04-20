@@ -14,13 +14,12 @@ import {
   FileContentPreview,
   DiffBlock,
 } from "@/components/feed/ToolDisplayCards";
-import { StyledToolOutput } from "@/components/feed/StyledToolOutput";
 import {
   fmtTime,
   fmtDuration,
   shortPath,
 } from "@/components/feed/eventCardHelpers";
-import { TOOL_CATEGORIES_DEFAULT_EXPANDED } from "@/lib/constants";
+import { ToolCardBase } from "@/components/feed/ToolCardBase";
 
 /* ── Child Tool Row (expandable) ── */
 export function ChildToolRow({
@@ -30,60 +29,7 @@ export function ChildToolRow({
   tool: ToolCall;
   isLast: boolean;
 }) {
-  const cat = getToolCategory(tool.tool_name);
-  const [open, setOpen] = useState(TOOL_CATEGORIES_DEFAULT_EXPANDED.has(cat));
-  const colors = TOOL_COLORS[cat];
-  const inp = tool.input_data || {};
-  const fp = (inp.file_path as string) || "";
-  const cmd = (inp.command as string) || "";
-  const desc = (inp.description as string) || "";
-  const pattern = (inp.pattern as string) || "";
-  const grepPath = (inp.path as string) || "";
-  const detail = fp
-    ? shortPath(fp)
-    : pattern
-    ? `/${pattern}/${grepPath ? ` in ${shortPath(grepPath)}` : ""}`
-    : cmd
-    ? cmd.slice(0, 60)
-    : desc
-    ? desc.slice(0, 60)
-    : "";
-  const hasOutput = !!tool.output_data;
-
-  return (
-    <div className={open || isLast ? undefined : "border-b border-white/[0.02]"}>
-      <button
-        onClick={() => hasOutput && setOpen(!open)}
-        className={
-          hasOutput
-            ? "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors hover:bg-white/[0.02] cursor-pointer"
-            : "flex items-center gap-2 px-4 py-1.5 text-content w-full text-left transition-colors cursor-default"
-        }
-      >
-        <span className="opacity-50 shrink-0">
-          {getToolIcon(cat, colors?.iconColor || "#888")}
-        </span>
-        <span className={`shrink-0 font-medium ${colors?.text || "text-text-secondary"}`}>
-          {tool.tool_name}
-        </span>
-        {detail && (
-          <span className="text-text-secondary truncate flex-1 min-w-0" title={fp || detail}>{detail}</span>
-        )}
-        {!detail && <span className="flex-1" />}
-        {!!tool.duration_ms && (
-          <span className="text-caption text-text-dim tabular-nums shrink-0">
-            {fmtDuration(tool.duration_ms)}
-          </span>
-        )}
-        {hasOutput && <Chevron open={open} size={8} />}
-      </button>
-      {open && hasOutput && (
-        <div className="px-4 pb-2">
-          <StyledToolOutput tool={tool} />
-        </div>
-      )}
-    </div>
-  );
+  return <ToolCardBase tool={tool} variant="inline" isLast={isLast} />;
 }
 
 /* ── Read Group ── */
