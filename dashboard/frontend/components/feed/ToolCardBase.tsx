@@ -29,7 +29,7 @@ interface ToolCardBaseProps {
 }
 
 /** Build one-line summary from tool input data. */
-function buildSummary(tool: ToolCall): string {
+export function buildSummary(tool: ToolCall): string {
   const cat = getToolCategory(tool.tool_name);
   const input = tool.input_data || {};
   switch (cat) {
