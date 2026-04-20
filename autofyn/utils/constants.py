@@ -3,6 +3,10 @@
 import logging
 from pathlib import Path
 
+from config.loader import agent_config
+
+_agent_cfg = agent_config(None)
+
 
 # ── Logging ──
 class AccessNoiseFilter(logging.Filter):
@@ -13,17 +17,17 @@ class AccessNoiseFilter(logging.Filter):
         return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
 # ── Timeouts ──
-TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call
-SUBAGENT_IDLE_KILL_SEC = 10 * 60  # 10 min idle — trigger interrupt+recovery
+TOOL_CALL_TIMEOUT_SEC: int = _agent_cfg["tool_call_timeout_sec"]
+SUBAGENT_IDLE_KILL_SEC: int = _agent_cfg["subagent_idle_kill_sec"]
 PULSE_CHECK_INTERVAL_SEC = 30
 
 # ── Run Limits ──
-SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge orchestrator if no SSE events
+SESSION_IDLE_TIMEOUT_SEC: int = _agent_cfg["session_idle_timeout_sec"]
 IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
 # Backstop for runs without a time lock. 128 rounds is enough for a
 # very long autonomous session (~8h at ~4 min/round) while still stopping
 # a runaway orchestrator that never judges the task done.
-MAX_ROUNDS = 128
+MAX_ROUNDS: int = _agent_cfg["max_rounds"]
 
 # ── Subagent Model Tiers ──
 # Each subagent declares a tier ("opus" or "sonnet"). At runtime,
@@ -82,8 +86,8 @@ COST_PER_CACHE_READ = 1.50 / 1_000_000
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 8500
-MAX_CONCURRENT_RUNS = 5
+SERVER_PORT: int = _agent_cfg["port"]
+MAX_CONCURRENT_RUNS: int = _agent_cfg["max_concurrent_runs"]
 ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 # Bound on the completed-run GitHub-diff LRU. Each entry holds a full
 # unified diff blob; capping prevents unbounded growth over the agent's

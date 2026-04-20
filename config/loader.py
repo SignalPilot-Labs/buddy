@@ -75,7 +75,7 @@ def _ensure_project_config() -> None:
 def _apply_env_overrides(config: dict) -> dict:
     """Override config sections from environment variables."""
     # Sandbox overrides (AF_* prefix)
-    sandbox = config.get("sandbox", {})
+    sandbox = config["sandbox"]
     sandbox_env_map = {
         "AF_SANDBOX_URL": ("url", str),
         "AF_MAX_VMS": ("max_vms", int),
@@ -95,28 +95,58 @@ def _apply_env_overrides(config: dict) -> dict:
     config["sandbox"] = sandbox
 
     # Database password override
-    db = config.get("database", {})
+    db = config["database"]
     db_password = os.getenv("DB_PASSWORD")
     if db_password is not None:
         db["password"] = db_password
     config["database"] = db
 
+    # Agent overrides
+    agent = config["agent"]
+    agent_env_map: dict[str, tuple[str, type[int]]] = {
+        "AF_MAX_ROUNDS": ("max_rounds", int),
+        "AF_TOOL_CALL_TIMEOUT_SEC": ("tool_call_timeout_sec", int),
+        "AF_SESSION_IDLE_TIMEOUT_SEC": ("session_idle_timeout_sec", int),
+        "AF_SUBAGENT_IDLE_KILL_SEC": ("subagent_idle_kill_sec", int),
+        "AF_MAX_CONCURRENT_RUNS": ("max_concurrent_runs", int),
+    }
+    for env_var, (key, cast) in agent_env_map.items():
+        val = os.getenv(env_var)
+        if val is not None:
+            agent[key] = cast(val)
+    config["agent"] = agent
+
     return config
 
 
-def load() -> dict:
-    """Load merged config from all sources."""
+def load(repo_path: Path | None) -> dict:
+    """Load merged config from all sources.
+
+    Resolution order (later overrides earlier):
+      1. Built-in defaults (config/config.yml)
+      2. ~/.autofyn/config.yml (global user config)
+      3. .autofyn/config.yml (per-project AutoFyn config)
+      4. <repo_path>/.autofyn/config.yml (target repo config, if repo_path given)
+      5. AF_* environment variables (highest priority)
+    """
     _ensure_project_config()
     config = _load_yaml(_DEFAULT_CONFIG)
     config = _deep_merge(config, _load_yaml(_GLOBAL_CONFIG))
     config = _deep_merge(config, _load_yaml(_PROJECT_CONFIG))
+    if repo_path is not None:
+        config = _deep_merge(config, _load_yaml(repo_path / ".autofyn" / "config.yml"))
     config = _apply_env_overrides(config)
     return config
 
 
+def agent_config(repo_path: Path | None) -> dict:
+    """Load just the agent section."""
+    return load(repo_path)["agent"]
+
+
 def sandbox_config() -> dict:
     """Load just the sandbox section."""
-    return load().get("sandbox", {})
+    return load(None)["sandbox"]
 
 
 _REQUIRED_DB_KEYS = {
@@ -135,9 +165,7 @@ _REQUIRED_DB_KEYS = {
 
 def database_config() -> dict:
     """Load just the database section. Raises if missing or incomplete."""
-    cfg = load().get("database")
-    if not cfg:
-        raise RuntimeError("Missing 'database' section in config.yml")
+    cfg = load(None)["database"]
     missing = _REQUIRED_DB_KEYS - set(cfg.keys())
     if missing:
         raise RuntimeError(
@@ -148,4 +176,4 @@ def database_config() -> dict:
 
 def security_config() -> dict:
     """Load just the security section."""
-    return load().get("security", {})
+    return load(None)["security"]

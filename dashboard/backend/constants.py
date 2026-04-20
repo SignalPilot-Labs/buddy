@@ -9,7 +9,7 @@ MASTER_KEY_PATH = "/data/master.key"
 API_KEY_PATH = "/data/api.key"
 
 # Agent service URL (Docker network) — port from config/config.yml
-AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500)}"
+AGENT_API_URL = f"http://agent:{_load_config(None)['agent']['port']}"
 
 # Pagination
 RUNS_PAGE_SIZE = 15
