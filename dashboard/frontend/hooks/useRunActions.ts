@@ -13,12 +13,9 @@ import type { RunActionsConfig, RunActions } from "@/hooks/dashboardTypes";
 export function useRunActions(config: RunActionsConfig): RunActions {
   const {
     selectedRunId,
-    selectedRunIdRef,
     addEvent,
     addPendingMessage,
     markPendingFailed,
-    sseRef,
-    cursorsRef,
     refreshRunsRef,
     handleSelectRun,
     activeRepoFilter,
@@ -102,23 +99,14 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       resumeAgent(selectedRunId, prompt)
         .then(() => {
           refreshRunsRef.current();
-          const runId = selectedRunIdRef.current;
-          if (runId) {
-            sseRef.current.disconnect();
-            sseRef.current.clearEvents();
-            // Reset cursors to -1 so SSE backend initializes from DB.
-            // After a restart, new events have new IDs — old cursors
-            // would miss them.
-            cursorsRef.current = { afterTool: -1, afterAudit: -1 };
-            sseRef.current.connect(runId, cursorsRef.current);
-          }
+          void handleSelectRun(selectedRunId);
         })
         .catch((e) => {
           if (pid) markPendingFailed(pid);
           addEvent({ _kind: "control", text: `Resume failed: ${e}`, ts: new Date().toISOString() });
         });
     },
-    [selectedRunId, selectedRunIdRef, addPendingMessage, markPendingFailed, addEvent, sseRef, cursorsRef, refreshRunsRef],
+    [selectedRunId, addPendingMessage, markPendingFailed, addEvent, refreshRunsRef, handleSelectRun],
   );
 
   const handleStopClick = useCallback((): void => {
