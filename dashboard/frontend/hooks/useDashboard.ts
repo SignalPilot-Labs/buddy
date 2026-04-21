@@ -172,22 +172,18 @@ export function useDashboard(): DashboardState {
     busy,
   });
 
+  // Health poll: only updates agentHealth state and triggers runs refresh
+  // when a new run appears. Run selection is handled by the auto-selection
+  // effect below — keeping selection logic in one place prevents races
+  // (e.g. health poll re-selecting a run that handleStartRun just selected).
   useEffect(() => {
     const check = async () => {
       const h = await fetchAgentHealth();
       setAgentHealth((prev) => {
         const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
-        const newRun = h.runs.find((r) => !prevIds.has(r.run_id));
-        if (newRun) {
+        const hasNewRun = h.runs.some((r) => !prevIds.has(r.run_id));
+        if (hasNewRun) {
           refreshRunsRef.current();
-          const currentId = selectedRunIdRef.current;
-          const currentRunInHealth = prev?.runs.find((r) => r.run_id === currentId);
-          const currentIsTerminal = currentRunInHealth
-            ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
-            : true;
-          if (currentId === null || currentIsTerminal) {
-            void handleSelectRun(newRun.run_id);
-          }
         }
         return h;
       });
@@ -195,7 +191,7 @@ export function useDashboard(): DashboardState {
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);
     return () => clearInterval(id);
-  }, [handleSelectRun]);
+  }, []);
 
   useEffect(() => {
     fetchSettingsStatus().then((s) => {
@@ -248,16 +244,21 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId]);
 
+  // Auto-selection: pick a run when none is selected, or switch to a newly
+  // active run when the user is viewing a terminal one. This is the ONLY
+  // place that auto-selects — the health poll just refreshes the runs list.
   useEffect(() => {
-    if (!selectedRunId && runs.length > 0) {
-      if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
-      // Active runs always win — a running agent is what the user cares about.
-      const active = runs.find((r) => ["running", "paused", "rate_limited"].includes(r.status));
+    if (runs.length === 0) return;
+    if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
+
+    const active = runs.find((r) => ["running", "paused", "rate_limited", "starting"].includes(r.status));
+
+    if (!selectedRunId) {
+      // Nothing selected — pick active, localStorage, or first run.
       if (active) {
         handleSelectRun(active.id);
         return;
       }
-      // No active run — try restoring from localStorage (last viewed run).
       const skipRestore = skipLastRunRestoreRef.current;
       skipLastRunRestoreRef.current = false;
       if (!skipRestore) {
@@ -268,6 +269,18 @@ export function useDashboard(): DashboardState {
         }
       }
       handleSelectRun(runs[0].id);
+      return;
+    }
+
+    // A run IS selected — only switch if it's terminal and a different active run exists.
+    if (active && active.id !== selectedRunId) {
+      const currentRun = runs.find((r) => r.id === selectedRunId);
+      const currentIsTerminal = currentRun
+        ? TERMINAL_STATUSES.has(currentRun.status as RunStatus)
+        : true;
+      if (currentIsTerminal) {
+        handleSelectRun(active.id);
+      }
     }
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
