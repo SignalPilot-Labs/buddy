@@ -185,7 +185,7 @@ export function useDashboard(): DashboardState {
           const currentIsTerminal = currentRunInHealth
             ? TERMINAL_STATUSES.has(currentRunInHealth.status as RunStatus)
             : true;
-          if ((currentId === null || currentIsTerminal) && newRun.run_id !== currentId) {
+          if (currentId === null || currentIsTerminal) {
             void handleSelectRun(newRun.run_id);
           }
         }
