@@ -118,6 +118,7 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "fatal_error",
     "sandbox_crash",
     "teardown_failed",
+    "agent_restarted",
     # Round management
     "round_ended",
     "session_error",

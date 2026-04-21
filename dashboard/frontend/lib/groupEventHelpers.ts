@@ -268,6 +268,14 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         details: d,
         ts,
       };
+    case "agent_restarted":
+      return {
+        id: `ctrl-${ts}-agent-restarted`,
+        type: "control",
+        text: `Agent restarted: ${String(d.error || "Container restarted while run was in progress")}`,
+        details: d,
+        ts,
+      };
     case "permission_denied":
       return {
         id: `ms-${ts}-Permission Denied`,
