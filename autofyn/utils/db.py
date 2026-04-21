@@ -339,16 +339,41 @@ async def update_run_status(run_id: str, status: str) -> None:
 
 
 async def mark_crashed_runs() -> int:
-    """Mark any 'running' or 'paused' runs as 'crashed' on startup."""
+    """Mark any 'running' or 'paused' runs as 'crashed' on startup.
+
+    Also emits an agent_restarted audit event per crashed run so the
+    error appears in the dashboard feed, not just the run sidebar.
+    """
+    error_msg = "Agent container restarted while run was in progress"
     async with get_session_factory()() as s:
-        result = await s.execute(
+        # Find affected run IDs first so we can emit audit events.
+        rows = (
+            await s.execute(
+                select(Run.id).where(
+                    Run.status.in_(["starting", "running", "paused", "rate_limited"])
+                )
+            )
+        ).all()
+        if not rows:
+            return 0
+
+        run_ids = [row[0] for row in rows]
+        await s.execute(
             update(Run)
-            .where(Run.status.in_(["starting", "running", "paused", "rate_limited"]))
+            .where(Run.id.in_(run_ids))
             .values(
                 status="crashed",
                 ended_at=datetime.now(timezone.utc),
-                error_message="Agent container restarted while run was in progress",
+                error_message=error_msg,
             )
         )
+        for rid in run_ids:
+            s.add(
+                AuditLog(
+                    run_id=rid,
+                    event_type="agent_restarted",
+                    details={"error": error_msg},
+                )
+            )
         await s.commit()
-        return result.rowcount  # type: ignore[attr-defined]  # SQLAlchemy CursorResult
+        return len(run_ids)
