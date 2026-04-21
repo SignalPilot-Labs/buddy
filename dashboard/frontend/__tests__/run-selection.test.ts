@@ -4,6 +4,9 @@
  * Verifies that on page load/refresh the dashboard selects the correct
  * run, and that all code paths use handleSelectRun (not bare setSelectedRunId)
  * to keep sidebar highlight and event feed in sync.
+ *
+ * Run selection lives ONLY in the auto-selection effect. The health poll
+ * must NOT contain selection logic (causes races with handleStartRun).
  */
 
 import { describe, it, expect } from "vitest";
@@ -19,10 +22,10 @@ const DASHBOARD_SRC = fs.readFileSync(
 
 describe("run auto-selection: active runs take priority", () => {
   // Extract the auto-selection useEffect block
-  const autoSelectStart = DASHBOARD_SRC.indexOf('if (!selectedRunId && runs.length > 0)');
+  const autoSelectStart = DASHBOARD_SRC.indexOf("// Auto-selection:");
   const autoSelectBlock = DASHBOARD_SRC.slice(
     autoSelectStart,
-    DASHBOARD_SRC.indexOf("}, [runs, selectedRunId", autoSelectStart),
+    DASHBOARD_SRC.indexOf("activeRepoFilter])", autoSelectStart) + 30,
   );
 
   it("checks for active runs before localStorage restore", () => {
@@ -33,8 +36,7 @@ describe("run auto-selection: active runs take priority", () => {
     expect(activeIdx).toBeLessThan(localStorageIdx);
   });
 
-  it("returns early when an active run is found", () => {
-    // After finding an active run, should call handleSelectRun and return
+  it("returns early when an active run is found and none selected", () => {
     const activeBlock = autoSelectBlock.slice(
       autoSelectBlock.indexOf('"running"'),
     );
@@ -46,7 +48,6 @@ describe("run auto-selection: active runs take priority", () => {
   });
 
   it("falls back to localStorage only when no active run exists", () => {
-    // localStorage check must come AFTER the active-run early return
     const lines = autoSelectBlock.split("\n");
     let foundActiveReturn = false;
     let foundLocalStorage = false;
@@ -63,43 +64,56 @@ describe("run auto-selection: active runs take priority", () => {
   it("falls back to runs[0] as last resort", () => {
     expect(autoSelectBlock).toContain("handleSelectRun(runs[0].id)");
   });
+
+  it("switches from terminal run to active run", () => {
+    expect(autoSelectBlock).toContain("currentIsTerminal");
+    expect(autoSelectBlock).toContain("active.id !== selectedRunId");
+  });
+});
+
+/* ── Health poll has no selection side effects ── */
+
+describe("run selection: health poll only refreshes, no selection", () => {
+  it("health poll does NOT call handleSelectRun", () => {
+    const healthStart = DASHBOARD_SRC.indexOf("// Health poll:");
+    const healthBlock = DASHBOARD_SRC.slice(
+      healthStart,
+      DASHBOARD_SRC.indexOf("}, [])", healthStart) + 10,
+    );
+    expect(healthBlock).not.toContain("handleSelectRun");
+  });
+
+  it("health poll does NOT call setSelectedRunId", () => {
+    const healthStart = DASHBOARD_SRC.indexOf("// Health poll:");
+    const healthBlock = DASHBOARD_SRC.slice(
+      healthStart,
+      DASHBOARD_SRC.indexOf("}, [])", healthStart) + 10,
+    );
+    expect(healthBlock).not.toContain("setSelectedRunId");
+  });
+
+  it("health poll triggers refreshRunsRef on new run", () => {
+    const healthStart = DASHBOARD_SRC.indexOf("// Health poll:");
+    const healthBlock = DASHBOARD_SRC.slice(
+      healthStart,
+      DASHBOARD_SRC.indexOf("}, [])", healthStart) + 10,
+    );
+    expect(healthBlock).toContain("refreshRunsRef.current()");
+  });
 });
 
 /* ── All selection paths use handleSelectRun ── */
 
 describe("run selection: no bare setSelectedRunId for run switching", () => {
-  it("health poll uses handleSelectRun, not setSelectedRunId", () => {
-    // Extract the health poll useEffect
-    const healthStart = DASHBOARD_SRC.indexOf("fetchAgentHealth");
-    const healthBlock = DASHBOARD_SRC.slice(
-      healthStart,
-      DASHBOARD_SRC.indexOf("clearInterval", healthStart) + 50,
-    );
-    // Must use handleSelectRun for new run auto-selection
-    expect(healthBlock).toContain("handleSelectRun(newRun.run_id)");
-    // Must NOT use bare setSelectedRunId (causes sidebar/feed desync)
-    expect(healthBlock).not.toContain("setSelectedRunId(newRun.run_id)");
-  });
-
   it("auto-selection effect uses handleSelectRun", () => {
-    const autoSelectStart = DASHBOARD_SRC.indexOf('if (!selectedRunId && runs.length > 0)');
+    const autoSelectStart = DASHBOARD_SRC.indexOf("// Auto-selection:");
     const autoSelectBlock = DASHBOARD_SRC.slice(
       autoSelectStart,
-      DASHBOARD_SRC.indexOf("}, [runs, selectedRunId", autoSelectStart),
+      DASHBOARD_SRC.indexOf("activeRepoFilter])", autoSelectStart) + 30,
     );
-    // Every run selection in auto-select should go through handleSelectRun
     expect(autoSelectBlock).not.toContain("setSelectedRunId(");
     const handleCalls = autoSelectBlock.match(/handleSelectRun\(/g);
     expect(handleCalls).not.toBeNull();
     expect(handleCalls!.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("handleSelectRun deps include handleSelectRun in health poll effect", () => {
-    // The health poll effect must list handleSelectRun in its deps
-    const healthEffect = DASHBOARD_SRC.slice(
-      DASHBOARD_SRC.indexOf("fetchAgentHealth"),
-    );
-    const depsMatch = healthEffect.slice(0, healthEffect.indexOf("];") + 2);
-    expect(depsMatch).toContain("handleSelectRun");
   });
 });
