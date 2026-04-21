@@ -28,8 +28,8 @@ from agent_session.runner import RoundRunner
 from agent_session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
-    SESSION_ERROR_BASE_BACKOFF_SEC,
-    SESSION_ERROR_MAX_RETRIES,
+    session_error_base_backoff_sec,
+    session_error_max_retries,
 )
 from utils.models import RoundResult, RunContext
 
@@ -165,7 +165,7 @@ async def _handle_round_outcome(
 
     if result.status == "session_error":
         consecutive_session_errors += 1
-        backoff_sec = SESSION_ERROR_BASE_BACKOFF_SEC * (
+        backoff_sec = session_error_base_backoff_sec() * (
             2 ** (consecutive_session_errors - 1)
         )
         log.warning(
@@ -173,7 +173,7 @@ async def _handle_round_outcome(
             rid,
             round_number,
             consecutive_session_errors,
-            SESSION_ERROR_MAX_RETRIES,
+            session_error_max_retries(),
             result.error,
             backoff_sec,
         )
@@ -187,7 +187,7 @@ async def _handle_round_outcome(
                 "backoff_sec": backoff_sec,
             },
         )
-        if consecutive_session_errors >= SESSION_ERROR_MAX_RETRIES:
+        if consecutive_session_errors >= session_error_max_retries():
             log.error(
                 "[%s] %d consecutive session errors — giving up",
                 rid,

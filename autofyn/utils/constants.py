@@ -1,11 +1,24 @@
-"""All magic values for the agent package."""
+"""All magic values for the agent package.
+
+Server-level constants are loaded lazily from config on first access
+via _agent_cfg(). The config is cached in config.loader after the first
+load() call, so repeated access is a dict lookup — not YAML I/O.
+"""
 
 import logging
 from pathlib import Path
 
 from config.loader import agent_config
 
-_agent_cfg = agent_config(None)
+_cached_agent_cfg: dict | None = None
+
+
+def _agent_cfg() -> dict:
+    """Lazy accessor for the agent config section. Cached after first call."""
+    global _cached_agent_cfg
+    if _cached_agent_cfg is None:
+        _cached_agent_cfg = agent_config()
+    return _cached_agent_cfg
 
 
 # ── Logging ──
@@ -16,11 +29,20 @@ class AccessNoiseFilter(logging.Filter):
         msg = record.getMessage()
         return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
+
 # ── Timeouts ──
-PULSE_CHECK_INTERVAL_SEC: int = _agent_cfg["pulse_check_interval_sec"]
+# Accessed via function to avoid import-time YAML I/O.
+def pulse_check_interval_sec() -> int:
+    """Pulse watchdog check interval in seconds."""
+    return _agent_cfg()["pulse_check_interval_sec"]
+
+
 
 # ── Run Limits ──
-IDLE_NUDGE_MAX_ATTEMPTS: int = _agent_cfg["idle_nudge_max_attempts"]
+def idle_nudge_max_attempts() -> int:
+    """Max idle nudges before killing the session."""
+    return _agent_cfg()["idle_nudge_max_attempts"]
+
 
 # ── Subagent Model Tiers ──
 # Each subagent declares a tier ("opus" or "sonnet"). At runtime,
@@ -61,9 +83,17 @@ BRANCH_SLUG_MAX_LEN = 16
 GIT_RETRY_ATTEMPTS = 3
 GIT_RETRY_DELAY_SEC = 2.0
 
+
 # ── Session Error Retry ──
-SESSION_ERROR_MAX_RETRIES: int = _agent_cfg["session_error_max_retries"]
-SESSION_ERROR_BASE_BACKOFF_SEC: int = _agent_cfg["session_error_base_backoff_sec"]
+def session_error_max_retries() -> int:
+    """Max retries for session errors."""
+    return _agent_cfg()["session_error_max_retries"]
+
+
+def session_error_base_backoff_sec() -> int:
+    """Base backoff seconds for session error retry (exponential)."""
+    return _agent_cfg()["session_error_base_backoff_sec"]
+
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
@@ -71,16 +101,42 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 # ── Usage Tracking ──
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
+
 # ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
-COST_PER_INPUT: float = _agent_cfg["cost_per_input_token"]
-COST_PER_OUTPUT: float = _agent_cfg["cost_per_output_token"]
-COST_PER_CACHE_WRITE: float = _agent_cfg["cost_per_cache_write_token"]
-COST_PER_CACHE_READ: float = _agent_cfg["cost_per_cache_read_token"]
+def cost_per_input() -> float:
+    """Cost per input token in USD."""
+    return _agent_cfg()["cost_per_input_token"]
+
+
+def cost_per_output() -> float:
+    """Cost per output token in USD."""
+    return _agent_cfg()["cost_per_output_token"]
+
+
+def cost_per_cache_write() -> float:
+    """Cost per cache write token in USD."""
+    return _agent_cfg()["cost_per_cache_write_token"]
+
+
+def cost_per_cache_read() -> float:
+    """Cost per cache read token in USD."""
+    return _agent_cfg()["cost_per_cache_read_token"]
+
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT: int = _agent_cfg["port"]
-MAX_CONCURRENT_RUNS: int = _agent_cfg["max_concurrent_runs"]
+
+
+def server_port() -> int:
+    """Agent HTTP server port."""
+    return _agent_cfg()["port"]
+
+
+def max_concurrent_runs() -> int:
+    """Max simultaneous agent runs."""
+    return _agent_cfg()["max_concurrent_runs"]
+
+
 ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 # Bound on the completed-run GitHub-diff LRU. Each entry holds a full
 # unified diff blob; capping prevents unbounded growth over the agent's

@@ -1,11 +1,11 @@
-"""Regression tests proving missing agent config keys raise KeyError instead of falling back."""
+"""Regression tests proving missing agent config keys raise KeyError via lazy accessors."""
 
-import importlib
 from unittest.mock import patch
 
 import pytest
 
-import autofyn.utils.constants as constants_module
+from config.loader import clear_cache
+
 
 _FULL_AGENT_CFG: dict = {
     "port": 8500,
@@ -26,55 +26,47 @@ _FULL_AGENT_CFG: dict = {
 }
 
 
-def _reload_constants(agent_cfg: dict) -> None:
-    """Reload the constants module with the given config dict."""
-    with patch("config.loader.agent_config", return_value=agent_cfg):
-        importlib.reload(constants_module)
+def _patch_and_call(missing_key: str, fn_name: str) -> None:
+    """Remove a key from config, reset lazy cache, call the accessor — expect KeyError."""
+    import autofyn.utils.constants as mod
+
+    incomplete = {k: v for k, v in _FULL_AGENT_CFG.items() if k != missing_key}
+    # Reset the lazy cache so the next call re-reads config
+    mod._cached_agent_cfg = None
+    with patch("autofyn.utils.constants.agent_config", return_value=incomplete):
+        with pytest.raises(KeyError):
+            getattr(mod, fn_name)()
 
 
 class TestAgentConstantsFailFast:
-    """autofyn/utils/constants.py must raise KeyError if a required config key is absent."""
+    """Lazy accessor functions must raise KeyError if a required config key is absent."""
 
     def teardown_method(self) -> None:
-        """Restore constants module to valid state after each test."""
-        _reload_constants(_FULL_AGENT_CFG)
+        """Reset lazy cache to valid state after each test."""
+        import autofyn.utils.constants as mod
+        mod._cached_agent_cfg = None
+        clear_cache()
 
     def test_missing_pulse_check_interval_sec_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "pulse_check_interval_sec"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("pulse_check_interval_sec", "pulse_check_interval_sec")
 
     def test_missing_idle_nudge_max_attempts_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "idle_nudge_max_attempts"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("idle_nudge_max_attempts", "idle_nudge_max_attempts")
 
     def test_missing_session_error_max_retries_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "session_error_max_retries"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("session_error_max_retries", "session_error_max_retries")
 
     def test_missing_session_error_base_backoff_sec_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "session_error_base_backoff_sec"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("session_error_base_backoff_sec", "session_error_base_backoff_sec")
 
     def test_missing_cost_per_input_token_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "cost_per_input_token"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("cost_per_input_token", "cost_per_input")
 
     def test_missing_cost_per_output_token_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "cost_per_output_token"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("cost_per_output_token", "cost_per_output")
 
     def test_missing_cost_per_cache_read_token_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "cost_per_cache_read_token"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("cost_per_cache_read_token", "cost_per_cache_read")
 
     def test_missing_cost_per_cache_write_token_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_AGENT_CFG.items() if k != "cost_per_cache_write_token"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete)
+        _patch_and_call("cost_per_cache_write_token", "cost_per_cache_write")

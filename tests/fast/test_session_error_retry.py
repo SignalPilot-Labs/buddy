@@ -1,7 +1,7 @@
 """Tests for session error retry with exponential backoff.
 
 When the Claude API returns 500/401, the round ends with status 'session_error'.
-The round loop retries up to SESSION_ERROR_MAX_RETRIES times with exponential
+The round loop retries up to session_error_max_retries() times with exponential
 backoff (2, 4, 8s). After exhausting retries, it stops the run with 'error'.
 A successful round resets the counter.
 """
@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from lifecycle.round_loop import _handle_round_outcome
-from utils.constants import SESSION_ERROR_BASE_BACKOFF_SEC, SESSION_ERROR_MAX_RETRIES
+from utils.constants import session_error_base_backoff_sec, session_error_max_retries
 from utils.models import RoundResult
 
 
@@ -71,7 +71,7 @@ class TestSessionErrorRetry:
 
             assert terminal is None, "Should retry, not terminate"
             assert error_count == 1
-            mock_sleep.assert_called_once_with(SESSION_ERROR_BASE_BACKOFF_SEC)
+            mock_sleep.assert_called_once_with(session_error_base_backoff_sec())
 
     @pytest.mark.asyncio
     async def test_second_error_doubles_backoff(self):
@@ -96,7 +96,7 @@ class TestSessionErrorRetry:
 
             assert terminal is None
             assert error_count == 2
-            mock_sleep.assert_called_once_with(SESSION_ERROR_BASE_BACKOFF_SEC * 2)
+            mock_sleep.assert_called_once_with(session_error_base_backoff_sec() * 2)
 
     @pytest.mark.asyncio
     async def test_max_retries_stops_run(self):
@@ -115,12 +115,12 @@ class TestSessionErrorRetry:
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
                 exec_timeout=120,
-                consecutive_session_errors=SESSION_ERROR_MAX_RETRIES - 1,
+                consecutive_session_errors=session_error_max_retries() - 1,
                 max_rounds=128,
             )
 
             assert terminal == "error", "Should give up after max retries"
-            assert error_count == SESSION_ERROR_MAX_RETRIES
+            assert error_count == session_error_max_retries()
             mock_sleep.assert_not_called()
 
     @pytest.mark.asyncio
@@ -151,8 +151,8 @@ class TestSessionErrorRetry:
     async def test_backoff_is_exponential(self):
         """Verify the backoff sequence is 2, 4, 8 seconds."""
         expected_backoffs = [
-            SESSION_ERROR_BASE_BACKOFF_SEC * (2 ** i)
-            for i in range(SESSION_ERROR_MAX_RETRIES)
+            session_error_base_backoff_sec() * (2 ** i)
+            for i in range(session_error_max_retries())
         ]
         assert expected_backoffs == [2, 4, 8], (
             f"Expected [2, 4, 8] but got {expected_backoffs}"
@@ -185,4 +185,4 @@ class TestSessionErrorRetry:
             details = call_args[2]
             assert details["attempt"] == 2
             assert details["error"] == "500 Server Error"
-            assert details["backoff_sec"] == SESSION_ERROR_BASE_BACKOFF_SEC * 2
+            assert details["backoff_sec"] == session_error_base_backoff_sec() * 2

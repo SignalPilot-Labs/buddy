@@ -5,6 +5,10 @@ can be overridden by the target repo's `.autofyn/config.yml`. It is
 created once per run during bootstrap (after sandbox.repo.bootstrap())
 and threaded through the lifecycle via BootstrapResult.
 
+Per-run keys: max_rounds, tool_call_timeout_sec, session_idle_timeout_sec,
+subagent_idle_kill_sec. All other agent config is server-level — see the
+config split docs in config/loader.py.
+
 The target repo config is read from the sandbox container via HTTP — not
 from the agent's local filesystem — because the repo lives in the sandbox.
 """
@@ -13,7 +17,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from config.loader import deep_merge, load
+from config.loader import load
 from sandbox_client.client import SandboxClient
 from utils.constants import WORK_DIR
 
@@ -35,19 +39,21 @@ async def load_run_agent_config(sandbox: SandboxClient) -> RunAgentConfig:
 
     Resolution order:
       1. Base config from config.loader.load(None) (defaults + global + project + env)
-      2. Target repo's .autofyn/config.yml agent section (if it exists)
+      2. Target repo's .autofyn/config.yml agent section (passed as overlay)
 
-    The target repo config is untrusted user input — parsed with yaml.safe_load.
+    The target repo config is untrusted input (the AI agent can edit it).
+    Values are clamped to safe bounds by config.loader._clamp_section.
     If the file is missing or has no `agent` section, base config is used as-is.
     """
-    base_config = load(None)
+    overlay: dict | None = None
     content = await sandbox.file_system.read(_AUTOFYN_CONFIG_PATH)
     if content is not None:
         parsed = yaml.safe_load(content)
         if isinstance(parsed, dict) and "agent" in parsed:
-            base_config = deep_merge(base_config, {"agent": parsed["agent"]})
+            overlay = {"agent": parsed["agent"]}
 
-    agent = base_config["agent"]
+    config = load(overlay)
+    agent = config["agent"]
     return RunAgentConfig(
         max_rounds=agent["max_rounds"],
         tool_call_timeout_sec=agent["tool_call_timeout_sec"],

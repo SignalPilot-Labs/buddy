@@ -30,7 +30,7 @@ from agent_session.stream import StreamDispatcher, StreamSignal
 from agent_session.time_lock import TimeLock
 from agent_session.tracker import SubagentTracker
 from utils import db
-from utils.constants import IDLE_NUDGE_MAX_ATTEMPTS
+from utils.constants import idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
 from utils.run_config import RunAgentConfig
 
@@ -229,19 +229,19 @@ class RoundRunner:
 
                 if idle_task is not None and idle_task in done:
                     nudge_count += 1
-                    if nudge_count > IDLE_NUDGE_MAX_ATTEMPTS:
+                    if nudge_count > idle_nudge_max_attempts():
                         log.info(
                             "[%s] Round %d idle after %d nudges — ending",
                             self._rid,
                             round_number,
-                            IDLE_NUDGE_MAX_ATTEMPTS,
+                            idle_nudge_max_attempts(),
                         )
                         await db.log_audit(
                             self._run.run_id,
                             "idle_timeout",
                             {
                                 "round_number": round_number,
-                                "nudge_attempts": IDLE_NUDGE_MAX_ATTEMPTS,
+                                "nudge_attempts": idle_nudge_max_attempts(),
                             },
                         )
                         return RoundResult(
@@ -256,7 +256,7 @@ class RoundRunner:
                         self._rid,
                         round_number,
                         nudge_count,
-                        IDLE_NUDGE_MAX_ATTEMPTS,
+                        idle_nudge_max_attempts(),
                         backoff,
                     )
                     await db.log_audit(

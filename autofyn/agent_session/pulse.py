@@ -14,7 +14,7 @@ from sandbox_client.client import SandboxClient
 from user.inbox import UserInbox
 from agent_session.tracker import SubagentTracker
 from utils import db
-from utils.constants import PULSE_CHECK_INTERVAL_SEC
+from utils.constants import pulse_check_interval_sec
 from utils.run_config import RunAgentConfig
 
 log = logging.getLogger("session.pulse")
@@ -47,7 +47,7 @@ class PulseWatchdog:
     async def run(self, tracker: SubagentTracker, session_id: str) -> None:
         """Infinite loop — meant to be wrapped in asyncio.create_task and cancelled externally."""
         while True:
-            await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
+            await asyncio.sleep(pulse_check_interval_sec())
             if await self._check_stuck_subagents(tracker, session_id):
                 continue
             await self._check_timed_out_tools(tracker, session_id)
