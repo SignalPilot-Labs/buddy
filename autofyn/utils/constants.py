@@ -1,7 +1,24 @@
-"""All magic values for the agent package."""
+"""All magic values for the agent package.
+
+Server-level constants are loaded lazily from config on first access
+via _agent_cfg(). The config is cached in config.loader after the first
+load() call, so repeated access is a dict lookup — not YAML I/O.
+"""
 
 import logging
 from pathlib import Path
+
+from config.loader import agent_config
+
+_cached_agent_cfg: dict | None = None
+
+
+def _agent_cfg() -> dict:
+    """Lazy accessor for the agent config section. Cached after first call."""
+    global _cached_agent_cfg
+    if _cached_agent_cfg is None:
+        _cached_agent_cfg = agent_config()
+    return _cached_agent_cfg
 
 
 # ── Logging ──
@@ -12,18 +29,20 @@ class AccessNoiseFilter(logging.Filter):
         msg = record.getMessage()
         return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
 
+
 # ── Timeouts ──
-TOOL_CALL_TIMEOUT_SEC = 60 * 60  # 1 hour — max duration for any single tool call
-SUBAGENT_IDLE_KILL_SEC = 10 * 60  # 10 min idle — trigger interrupt+recovery
-PULSE_CHECK_INTERVAL_SEC = 30
+# Accessed via function to avoid import-time YAML I/O.
+def pulse_check_interval_sec() -> int:
+    """Pulse watchdog check interval in seconds."""
+    return _agent_cfg()["pulse_check_interval_sec"]
+
+
 
 # ── Run Limits ──
-SESSION_IDLE_TIMEOUT_SEC = 120  # 2 min — nudge orchestrator if no SSE events
-IDLE_NUDGE_MAX_ATTEMPTS = 3  # Nudge 3 times with exponential backoff, then kill
-# Backstop for runs without a time lock. 128 rounds is enough for a
-# very long autonomous session (~8h at ~4 min/round) while still stopping
-# a runaway orchestrator that never judges the task done.
-MAX_ROUNDS = 128
+def idle_nudge_max_attempts() -> int:
+    """Max idle nudges before killing the session."""
+    return _agent_cfg()["idle_nudge_max_attempts"]
+
 
 # ── Subagent Model Tiers ──
 # Each subagent declares a tier ("opus" or "sonnet"). At runtime,
@@ -64,9 +83,17 @@ BRANCH_SLUG_MAX_LEN = 16
 GIT_RETRY_ATTEMPTS = 3
 GIT_RETRY_DELAY_SEC = 2.0
 
+
 # ── Session Error Retry ──
-SESSION_ERROR_MAX_RETRIES = 3
-SESSION_ERROR_BASE_BACKOFF_SEC = 2  # Exponential: 2, 4, 8
+def session_error_max_retries() -> int:
+    """Max retries for session errors."""
+    return _agent_cfg()["session_error_max_retries"]
+
+
+def session_error_base_backoff_sec() -> int:
+    """Base backoff seconds for session error retry (exponential)."""
+    return _agent_cfg()["session_error_base_backoff_sec"]
+
 
 # ── Input Limits ──
 INJECT_PAYLOAD_MAX_LEN = 50000
@@ -74,16 +101,42 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 # ── Usage Tracking ──
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
+
 # ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
-COST_PER_INPUT = 15.0 / 1_000_000
-COST_PER_OUTPUT = 75.0 / 1_000_000
-COST_PER_CACHE_WRITE = 18.75 / 1_000_000
-COST_PER_CACHE_READ = 1.50 / 1_000_000
+def cost_per_input() -> float:
+    """Cost per input token in USD."""
+    return _agent_cfg()["cost_per_input_token"]
+
+
+def cost_per_output() -> float:
+    """Cost per output token in USD."""
+    return _agent_cfg()["cost_per_output_token"]
+
+
+def cost_per_cache_write() -> float:
+    """Cost per cache write token in USD."""
+    return _agent_cfg()["cost_per_cache_write_token"]
+
+
+def cost_per_cache_read() -> float:
+    """Cost per cache read token in USD."""
+    return _agent_cfg()["cost_per_cache_read_token"]
+
 
 # ── Server ──
 SERVER_HOST = "0.0.0.0"
-SERVER_PORT = 8500
-MAX_CONCURRENT_RUNS = 5
+
+
+def server_port() -> int:
+    """Agent HTTP server port."""
+    return _agent_cfg()["port"]
+
+
+def max_concurrent_runs() -> int:
+    """Max simultaneous agent runs."""
+    return _agent_cfg()["max_concurrent_runs"]
+
+
 ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 # Bound on the completed-run GitHub-diff LRU. Each entry holds a full
 # unified diff blob; capping prevents unbounded growth over the agent's
@@ -91,14 +144,8 @@ ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 GITHUB_DIFF_CACHE_MAX = 32
 
 # ── Sandbox ──
-# Defaults — overridden by config.yml sandbox section at runtime.
 AGENT_CONTAINER_NAME = "autofyn-agent"
 RUN_ID_LOG_PREFIX_LEN = 8
-SANDBOX_URL_DEFAULT = "http://sandbox:8080"
-SANDBOX_EXEC_TIMEOUT_DEFAULT = 120
-SANDBOX_CLONE_TIMEOUT_DEFAULT = 300
-SANDBOX_HEALTH_TIMEOUT_DEFAULT = 5
-SANDBOX_CLIENT_DEFAULT_TIMEOUT = 300
 
 # ── Token env keys — passed per-run via extra_env, not os.environ ──
 ENV_KEY_CLAUDE_TOKEN = "CLAUDE_CODE_OAUTH_TOKEN"

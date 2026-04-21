@@ -28,9 +28,8 @@ from agent_session.runner import RoundRunner
 from agent_session.time_lock import TimeLock
 from utils import db
 from utils.constants import (
-    MAX_ROUNDS,
-    SESSION_ERROR_BASE_BACKOFF_SEC,
-    SESSION_ERROR_MAX_RETRIES,
+    session_error_base_backoff_sec,
+    session_error_max_retries,
 )
 from utils.models import RoundResult, RunContext
 
@@ -56,7 +55,7 @@ async def run_rounds(
     archiver = bootstrap.archiver
     rid = run.run_id[:8]
 
-    runner = RoundRunner(sandbox, run, inbox, time_lock)
+    runner = RoundRunner(sandbox, run, inbox, time_lock, bootstrap.run_config)
     metadata_for_commit = metadata_store
     consecutive_session_errors = 0
 
@@ -93,7 +92,8 @@ async def run_rounds(
             host_mounts=host_mounts,
             user_env_keys=user_env_keys,
         )
-        system_prompt = build_round_system_prompt(round_context)
+        tool_call_timeout_sec = bootstrap.run_config.tool_call_timeout_sec
+        system_prompt = build_round_system_prompt(round_context, tool_call_timeout_sec)
 
         options = dict(bootstrap.base_session_options)
         options["agents"] = build_agent_defs(
@@ -101,6 +101,7 @@ async def run_rounds(
             host_mounts=host_mounts,
             user_env_keys=user_env_keys,
             user_model=options["model"],
+            tool_call_timeout_sec=tool_call_timeout_sec,
         )
         options["system_prompt"] = {
             "type": system_prompt["type"],
@@ -121,6 +122,7 @@ async def run_rounds(
             metadata_store=metadata_for_commit,
             exec_timeout=exec_timeout,
             consecutive_session_errors=consecutive_session_errors,
+            max_rounds=bootstrap.run_config.max_rounds,
         )
 
         # Archive after outcome handling so the persisted rounds.json
@@ -152,6 +154,7 @@ async def _handle_round_outcome(
     metadata_store: MetadataStore,
     exec_timeout: int,
     consecutive_session_errors: int,
+    max_rounds: int,
 ) -> tuple[str | None, int]:
     """Apply the round result. Returns (terminal status or None, error counter)."""
     rid = run.run_id[:8]
@@ -162,7 +165,7 @@ async def _handle_round_outcome(
 
     if result.status == "session_error":
         consecutive_session_errors += 1
-        backoff_sec = SESSION_ERROR_BASE_BACKOFF_SEC * (
+        backoff_sec = session_error_base_backoff_sec() * (
             2 ** (consecutive_session_errors - 1)
         )
         log.warning(
@@ -170,7 +173,7 @@ async def _handle_round_outcome(
             rid,
             round_number,
             consecutive_session_errors,
-            SESSION_ERROR_MAX_RETRIES,
+            session_error_max_retries(),
             result.error,
             backoff_sec,
         )
@@ -184,7 +187,7 @@ async def _handle_round_outcome(
                 "backoff_sec": backoff_sec,
             },
         )
-        if consecutive_session_errors >= SESSION_ERROR_MAX_RETRIES:
+        if consecutive_session_errors >= session_error_max_retries():
             log.error(
                 "[%s] %d consecutive session errors — giving up",
                 rid,
@@ -250,16 +253,16 @@ async def _handle_round_outcome(
         log.info("[%s] Time lock expired after round %d — finishing", rid, round_number)
         return "completed", 0
 
-    if round_number >= MAX_ROUNDS:
+    if round_number >= max_rounds:
         log.info(
             "[%s] Round cap reached (%d) — finishing",
             rid,
-            MAX_ROUNDS,
+            max_rounds,
         )
         await db.log_audit(
             run.run_id,
             "max_rounds_reached",
-            {"round_number": round_number, "cap": MAX_ROUNDS},
+            {"round_number": round_number, "cap": max_rounds},
         )
         return "completed", 0
 

@@ -1,6 +1,6 @@
 """Dashboard backend constants."""
 
-from config.loader import load as _load_config
+from config.loader import agent_config as _agent_config
 
 APP_TITLE = "AutoFyn Dashboard API"
 
@@ -9,7 +9,7 @@ MASTER_KEY_PATH = "/data/master.key"
 API_KEY_PATH = "/data/api.key"
 
 # Agent service URL (Docker network) — port from config/config.yml
-AGENT_API_URL = f"http://agent:{_load_config().get('agent', {}).get('port', 8500)}"
+AGENT_API_URL = f"http://agent:{_agent_config()['port']}"
 
 # Pagination
 RUNS_PAGE_SIZE = 15

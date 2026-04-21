@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from utils.constants import MAX_CONCURRENT_RUNS
+from utils.constants import max_concurrent_runs
 from utils.models import ActiveRun
 
 
@@ -21,8 +21,8 @@ class TestCapacityCheck:
                 return sum(1 for r in self._runs.values() if r.status in ("starting", "running"))
 
             def _check_capacity(self) -> None:
-                if self._active_count() >= MAX_CONCURRENT_RUNS:
-                    raise HTTPException(status_code=409, detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached")
+                if self._active_count() >= max_concurrent_runs():
+                    raise HTTPException(status_code=409, detail=f"Max concurrent runs ({max_concurrent_runs()}) reached")
 
         return FakeServer()
 
@@ -32,7 +32,7 @@ class TestCapacityCheck:
 
     def test_rejects_when_at_limit(self):
         server = self._make_server()
-        for i in range(MAX_CONCURRENT_RUNS):
+        for i in range(max_concurrent_runs()):
             server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="running")
         with pytest.raises(HTTPException) as exc_info:
             server._check_capacity()
@@ -40,13 +40,13 @@ class TestCapacityCheck:
 
     def test_allows_when_terminal_runs_dont_count(self):
         server = self._make_server()
-        for i in range(MAX_CONCURRENT_RUNS):
+        for i in range(max_concurrent_runs()):
             server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="completed")
         server._check_capacity()  # should not raise — all are terminal
 
     def test_counts_starting_as_active(self):
         server = self._make_server()
-        for i in range(MAX_CONCURRENT_RUNS):
+        for i in range(max_concurrent_runs()):
             server._runs[f"run-{i}"] = ActiveRun(run_id=f"run-{i}", status="starting")
         with pytest.raises(HTTPException):
             server._check_capacity()

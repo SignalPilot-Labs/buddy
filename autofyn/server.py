@@ -34,12 +34,9 @@ from utils.constants import (
     ENV_KEY_INTERNAL_SECRET,
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
-    MAX_CONCURRENT_RUNS,
-    SANDBOX_CLONE_TIMEOUT_DEFAULT,
-    SANDBOX_EXEC_TIMEOUT_DEFAULT,
-    SANDBOX_HEALTH_TIMEOUT_DEFAULT,
     SERVER_HOST,
-    SERVER_PORT,
+    max_concurrent_runs,
+    server_port,
 )
 from internal_endpoints import register_internal_routes
 from utils.models import ActiveRun, StartRequest
@@ -81,18 +78,9 @@ class AgentServer:
 
     def __init__(self) -> None:
         cfg = sandbox_config()
-        self._health_timeout: int = cfg.get(
-            "health_timeout_sec",
-            SANDBOX_HEALTH_TIMEOUT_DEFAULT,
-        )
-        self._exec_timeout: int = cfg.get(
-            "exec_timeout_sec",
-            SANDBOX_EXEC_TIMEOUT_DEFAULT,
-        )
-        self._clone_timeout: int = cfg.get(
-            "clone_timeout_sec",
-            SANDBOX_CLONE_TIMEOUT_DEFAULT,
-        )
+        self._health_timeout: int = cfg["health_timeout_sec"]
+        self._exec_timeout: int = cfg["exec_timeout_sec"]
+        self._clone_timeout: int = cfg["clone_timeout_sec"]
 
         self._pool = SandboxPool()
         self._runs: dict[str, ActiveRun] = {}
@@ -139,7 +127,7 @@ class AgentServer:
         crashed = await db.mark_crashed_runs()
         if crashed:
             log.info("Marked %d stale run(s) as crashed", crashed)
-        log.info("Ready — waiting for start command on :%d", SERVER_PORT)
+        log.info("Ready — waiting for start command on :%d", server_port())
         yield
         await self._pool.destroy_all()
         await db.close_db()
@@ -152,10 +140,10 @@ class AgentServer:
 
     def ensure_capacity(self) -> None:
         """Raise 409 if max concurrent runs reached."""
-        if self.active_count() >= MAX_CONCURRENT_RUNS:
+        if self.active_count() >= max_concurrent_runs():
             raise HTTPException(
                 status_code=409,
-                detail=f"Max concurrent runs ({MAX_CONCURRENT_RUNS}) reached",
+                detail=f"Max concurrent runs ({max_concurrent_runs()}) reached",
             )
 
     def get_run_or_first(self, run_id: str | None) -> ActiveRun:
@@ -372,7 +360,7 @@ def main() -> None:
     _filt = AccessNoiseFilter()
     for name in ("uvicorn.access", "uvicorn", ""):
         logging.getLogger(name).addFilter(_filt)
-    uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT, log_level="info")
+    uvicorn.run(app, host=SERVER_HOST, port=server_port(), log_level="info")
 
 
 if __name__ == "__main__":

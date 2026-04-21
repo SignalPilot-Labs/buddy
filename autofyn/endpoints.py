@@ -26,7 +26,7 @@ from utils.constants import (
     ENV_KEY_GIT_TOKEN,
     GITHUB_DIFF_CACHE_MAX,
     HEADER_GITHUB_TOKEN,
-    MAX_CONCURRENT_RUNS,
+    max_concurrent_runs,
     ROUND_ARCHIVE_AGENT_DIR,
     ROUND_DIR_NAME_RE,
     RUN_ID_LOG_PREFIX_LEN,
@@ -190,7 +190,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         return HealthResponse(
             status="running" if server.active_count() > 0 else "idle",
             active_runs=server.active_count(),
-            max_concurrent=MAX_CONCURRENT_RUNS,
+            max_concurrent=max_concurrent_runs(),
             runs=runs_list,
         )
 

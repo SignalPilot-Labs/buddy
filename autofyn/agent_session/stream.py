@@ -11,12 +11,12 @@ import logging
 from agent_session.tracker import SubagentTracker
 from utils import db
 from utils.constants import (
-    COST_PER_CACHE_READ,
-    COST_PER_CACHE_WRITE,
-    COST_PER_INPUT,
-    COST_PER_OUTPUT,
     LOG_PREVIEW_LIMIT,
     USAGE_EMIT_INTERVAL,
+    cost_per_cache_read,
+    cost_per_cache_write,
+    cost_per_input,
+    cost_per_output,
 )
 from utils.models import RunContext, StreamSignal
 
@@ -248,10 +248,10 @@ class StreamDispatcher:
                 self._run.cache_read_input_tokens - self._cache_read_baseline
             )
             self._run.total_cost = self._cost_baseline + (
-                round_input * COST_PER_INPUT
-                + round_output * COST_PER_OUTPUT
-                + round_cache_create * COST_PER_CACHE_WRITE
-                + round_cache_read * COST_PER_CACHE_READ
+                round_input * cost_per_input()
+                + round_output * cost_per_output()
+                + round_cache_create * cost_per_cache_write()
+                + round_cache_read * cost_per_cache_read()
             )
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:

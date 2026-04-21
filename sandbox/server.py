@@ -30,7 +30,7 @@ from session.utils import close_agent_client
 
 cfg = sandbox_config()
 
-logging.basicConfig(level=getattr(logging, cfg.get("log_level", "info").upper()))
+logging.basicConfig(level=getattr(logging, cfg["log_level"].upper()))
 log = logging.getLogger("sandbox.server")
 
 

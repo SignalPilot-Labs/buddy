@@ -21,21 +21,18 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 
-from prompts.loader import render_idle_nudge, render_stuck_recovery, render_tool_timeout
+from prompts.loader import render_idle_nudge
 from sandbox_client.client import SandboxClient
 from user.control import UserControl
 from user.inbox import UserInbox
+from agent_session.pulse import PulseWatchdog
 from agent_session.stream import StreamDispatcher, StreamSignal
 from agent_session.time_lock import TimeLock
 from agent_session.tracker import SubagentTracker
 from utils import db
-from utils.constants import (
-    IDLE_NUDGE_MAX_ATTEMPTS,
-    PULSE_CHECK_INTERVAL_SEC,
-    SESSION_IDLE_TIMEOUT_SEC,
-    SUBAGENT_IDLE_KILL_SEC,
-)
+from utils.constants import idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
+from utils.run_config import RunAgentConfig
 
 log = logging.getLogger("session.runner")
 
@@ -53,11 +50,13 @@ class RoundRunner:
         run: RunContext,
         inbox: UserInbox,
         time_lock: TimeLock,
+        run_config: RunAgentConfig,
     ) -> None:
         self._sandbox = sandbox
         self._run = run
         self._inbox = inbox
         self._time_lock = time_lock
+        self._run_config = run_config
         self._rid = run.run_id[:8]
 
     async def run(
@@ -68,7 +67,7 @@ class RoundRunner:
     ) -> RoundResult:
         """Start the sandbox session and run until the round ends."""
         session_id: str | None = None
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(self._run_config)
         dispatcher = StreamDispatcher(self._run, round_number, tracker)
 
         try:
@@ -81,9 +80,14 @@ class RoundRunner:
                 session_id,
             )
             control = UserControl(self._sandbox, session_id, self._inbox)
-            pulse = asyncio.create_task(
-                self._pulse_loop(tracker, session_id),
+            watchdog = PulseWatchdog(
+                self._sandbox,
+                self._run.run_id,
+                self._rid,
+                self._inbox,
+                self._run_config,
             )
+            pulse = asyncio.create_task(watchdog.run(tracker, session_id))
             try:
                 return await self._drive_stream(
                     session_id,
@@ -144,7 +148,7 @@ class RoundRunner:
         sse_task = asyncio.create_task(_next_event(stream_iter))
         op_task = asyncio.create_task(self._inbox.next_event())
         idle_task: asyncio.Task[None] | None = asyncio.create_task(
-            asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
+            asyncio.sleep(self._run_config.session_idle_timeout_sec),
         )
         nudge_count = 0
         idle_since: float = asyncio.get_event_loop().time()
@@ -217,7 +221,7 @@ class RoundRunner:
                         idle_task = None
                     else:
                         idle_task = asyncio.create_task(
-                            asyncio.sleep(SESSION_IDLE_TIMEOUT_SEC),
+                            asyncio.sleep(self._run_config.session_idle_timeout_sec),
                         )
                     # Any real SSE activity resets the nudge counter and timer.
                     nudge_count = 0
@@ -225,19 +229,19 @@ class RoundRunner:
 
                 if idle_task is not None and idle_task in done:
                     nudge_count += 1
-                    if nudge_count > IDLE_NUDGE_MAX_ATTEMPTS:
+                    if nudge_count > idle_nudge_max_attempts():
                         log.info(
                             "[%s] Round %d idle after %d nudges — ending",
                             self._rid,
                             round_number,
-                            IDLE_NUDGE_MAX_ATTEMPTS,
+                            idle_nudge_max_attempts(),
                         )
                         await db.log_audit(
                             self._run.run_id,
                             "idle_timeout",
                             {
                                 "round_number": round_number,
-                                "nudge_attempts": IDLE_NUDGE_MAX_ATTEMPTS,
+                                "nudge_attempts": idle_nudge_max_attempts(),
                             },
                         )
                         return RoundResult(
@@ -245,14 +249,14 @@ class RoundRunner:
                             session_id=session_id,
                         )
                     # Nudge: interrupt + inject, then backoff exponentially.
-                    backoff = SESSION_IDLE_TIMEOUT_SEC * (2 ** (nudge_count - 1))
+                    backoff = self._run_config.session_idle_timeout_sec * (2 ** (nudge_count - 1))
                     idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
                     log.info(
                         "[%s] Round %d idle nudge %d/%d — next in %ds",
                         self._rid,
                         round_number,
                         nudge_count,
-                        IDLE_NUDGE_MAX_ATTEMPTS,
+                        idle_nudge_max_attempts(),
                         backoff,
                     )
                     await db.log_audit(
@@ -332,101 +336,6 @@ class RoundRunner:
                 error=signal.error,
             )
         return None
-
-    # ── Stuck-subagent pulse ───────────────────────────────────────────
-
-    async def _pulse_loop(self, tracker: SubagentTracker, session_id: str) -> None:
-        """Periodic watchdog for stuck subagents and timed-out tool calls.
-
-        Two checks each cycle:
-        1. Stuck subagents (idle > SUBAGENT_IDLE_KILL_SEC) — interrupt + inject recovery.
-        2. Timed-out tool calls (running > TOOL_CALL_TIMEOUT_SEC) — interrupt + inject timeout.
-
-        Both interrupt the session and inject context so the orchestrator
-        can adapt. Neither kills the round.
-        """
-        while True:
-            await asyncio.sleep(PULSE_CHECK_INTERVAL_SEC)
-            # Only fire one recovery per cycle to avoid double-interrupting.
-            if await self._check_stuck_subagents(tracker, session_id):
-                continue
-            await self._check_timed_out_tools(tracker, session_id)
-
-    async def _check_stuck_subagents(
-        self,
-        tracker: SubagentTracker,
-        session_id: str,
-    ) -> bool:
-        """Interrupt stuck subagents and notify the orchestrator.
-
-        Returns True if any recovery was triggered.
-        """
-        stuck = tracker.stuck_subagents()
-        if not stuck:
-            return False
-        descriptions = [
-            f"{s.agent_type} ({s.agent_id[:8]}, idle {s.idle_seconds}s)"
-            for s in stuck
-        ]
-        log.warning(
-            "[%s] Stuck subagent(s) — interrupting: %s",
-            self._rid,
-            ", ".join(descriptions),
-        )
-        await db.log_audit(
-            self._run.run_id,
-            "stuck_recovery",
-            {
-                "stuck": [
-                    {
-                        "agent_id": s.agent_id,
-                        "agent_type": s.agent_type,
-                        "idle_seconds": s.idle_seconds,
-                        "total_seconds": s.total_seconds,
-                    }
-                    for s in stuck
-                ],
-            },
-        )
-        for s in stuck:
-            tracker.record_stop(s.agent_id)
-        await self._sandbox.session.interrupt(session_id)
-        agent_names = ", ".join(s.agent_type for s in stuck)
-        self._inbox.push(
-            "inject",
-            render_stuck_recovery(agent_names, SUBAGENT_IDLE_KILL_SEC // 60),
-        )
-        return True
-
-    async def _check_timed_out_tools(
-        self,
-        tracker: SubagentTracker,
-        session_id: str,
-    ) -> None:
-        """Interrupt tool calls that exceeded TOOL_CALL_TIMEOUT_SEC."""
-        timed_out = tracker.timed_out_tools()
-        if not timed_out:
-            return
-        for key, elapsed in timed_out:
-            log.warning(
-                "[%s] Tool call timed out (%s, %ds) — interrupting",
-                self._rid,
-                key[:8],
-                elapsed,
-            )
-            await db.log_audit(
-                self._run.run_id,
-                "tool_timeout",
-                {"agent_key": key, "elapsed_seconds": elapsed},
-            )
-        for key, _ in timed_out:
-            tracker.clear_tool_state(key)
-        max_elapsed = max(e for _, e in timed_out)
-        await self._sandbox.session.interrupt(session_id)
-        self._inbox.push(
-            "inject",
-            render_tool_timeout(max_elapsed // 60),
-        )
 
     # ── Teardown ───────────────────────────────────────────────────────
 

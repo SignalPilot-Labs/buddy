@@ -13,6 +13,7 @@ import httpx
 import docker.errors
 from docker.models.containers import Container
 
+from config.loader import sandbox_config
 from db.constants import validate_host_mount
 from utils.constants import (
     AGENT_CONTAINER_NAME,
@@ -40,6 +41,7 @@ class SandboxPool:
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
         self._allow_docker = os.environ.get(ENV_KEY_ALLOW_DOCKER, "").lower() in ("1", "true", "yes")
+        self._client_timeout: int = sandbox_config()["vm_timeout_sec"]
 
     def _container_env(self) -> dict[str, str]:
         """Build env vars for pool-created sandbox containers.
@@ -82,9 +84,9 @@ class SandboxPool:
             log.warning("Docker socket mounted into sandbox %s (--allow-docker)", container_name)
         if host_mounts:
             for mount in host_mounts:
-                host_path = mount.get("host_path", "")
-                container_path = mount.get("container_path", "")
-                mode = mount.get("mode", "ro")  # default read-only
+                host_path = mount["host_path"]
+                container_path = mount["container_path"]
+                mode = mount.get("mode", "ro")  # optional field — read-only is safe default
                 error = validate_host_mount(host_path, container_path, mode)
                 if error:
                     log.warning("Skipping invalid host mount: %s", error)
@@ -110,7 +112,7 @@ class SandboxPool:
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
 
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(url, health_timeout)
+        client = SandboxClient(url, health_timeout, self._client_timeout)
         await self._wait_healthy(client, container_name, health_timeout)
         return client
 
@@ -131,7 +133,7 @@ class SandboxPool:
             return None
         container_name = f"autofyn-sandbox-{run_key}"
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        return SandboxClient(url, health_timeout=5)
+        return SandboxClient(url, health_timeout=5, timeout=self._client_timeout)
 
     async def get_self_logs(self, tail: int) -> list[str]:
         """Fetch logs from the agent container itself."""

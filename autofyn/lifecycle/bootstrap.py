@@ -37,6 +37,7 @@ from utils.models import (
     RunContext,
     get_fallback_model,
 )
+from utils.run_config import load_run_agent_config
 
 log = logging.getLogger("lifecycle.bootstrap")
 
@@ -74,6 +75,7 @@ async def bootstrap_run(
         working_branch=branch_name,
         timeout=clone_timeout,
     )
+    run_config = await load_run_agent_config(sandbox)
     if existing_branch:
         await db.update_run_status(run_id, "running")
     else:
@@ -144,6 +146,7 @@ async def bootstrap_run(
         fallback_model=fallback_model,
         run_start_time=run_start_time,
         starting_round=starting_round,
+        run_config=run_config,
     )
 
 

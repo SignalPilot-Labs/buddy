@@ -13,6 +13,14 @@ import pytest
 from agent_session.stream import StreamDispatcher
 from agent_session.tracker import SubagentTracker, ORCHESTRATOR_ID
 from utils.models import RunContext
+from utils.run_config import RunAgentConfig
+
+_DEFAULT_RUN_CONFIG = RunAgentConfig(
+    max_rounds=128,
+    tool_call_timeout_sec=3600,
+    session_idle_timeout_sec=120,
+    subagent_idle_kill_sec=600,
+)
 
 
 def _make_run() -> RunContext:
@@ -34,7 +42,7 @@ def _make_run() -> RunContext:
 
 def _make_dispatcher() -> tuple[StreamDispatcher, SubagentTracker]:
     """Create a dispatcher and its tracker for testing."""
-    tracker = SubagentTracker()
+    tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
     dispatcher = StreamDispatcher(run=_make_run(), round_number=1, tracker=tracker)
     return dispatcher, tracker
 
@@ -43,7 +51,7 @@ class TestTrackerToolInFlight:
     """Subagents with tools in-flight must not be flagged as stuck."""
 
     def test_in_flight_skips_stuck(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker._started_at["a1"] = time.time() - 700
         tracker._last_tool_at["a1"] = time.time() - 700
@@ -53,7 +61,7 @@ class TestTrackerToolInFlight:
         assert len(stuck) == 0
 
     def test_done_resumes_stuck_detection(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker.record_tool_done("a1")
@@ -66,7 +74,7 @@ class TestTrackerToolInFlight:
         assert stuck[0].agent_id == "a1"
 
     def test_has_tools_in_flight(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         assert not tracker.has_tools_in_flight()
 
         tracker.record_start("a1", "builder")
@@ -81,21 +89,21 @@ class TestTrackerOrchestratorTools:
     """Tool tracking for orchestrator-level calls (agent_id=None)."""
 
     def test_none_agent_routes_to_orchestrator(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_tool_use(None)
 
         assert tracker.has_tools_in_flight()
         assert ORCHESTRATOR_ID in tracker._tools_in_flight
 
     def test_orchestrator_tool_done(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_tool_use(None)
         tracker.record_tool_done(None)
 
         assert not tracker.has_tools_in_flight()
 
     def test_orchestrator_tool_timeout(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_tool_use(None)
         tracker._tool_started_at[ORCHESTRATOR_ID] = time.time() - 3700
 
@@ -108,14 +116,14 @@ class TestTrackerTimedOutTools:
     """TOOL_CALL_TIMEOUT_SEC watchdog detection."""
 
     def test_no_timeout_when_fresh(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
 
         assert len(tracker.timed_out_tools()) == 0
 
     def test_timeout_after_threshold(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker._tool_started_at["a1"] = time.time() - 3700
@@ -126,7 +134,7 @@ class TestTrackerTimedOutTools:
         assert timed_out[0][1] >= 3600
 
     def test_clear_tool_state(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker._tool_started_at["a1"] = time.time() - 3700
@@ -140,7 +148,7 @@ class TestTrackerClearAfterTimeout:
     """clear_tool_state must fully reset so timed_out_tools doesn't re-flag."""
 
     def test_clear_prevents_re_detection(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker._tool_started_at["a1"] = time.time() - 3700
@@ -152,7 +160,7 @@ class TestTrackerClearAfterTimeout:
         assert tracker.active_count() == 1
 
     def test_clear_orchestrator_state(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_tool_use(None)
         tracker._tool_started_at[ORCHESTRATOR_ID] = time.time() - 3700
 
@@ -165,7 +173,7 @@ class TestTrackerMultipleToolsInFlight:
     """Multiple concurrent tools per agent must all resolve."""
 
     def test_two_tools_one_done_still_in_flight(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker.record_tool_use("a1")
@@ -177,7 +185,7 @@ class TestTrackerMultipleToolsInFlight:
         assert not tracker.has_tools_in_flight()
 
     def test_tool_started_at_cleared_only_when_all_done(self) -> None:
-        tracker = SubagentTracker()
+        tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
         tracker.record_start("a1", "builder")
         tracker.record_tool_use("a1")
         tracker.record_tool_use("a1")

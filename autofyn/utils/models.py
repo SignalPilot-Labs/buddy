@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from memory.report import ReportStore
     from user.inbox import UserInbox
     from agent_session.time_lock import TimeLock
+    from utils.run_config import RunAgentConfig
 
 
 # ── Sandbox execute request/response ────────────────────────────────
@@ -230,6 +231,7 @@ class BootstrapResult:
     # Highest round number already archived on disk; 0 for a fresh run,
     # >0 when resuming — the round loop starts counting from the next.
     starting_round: int
+    run_config: RunAgentConfig
 
 
 # ── User events ─────────────────────────────────────────────────
