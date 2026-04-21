@@ -111,6 +111,7 @@ async def run_rounds(
         initial_prompt = _build_initial_prompt(round_number, bootstrap.task)
 
         result = await runner.run(options, initial_prompt, round_number)
+        await db.reconcile_orphaned_agent_calls(run.run_id)
 
         terminal, consecutive_session_errors = await _handle_round_outcome(
             result=result,

@@ -274,36 +274,5 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
     i++;
   }
 
-  // ── Post-processing: Implicit agent_run completion ──
-  // If the orchestrator issued a non-subagent tool call AFTER an agent_run
-  // tool call, then the agent call must have finished — the SDK is sequential
-  // per session. The `post` event may have been lost (e.g. dropped SSE packet),
-  // so we synthesize completion here to prevent the card from staying "pending".
-  //
-  // Only tool-kind event IDs are compared (audit IDs use a different DB sequence).
-  // Subagent child tool IDs are excluded — they are created DURING the agent call.
-  const hasAgentRun = result.some((e) => e.type === "agent_run");
-  if (!hasAgentRun) return result;
-
-  let maxNonSubagentToolId = -Infinity;
-  for (const ev of events) {
-    if (ev._kind === "tool" && !subagentToolIds.has(ev.data.id)) {
-      if (ev.data.id > maxNonSubagentToolId) maxNonSubagentToolId = ev.data.id;
-    }
-  }
-
-  for (let idx = 0; idx < result.length; idx++) {
-    const entry = result[idx];
-    if (
-      entry.type === "agent_run" &&
-      entry.tool.phase === "pre" &&
-      entry.tool.output_data === null &&
-      maxNonSubagentToolId > entry.tool.id
-    ) {
-      const patchedTool: ToolCall = { ...entry.tool, phase: "post", output_data: { implicit: true } };
-      result[idx] = { ...entry, tool: patchedTool };
-    }
-  }
-
   return result;
 }
