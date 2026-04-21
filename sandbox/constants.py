@@ -14,6 +14,7 @@ class AccessNoiseFilter(logging.Filter):
         msg = record.getMessage()
         return "GET /health" not in msg and "/diff" not in msg
 
+
 _cfg = sandbox_config()
 _security_cfg = security_config()
 
@@ -60,6 +61,11 @@ FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
 # ── Retry (transient network errors on git/gh commands) ──
 RETRY_MAX_ATTEMPTS: int = _cfg["retry_max_attempts"]
 RETRY_BASE_DELAY_SEC: float = _cfg["retry_base_delay_sec"]
+
+# ── Agent HTTP client (event logging POSTs to agent container) ──
+AGENT_HTTP_TIMEOUT_SEC: int = 10
+AGENT_LOG_RETRY_ATTEMPTS: int = 3
+AGENT_LOG_RETRY_BASE_SEC: float = 0.5
 RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
     "error connecting",
     "connection refused",
