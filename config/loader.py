@@ -239,7 +239,13 @@ def _clamp_section(
         raw = section[key]
         if not isinstance(raw, (int, float)):
             continue
-        clamped = type(raw)(max(lo, min(hi, raw)))
+        clamped_value = max(lo, min(hi, raw))
+        # Preserve original type only when bounds are integers.
+        # Float bounds (e.g. 0.5) must not be truncated by int().
+        if isinstance(lo, int) and isinstance(hi, int) and isinstance(raw, int):
+            clamped = int(clamped_value)
+        else:
+            clamped = float(clamped_value)
         if clamped != raw:
             log.warning(
                 "Config %s.%s=%s clamped to [%s, %s] → %s",

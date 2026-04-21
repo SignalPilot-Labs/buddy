@@ -109,6 +109,15 @@ class TestConfigClamping:
         cfg = load({"agent": {"tool_call_timeout_sec": 99999}})
         assert cfg["agent"]["tool_call_timeout_sec"] == 7200
 
+    def test_float_bound_clamps_int_value(self) -> None:
+        """Int value below float lower bound must clamp to float, not truncate."""
+        cfg = load({"sandbox": {"retry_base_delay_sec": 0}})
+        assert cfg["sandbox"]["retry_base_delay_sec"] == 0.5
+
+    def test_float_bound_preserves_float_value(self) -> None:
+        cfg = load({"sandbox": {"retry_base_delay_sec": 1.0}})
+        assert cfg["sandbox"]["retry_base_delay_sec"] == 1.0
+
 
 class TestConfigValidation:
     """Missing required keys raise RuntimeError at load time."""
