@@ -5,7 +5,6 @@ Previously the error only appeared in Run.error_message (run tab sidebar).
 Now an agent_restarted audit event is emitted per run so the feed shows it too.
 """
 
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
