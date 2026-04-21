@@ -59,7 +59,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       setBusy(true);
       try {
         const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
-        refreshRunsRef.current();
+        await refreshRunsRef.current();
         if (result.run_id) {
           const events = await handleSelectRun(result.run_id);
           if (prompt) {
@@ -97,8 +97,8 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       if (!selectedRunId) return;
       const pid = prompt ? addPendingMessage(prompt) : 0;
       resumeAgent(selectedRunId, prompt)
-        .then(() => {
-          refreshRunsRef.current();
+        .then(async () => {
+          await refreshRunsRef.current();
           void handleSelectRun(selectedRunId);
         })
         .catch((e) => {
