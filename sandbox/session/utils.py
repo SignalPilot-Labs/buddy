@@ -128,7 +128,7 @@ async def log_tool_call(
     output_data: dict | None,
 ) -> None:
     """POST a tool call event to the agent's /internal/tool-call endpoint."""
-    try:
+    try:  # Safety net: _post_to_agent handles retries, but catch anything unexpected
         payload = {
             "run_id": run_id,
             "phase": phase,
@@ -150,7 +150,7 @@ async def log_tool_call(
 
 async def log_audit(run_id: str, event_type: str, details: dict) -> None:
     """POST an audit event to the agent's /internal/audit endpoint."""
-    try:
+    try:  # Safety net: _post_to_agent handles retries, but catch anything unexpected
         payload = {
             "run_id": run_id,
             "event_type": event_type,
