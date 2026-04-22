@@ -50,20 +50,24 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
   // handleSelectRun reloads) won't clear the pending card — showing duplicates.
   const confirmedPromptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const allEvents = [...historyEvents, ...liveEvents];
     // Reset when both sources are empty (run switch clears everything)
-    if (allEvents.length === 0) {
+    if (historyEvents.length === 0 && liveEvents.length === 0) {
       confirmedPromptsRef.current = new Set();
       return;
     }
-    const confirmedTexts = allEvents
-      .filter((e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"))
-      .map((e) => {
-        if (e._kind !== "audit") return "";
-        return String(e.data.details.prompt || "");
-      })
-      .filter((t) => t.length > 0);
-    const newConfirmed = confirmedTexts.filter((t) => !confirmedPromptsRef.current.has(t));
+    // Scan both sources for confirmed prompts — no array copy needed.
+    // History can be up to 5000 events so we avoid allocating a merged array.
+    const newConfirmed: string[] = [];
+    for (const src of [historyEvents, liveEvents]) {
+      for (const e of src) {
+        if (e._kind !== "audit") continue;
+        if (e.data.event_type !== "prompt_injected" && e.data.event_type !== "prompt_submitted") continue;
+        const text = String(e.data.details.prompt || "");
+        if (text.length > 0 && !confirmedPromptsRef.current.has(text)) {
+          newConfirmed.push(text);
+        }
+      }
+    }
     if (newConfirmed.length === 0) return;
     for (const t of newConfirmed) confirmedPromptsRef.current.add(t);
     const confirmedSet = new Set(newConfirmed);

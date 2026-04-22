@@ -49,8 +49,8 @@ describe("pending message dedup: checks both history and live events", () => {
       SRC.indexOf("// Clear pending messages"),
       SRC.indexOf("}, [liveEvents, historyEvents]"),
     );
-    // Must check combined length, not just liveEvents.length
-    expect(effectBlock).toContain("allEvents.length === 0");
-    expect(effectBlock).not.toMatch(/if \(liveEvents\.length === 0\)/);
+    // Must check both lengths, not just one
+    expect(effectBlock).toContain("historyEvents.length === 0");
+    expect(effectBlock).toContain("liveEvents.length === 0");
   });
 });
