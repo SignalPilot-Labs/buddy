@@ -25,7 +25,7 @@ AutoFyn runs Claude in iterative rounds inside sandboxed Docker containers. Each
 | [SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot) | Built a data analysis agent from scratch | #1 on [Spider 2.0 dbt benchmark](https://spider2.yale.edu) |
 | [Open WebUI](https://github.com/open-webui/open-webui) | Autonomous security audit | 12 vulnerabilities — 4 Critical, 5 High, 3 Medium, 4 exploit chains |
 | [LiteLLM](https://github.com/BerriAI/litellm) | Autonomous security audit | 14 vulnerabilities — critical unauthorized access chain, high privilege escalation chain |
-| [Caveman](https://github.com/tempcollab/caveman) | Prompt optimization | +10% compression without quality loss ([write-up](caveman_reddit.md)) |
+| [Caveman](https://github.com/tempcollab/caveman) | Prompt optimization | +10% compression without quality loss ([write-up](https://github.com/tempcollab/caveman/blob/main/docs/improving-caveman-with-autofyn.md)) |
 
 ## Quick start
 
