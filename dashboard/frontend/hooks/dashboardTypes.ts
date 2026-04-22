@@ -1,4 +1,4 @@
-import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage, ConnectionState } from "@/lib/types";
+import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, ConnectionState } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
 import type { RefObject } from "react";
 
@@ -6,8 +6,6 @@ export interface RunActionsConfig {
   selectedRunId: string | null;
   selectedRunIdRef: RefObject<string | null>;
   addEvent: (event: FeedEvent) => void;
-  addPendingMessage: (prompt: string) => number;
-  markPendingFailed: (id: number) => void;
   sseRef: RefObject<{ disconnect: () => void; clearEvents: () => void; connect: (id: string, cursors: { afterTool: number; afterAudit: number }) => void }>;
   cursorsRef: RefObject<{ afterTool: number; afterAudit: number }>;
   refreshRunsRef: RefObject<() => void>;
@@ -43,7 +41,6 @@ export interface DashboardState {
   selectedRunId: string | null;
   selectedRun: Run | null;
   allEvents: FeedEvent[];
-  pendingMessages: PendingMessage[];
   runStatus: RunStatus | null;
   agentHealth: AgentHealth | null;
   activeRunHealth: HealthRunEntry | undefined;

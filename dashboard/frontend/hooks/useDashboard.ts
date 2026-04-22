@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo, PendingMessage } from "@/lib/types";
-import type { Dispatch, SetStateAction } from "react";
+import type { Run, FeedEvent, RunStatus, SettingsStatus, RepoInfo } from "@/lib/types";
 import {
   fetchAgentHealth,
   fetchRepos,
@@ -51,26 +50,22 @@ export function useDashboard(): DashboardState {
   const cursorsRef = useRef({ afterTool: 0, afterAudit: 0 });
 
   // Stable refs — wired to useEventState setters after useSSE (ordering constraint)
-  const failAllPendingRef = useRef<() => void>(() => undefined);
   const refreshRunsRef = useRef(refreshRuns);
   refreshRunsRef.current = refreshRuns;
   const setHistoryEventsRef = useRef<(events: FeedEvent[]) => void>(() => undefined);
   const setHistoryLoadingRef = useRef<(v: boolean) => void>(() => undefined);
   const setHistoryTruncatedRef = useRef<(v: boolean) => void>(() => undefined);
-  const setPendingMessagesRef = useRef<Dispatch<SetStateAction<PendingMessage[]>>>(() => undefined);
   const addEventRef = useRef<(event: FeedEvent) => void>(() => undefined);
 
   const handleRunEnded = useCallback(() => {
     refreshRunsRef.current();
     setBusy(false);
-    failAllPendingRef.current();
   }, []);
 
   const handleSessionResumed = useCallback(() => {
     const runId = selectedRunIdRef.current;
     if (!runId) return;
     sseRef.current.disconnect();
-    setPendingMessagesRef.current([]);
     setHistoryLoadingRef.current(true);
     loadRunHistory(runId).then(({ events, lastToolId, lastAuditId, truncated }) => {
       setHistoryEventsRef.current(events);
@@ -90,14 +85,11 @@ export function useDashboard(): DashboardState {
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
   const evState = useEventState(liveEvents);
-  const { allEvents, historyLoading, historyTruncated, pendingMessages } = evState;
-  const { addEvent, addPendingMessage, markPendingFailed } = evState;
+  const { allEvents, historyLoading, historyTruncated, addEvent } = evState;
 
-  failAllPendingRef.current = evState.failAllPending;
   setHistoryEventsRef.current = evState.setHistoryEvents;
   setHistoryLoadingRef.current = evState.setHistoryLoading;
   setHistoryTruncatedRef.current = evState.setHistoryTruncated;
-  setPendingMessagesRef.current = evState.setPendingMessages;
   addEventRef.current = addEvent;
 
   const handleToggleSidebar = useCallback(() => {
@@ -115,7 +107,6 @@ export function useDashboard(): DashboardState {
       const gen = ++selectGenRef.current;
       sseRef.current.disconnect();
       setSelectedRunId(id);
-      setPendingMessagesRef.current([]);
       localStorage.setItem("autofyn_last_run_id", id);
       setHistoryLoadingRef.current(true);
       sseRef.current.clearEvents();
@@ -149,8 +140,6 @@ export function useDashboard(): DashboardState {
     selectedRunId,
     selectedRunIdRef,
     addEvent,
-    addPendingMessage,
-    markPendingFailed,
     sseRef,
     cursorsRef,
     refreshRunsRef,
@@ -227,7 +216,6 @@ export function useDashboard(): DashboardState {
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEventsRef.current([]);
-    setPendingMessagesRef.current([]);
     sseRef.current.clearEvents();
     setBranches(["main"]);
     if (repo) {
@@ -283,7 +271,6 @@ export function useDashboard(): DashboardState {
     selectedRunId,
     selectedRun,
     allEvents,
-    pendingMessages,
     runStatus,
     agentHealth,
     activeRunHealth,

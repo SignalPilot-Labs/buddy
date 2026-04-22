@@ -47,7 +47,6 @@ function MonitorPageInner() {
     selectedRunId,
     selectedRun,
     allEvents,
-    pendingMessages,
     runStatus,
     agentHealth,
     activeRunHealth,
@@ -259,7 +258,6 @@ function MonitorPageInner() {
             />
             <EventFeed
               events={allEvents}
-              pendingMessages={pendingMessages}
               runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
               isLoading={historyLoading}
@@ -310,7 +308,6 @@ function MonitorPageInner() {
           selectedRunId={selectedRunId}
           runsLoading={runsLoading}
           allEvents={allEvents}
-          pendingMessages={pendingMessages}
           runStatus={runStatus}
           selectedRun={selectedRun}
           connected={connected}

@@ -171,14 +171,6 @@ export const STATUS_META: Record<
   },
 };
 
-/* ── Pending Message (UI-only, never in event stream) ── */
-export interface PendingMessage {
-  id: number;
-  prompt: string;
-  ts: string;
-  status: "pending" | "failed";
-}
-
 /* ── Tool Categories ── */
 // All 20 tool types from the database, mapped to visual categories
 export type ToolCategory =

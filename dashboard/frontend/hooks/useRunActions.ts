@@ -14,8 +14,6 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   const {
     selectedRunId,
     addEvent,
-    addPendingMessage,
-    markPendingFailed,
     refreshRunsRef,
     handleSelectRun,
     activeRepoFilter,
@@ -61,15 +59,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
         const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
         await refreshRunsRef.current();
         if (result.run_id) {
-          const events = await handleSelectRun(result.run_id);
-          if (prompt) {
-            const hasPrompt = events.some(
-              (e) =>
-                e._kind === "audit" &&
-                (e.data.event_type === "prompt_submitted" || e.data.event_type === "prompt_injected"),
-            );
-            if (!hasPrompt) addPendingMessage(prompt);
-          }
+          await handleSelectRun(result.run_id);
         }
       } catch (err) {
         addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
@@ -77,36 +67,32 @@ export function useRunActions(config: RunActionsConfig): RunActions {
         setBusy(false);
       }
     },
-    [addEvent, addPendingMessage, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
+    [addEvent, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
   );
 
   const handleInject = useCallback(
     (prompt: string): void => {
       if (!selectedRunId) return;
-      const pid = addPendingMessage(prompt);
       apiInjectPrompt(selectedRunId, prompt).catch((e) => {
-        markPendingFailed(pid);
         addEvent({ _kind: "control", text: `Inject failed: ${e}`, ts: new Date().toISOString() });
       });
     },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent],
+    [selectedRunId, addEvent],
   );
 
   const handleRestart = useCallback(
     (prompt?: string): void => {
       if (!selectedRunId) return;
-      const pid = prompt ? addPendingMessage(prompt) : 0;
       resumeAgent(selectedRunId, prompt)
         .then(async () => {
           await refreshRunsRef.current();
           void handleSelectRun(selectedRunId);
         })
         .catch((e) => {
-          if (pid) markPendingFailed(pid);
           addEvent({ _kind: "control", text: `Resume failed: ${e}`, ts: new Date().toISOString() });
         });
     },
-    [selectedRunId, addPendingMessage, markPendingFailed, addEvent, refreshRunsRef, handleSelectRun],
+    [selectedRunId, addEvent, refreshRunsRef, handleSelectRun],
   );
 
   const handleStopClick = useCallback((): void => {
