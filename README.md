@@ -2,7 +2,7 @@
 
 <h1>autofyn</h1>
 
-**autonomous AI engineer that improves the longer it runs.**
+**Runs Claude in self-improving loops that work on real codebases.**
 
 built the [#1 Spider 2.0 dbt agent](https://spider2.yale.edu) · found 26 vulnerabilities across LiteLLM and Open WebUI · optimized Caveman to +54% compression
 
@@ -16,106 +16,74 @@ built the [#1 Spider 2.0 dbt agent](https://spider2.yale.edu) · found 26 vulner
 
 ---
 
-AutoFyn runs Claude in iterative rounds inside sandboxed Docker containers. Each round is a fresh session with clean context. Memory persists across rounds via git history, round reports, and a lessons file — so it learns from its own mistakes and builds on what worked.
+Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
+
+Each round runs Claude in a sandboxed Docker container with fresh context. Knowledge persists externally through git history, round reports, and a lessons file — the agent improves across rounds instead of degrading.
 
 ## Results
 
-| Project | What AutoFyn did | Outcome |
-|---|---|---|
-| [SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot) | Built a data analysis agent from scratch | #1 on [Spider 2.0 dbt benchmark](https://spider2.yale.edu) |
-| [Open WebUI](https://github.com/open-webui/open-webui) | Autonomous security audit | 12 vulnerabilities — 4 Critical, 5 High, 3 Medium, 4 exploit chains |
-| [LiteLLM](https://github.com/BerriAI/litellm) | Autonomous security audit | 14 vulnerabilities — critical unauthorized access chain, high privilege escalation chain |
-| [Caveman](https://github.com/tempcollab/caveman) | Prompt optimization | +10% compression without quality loss ([write-up](https://github.com/tempcollab/caveman/blob/main/docs/improving-caveman-with-autofyn.md)) |
+### Security audits
+
+- **[LiteLLM](https://github.com/BerriAI/litellm)** — 14 vulnerabilities (3 Critical, 4 High, 4 Medium, 3 Low), 2 exploit chains. Responsibly disclosed.
+- **[Open WebUI](https://github.com/open-webui/open-webui)** — 12 vulnerabilities (4 Critical, 5 High, 3 Medium), 4 exploit chains. Responsibly disclosed.
+
+### Software engineering
+
+- **[SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot)** — built a data analysis agent from scratch, #1 on the [Spider 2.0 dbt benchmark](https://spider2.yale.edu).
+- **[Caveman](https://github.com/tempcollab/caveman)** — optimized the prompt compression skill by +10% without quality loss ([write-up](https://github.com/tempcollab/caveman/blob/main/docs/improving-caveman-with-autofyn.md)).
 
 ## Quick start
 
 ```bash
 git clone https://github.com/SignalPilot-Labs/AutoFyn.git
-cd autofyn && ./install.sh             # installs CLI + builds Docker images
-autofyn start                          # auto-detects tokens from claude/gh CLI
+cd autofyn && ./install.sh
+autofyn start
 ```
 
-Open [http://localhost:3400](http://localhost:3400) for the dashboard.
-
-On first start, AutoFyn will auto-detect your Claude token (via `claude setup-token`) and GitHub token (via `gh auth token`), and detect the repo from your local git remote. You can also configure manually:
-
-```bash
-autofyn settings set --claude-token YOUR_ANTHROPIC_KEY --git-token YOUR_GITHUB_TOKEN --github-repo owner/repo
-```
-
-To update an existing install: `autofyn update`
-
-### Run
+Open [localhost:3400](http://localhost:3400) for the dashboard. AutoFyn auto-detects your Claude token, GitHub token, and repo from your local git remote.
 
 ```bash
 autofyn run new -p "Fix authentication bugs" -d 30
 ```
 
-If you're inside a git repo, autofyn auto-detects it — no need to specify `--github-repo`:
+To configure manually:
 
 ```bash
-cd your-project/
-autofyn run new -p "Fix authentication bugs" -d 30
-```
-
-### Monitor
-
-Use the CLI or open [http://localhost:3400](http://localhost:3400).
-
-```bash
-autofyn run                            # interactive run selector
-autofyn run get <run_id>               # run details + action menu
+autofyn settings set --claude-token YOUR_KEY --git-token YOUR_TOKEN --github-repo owner/repo
 ```
 
 ## CLI reference
 
 ```
 # Services
-autofyn start                          # start services (fast, no rebuild)
-autofyn start --allow-docker           # start with Docker access for sandbox (unsafe)
+autofyn start                          # start services
+autofyn start --allow-docker           # start with Docker access for sandbox
 autofyn stop                           # stop all services
-autofyn update                         # pull latest code + rebuild images
-autofyn logs                           # stream all container logs (Ctrl+C to stop)
-autofyn logs 50                        # tail last 50 lines + follow
+autofyn update                         # pull latest + rebuild
+autofyn logs                           # stream container logs
 autofyn kill                           # remove all containers
 
 # Runs
 autofyn run                            # interactive run selector
 autofyn run new -p "Fix auth bugs"     # start a new run
 autofyn run list                       # list recent runs
-autofyn run get <run_id>               # show run details + action menu
+autofyn run get <run_id>               # run details + action menu
 
-# Settings & config
-autofyn settings status                # check credential config
-autofyn settings get                   # show all settings (masked)
+# Settings
+autofyn settings status                # check config
+autofyn settings get                   # show all settings
 autofyn settings set --claude-token TOKEN --git-token TOKEN --github-repo owner/repo
 
-# Repos (auto-detects local git repo)
-autofyn repos list                     # list repos with run counts
-autofyn repos detect                   # detect git repo in current directory
+# Repos
+autofyn repos list                     # list repos
 autofyn repos set-active owner/repo    # set active repo
-autofyn repos remove owner/repo        # remove a repo
-
-# Agent
-autofyn agent health                   # check agent status
-autofyn agent branches                 # list git branches
-
-# CLI config
-autofyn config get                     # show CLI config
-autofyn config set --api-key KEY       # update CLI config
 ```
 
 Use `--json` on any command for machine-readable output.
 
-### Docker access
+## Responsible disclosure
 
-By default, sandboxes cannot use Docker. If your task requires the agent to build images or manage containers, start with `--allow-docker`:
-
-```bash
-autofyn start --allow-docker
-```
-
-This mounts the host Docker socket into sandbox containers, giving the agent full Docker daemon access. Only use this if you trust the prompts you send — the agent can create, inspect, and remove any container on the host.
+All vulnerabilities were privately disclosed to maintainers before any public mention. Full reports are withheld until patches are available.
 
 ---
 
