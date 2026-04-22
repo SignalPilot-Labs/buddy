@@ -198,7 +198,7 @@ def _build_base_session_options(
         "include_partial_messages": True,
         "permission_mode": SESSION_PERMISSION_MODE,
         "cwd": WORK_DIR,
-        "add_dirs": ["/workspace", "/home/agentuser/research", "/opt/autofyn"],
+        "add_dirs": ["/opt/autofyn/.claude/skills"],
         "setting_sources": ["project"],
         "max_budget_usd": max_budget_usd if max_budget_usd > 0 else None,
         "resume": None,
