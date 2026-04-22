@@ -2,7 +2,9 @@
 
 <h1>autofyn</h1>
 
-**autonomous AI coder that gets better the longer it runs.**
+**autonomous AI engineer that improves the longer it runs.**
+
+built the [#1 Spider 2.0 dbt agent](https://spider2.yale.edu) · found 26 vulnerabilities across LiteLLM and Open WebUI · optimized Caveman to +54% compression
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
@@ -14,9 +16,18 @@
 
 ---
 
-AutoFyn is an autonomous AI agent loop that runs Claude inside sandboxed Docker containers, round after round, until the job is done. Each round is a fresh Claude session with clean context. Memory persists across rounds via git history, round reports, and an accumulating lessons file — so the agent learns from its own mistakes mid-run.
-
 Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
+
+AutoFyn runs Claude in iterative rounds inside sandboxed Docker containers. Each round is a fresh session with clean context. Memory persists across rounds via git history, round reports, and a lessons file — so it learns from its own mistakes and builds on what worked.
+
+## Results
+
+| Project | What AutoFyn did | Outcome |
+|---|---|---|
+| [SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot) | Built a data analysis agent from scratch | #1 on [Spider 2.0 dbt benchmark](https://spider2.yale.edu) |
+| [Open WebUI](https://github.com/open-webui/open-webui) | Autonomous security audit | 12 vulnerabilities — 4 Critical, 5 High, 3 Medium, 4 exploit chains |
+| [LiteLLM](https://github.com/BerriAI/litellm) | Autonomous security audit | 14 vulnerabilities — critical unauthorized access chain, high privilege escalation chain |
+| [Caveman](https://github.com/tempcollab/caveman) | Prompt optimization | +10% compression without quality loss ([write-up](caveman_reddit.md)) |
 
 ## Quick start
 
