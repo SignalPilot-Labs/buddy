@@ -80,7 +80,24 @@ class UserControl:
     # ── Private ────────────────────────────────────────────────────────
 
     async def _handle_stop(self, reason: str) -> ControlOutcome:
-        """Interrupt the session and signal the runner to tear down."""
+        """Interrupt the session, or redirect if pending messages exist.
+
+        If the inbox has queued inject messages, the user wants to redirect
+        the agent — not kill it. Interrupt the current subagent, flush the
+        pending messages into the session, and continue the round.
+
+        If no pending messages, stop the round as usual.
+        """
+        pending = self._inbox.peek_pending_messages()
+        if pending:
+            log.info(
+                "STOP with %d pending message(s) — redirecting instead of stopping",
+                len(pending),
+            )
+            await self._sandbox.session.interrupt(self._session_id)
+            await self.flush_pending()
+            return ControlOutcome(kind="continue", reason="redirected with pending messages")
+
         log.info("STOP requested: %s", reason or "user stop")
         await self._sandbox.session.interrupt(self._session_id)
         self._inbox.mark_stopped()
