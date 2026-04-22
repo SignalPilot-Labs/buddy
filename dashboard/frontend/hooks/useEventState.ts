@@ -44,15 +44,19 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
   const [historyTruncated, setHistoryTruncated] = useState(false);
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
 
-  // Clear pending messages by prompt text matching when prompt events arrive via SSE
+  // Clear pending messages by prompt text matching when prompt events arrive
+  // via SSE (liveEvents) OR history load (historyEvents). Without checking
+  // both, a prompt_injected event that lands in history (e.g. after
+  // handleSelectRun reloads) won't clear the pending card — showing duplicates.
   const confirmedPromptsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    // Reset when liveEvents is cleared (run switch, session resumed, etc.)
-    if (liveEvents.length === 0) {
+    const allEvents = [...historyEvents, ...liveEvents];
+    // Reset when both sources are empty (run switch clears everything)
+    if (allEvents.length === 0) {
       confirmedPromptsRef.current = new Set();
       return;
     }
-    const confirmedTexts = liveEvents
+    const confirmedTexts = allEvents
       .filter((e) => e._kind === "audit" && (e.data.event_type === "prompt_injected" || e.data.event_type === "prompt_submitted"))
       .map((e) => {
         if (e._kind !== "audit") return "";
@@ -66,7 +70,7 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
     setPendingMessages((prev) =>
       prev.filter((m) => m.status !== "pending" || !confirmedSet.has(m.prompt)),
     );
-  }, [liveEvents]);
+  }, [liveEvents, historyEvents]);
 
   const allEvents = useMemo(() => {
     if (liveEvents.length === 0) return historyEvents;
