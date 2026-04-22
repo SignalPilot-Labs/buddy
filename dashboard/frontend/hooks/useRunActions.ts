@@ -54,7 +54,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       effort?: string | undefined,
     ): Promise<void> => {
       const resolvedModel = model ?? loadStoredModel();
-      const resolvedEffort = effort ?? "medium";
+      const resolvedEffort = effort ?? "high";
       setStartModalOpen(false);
       setBusy(true);
       try {
