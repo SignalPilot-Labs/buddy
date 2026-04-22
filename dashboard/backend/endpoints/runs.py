@@ -122,7 +122,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "prompt": prompt,
         "claude_token": creds.get("claude_token"),
         "git_token": creds.get("git_token"),
-        "github_repo": creds.get("github_repo"),
+        "github_repo": run.github_repo,
         "env": creds.get("env"),
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
