@@ -106,7 +106,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
   const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
-  const [effort, setEffort] = useState<EffortLevel>("medium");
+  const [effort, setEffort] = useState<EffortLevel>("high");
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const [mounts, setMounts] = useState<HostMount[]>([]);

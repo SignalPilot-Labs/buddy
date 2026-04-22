@@ -51,4 +51,4 @@ export function extractResultText(data: Record<string, unknown>): string {
   return "";
 }
 
-export const IDLE_WARN_MS = 60_000;
+export const IDLE_WARN_MS = 300_000;

@@ -25,7 +25,7 @@ SUPPORTED_MODELS: list[dict[str, str]] = [
 
 # ── Effort ──
 VALID_EFFORTS: tuple[str, ...] = ("low", "medium", "high", "max")
-DEFAULT_EFFORT: str = "medium"
+DEFAULT_EFFORT: str = "high"
 VALID_EFFORTS_PATTERN: str = f"^({'|'.join(VALID_EFFORTS)})$"
 
 # Models that support effort="max". Others get downgraded to "high".
