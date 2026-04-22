@@ -202,8 +202,10 @@ export function useDashboard(): DashboardState {
       setRepos(r);
       if (r.length > 0) {
         const stored = activeRepoFilter;
-        const valid = stored && r.some((repo) => repo.repo === stored);
+        if (!stored) return; // User never picked a repo — don't force one
+        const valid = r.some((repo) => repo.repo === stored);
         if (!valid) {
+          // Stored repo no longer exists — fall back to one with runs
           const withRuns = r.find((repo) => repo.run_count > 0);
           const picked = withRuns?.repo || r[0].repo;
           setActiveRepoFilter(picked);
