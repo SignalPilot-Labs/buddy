@@ -16,8 +16,6 @@ built the [#1 Spider 2.0 dbt agent](https://spider2.yale.edu) · found 26 vulner
 
 ---
 
-Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
-
 AutoFyn runs Claude in iterative rounds inside sandboxed Docker containers. Each round is a fresh session with clean context. Memory persists across rounds via git history, round reports, and a lessons file — so it learns from its own mistakes and builds on what worked.
 
 ## Results
