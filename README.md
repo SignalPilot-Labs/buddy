@@ -4,7 +4,7 @@
 
 **Runs Claude in self-improving loops that work on real codebases.**
 
-built the [#1 Spider 2.0 dbt agent](https://spider2.yale.edu) · found 26 vulnerabilities across LiteLLM and Open WebUI · optimized Caveman to +54% compression
+built the [#1 Spider 2.0 DBT agent](https://spider2-sql.github.io/) · found 26 vulnerabilities across LiteLLM and Open WebUI · optimized Caveman to +54% compression
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
@@ -29,7 +29,7 @@ Each round runs Claude in a sandboxed Docker container with fresh context. Knowl
 
 ### Software engineering
 
-- **[SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot)** — built a data analysis agent from scratch, #1 on the [Spider 2.0 dbt benchmark](https://spider2.yale.edu).
+- **[SignalPilot](https://github.com/SignalPilot-Labs/SignalPilot)** — built a data analysis agent from scratch, #1 on the [Spider 2.0 dbt benchmark](https://spider2-sql.github.io/).
 - **[Caveman](https://github.com/tempcollab/caveman)** — optimized the prompt compression skill by +10% without quality loss ([write-up](https://github.com/tempcollab/caveman/blob/main/docs/improving-caveman-with-autofyn.md)).
 
 ## Quick start
