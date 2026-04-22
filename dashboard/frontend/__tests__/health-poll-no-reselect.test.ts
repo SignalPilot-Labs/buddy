@@ -28,14 +28,13 @@ describe("health poll: no selection side effects", () => {
     expect(block).not.toContain("handleSelectRun");
   });
 
-  it("auto-selection effect handles terminal-to-active switch", () => {
-    // The auto-selection effect should handle switching from a terminal
-    // run to an active one — this was previously in the health poll.
+  it("auto-selection only fires when no run is selected", () => {
+    // Must never yank user away from a deliberately selected run.
     const autoMarker = "// Auto-selection:";
     const autoIdx = SRC.indexOf(autoMarker);
     expect(autoIdx).toBeGreaterThan(-1);
     const block = SRC.slice(autoIdx, SRC.indexOf("activeRepoFilter])", autoIdx) + 30);
-    expect(block).toContain("currentIsTerminal");
-    expect(block).toContain("active.id !== selectedRunId");
+    expect(block).toContain("if (selectedRunId || runs.length === 0) return");
+    expect(block).not.toContain("currentIsTerminal");
   });
 });

@@ -244,44 +244,28 @@ export function useDashboard(): DashboardState {
     }
   }, [runs, selectedRunId]);
 
-  // Auto-selection: pick a run when none is selected, or switch to a newly
-  // active run when the user is viewing a terminal one. This is the ONLY
-  // place that auto-selects — the health poll just refreshes the runs list.
+  // Auto-selection: pick a run ONLY when none is selected. Never yank the
+  // user away from a run they deliberately clicked — even if it's terminal
+  // and an active run exists. The user can click the active run themselves.
   useEffect(() => {
-    if (runs.length === 0) return;
+    if (selectedRunId || runs.length === 0) return;
     if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
 
     const active = runs.find((r) => ["running", "paused", "rate_limited", "starting"].includes(r.status));
-
-    if (!selectedRunId) {
-      // Nothing selected — pick active, localStorage, or first run.
-      if (active) {
-        handleSelectRun(active.id);
-        return;
-      }
-      const skipRestore = skipLastRunRestoreRef.current;
-      skipLastRunRestoreRef.current = false;
-      if (!skipRestore) {
-        const lastRunId = localStorage.getItem("autofyn_last_run_id");
-        if (lastRunId && runs.some((r) => r.id === lastRunId)) {
-          handleSelectRun(lastRunId);
-          return;
-        }
-      }
-      handleSelectRun(runs[0].id);
+    if (active) {
+      handleSelectRun(active.id);
       return;
     }
-
-    // A run IS selected — only switch if it's terminal and a different active run exists.
-    if (active && active.id !== selectedRunId) {
-      const currentRun = runs.find((r) => r.id === selectedRunId);
-      const currentIsTerminal = currentRun
-        ? TERMINAL_STATUSES.has(currentRun.status as RunStatus)
-        : true;
-      if (currentIsTerminal) {
-        handleSelectRun(active.id);
+    const skipRestore = skipLastRunRestoreRef.current;
+    skipLastRunRestoreRef.current = false;
+    if (!skipRestore) {
+      const lastRunId = localStorage.getItem("autofyn_last_run_id");
+      if (lastRunId && runs.some((r) => r.id === lastRunId)) {
+        handleSelectRun(lastRunId);
+        return;
       }
     }
+    handleSelectRun(runs[0].id);
   }, [runs, selectedRunId, handleSelectRun, activeRepoFilter]);
 
   const isConfigured = settingsStatus?.configured ?? false;

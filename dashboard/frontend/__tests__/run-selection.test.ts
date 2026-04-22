@@ -65,9 +65,11 @@ describe("run auto-selection: active runs take priority", () => {
     expect(autoSelectBlock).toContain("handleSelectRun(runs[0].id)");
   });
 
-  it("switches from terminal run to active run", () => {
-    expect(autoSelectBlock).toContain("currentIsTerminal");
-    expect(autoSelectBlock).toContain("active.id !== selectedRunId");
+  it("never yanks user away from a selected run", () => {
+    // Auto-selection must only fire when !selectedRunId.
+    // It must NOT contain terminal-to-active switching logic.
+    expect(autoSelectBlock).not.toContain("currentIsTerminal");
+    expect(autoSelectBlock).toContain("if (selectedRunId || runs.length === 0) return");
   });
 });
 
