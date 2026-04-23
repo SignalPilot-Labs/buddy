@@ -9,7 +9,8 @@ import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
 import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH } from "@/lib/constants";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS } from "@/lib/constants";
+import type { StarterPresetKey } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts } from "@/lib/api";
 import type { HostMount } from "@/lib/api";
@@ -17,7 +18,7 @@ import type { HostMount } from "@/lib/api";
 export interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
+  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -91,20 +92,13 @@ const QUICK_START_ICONS: Record<string, React.ReactElement> = {
 
 type QuickStartIcon = keyof typeof QUICK_START_ICONS;
 
-const QUICK_PROMPTS: { label: string; icon: QuickStartIcon; prompt: string | undefined; desc: string }[] = [
-  { label: "General improvement", icon: "sparkle", prompt: undefined, desc: "Default: security, bugs, tests, quality" },
-  { label: "Security hardening", icon: "shield", prompt: "Focus on security: find and fix vulnerabilities, add input validation, review auth flows, check for injection risks.", desc: "Fix security issues" },
-  { label: "Test coverage", icon: "flask", prompt: "Focus exclusively on adding test coverage. Find untested critical paths and write thorough tests for them.", desc: "Add missing tests" },
-  { label: "Bug fixes", icon: "bug", prompt: "Focus on finding and fixing bugs: error handling gaps, edge cases, race conditions, incorrect logic. Run tests after each fix.", desc: "Find and fix bugs" },
-];
-
 export function StartRunModal({ open, onClose, onStart, busy, branches, activeRepo }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
   const [budget, setBudget] = useState(50);
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
-  const [selectedQuick, setSelectedQuick] = useState<number | null>(null);
+  const [selectedQuick, setSelectedQuick] = useState<StarterPresetKey | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
   const [effort, setEffort] = useState<EffortLevel>("high");
   const [envText, setEnvText] = useState("");
@@ -163,7 +157,8 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   }, [open, onClose]);
 
   const handleStart = async () => {
-    const prompt = selectedQuick !== null ? QUICK_PROMPTS[selectedQuick].prompt : customPrompt.trim() || undefined;
+    const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
+    const preset = selectedQuick !== null ? selectedQuick : undefined;
     if (activeRepo) {
       try {
         await saveRepoEnv(activeRepo, parseEnvText(envText));
@@ -180,7 +175,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         return;
       }
     }
-    onStart(prompt, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
+    onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -238,24 +233,27 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 <div>
                   <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Quick Start</label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    {QUICK_PROMPTS.map((q, i) => (
-                      <button
-                        key={i}
-                        onClick={() => { setSelectedQuick(selectedQuick === i ? null : i); setCustomPrompt(""); }}
-                        className={clsx(
-                          "group text-left p-3 rounded border transition-all text-content hover:scale-[1.01]",
-                          selectedQuick === i
-                            ? "border-border border-l-2 border-l-[#00ff88] bg-[#00ff88]/[0.06]"
-                            : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
-                        )}
-                      >
-                        <div className="flex items-center gap-1.5 font-medium text-accent-hover">
-                          <span className="text-text-muted">{QUICK_START_ICONS[q.icon]}</span>
-                          {q.label}
-                        </div>
-                        <div className="text-text-muted mt-0.5">{q.desc}</div>
-                      </button>
-                    ))}
+                    {STARTER_PRESET_KEYS.map((key) => {
+                      const p = STARTER_PRESETS[key];
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => { setSelectedQuick(selectedQuick === key ? null : key); setCustomPrompt(""); }}
+                          className={clsx(
+                            "group text-left p-3 rounded border transition-all text-content hover:scale-[1.01]",
+                            selectedQuick === key
+                              ? "border-border border-l-2 border-l-[#00ff88] bg-[#00ff88]/[0.06]"
+                              : "border-border bg-white/[0.01] hover:bg-white/[0.03]"
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5 font-medium text-accent-hover">
+                            <span className="text-text-muted">{QUICK_START_ICONS[p.icon]}</span>
+                            {p.label}
+                          </div>
+                          <div className="text-text-muted mt-0.5">{p.desc}</div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -269,7 +267,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     value={customPrompt}
                     onChange={(e) => { setCustomPrompt(e.target.value); setSelectedQuick(null); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="e.g., Refactor the auth module to use JWT tokens instead of session cookies..."
+                    placeholder="e.g., Optimize the algorithm to hit 60% compression ratio without further quality loss..."
                     rows={PROMPT_MIN_ROWS}
                     className="mt-2 w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover placeholder:text-text-secondary resize-none leading-6 transition-[height] duration-100 focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40"
                     style={{ minHeight: `${PROMPT_MIN_ROWS * PROMPT_LINE_HEIGHT + PROMPT_VERTICAL_PADDING}px` }}

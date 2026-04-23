@@ -13,9 +13,9 @@ import time
 from dataclasses import asdict, dataclass, field
 from typing import Literal, TYPE_CHECKING
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, SUPPORTED_SONNET, VALID_EFFORTS, VALID_MODELS
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, SUPPORTED_SONNET, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 _FALLBACK_MAP: dict[str, str | None] = {
@@ -331,6 +331,7 @@ class StartRequest(BaseModel):
     """POST /start request body."""
 
     prompt: str | None = None
+    preset: str | None = None
     max_budget_usd: float = 0
     duration_minutes: float = 0
     base_branch: str = "main"
@@ -376,6 +377,20 @@ class StartRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("base_branch must not be empty")
         return v.strip()
+
+    @field_validator("preset")
+    @classmethod
+    def preset_valid(cls, v: str | None) -> str | None:
+        if v is not None and v not in STARTER_PRESET_KEYS:
+            raise ValueError(f"preset must be one of {STARTER_PRESET_KEYS}")
+        return v
+
+    @model_validator(mode="after")
+    def prompt_or_preset_exclusive(self) -> StartRequest:
+        """Ensure prompt and preset are mutually exclusive."""
+        if self.prompt and self.preset:
+            raise ValueError("Cannot set both prompt and preset")
+        return self
 
 
 class InjectRequest(BaseModel):

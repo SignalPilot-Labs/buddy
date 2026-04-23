@@ -19,6 +19,7 @@ import httpx
 
 from fastapi import FastAPI, Header, HTTPException
 
+from prompts.loader import load_markdown
 from utils import db
 from utils.diff import fetch_github_diff
 from utils.constants import (
@@ -210,10 +211,12 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
                 status_code=422,
                 detail="github_repo is required",
             )
+        if body.preset:
+            body.prompt = load_markdown(f"starter/{body.preset}")
         if not body.prompt:
             raise HTTPException(
                 status_code=422,
-                detail="prompt is required — AutoFyn needs a task",
+                detail="prompt or preset is required — AutoFyn needs a task",
             )
 
         run_id = str(uuid.uuid4())

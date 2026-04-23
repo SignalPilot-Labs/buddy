@@ -140,6 +140,7 @@ export async function fetchAgentHealth(): Promise<AgentHealth> {
 
 export async function startRun(
   prompt: string | undefined,
+  preset: string | undefined,
   maxBudgetUsd: number,
   durationMinutes: number,
   baseBranch: string,
@@ -152,6 +153,7 @@ export async function startRun(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       prompt: prompt || null,
+      preset: preset || null,
       max_budget_usd: maxBudgetUsd,
       duration_minutes: durationMinutes,
       base_branch: baseBranch,

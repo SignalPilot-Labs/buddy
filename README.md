@@ -42,8 +42,10 @@ autofyn start
 
 Open [localhost:3400](http://localhost:3400) for the dashboard. AutoFyn auto-detects your Claude token, GitHub token, and repo from your local git remote.
 
+Pick a starter preset — **Security hardening**, **Bug sweep**, **Code quality**, or **Test coverage** — or write your own goal:
+
 ```bash
-autofyn run new -p "Fix authentication bugs" -d 30
+autofyn run new -p "Optimize the algorithm to hit 60% compression ratio without further quality loss" -d 120
 ```
 
 To configure manually:

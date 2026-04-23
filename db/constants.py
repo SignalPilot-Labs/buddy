@@ -105,6 +105,18 @@ def validate_host_mount(
     return None
 
 
+# ── Starter Presets ──
+# Preset keys for the "Quick Start" cards in the new-run modal.
+# The agent resolves each key to a markdown prompt in prompts/starter/.
+STARTER_PRESET_KEYS: tuple[str, ...] = (
+    "security_hardening",
+    "bug_sweep",
+    "code_quality",
+    "test_coverage",
+)
+VALID_PRESET_PATTERN: str = f"^({'|'.join(STARTER_PRESET_KEYS)})$"
+
+
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across
 # the agent, sandbox, and dashboard containers.  Both the Python backend
