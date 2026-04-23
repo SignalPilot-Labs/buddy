@@ -108,7 +108,9 @@ async def run_rounds(
             "preset": system_prompt["preset"],
             "append": system_prompt.get("append", ""),
         }
-        initial_prompt = _build_initial_prompt(round_number, bootstrap.task, time_lock.grace_round_used)
+        initial_prompt = _build_initial_prompt(
+            round_number, bootstrap.task, time_lock.grace_round_used
+        )
 
         result = await runner.run(options, initial_prompt, round_number)
         await db.reconcile_orphaned_agent_calls(run.run_id)
@@ -252,9 +254,17 @@ async def _handle_round_outcome(
 
     if time_lock.is_expired():
         if time_lock.grace_round_used:
-            log.info("[%s] Grace round finished after round %d — finishing", rid, round_number)
+            log.info(
+                "[%s] Grace round finished after round %d — finishing",
+                rid,
+                round_number,
+            )
             return "completed", 0
-        log.info("[%s] Time lock expired after round %d — allowing one grace round", rid, round_number)
+        log.info(
+            "[%s] Time lock expired after round %d — allowing one grace round",
+            rid,
+            round_number,
+        )
         time_lock.grace_round_used = True
         return None, 0
 
@@ -362,5 +372,5 @@ def _build_initial_prompt(round_number: int, task: str, is_grace_round: bool) ->
         "then continue."
     )
     if is_grace_round:
-        suffix += "\n\nTime lock has expired. This is your final round — scope small, ship what matters most, and call end_session."
+        suffix += "\n\nTime lock has expired. This is your final round. Wrap up the work, ship it, then call end_session."
     return suffix
