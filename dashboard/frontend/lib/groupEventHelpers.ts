@@ -105,22 +105,16 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         ts,
         event,
       };
-    case "run_started": {
-      // branch_name is NULL until bootstrap assigns a real branch.
-      const branch = d.branch || "";
-      const detail = branch
-        ? `${d.model || "claude"} · ${branch}`
-        : `${d.model || "claude"}`;
+    case "run_started":
       return {
         id: `ms-${ts}-Run Started`,
         type: "milestone",
         label: "Run Started",
-        detail,
+        detail: "",
         color: "#88ccff",
         ts,
         event,
       };
-    }
     case "round_ended": {
       const roundNum = d.round_number as number | undefined;
       const label = roundNum ? `Round ${roundNum} complete` : "Round complete";
