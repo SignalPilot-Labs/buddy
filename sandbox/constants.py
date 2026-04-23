@@ -87,3 +87,15 @@ REPO_BRANCH_NAME_MAX_LEN: int = 256
 GIT_CREDENTIAL_HELPER: str = (
     '!f() { echo "username=x-access-token"; echo "password=${GIT_TOKEN}"; }; f'
 )
+
+# ── Repo git clone ──
+GIT_CLONE_DEPTH: int = 50
+CLONE_TMP_DIR: str = "/tmp/repo-clone"
+
+# ── Stderr truncation limits ──
+STDERR_DISPLAY_LIMIT: int = 2000
+STDERR_SHORT_LIMIT: int = 500
+STDERR_BRIEF_LIMIT: int = 200
+
+# ── Auto-commit message ──
+AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"

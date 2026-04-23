@@ -1,4 +1,4 @@
-"""Tests for _branch_diff in sandbox.handlers.repo.
+"""Tests for _branch_diff in sandbox.handlers.repo_git.
 
 _branch_diff is the one place that owns 'working branch vs base' stats
 for both teardown (persisted into run.diff_stats) and the live
@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from handlers import repo as repo_module
+from handlers import repo_git as repo_git_module
 from models import CmdResult
 
 
@@ -33,7 +33,7 @@ def _cmd_result(stdout: str, exit_code: int = 0, stderr: str = "") -> CmdResult:
 def git_mock(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     """Replace _git with an AsyncMock so tests drive its stdout/exit."""
     mock = AsyncMock()
-    monkeypatch.setattr(repo_module, "_git", mock)
+    monkeypatch.setattr(repo_git_module, "_git", mock)
     return mock
 
 
@@ -46,7 +46,7 @@ class TestBranchDiffGitInvocation:
             _cmd_result("10\t2\tsrc/main.py\n"),  # numstat
             _cmd_result("M\tsrc/main.py\n"),  # name-status
         ]
-        await repo_module._branch_diff("feature", BASE_SHA, 30)
+        await repo_git_module._branch_diff("feature", BASE_SHA, 30)
         calls = [c.args[0] for c in git_mock.call_args_list]
         assert calls == [
             ["diff", "--numstat", BASE_SHA, "feature"],
@@ -66,7 +66,7 @@ class TestBranchDiffGitInvocation:
             _cmd_result("10\t2\tsrc/main.py\n"),
             _cmd_result("M\tsrc/main.py\n"),
         ]
-        await repo_module._branch_diff("feature", BASE_SHA, 30)
+        await repo_git_module._branch_diff("feature", BASE_SHA, 30)
         calls = [c.args[0] for c in git_mock.call_args_list]
         assert all("fetch" not in call for call in calls)
 
@@ -76,7 +76,7 @@ class TestBranchDiffGitInvocation:
             _cmd_result("10\t2\tsrc/main.py\n"),
             _cmd_result("M\tsrc/main.py\n"),
         ]
-        await repo_module._branch_diff("feature", BASE_SHA, 30)
+        await repo_git_module._branch_diff("feature", BASE_SHA, 30)
         calls = [c.args[0] for c in git_mock.call_args_list]
         for call in calls:
             assert not any("..." in part for part in call), f"three-dot in {call}"
@@ -88,12 +88,12 @@ class TestBranchDiffOutputStitching:
     @pytest.mark.asyncio
     async def test_empty_numstat_returns_empty_list(self, git_mock: AsyncMock) -> None:
         git_mock.side_effect = [_cmd_result("   \n")]  # whitespace-only
-        assert await repo_module._branch_diff("feature", BASE_SHA, 30) == []
+        assert await repo_git_module._branch_diff("feature", BASE_SHA, 30) == []
 
     @pytest.mark.asyncio
     async def test_numstat_nonzero_exit_returns_empty(self, git_mock: AsyncMock) -> None:
         git_mock.side_effect = [_cmd_result("", exit_code=128, stderr="fatal: ...")]
-        assert await repo_module._branch_diff("feature", BASE_SHA, 30) == []
+        assert await repo_git_module._branch_diff("feature", BASE_SHA, 30) == []
 
     @pytest.mark.asyncio
     async def test_name_status_nonzero_exit_returns_empty(self, git_mock: AsyncMock) -> None:
@@ -101,7 +101,7 @@ class TestBranchDiffOutputStitching:
             _cmd_result("10\t2\tsrc/main.py\n"),  # numstat ok
             _cmd_result("", exit_code=1),  # name-status fails
         ]
-        assert await repo_module._branch_diff("feature", BASE_SHA, 30) == []
+        assert await repo_git_module._branch_diff("feature", BASE_SHA, 30) == []
 
     @pytest.mark.asyncio
     async def test_full_parse_added_modified_deleted(self, git_mock: AsyncMock) -> None:
@@ -117,7 +117,7 @@ class TestBranchDiffOutputStitching:
                 "D\tsrc/gone.py\n"
             ),
         ]
-        result = await repo_module._branch_diff("feature", BASE_SHA, 30)
+        result = await repo_git_module._branch_diff("feature", BASE_SHA, 30)
         assert result == [
             {"path": "src/new.py", "added": 25, "removed": 0, "status": "added"},
             {"path": "src/main.py", "added": 10, "removed": 2, "status": "modified"},
@@ -131,7 +131,7 @@ class TestBranchDiffOutputStitching:
             _cmd_result("-\t-\tassets/logo.png\n"),
             _cmd_result("A\tassets/logo.png\n"),
         ]
-        result = await repo_module._branch_diff("feature", BASE_SHA, 30)
+        result = await repo_git_module._branch_diff("feature", BASE_SHA, 30)
         assert result == [
             {"path": "assets/logo.png", "added": 0, "removed": 0, "status": "added"},
         ]
@@ -155,7 +155,7 @@ class TestWorktreeDiffGitInvocation:
             _cmd_result("10\t2\tsrc/main.py\n"),
             _cmd_result("M\tsrc/main.py\n"),
         ]
-        await repo_module._worktree_diff(BASE_SHA, 30)
+        await repo_git_module._worktree_diff(BASE_SHA, 30)
         calls = [c.args[0] for c in git_mock.call_args_list]
         assert calls == [
             ["diff", "--numstat", BASE_SHA],
@@ -170,7 +170,7 @@ class TestWorktreeDiffGitInvocation:
     @pytest.mark.asyncio
     async def test_empty_numstat_returns_empty_list(self, git_mock: AsyncMock) -> None:
         git_mock.side_effect = [_cmd_result("")]
-        assert await repo_module._worktree_diff(BASE_SHA, 30) == []
+        assert await repo_git_module._worktree_diff(BASE_SHA, 30) == []
 
     @pytest.mark.asyncio
     async def test_full_parse_matches_branch_diff_shape(self, git_mock: AsyncMock) -> None:
@@ -178,7 +178,7 @@ class TestWorktreeDiffGitInvocation:
             _cmd_result("25\t0\tsrc/new.py\n10\t2\tsrc/main.py\n"),
             _cmd_result("A\tsrc/new.py\nM\tsrc/main.py\n"),
         ]
-        result = await repo_module._worktree_diff(BASE_SHA, 30)
+        result = await repo_git_module._worktree_diff(BASE_SHA, 30)
         assert result == [
             {"path": "src/new.py", "added": 25, "removed": 0, "status": "added"},
             {"path": "src/main.py", "added": 10, "removed": 2, "status": "modified"},
