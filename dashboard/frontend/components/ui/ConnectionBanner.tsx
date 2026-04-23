@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, ConnectionState } from "@/lib/types";
-import { ACTIVE_STATUSES } from "@/lib/constants";
+import { ACTIVE_STATUSES, CONNECTION_BANNER_DELAY_MS } from "@/lib/constants";
 import type { ToastVariant } from "@/components/ui/Toast";
 
 const BANNER_INITIAL = { opacity: 0, y: -8 };
@@ -19,7 +19,19 @@ interface ConnectionBannerProps {
 
 export function ConnectionBanner({ connectionState, runStatus, showToast }: ConnectionBannerProps) {
   const isActiveRun = runStatus !== null && (ACTIVE_STATUSES as readonly string[]).includes(runStatus);
-  const showBanner = connectionState !== "connected" && isActiveRun;
+  const wantsBanner = connectionState !== "connected" && isActiveRun;
+
+  // Debounce: only show the banner after CONNECTION_BANNER_DELAY_MS of
+  // continuous disconnect. This suppresses the flash during run switches.
+  const [showBanner, setShowBanner] = useState(false);
+  useEffect(() => {
+    if (!wantsBanner) {
+      setShowBanner(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowBanner(true), CONNECTION_BANNER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [wantsBanner]);
 
   const prevStateRef = useRef<ConnectionState>(connectionState);
 

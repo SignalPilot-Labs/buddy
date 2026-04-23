@@ -226,6 +226,8 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
             body.model,
         )
 
+        await db.log_audit(run_id, "run_starting", {"repo": body.github_repo})
+
         active = ActiveRun(run_id=run_id)
         server.register_run(active)
 

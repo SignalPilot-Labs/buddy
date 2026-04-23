@@ -75,6 +75,7 @@ async def bootstrap_run(
         working_branch=branch_name,
         timeout=clone_timeout,
     )
+    await db.log_audit(run_id, "repo_cloned", {"repo": github_repo, "branch": branch_name})
     run_config = await load_run_agent_config(sandbox)
     if existing_branch:
         await db.update_run_status(run_id, "running")
@@ -235,9 +236,8 @@ async def _log_run_started(
             "has_custom_prompt": bool(custom_prompt),
         },
     )
-    # Full prompt (not truncated) — the frontend uses exact text equality
-    # to reconcile a pending optimistic bubble against this event. Any
-    # truncation here causes a mismatch and a duplicate "two bubbles" render.
+    # Full prompt (not truncated) — the frontend renders this text verbatim
+    # in the user prompt bubble.
     await db.log_audit(
         run_id,
         "prompt_submitted",
