@@ -19,6 +19,7 @@ import httpx
 
 from fastapi import FastAPI, Header, HTTPException
 
+from db.constants import CLEANABLE_RUN_STATUSES, RUN_STATUS_STARTING
 from prompts.loader import load_markdown
 from utils import db
 from utils.diff import fetch_github_diff
@@ -237,7 +238,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
         task = asyncio.create_task(server.execute_run(active, body))
         active.task = task
         task.add_done_callback(lambda t: server.on_task_done(active, t))
-        return {"ok": True, "status": "starting", "run_id": run_id}
+        return {"ok": True, "status": RUN_STATUS_STARTING, "run_id": run_id}
 
     # ── Control Signals ────────────────────────────────────────────────
 
@@ -293,16 +294,7 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
 
     @app.post("/cleanup")
     async def cleanup():
-        terminal = {
-            "completed",
-            "completed_no_changes",
-            "stopped",
-            "error",
-            "crashed",
-            "killed",
-            "rate_limited",
-        }
-        to_remove = [rid for rid, r in server.runs().items() if r.status in terminal]
+        to_remove = [rid for rid, r in server.runs().items() if r.status in CLEANABLE_RUN_STATUSES]
         for rid in to_remove:
             del server.runs()[rid]
         return {"ok": True, "cleaned": len(to_remove)}

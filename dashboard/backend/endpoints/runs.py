@@ -35,7 +35,14 @@ from backend.utils import (
     send_control_signal,
     session,
 )
-from db.constants import DEFAULT_MODEL, SUPPORTED_MODELS
+from db.constants import (
+    DEFAULT_MODEL,
+    RUN_STATUS_PAUSED,
+    RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_RUNNING,
+    RUN_STATUS_STARTING,
+    SUPPORTED_MODELS,
+)
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.endpoints")
@@ -111,7 +118,7 @@ async def get_audit_log(
 @router.post("/runs/{run_id}/pause")
 async def pause_run(run_id: str = RunId) -> dict:
     """Pause a running agent."""
-    return await send_control_signal(run_id, "pause", {"running"}, None, None)
+    return await send_control_signal(run_id, "pause", {RUN_STATUS_RUNNING}, None, None)
 
 
 async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: AsyncSession) -> dict:
@@ -126,7 +133,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "env": creds.get("env"),
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
-    run.status = "running"
+    run.status = RUN_STATUS_RUNNING
     run.error_message = None
     await s.commit()
     return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
@@ -139,12 +146,12 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status in ("paused", "rate_limited"):
+        if run.status in (RUN_STATUS_PAUSED, RUN_STATUS_RATE_LIMITED):
             prompt = (body.payload or "").strip() or None
             if prompt:
                 await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt, None)
-            if run.status == "paused":
-                return await send_control_signal(run_id, "resume", {"paused"}, None, None)
+            if run.status == RUN_STATUS_PAUSED:
+                return await send_control_signal(run_id, "resume", {RUN_STATUS_PAUSED}, None, None)
             return {"ok": True, "signal": "inject", "run_id": run_id}
         if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(
@@ -325,7 +332,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
     # Active runs: ask the sandbox for a live working-tree diff. GitHub
     # is never consulted — no chance of placeholder-branch collision.
     # Terminal runs: sandbox is gone, use GitHub compare API.
-    is_active = run_status in ACTIVE_STATUSES or run_status == "starting"
+    is_active = run_status in ACTIVE_STATUSES or run_status == RUN_STATUS_STARTING
     source = "sandbox" if is_active else "github"
 
     creds = await read_credentials(github_repo)

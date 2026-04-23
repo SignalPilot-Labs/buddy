@@ -14,6 +14,13 @@ from typing import Any, TypeVar
 from sqlalchemy import func, select, update
 
 from db.connection import connect, close, get_session_factory
+from db.constants import (
+    ACTIVE_RUN_STATUSES,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_RUNNING,
+    RUN_STATUS_STARTING,
+)
 from db.models import AuditLog, ControlSignal, Run, ToolCall
 from utils.models import UserAction
 
@@ -68,7 +75,7 @@ async def create_run_starting(
             Run(
                 id=run_id,
                 branch_name=None,
-                status="starting",
+                status=RUN_STATUS_STARTING,
                 custom_prompt=custom_prompt,
                 duration_minutes=duration_minutes,
                 base_branch=base_branch,
@@ -87,7 +94,7 @@ async def update_run_branch(run_id: str, branch_name: str) -> None:
             .where(Run.id == run_id)
             .values(
                 branch_name=branch_name,
-                status="running",
+                status=RUN_STATUS_RUNNING,
             )
         )
         await s.commit()
@@ -377,7 +384,7 @@ async def mark_crashed_runs() -> int:
         rows = (
             await s.execute(
                 select(Run.id).where(
-                    Run.status.in_(["starting", "running", "paused", "rate_limited"])
+                    Run.status.in_(ACTIVE_RUN_STATUSES | {RUN_STATUS_RATE_LIMITED})
                 )
             )
         ).all()
@@ -389,7 +396,7 @@ async def mark_crashed_runs() -> int:
             update(Run)
             .where(Run.id.in_(run_ids))
             .values(
-                status="crashed",
+                status=RUN_STATUS_CRASHED,
                 ended_at=datetime.now(timezone.utc),
                 error_message=error_msg,
             )

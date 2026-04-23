@@ -41,18 +41,18 @@ from constants import (
     RETRY_BASE_DELAY_SEC,
     RETRY_MAX_ATTEMPTS,
     RETRY_TRANSIENT_PATTERNS,
+    SECRET_REDACT_MASK,
 )
 from handlers.repo_parse import _parse_name_status, _parse_numstat
 from models import CmdResult, RepoState
 
 log = logging.getLogger("sandbox.endpoints.repo")
 
-_SECRET_MASK: str = "***REDACTED***"
 _SECRET_ENV_KEYS: tuple[str, ...] = ("GIT_TOKEN", "GH_TOKEN")
 
 
 def _scrub_secrets(text: str) -> str:
-    """Replace any in-process git/gh token value with `_SECRET_MASK`.
+    """Replace any in-process git/gh token value with SECRET_REDACT_MASK.
 
     The sandbox installs `GIT_TOKEN` / `GH_TOKEN` in its own process env at
     bootstrap (see `_install_git_credentials`). Every git/gh subprocess
@@ -68,7 +68,7 @@ def _scrub_secrets(text: str) -> str:
     for key in _SECRET_ENV_KEYS:
         value = os.environ.get(key)
         if value:
-            scrubbed = scrubbed.replace(value, _SECRET_MASK)
+            scrubbed = scrubbed.replace(value, SECRET_REDACT_MASK)
     return scrubbed
 
 

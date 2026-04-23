@@ -27,6 +27,13 @@ from sandbox_client.client import SandboxClient
 from agent_session.runner import RoundRunner
 from agent_session.time_lock import TimeLock
 from utils import db
+from db.constants import (
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_PAUSED,
+    RUN_STATUS_RUNNING,
+    RUN_STATUS_STOPPED,
+)
 from utils.constants import (
     session_error_base_backoff_sec,
     session_error_max_retries,
@@ -162,9 +169,9 @@ async def _handle_round_outcome(
     """Apply the round result. Returns (terminal status or None, error counter)."""
     rid = run.run_id[:8]
 
-    if result.status == "error":
+    if result.status == RUN_STATUS_ERROR:
         log.error("[%s] Round %d errored: %s", rid, round_number, result.error)
-        return "error", 0
+        return RUN_STATUS_ERROR, 0
 
     if result.status == "session_error":
         consecutive_session_errors += 1
@@ -196,14 +203,14 @@ async def _handle_round_outcome(
                 rid,
                 consecutive_session_errors,
             )
-            return "error", consecutive_session_errors
+            return RUN_STATUS_ERROR, consecutive_session_errors
         await asyncio.sleep(backoff_sec)
         return None, consecutive_session_errors
 
     # Any non-error round resets the counter.
     consecutive_session_errors = 0
 
-    if result.status == "stopped":
+    if result.status == RUN_STATUS_STOPPED:
         log.info("[%s] Round %d stopped by user", rid, round_number)
         await db.log_audit(
             run.run_id,
@@ -218,9 +225,9 @@ async def _handle_round_outcome(
             result.round_summary,
             exec_timeout,
         )
-        return "stopped", 0
+        return RUN_STATUS_STOPPED, 0
 
-    if result.status == "paused":
+    if result.status == RUN_STATUS_PAUSED:
         log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
         await db.log_audit(
             run.run_id,
@@ -229,12 +236,12 @@ async def _handle_round_outcome(
                 "round_number": round_number,
             },
         )
-        await db.update_run_status(run.run_id, "paused")
+        await db.update_run_status(run.run_id, RUN_STATUS_PAUSED)
         resumed = await _await_resume(inbox)
         if not resumed:
             log.info("[%s] Stopped during pause", rid)
-            return "stopped", 0
-        await db.update_run_status(run.run_id, "running")
+            return RUN_STATUS_STOPPED, 0
+        await db.update_run_status(run.run_id, RUN_STATUS_RUNNING)
         await db.log_audit(run.run_id, "run_resumed", {})
         return None, 0
 
@@ -250,7 +257,7 @@ async def _handle_round_outcome(
 
     if result.status == "ended":
         log.info("[%s] Orchestrator ended the run after round %d", rid, round_number)
-        return "completed", 0
+        return RUN_STATUS_COMPLETED, 0
 
     if time_lock.is_expired():
         if time_lock.grace_round_used:
@@ -259,7 +266,7 @@ async def _handle_round_outcome(
                 rid,
                 round_number,
             )
-            return "completed", 0
+            return RUN_STATUS_COMPLETED, 0
         log.info(
             "[%s] Time lock expired after round %d — allowing one grace round",
             rid,
@@ -279,10 +286,10 @@ async def _handle_round_outcome(
             "max_rounds_reached",
             {"round_number": round_number, "cap": max_rounds},
         )
-        return "completed", 0
+        return RUN_STATUS_COMPLETED, 0
 
     if inbox.has_stop():
-        return "stopped", 0
+        return RUN_STATUS_STOPPED, 0
 
     return None, 0
 

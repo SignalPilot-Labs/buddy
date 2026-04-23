@@ -24,7 +24,7 @@ from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
 from agent_session.time_lock import TimeLock
 from utils import db
-from db.constants import MODELS_SUPPORTING_MAX_EFFORT
+from db.constants import MODELS_SUPPORTING_MAX_EFFORT, RUN_STATUS_RUNNING
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
@@ -78,7 +78,7 @@ async def bootstrap_run(
     await db.log_audit(run_id, "repo_cloned", {"repo": github_repo, "branch": branch_name})
     run_config = await load_run_agent_config(sandbox)
     if existing_branch:
-        await db.update_run_status(run_id, "running")
+        await db.update_run_status(run_id, RUN_STATUS_RUNNING)
     else:
         await db.update_run_branch(run_id, branch_name)
 

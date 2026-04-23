@@ -27,10 +27,19 @@ os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 # The module-level `_server = AgentServer()` in server.py calls SandboxPool() which
 # calls docker.from_env(). Patch it before import so tests can run without Docker.
 with patch("docker.from_env", return_value=MagicMock()):
-    from server import AgentServer, _scrub_secrets
+    from server import AgentServer
 
 from utils.constants import ENV_KEY_ANTHROPIC_API, ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET, ENV_KEY_SANDBOX_SECRET
 from utils.models import ActiveRun, StartRequest
+from utils.secrets import scrub_secrets
+
+_SECRET_ENV_KEYS: tuple[str, ...] = (
+    ENV_KEY_GIT_TOKEN,
+    ENV_KEY_CLAUDE_TOKEN,
+    ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_SANDBOX_SECRET,
+    ENV_KEY_ANTHROPIC_API,
+)
 
 
 def _make_active_run(run_id: str) -> ActiveRun:
@@ -64,27 +73,37 @@ class TestServerAuditRedaction:
 
     def test_scrubs_git_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_KEY_GIT_TOKEN, "GHP_SENTINEL_AUDIT_GIT_A")
-        result = _scrub_secrets(
-            "git clone https://x-access-token:GHP_SENTINEL_AUDIT_GIT_A@github.com/o/r.git failed"
+        result = scrub_secrets(
+            "git clone https://x-access-token:GHP_SENTINEL_AUDIT_GIT_A@github.com/o/r.git failed",
+            [os.environ.get(k) for k in _SECRET_ENV_KEYS],
         )
         assert "GHP_SENTINEL_AUDIT_GIT_A" not in result
         assert "***REDACTED***" in result
 
     def test_scrubs_claude_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_KEY_CLAUDE_TOKEN, "sk-ant-SENTINEL_CLAUDE_B")
-        result = _scrub_secrets("sdk error: token=sk-ant-SENTINEL_CLAUDE_B expired")
+        result = scrub_secrets(
+            "sdk error: token=sk-ant-SENTINEL_CLAUDE_B expired",
+            [os.environ.get(k) for k in _SECRET_ENV_KEYS],
+        )
         assert "sk-ant-SENTINEL_CLAUDE_B" not in result
         assert "***REDACTED***" in result
 
     def test_scrubs_internal_secret(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_KEY_INTERNAL_SECRET, "INT_SENTINEL_C")
-        result = _scrub_secrets("auth failed INT_SENTINEL_C in header")
+        result = scrub_secrets(
+            "auth failed INT_SENTINEL_C in header",
+            [os.environ.get(k) for k in _SECRET_ENV_KEYS],
+        )
         assert "INT_SENTINEL_C" not in result
         assert "***REDACTED***" in result
 
     def test_scrubs_sandbox_secret(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_KEY_SANDBOX_SECRET, "SBX_SENTINEL_D")
-        result = _scrub_secrets("auth failed SBX_SENTINEL_D in header")
+        result = scrub_secrets(
+            "auth failed SBX_SENTINEL_D in header",
+            [os.environ.get(k) for k in _SECRET_ENV_KEYS],
+        )
         assert "SBX_SENTINEL_D" not in result
         assert "***REDACTED***" in result
 
@@ -95,7 +114,7 @@ class TestServerAuditRedaction:
         monkeypatch.delenv(ENV_KEY_SANDBOX_SECRET, raising=False)
         monkeypatch.delenv(ENV_KEY_ANTHROPIC_API, raising=False)
         text = "benign traceback text"
-        result = _scrub_secrets(text)
+        result = scrub_secrets(text, [os.environ.get(k) for k in _SECRET_ENV_KEYS])
         assert result == text
         assert "***REDACTED***" not in result
 

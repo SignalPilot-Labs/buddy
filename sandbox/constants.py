@@ -74,6 +74,9 @@ RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
     "could not resolve",
 )
 
+# ── Secret Redaction ──
+SECRET_REDACT_MASK: str = "***REDACTED***"
+
 # ── Repo handlers ──
 REPO_WORK_DIR: str = "/home/agentuser/repo"
 REPO_BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$")
