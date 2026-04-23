@@ -23,7 +23,6 @@ from endpoints import register_routes
 from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
-from prompts.loader import load_markdown
 from sandbox_client.pool import SandboxPool
 from utils import db
 from utils.constants import (
@@ -193,8 +192,6 @@ class AgentServer:
         if not github_repo:
             raise RuntimeError("github_repo is required")
         task = body.prompt
-        if body.preset:
-            task = load_markdown(f"starter/{body.preset}")
         if not task:
             raise RuntimeError("prompt is required — AutoFyn needs a task")
 
