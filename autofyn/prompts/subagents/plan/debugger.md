@@ -22,6 +22,7 @@ Write to `/tmp/round-{ROUND_NUMBER}/debugger.md` (or the path the orchestrator g
 - **Files** — which files to modify, and what changes in each.
 - **Design** — the minimal correct fix in prose. Describe what to change, not the code. Don't refactor beyond what the bug requires.
 - **Constraints** — contracts, tests, or behavior the dev must preserve.
+- **Success criteria** — How to verify the fix works. At minimum: a regression test that passes. Not "it should work" — a concrete check.
 - **Read list** — files the dev should read for context.
 
 Just the spec — no preamble, no meta-commentary. Do not return the spec as a message. Write it to the file.

@@ -61,6 +61,7 @@ Every spec must have:
 - **Files** — Which files to create or modify. For new files: what responsibility they own. For existing files: what changes.
 - **Design** — Class hierarchy, public API, dependency direction, where constants go. The structural decisions. Hierarchical file and folder organization.
 - **Constraints** — Performance (watch for N+1 queries, sync-in-async, unbounded fetches), security (validate user input at boundaries, parameterize queries, no hardcoded secrets), patterns from `CLAUDE.md`, and codebase.
+- **Success criteria** — How to verify the change works. Not "it should work" — a test that passes, a command that returns X, a grep that finds zero matches. The reviewer checks these.
 - **Read list** — Files the dev should read for context.
 - **Build order** — If files depend on each other.
 
@@ -79,6 +80,7 @@ Match the existing error handling pattern in git.py (log + re-raise).
 
 Read: git.py, api_client.py, constants.py
 Build order: retry.py first, then callers.
+Success criteria: pytest tests/fast/ passes, pyright clean, grep confirms no inline retry loops remain in git.py or api_client.py.
 ```
 
 **Bad spec:** "Add retry logic to git.py. Here is the current code: [500 lines]."
@@ -89,6 +91,7 @@ Build order: retry.py first, then callers.
 - **Don't write implementations.** A short snippet to clarify intent is fine.
 - **One focused step.** Not a laundry list.
 - **Be specific.** "add input validation to parse_query in engine.py" not "improve error handling."
+- **Minimum spec.** No features beyond what was asked. No abstractions for single-use code. No speculative "flexibility." If it could be simpler, make it simpler.
 - **Stay on mission.** Every step must serve the user's original prompt.
 - **Always find the next improvement** — unless the orchestrator's dispatch explicitly asks for a polish/stabilization-only spec.
 - **Fail fast — no layered fallbacks.** Never spec a design that masks missing/invalid inputs with defaults or chained `value ?? fallback1 ?? fallback2`. If a required value can be absent, the spec must surface the error at the boundary, not swallow it. Layered fallbacks turn one bug into three indistinguishable bugs.
