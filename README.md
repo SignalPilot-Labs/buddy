@@ -4,7 +4,7 @@
 
 **Runs Claude in self-improving loops that work on real codebases.**
 
-built the [#1 Spider 2.0 DBT agent](https://spider2-sql.github.io/) · found 26 vulnerabilities across LiteLLM and Open WebUI · optimized Caveman to +54% compression
+built the [#1 Spider 2.0 DBT agent](https://spider2-sql.github.io/) · found 26 vulnerabilities across LiteLLM and Open WebUI · improved Caveman compression from 44% to 54%
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
