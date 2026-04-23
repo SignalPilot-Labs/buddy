@@ -124,6 +124,10 @@ Both must pass clean.
   3. `dashboard/frontend/lib/groupEventHelpers.ts` — `milestoneFromAudit()` switch case (if the event should be rendered)
 - Cross-language sync tests enforce this: `tests/fast/test_audit_event_sync.py` and `dashboard/frontend/__tests__/audit-event-sync.test.ts`. They will fail if the sets diverge.
 
+## Starter Presets
+
+- Canonical keys: `db/constants.py` → `STARTER_PRESET_KEYS`. Adding/removing requires updating: `db/constants.py`, `autofyn/prompts/starter/<key>.md`, `dashboard/frontend/lib/constants.ts`. Sync tests enforce parity.
+
 ## Pull Requests
 
 - **Always open PRs against `main`.** The repo default branch is `production`, but that is the release branch — day-to-day work merges into `main`. Pass `--base main` explicitly to `gh pr create` (or edit the base after creation) so PRs don't land on `production` by accident.
