@@ -62,7 +62,7 @@ class TestReconcileOrphanedAgentCalls:
         ctx.__aexit__ = AsyncMock(return_value=False)
         factory = MagicMock(return_value=ctx)
 
-        with patch("utils.db.get_session_factory", return_value=factory):
+        with patch("utils.db_reconcile.get_session_factory", return_value=factory):
             count = await reconcile_orphaned_agent_calls("run-1")
 
         assert count == 1
@@ -87,7 +87,7 @@ class TestReconcileOrphanedAgentCalls:
         ctx.__aexit__ = AsyncMock(return_value=False)
         factory = MagicMock(return_value=ctx)
 
-        with patch("utils.db.get_session_factory", return_value=factory):
+        with patch("utils.db_reconcile.get_session_factory", return_value=factory):
             count = await reconcile_orphaned_agent_calls("run-1")
 
         assert count == 0
@@ -105,7 +105,7 @@ class TestReconcileOrphanedAgentCalls:
         ctx.__aexit__ = AsyncMock(return_value=False)
         factory = MagicMock(return_value=ctx)
 
-        with patch("utils.db.get_session_factory", return_value=factory):
+        with patch("utils.db_reconcile.get_session_factory", return_value=factory):
             count = await reconcile_orphaned_agent_calls("run-1")
 
         assert count == 0

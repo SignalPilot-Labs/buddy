@@ -5,11 +5,9 @@ prevent DB failures from crashing the agent. Errors are logged via the
 standard logging module, never silently swallowed.
 """
 
-import functools
 import logging
-from collections.abc import Callable, Coroutine
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, TypeVar
 
 from sqlalchemy import func, select, update
 
@@ -22,33 +20,37 @@ from db.constants import (
     RUN_STATUS_STARTING,
 )
 from db.models import AuditLog, ControlSignal, Run, ToolCall
+from utils.db_helpers import swallow_errors
+from utils.db_logging import log_audit, log_audit_raw, log_tool_call, log_tool_call_raw
+from utils.db_reconcile import reconcile_orphaned_agent_calls
 from utils.models import UserAction
 
 log = logging.getLogger("agent.db")
 
-T = TypeVar("T")
-
-
-def swallow_errors(
-    fn: Callable[..., Coroutine[Any, Any, T]],
-) -> Callable[..., Coroutine[Any, Any, T | None]]:
-    """Decorator: catch and log exceptions instead of raising them.
-
-    Use this on non-critical DB operations (audit logging, tool call logging)
-    where a failure should not crash the agent. The exception is logged with
-    a full traceback so it never disappears silently. Returns a coroutine
-    (not just an awaitable) so callers can pass it to `asyncio.create_task`.
-    """
-
-    @functools.wraps(fn)
-    async def wrapper(*args: Any, **kwargs: Any) -> T | None:
-        try:
-            return await fn(*args, **kwargs)
-        except Exception:
-            log.warning("DB operation %s failed", fn.__name__, exc_info=True)
-            return None
-
-    return wrapper
+# Re-export all public symbols that callers access via `db.<name>`.
+# This keeps all 10+ callers unchanged after the split into sibling modules.
+__all__ = [
+    "close_db",
+    "create_run_starting",
+    "finish_run",
+    "get_run_base_branch",
+    "get_run_branch_name",
+    "get_run_for_resume",
+    "get_user_activity",
+    "init_db",
+    "log_audit",
+    "log_audit_raw",
+    "log_tool_call",
+    "log_tool_call_raw",
+    "mark_crashed_runs",
+    "reconcile_orphaned_agent_calls",
+    "save_rate_limit_reset",
+    "save_session_id",
+    "swallow_errors",
+    "update_run_branch",
+    "update_run_cost",
+    "update_run_status",
+]
 
 
 async def init_db() -> None:
@@ -287,83 +289,6 @@ async def update_run_cost(
         await s.commit()
 
 
-async def log_audit_raw(run_id: str, event_type: str, details: dict | None) -> None:
-    """Log an audit event. Raises on failure (use for HTTP endpoints)."""
-    async with get_session_factory()() as s:
-        s.add(
-            AuditLog(
-                run_id=run_id,
-                event_type=event_type,
-                details=details or {},
-            )
-        )
-        await s.commit()
-
-
-@swallow_errors
-async def log_audit(run_id: str, event_type: str, details: dict | None) -> None:
-    """Log an audit event. Swallows errors (use for agent-internal code)."""
-    await log_audit_raw(run_id, event_type, details)
-
-
-async def log_tool_call_raw(
-    run_id: str,
-    phase: str,
-    tool_name: str,
-    input_data: dict | None,
-    output_data: dict | None,
-    duration_ms: int | None,
-    permitted: bool,
-    deny_reason: str | None,
-    agent_role: str,
-    tool_use_id: str | None,
-    session_id: str | None,
-    agent_id: str | None,
-) -> None:
-    """Log a tool call event. Raises on failure (use for HTTP endpoints)."""
-    async with get_session_factory()() as s:
-        s.add(
-            ToolCall(
-                run_id=run_id,
-                phase=phase,
-                tool_name=tool_name,
-                input_data=input_data,
-                output_data=output_data,
-                duration_ms=duration_ms,
-                permitted=permitted,
-                deny_reason=deny_reason,
-                agent_role=agent_role,
-                tool_use_id=tool_use_id,
-                session_id=session_id,
-                agent_id=agent_id,
-            )
-        )
-        await s.commit()
-
-
-@swallow_errors
-async def log_tool_call(
-    run_id: str,
-    phase: str,
-    tool_name: str,
-    input_data: dict | None,
-    output_data: dict | None,
-    duration_ms: int | None,
-    permitted: bool,
-    deny_reason: str | None,
-    agent_role: str,
-    tool_use_id: str | None,
-    session_id: str | None,
-    agent_id: str | None,
-) -> None:
-    """Log a tool call event. Swallows errors (use for agent-internal code)."""
-    await log_tool_call_raw(
-        run_id, phase, tool_name, input_data, output_data,
-        duration_ms, permitted, deny_reason, agent_role,
-        tool_use_id, session_id, agent_id,
-    )
-
-
 @swallow_errors
 async def update_run_status(run_id: str, status: str) -> None:
     """Update the run status (e.g. to 'paused')."""
@@ -380,7 +305,6 @@ async def mark_crashed_runs() -> int:
     """
     error_msg = "Agent container restarted while run was in progress"
     async with get_session_factory()() as s:
-        # Find affected run IDs first so we can emit audit events.
         rows = (
             await s.execute(
                 select(Run.id).where(
@@ -411,91 +335,3 @@ async def mark_crashed_runs() -> int:
             )
         await s.commit()
         return len(run_ids)
-
-
-AGENT_TOOL_NAME = "Agent"
-
-
-@swallow_errors
-async def reconcile_orphaned_agent_calls(run_id: str) -> int:
-    """Synthesize 'post' records for Agent tool calls missing their completion.
-
-    Scans tool_calls for Agent tools with phase='pre' but no matching
-    phase='post' by tool_use_id. Writes a synthetic post record with
-    output_data={"reconciled": true} so the frontend shows them as done.
-
-    Called at the end of each round to catch events lost due to transient
-    network/DB failures in the sandbox→agent HTTP logging chain.
-
-    Returns the number of orphans reconciled.
-    """
-    async with get_session_factory()() as s:
-        # All Agent tool_use_ids that have a pre event
-        pre_rows = (
-            await s.execute(
-                select(ToolCall.tool_use_id).where(
-                    ToolCall.run_id == run_id,
-                    ToolCall.tool_name == AGENT_TOOL_NAME,
-                    ToolCall.phase == "pre",
-                    ToolCall.tool_use_id.isnot(None),
-                )
-            )
-        ).all()
-        if not pre_rows:
-            return 0
-
-        pre_tuids = {row[0] for row in pre_rows}
-
-        # All Agent tool_use_ids that have a post event
-        post_rows = (
-            await s.execute(
-                select(ToolCall.tool_use_id).where(
-                    ToolCall.run_id == run_id,
-                    ToolCall.tool_name == AGENT_TOOL_NAME,
-                    ToolCall.phase == "post",
-                    ToolCall.tool_use_id.isnot(None),
-                )
-            )
-        ).all()
-        post_tuids = {row[0] for row in post_rows}
-
-        orphan_tuids = pre_tuids - post_tuids
-        if not orphan_tuids:
-            return 0
-
-        # Fetch the full pre records to copy metadata
-        orphans = (
-            await s.execute(
-                select(ToolCall).where(
-                    ToolCall.run_id == run_id,
-                    ToolCall.tool_name == AGENT_TOOL_NAME,
-                    ToolCall.phase == "pre",
-                    ToolCall.tool_use_id.in_(orphan_tuids),
-                )
-            )
-        ).scalars().all()
-
-        for orphan in orphans:
-            s.add(
-                ToolCall(
-                    run_id=run_id,
-                    phase="post",
-                    tool_name=orphan.tool_name,
-                    tool_use_id=orphan.tool_use_id,
-                    session_id=orphan.session_id,
-                    agent_id=orphan.agent_id,
-                    agent_role=orphan.agent_role,
-                    output_data={"reconciled": True},
-                    input_data=None,
-                    duration_ms=None,
-                    permitted=True,
-                    deny_reason=None,
-                )
-            )
-        log.info(
-            "Reconciled %d orphaned Agent tool call(s) for run %s",
-            len(orphans),
-            run_id[:8],
-        )
-        await s.commit()
-        return len(orphans)
