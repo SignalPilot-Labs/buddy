@@ -40,7 +40,6 @@ from db.constants import (
     RUN_STATUS_PAUSED,
     RUN_STATUS_RATE_LIMITED,
     RUN_STATUS_RUNNING,
-    RUN_STATUS_STARTING,
     SUPPORTED_MODELS,
 )
 from db.models import AuditLog, Run, ToolCall
@@ -332,7 +331,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
     # Active runs: ask the sandbox for a live working-tree diff. GitHub
     # is never consulted — no chance of placeholder-branch collision.
     # Terminal runs: sandbox is gone, use GitHub compare API.
-    is_active = run_status in ACTIVE_RUN_STATUSES or run_status == RUN_STATUS_STARTING
+    is_active = run_status in ACTIVE_RUN_STATUSES
     source = "sandbox" if is_active else "github"
 
     creds = await read_credentials(github_repo)
