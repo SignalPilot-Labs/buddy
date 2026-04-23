@@ -59,7 +59,7 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
 )
 
 
-def _scrub(text: str) -> str:
+def _scrub_secrets(text: str) -> str:
     """Gather secret values from env and scrub them from `text`.
 
     Reads os.environ at call time — not a cached snapshot — because the
@@ -252,12 +252,12 @@ class AgentServer:
             # them as an audit event so they survive container cleanup and
             # show up in the dashboard timeline.
             tail_lines = await self._pool.get_sandbox_logs(run_id, tail=200)
-            sandbox_logs = _scrub("\n".join(tail_lines)) if tail_lines else ""
+            sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
             await db.log_audit(
                 run_id,
                 "sandbox_crash",
                 {
-                    "error": _scrub(str(exc)),
+                    "error": _scrub_secrets(str(exc)),
                     "sandbox_logs": sandbox_logs,
                 },
             )
@@ -292,9 +292,9 @@ class AgentServer:
                 tb = "".join(
                     traceback.format_exception(type(exc), exc, exc.__traceback__),
                 )
-                log.error("Run %s crashed:\n%s", active.run_id, _scrub(tb))
+                log.error("Run %s crashed:\n%s", active.run_id, _scrub_secrets(tb))
                 active.status = RUN_STATUS_CRASHED
-                active.error_message = _scrub(str(exc))
+                active.error_message = _scrub_secrets(str(exc))
                 if active.run_id and context is not None:
                     asyncio.create_task(
                         db.finish_run(

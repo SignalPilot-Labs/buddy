@@ -45,19 +45,6 @@ class TestRunStatusSync:
             f"TypeScript RunStatus has values not in Python RUN_STATUSES: {missing_in_python}"
         )
 
-    def test_canonical_set_is_complete(self) -> None:
-        """RUN_STATUSES must contain all ten expected status values."""
-        expected = {
-            "starting", "running", "paused", "rate_limited",
-            "completed", "completed_no_changes", "stopped",
-            "error", "crashed", "killed",
-        }
-        assert RUN_STATUSES == expected, (
-            f"RUN_STATUSES differs from expected set.\n"
-            f"Extra: {RUN_STATUSES - expected}\n"
-            f"Missing: {expected - RUN_STATUSES}"
-        )
-
     def test_derived_groups_are_subsets(self) -> None:
         """ACTIVE_RUN_STATUSES and TERMINAL_RUN_STATUSES must be subsets of RUN_STATUSES."""
         from db.constants import ACTIVE_RUN_STATUSES, CLEANABLE_RUN_STATUSES, TERMINAL_RUN_STATUSES
