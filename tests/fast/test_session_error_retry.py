@@ -52,8 +52,8 @@ class TestSessionErrorRetry:
     async def test_first_error_retries_with_base_backoff(self):
         """First session error sleeps BASE_BACKOFF_SEC and returns None (retry)."""
         with (
-            patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
-            patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("lifecycle.round_handlers.db", new_callable=MagicMock) as mock_db,
+            patch("lifecycle.round_handlers.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_db.log_audit = AsyncMock()
             terminal, error_count = await _handle_round_outcome(
@@ -77,8 +77,8 @@ class TestSessionErrorRetry:
     async def test_second_error_doubles_backoff(self):
         """Second consecutive error sleeps 2 * BASE_BACKOFF_SEC."""
         with (
-            patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
-            patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("lifecycle.round_handlers.db", new_callable=MagicMock) as mock_db,
+            patch("lifecycle.round_handlers.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_db.log_audit = AsyncMock()
             terminal, error_count = await _handle_round_outcome(
@@ -102,8 +102,8 @@ class TestSessionErrorRetry:
     async def test_max_retries_stops_run(self):
         """After MAX_RETRIES consecutive errors, return 'error' terminal status."""
         with (
-            patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
-            patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+            patch("lifecycle.round_handlers.db", new_callable=MagicMock) as mock_db,
+            patch("lifecycle.round_handlers.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
         ):
             mock_db.log_audit = AsyncMock()
             terminal, error_count = await _handle_round_outcome(
@@ -127,8 +127,8 @@ class TestSessionErrorRetry:
     async def test_successful_round_resets_counter(self):
         """A complete round after errors resets the consecutive error counter."""
         with (
-            patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
-            patch("lifecycle.round_loop._commit_and_push_round", new_callable=AsyncMock),
+            patch("lifecycle.round_handlers.db", new_callable=MagicMock) as mock_db,
+            patch("lifecycle.round_handlers._commit_and_push_round", new_callable=AsyncMock),
         ):
             mock_db.log_audit = AsyncMock()
             terminal, error_count = await _handle_round_outcome(
@@ -162,8 +162,8 @@ class TestSessionErrorRetry:
     async def test_audit_log_records_each_error(self):
         """Each session error is logged to audit with attempt number and backoff."""
         with (
-            patch("lifecycle.round_loop.db", new_callable=MagicMock) as mock_db,
-            patch("lifecycle.round_loop.asyncio.sleep", new_callable=AsyncMock),
+            patch("lifecycle.round_handlers.db", new_callable=MagicMock) as mock_db,
+            patch("lifecycle.round_handlers.asyncio.sleep", new_callable=AsyncMock),
         ):
             mock_db.log_audit = AsyncMock()
             await _handle_round_outcome(
