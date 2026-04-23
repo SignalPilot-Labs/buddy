@@ -294,7 +294,7 @@ export type AuditEventType =
   | "tool_timeout"
   | "agent_restarted"
   | "run_starting"
-  | "sandbox_ready"
+  | "sandbox_created"
   | "repo_cloned";
 
 export interface AuditEventMeta {
@@ -332,7 +332,7 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   idle_timeout:        { label: "Idle Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   tool_timeout:        { label: "Tool Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   run_starting:        { label: "Run Starting",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  sandbox_ready:       { label: "Sandbox Ready",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  sandbox_created:       { label: "Sandbox Created",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   repo_cloned:         { label: "Repo Cloned",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
 };
 

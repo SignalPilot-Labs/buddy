@@ -1,6 +1,6 @@
 """Regression tests for bootstrap progress audit events.
 
-Verifies that run_starting, sandbox_ready, and repo_cloned audit events
+Verifies that run_starting, sandbox_created, and repo_cloned audit events
 are emitted at the correct points during the run lifecycle. These events
 bridge the 5-10 second UX gap between clicking "Start" and seeing the
 first run_started milestone in the dashboard feed.
@@ -120,10 +120,10 @@ class TestRunStartingEvent:
 
 
 class TestSandboxReadyEvent:
-    """sandbox_ready is emitted immediately after pool.create() returns."""
+    """sandbox_created is emitted immediately after pool.create() returns."""
 
     @pytest.mark.asyncio
-    async def test_sandbox_ready_emitted_after_pool_create(self) -> None:
+    async def test_sandbox_created_emitted_after_pool_create(self) -> None:
         srv = _make_server()
         pool = srv._pool
         pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
@@ -144,15 +144,15 @@ class TestSandboxReadyEvent:
                 await srv.execute_run(active, _make_body("ghp_test"))
 
         event_types = [call[1] for call in log_audit_calls]
-        assert "sandbox_ready" in event_types
-        # sandbox_ready must come before sandbox_crash (from the exception)
-        sr_idx = event_types.index("sandbox_ready")
+        assert "sandbox_created" in event_types
+        # sandbox_created must come before sandbox_crash (from the exception)
+        sr_idx = event_types.index("sandbox_created")
         sc_idx = event_types.index("sandbox_crash")
         assert sr_idx < sc_idx
 
     @pytest.mark.asyncio
-    async def test_sandbox_ready_comes_before_bootstrap(self) -> None:
-        """sandbox_ready fires between pool.create and bootstrap_run."""
+    async def test_sandbox_created_comes_before_bootstrap(self) -> None:
+        """sandbox_created fires between pool.create and bootstrap_run."""
         call_order: list[str] = []
 
         async def mock_create(*args, **kwargs):
@@ -181,9 +181,9 @@ class TestSandboxReadyEvent:
                 await srv.execute_run(active, _make_body("ghp_test"))
 
         assert "pool.create" in call_order
-        assert "audit:sandbox_ready" in call_order
+        assert "audit:sandbox_created" in call_order
         create_idx = call_order.index("pool.create")
-        ready_idx = call_order.index("audit:sandbox_ready")
+        ready_idx = call_order.index("audit:sandbox_created")
         assert ready_idx == create_idx + 1
 
 

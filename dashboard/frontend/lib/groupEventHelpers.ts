@@ -85,11 +85,11 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         ts,
         event,
       };
-    case "sandbox_ready":
+    case "sandbox_created":
       return {
-        id: `ms-${ts}-Sandbox Ready`,
+        id: `ms-${ts}-Sandbox Created`,
         type: "milestone",
-        label: "Sandbox Ready",
+        label: "Sandbox Created",
         detail: "",
         color: "#88ccff",
         ts,

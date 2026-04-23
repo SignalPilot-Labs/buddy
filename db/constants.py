@@ -113,7 +113,7 @@ def validate_host_mount(
 AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     # Bootstrap progress
     "run_starting",
-    "sandbox_ready",
+    "sandbox_created",
     "repo_cloned",
     # Lifecycle
     "run_started",
