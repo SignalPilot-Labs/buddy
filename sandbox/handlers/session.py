@@ -11,20 +11,19 @@ import logging
 
 from aiohttp import web
 
+from session.errors import SessionNotFoundError
 from session.manager import SessionManager
 
 log = logging.getLogger("sandbox.endpoints.session")
 
 
 def _require_session(handler):
-    """Decorator that maps 'not found' RuntimeError to HTTP 404."""
+    """Decorator that maps SessionNotFoundError to HTTP 404."""
     async def wrapper(request: web.Request):
         try:
             return await handler(request)
-        except RuntimeError as e:
-            if "not found" in str(e):
-                return web.json_response({"error": str(e)}, status=404)
-            raise
+        except SessionNotFoundError as e:
+            return web.json_response({"error": str(e)}, status=404)
     wrapper.__name__ = handler.__name__
     return wrapper
 

@@ -9,6 +9,7 @@ import logging
 import uuid
 
 from constants import MAX_CONCURRENT_SESSIONS
+from session.errors import SessionNotFoundError
 from session.session import Session
 
 log = logging.getLogger("sandbox.session_manager")
@@ -70,5 +71,5 @@ class SessionManager:
         """Look up a session by ID."""
         session = self._sessions.get(session_id)
         if not session:
-            raise RuntimeError(f"Session {session_id} not found")
+            raise SessionNotFoundError(session_id)
         return session
