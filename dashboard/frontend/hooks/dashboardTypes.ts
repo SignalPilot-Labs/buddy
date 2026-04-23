@@ -19,6 +19,7 @@ export interface RunActions {
   controlAction: (label: string, fn: (id: string) => Promise<unknown>) => Promise<void>;
   handleStartRun: (
     prompt: string | undefined,
+    preset: string | undefined,
     budget: number,
     durationMinutes: number,
     baseBranch: string,
@@ -77,6 +78,7 @@ export interface DashboardState {
   handleSelectRun: (id: string) => Promise<FeedEvent[]>;
   handleStartRun: (
     prompt: string | undefined,
+    preset: string | undefined,
     budget: number,
     durationMinutes: number,
     baseBranch: string,
