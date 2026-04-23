@@ -102,3 +102,17 @@ def _user_activity_block(activity: list[UserAction]) -> str:
         "The latest user message takes priority over previous plans.",
     )
     return "\n".join(lines)
+
+
+def build_initial_prompt(round_number: int, task: str, is_grace_round: bool) -> str:
+    """Short per-round kickoff message paired with the round system prompt."""
+    header = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
+    if round_number == 1:
+        return f"{header}\n\nComplete the first-round setup before beginning work."
+    suffix = (
+        f"{header}\n\nRead prior-round context from /tmp/round-*/ as needed, "
+        "then continue."
+    )
+    if is_grace_round:
+        suffix += "\n\nTime lock has expired. This is your final round. Wrap up the work, ship it, then call end_session."
+    return suffix
