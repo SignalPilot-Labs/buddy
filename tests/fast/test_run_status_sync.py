@@ -61,3 +61,14 @@ class TestRunStatusSync:
         assert not (ACTIVE_RUN_STATUSES & TERMINAL_RUN_STATUSES), (
             f"ACTIVE and TERMINAL overlap: {ACTIVE_RUN_STATUSES & TERMINAL_RUN_STATUSES}"
         )
+
+    def test_active_includes_starting_and_rate_limited(self) -> None:
+        """starting and rate_limited must be in ACTIVE_RUN_STATUSES.
+
+        Previously these were excluded from different containers' active sets,
+        causing divergent behavior. They are now unified.
+        """
+        from db.constants import ACTIVE_RUN_STATUSES, RUN_STATUS_RATE_LIMITED, RUN_STATUS_STARTING
+
+        assert RUN_STATUS_STARTING in ACTIVE_RUN_STATUSES
+        assert RUN_STATUS_RATE_LIMITED in ACTIVE_RUN_STATUSES
