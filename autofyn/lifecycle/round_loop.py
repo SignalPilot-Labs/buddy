@@ -108,7 +108,7 @@ async def run_rounds(
             "preset": system_prompt["preset"],
             "append": system_prompt.get("append", ""),
         }
-        initial_prompt = _build_initial_prompt(round_number, bootstrap.task)
+        initial_prompt = _build_initial_prompt(round_number, bootstrap.task, time_lock.grace_round_used)
 
         result = await runner.run(options, initial_prompt, round_number)
         await db.reconcile_orphaned_agent_calls(run.run_id)
@@ -251,8 +251,12 @@ async def _handle_round_outcome(
         return "completed", 0
 
     if time_lock.is_expired():
-        log.info("[%s] Time lock expired after round %d — finishing", rid, round_number)
-        return "completed", 0
+        if time_lock.grace_round_used:
+            log.info("[%s] Grace round finished after round %d — finishing", rid, round_number)
+            return "completed", 0
+        log.info("[%s] Time lock expired after round %d — allowing one grace round", rid, round_number)
+        time_lock.grace_round_used = True
+        return None, 0
 
     if round_number >= max_rounds:
         log.info(
@@ -348,12 +352,15 @@ async def _await_resume(inbox: UserInbox) -> bool:
 # ── Prompt shim ──────────────────────────────────────────────────────
 
 
-def _build_initial_prompt(round_number: int, task: str) -> str:
+def _build_initial_prompt(round_number: int, task: str, is_grace_round: bool) -> str:
     """Short per-round kickoff message paired with the round system prompt."""
     header = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
     if round_number == 1:
         return f"{header}\n\nComplete the first-round setup before beginning work."
-    return (
+    suffix = (
         f"{header}\n\nRead prior-round context from /tmp/round-*/ as needed, "
         "then continue."
     )
+    if is_grace_round:
+        suffix += "\n\nTime lock has expired. This is your final round — scope small, ship what matters most, and call end_session."
+    return suffix
