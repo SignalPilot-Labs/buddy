@@ -57,11 +57,10 @@ TERMINAL_RUN_STATUSES: frozenset[str] = frozenset({
 })
 
 # Statuses that the /cleanup endpoint removes from the in-memory registry.
-# rate_limited is included for legacy reasons: the cleanup endpoint has always
-# cleared rate-limited runs alongside terminal ones. This preserves that
-# behavior without inventing a new conceptual group.
+# Only terminal runs — active runs (including rate_limited) still have
+# live sandboxes and background tasks.
 CLEANABLE_RUN_STATUSES: frozenset[str] = frozenset(
-    TERMINAL_RUN_STATUSES | {RUN_STATUS_RATE_LIMITED}
+    TERMINAL_RUN_STATUSES
 )
 
 # ── Models ──
