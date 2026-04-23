@@ -3,7 +3,8 @@
     "autofyn",
     "sandbox",
     "dashboard",
-    "db"
+    "db",
+    "scripts"
   ],
   "include": [
     "."
