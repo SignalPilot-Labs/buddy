@@ -9,7 +9,14 @@ source use only values from the canonical set.
 import re
 from pathlib import Path
 
-from db.constants import RUN_STATUSES
+from db.constants import (
+    ACTIVE_RUN_STATUSES,
+    CLEANABLE_RUN_STATUSES,
+    RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_STARTING,
+    RUN_STATUSES,
+    TERMINAL_RUN_STATUSES,
+)
 
 _TYPES_TS_PATH = Path("dashboard/frontend/lib/types.ts")
 
@@ -47,8 +54,6 @@ class TestRunStatusSync:
 
     def test_derived_groups_are_subsets(self) -> None:
         """ACTIVE_RUN_STATUSES and TERMINAL_RUN_STATUSES must be subsets of RUN_STATUSES."""
-        from db.constants import ACTIVE_RUN_STATUSES, CLEANABLE_RUN_STATUSES, TERMINAL_RUN_STATUSES
-
         assert ACTIVE_RUN_STATUSES <= RUN_STATUSES, (
             f"ACTIVE_RUN_STATUSES not a subset of RUN_STATUSES: {ACTIVE_RUN_STATUSES - RUN_STATUSES}"
         )
@@ -68,7 +73,5 @@ class TestRunStatusSync:
         Previously these were excluded from different containers' active sets,
         causing divergent behavior. They are now unified.
         """
-        from db.constants import ACTIVE_RUN_STATUSES, RUN_STATUS_RATE_LIMITED, RUN_STATUS_STARTING
-
         assert RUN_STATUS_STARTING in ACTIVE_RUN_STATUSES
         assert RUN_STATUS_RATE_LIMITED in ACTIVE_RUN_STATUSES
