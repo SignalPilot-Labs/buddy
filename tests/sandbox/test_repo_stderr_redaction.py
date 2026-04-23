@@ -16,6 +16,7 @@ import pytest
 from aiohttp import web
 
 from handlers import repo as repo_module
+from handlers import repo_git as repo_git_module
 from models import CmdResult, RepoState
 
 
@@ -30,7 +31,7 @@ class TestRepoStderrRedaction:
 
     def test_scrubs_git_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GIT_TOKEN", "GHP_SENTINEL_GIT_TOKEN_AAA")
-        result = repo_module._scrub_secrets(
+        result = repo_git_module._scrub_secrets(
             "fatal: Authentication failed for GHP_SENTINEL_GIT_TOKEN_AAA"
         )
         assert "GHP_SENTINEL_GIT_TOKEN_AAA" not in result
@@ -39,7 +40,7 @@ class TestRepoStderrRedaction:
     def test_scrubs_gh_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("GH_TOKEN", "GHP_SENTINEL_GH_TOKEN_BBB")
         monkeypatch.delenv("GIT_TOKEN", raising=False)
-        result = repo_module._scrub_secrets(
+        result = repo_git_module._scrub_secrets(
             "error: GH_TOKEN=GHP_SENTINEL_GH_TOKEN_BBB"
         )
         assert "GHP_SENTINEL_GH_TOKEN_BBB" not in result
@@ -49,7 +50,7 @@ class TestRepoStderrRedaction:
         monkeypatch.delenv("GIT_TOKEN", raising=False)
         monkeypatch.delenv("GH_TOKEN", raising=False)
         text = "any text without secrets"
-        result = repo_module._scrub_secrets(text)
+        result = repo_git_module._scrub_secrets(text)
         assert result == text
         assert "***REDACTED***" not in result
 
@@ -71,7 +72,7 @@ class TestRepoStderrRedaction:
         assert len(full_text) == 511
 
         # Simulate what _push does: scrub then truncate
-        scrubbed_and_truncated = repo_module._scrub_secrets(full_text)[:500]
+        scrubbed_and_truncated = repo_git_module._scrub_secrets(full_text)[:500]
 
         assert sentinel not in scrubbed_and_truncated
         # The mask may or may not be fully within the 500-char slice, but
@@ -94,7 +95,7 @@ class TestRepoStderrRedaction:
         )
         with caplog.at_level(logging.ERROR, logger="sandbox.endpoints.repo"):
             with pytest.raises(web.HTTPInternalServerError) as exc_info:
-                repo_module._fail(bad_result, "git push")
+                repo_git_module._fail(bad_result, "git push")
 
         assert "GHP_SENTINEL_FAIL_BBB" not in caplog.text
         assert "***REDACTED***" in caplog.text
@@ -113,7 +114,7 @@ class TestRepoStderrRedaction:
         """Site B: _push must return a scrubbed string and log without the token."""
         monkeypatch.setenv("GIT_TOKEN", "GHP_SENTINEL_PUSH_CCC")
         monkeypatch.setattr(
-            repo_module,
+            repo_git_module,
             "_git",
             lambda *_args, **_kwargs: _async_result(
                 _cmd_result(
@@ -123,7 +124,7 @@ class TestRepoStderrRedaction:
             ),
         )
         with caplog.at_level(logging.WARNING, logger="sandbox.endpoints.repo"):
-            error = await repo_module._push("feature-branch", 60)
+            error = await repo_git_module._push("feature-branch", 60)
 
         assert error is not None
         assert "GHP_SENTINEL_PUSH_CCC" not in error
@@ -157,7 +158,7 @@ class TestRepoStderrRedaction:
                 exit_code=1,
             )
 
-        monkeypatch.setattr(repo_module, "_gh", fake_gh)
+        monkeypatch.setattr(repo_git_module, "_gh", fake_gh)
 
         state = RepoState(
             repo="owner/repo",
@@ -165,7 +166,7 @@ class TestRepoStderrRedaction:
             working_branch="feature",
             base_sha="abc123",
         )
-        _url, error = await repo_module._create_or_update_pr(
+        _url, error = await repo_git_module._create_or_update_pr(
             state, "Title", "Description", "main", 60
         )
 
