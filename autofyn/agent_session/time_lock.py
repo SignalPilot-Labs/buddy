@@ -26,6 +26,7 @@ class TimeLock:
         self._start = time.time()
         self._duration_sec = duration_minutes * 60
         self._locked = duration_minutes > 0
+        self.grace_round_used: bool = False
 
     @property
     def locked(self) -> bool:
