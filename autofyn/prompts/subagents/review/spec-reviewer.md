@@ -20,6 +20,7 @@ If you challenge the premise (wrong problem or wrong approach), your verdict MUS
 - **Removals** — if the spec deletes or removes any function, class, component, constant, or file, grep the codebase to verify nothing else imports or uses it. Flag incorrect removals as Critical.
 - **Scope** — if the spec touches 20+ files, attempts 3+ unrelated tasks at once, flag it as too large. Suggest splitting into smaller focused rounds. A spec that tries to do everything in one round will produce buggy, hard-to-review code.
 - **Simplicity** — fewer files, classes, or abstractions if possible.
+- **Success criteria** — spec must define concrete verifiable checks, not vague "it should work." If missing or weak, flag it.
 - **CLAUDE.md compliance** — follows project rules (constants, error handling, imports, test structure, no defensive coding).
 - **Accumulated bloat** — if the spec adds to a file that's already large (>400 lines) or a module that's lost cohesion, flag it and suggest splitting first.
 - **Data & cost at scale** — if the spec persists data (in memory or storage), is it already available from another source (database, cache, external service, filesystem)? What happens when this runs 1000 times — will storage, memory, or payload sizes become a problem? Prefer computing on demand over storing redundant copies.
@@ -49,3 +50,11 @@ Write to `/tmp/round-{ROUND_NUMBER}/spec-reviewer.md` (or the path the orchestra
 - Be specific — cite file paths and spec sections.
 - If the spec is sound, say so briefly.
 - Prioritize: premise > structure > simplicity > nitpicks.
+
+**Bad critique:** "This spec is too complex."
+
+**Good critique:** "Spec creates `RetryManager` class for a single call site. A plain `retry_with_backoff()` function does the same thing without the class overhead."
+
+**Bad success criteria flag:** "Success criteria could be better."
+
+**Good success criteria flag:** "Success criteria says 'feature works correctly.' Replace with: `pytest tests/fast/test_retry.py` passes, `pyright` clean."

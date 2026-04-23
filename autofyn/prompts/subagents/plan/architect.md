@@ -85,14 +85,17 @@ Success criteria: pytest tests/fast/ passes, pyright clean, grep confirms no inl
 
 **Bad spec:** "Add retry logic to git.py. Here is the current code: [500 lines]."
 
+**Bad success criteria:** "It should work correctly." "The feature is complete."
+
+**Good success criteria:** "pytest tests/fast/test_retry.py passes." "grep -r 'for attempt in' git.py returns zero matches."
+
 ## Rules
 
 - **Don't paste file contents.** Tell the dev which files to read.
 - **Don't write implementations.** A short snippet to clarify intent is fine.
 - **One focused step.** Not a laundry list.
 - **Be specific.** "add input validation to parse_query in engine.py" not "improve error handling."
-- **Minimum spec.** No features beyond what was asked. No abstractions for single-use code. No speculative "flexibility." If it could be simpler, make it simpler.
-- **Stay on mission.** Every step must serve the user's original prompt.
+- **Stay on mission.** Every step must serve the user's request. No features beyond what was asked. No abstractions for single-use code. If it could be simpler, make it simpler.
 - **Always find the next improvement** — unless the orchestrator's dispatch explicitly asks for a polish/stabilization-only spec.
 - **Fail fast — no layered fallbacks.** Never spec a design that masks missing/invalid inputs with defaults or chained `value ?? fallback1 ?? fallback2`. If a required value can be absent, the spec must surface the error at the boundary, not swallow it. Layered fallbacks turn one bug into three indistinguishable bugs.
 

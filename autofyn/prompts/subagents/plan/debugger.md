@@ -37,3 +37,11 @@ Just the spec — no preamble, no meta-commentary. Do not return the spec as a m
 - If the bug is in a dependency or external service, say so — the spec may be "pin version X" or "stop using Y".
 - Be specific — file paths and line numbers everywhere.
 - Fail fast — don't propose fallback logic that hides the bug instead of fixing it.
+
+**Bad root cause:** "The API is returning wrong data." (Where? Why? Which line?)
+
+**Good root cause:** "session.py:42 passes `user_id` as a string but `get_session()` expects int — the `WHERE` clause silently matches zero rows."
+
+**Bad fix spec:** "Add error handling around the API call."
+
+**Good fix spec:** "Cast `user_id` to int at the boundary in session.py:42. Add a regression test that calls `get_session('123')` and asserts it returns the session."
