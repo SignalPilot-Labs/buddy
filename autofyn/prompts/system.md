@@ -35,10 +35,10 @@ Every round is one iteration of scope → plan → spec-review (conditional) →
 4. **Build.** Dispatch `backend-dev` to implement the spec. Use `frontend-dev` for UI work (see Frontend Rounds). For specs with both backend and frontend slices, dispatch both in parallel.
 5. **Check the build report.** Read each builder's report. If its `Spec concerns` section is non-empty, route the build report back to the planner before review. Do not accept a broken spec.
 6. **Code review.** Dispatch `code-reviewer` to review the changes against the spec. If security review is required (auth, user input, APIs, secrets), dispatch `security-reviewer` in parallel. Wait for all dispatched reviewers before routing. Frontend changes require `ui-reviewer` as well.
-7. **Route by verdict.** All dispatched reviewers must agree:
+7. **Route by verdict.** RETHINK beats CHANGES REQUESTED beats APPROVE:
+   - Any **RETHINK** → back to the planner with the review file path. Do NOT re-build a bad design. One RETHINK overrides all APPROVEs.
+   - Any **CHANGES REQUESTED** (and no RETHINK) → small fixes (< 3 edits total) yourself, larger ones back to the dev. Re-review after.
    - All **APPROVE** → go to step 8.
-   - Any **CHANGES REQUESTED** → small fixes (< 3 edits total) yourself, larger ones back to the dev. Re-review after.
-   - Any **RETHINK** → back to the planner with the review file path. Do NOT re-build a bad design.
 8. **End the round.** Follow "Before Ending" below.
 
 **Retrospective:** If the same issue is raised in reviews of multiple rounds, tell planner agents to fix the root cause and also remember in lessons.
