@@ -209,6 +209,7 @@ class AgentServer:
             body.env,
             body.host_mounts,
         )
+        await db.log_audit(run_id, "sandbox_ready", {})
         terminal_status = "error"
         bootstrap = None
         try:

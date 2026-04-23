@@ -75,6 +75,36 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
   const ts = event.data.ts;
 
   switch (event.data.event_type) {
+    case "run_starting":
+      return {
+        id: `ms-${ts}-Run Starting`,
+        type: "milestone",
+        label: "Run Starting",
+        detail: String(d.repo || ""),
+        color: "#ffaa00",
+        ts,
+        event,
+      };
+    case "sandbox_ready":
+      return {
+        id: `ms-${ts}-Sandbox Ready`,
+        type: "milestone",
+        label: "Sandbox Ready",
+        detail: "",
+        color: "#88ccff",
+        ts,
+        event,
+      };
+    case "repo_cloned":
+      return {
+        id: `ms-${ts}-Repo Cloned`,
+        type: "milestone",
+        label: "Repo Cloned",
+        detail: String(d.repo || ""),
+        color: "#88ccff",
+        ts,
+        event,
+      };
     case "run_started": {
       // branch_name is NULL until bootstrap assigns a real branch.
       const branch = d.branch || "";
