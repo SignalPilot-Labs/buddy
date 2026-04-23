@@ -21,9 +21,9 @@ import uvicorn
 from config.loader import sandbox_config
 from endpoints import register_routes
 from lifecycle.bootstrap import bootstrap_run
-from prompts.loader import load_markdown
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
+from prompts.loader import load_markdown
 from sandbox_client.pool import SandboxPool
 from utils import db
 from utils.constants import (

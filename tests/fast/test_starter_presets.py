@@ -5,7 +5,8 @@ markdown file, that StartRequest validates preset/prompt exclusivity,
 and that the preset keys stay in sync between Python and TypeScript.
 """
 
-import subprocess
+import re
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -59,11 +60,23 @@ class TestStarterPresetSync:
     """Python and TypeScript preset key sets must match."""
 
     def test_frontend_constants_contain_all_preset_keys(self) -> None:
-        result = subprocess.run(
-            ["grep", "-o", "security_hardening\\|bug_sweep\\|code_quality\\|test_coverage",
-             "dashboard/frontend/lib/constants.ts"],
-            capture_output=True, text=True,
-        )
-        found_keys = set(result.stdout.strip().split("\n"))
+        ts_path = Path("dashboard/frontend/lib/constants.ts")
+        ts_content = ts_path.read_text(encoding="utf-8")
         python_keys = set(STARTER_PRESET_KEYS)
-        assert found_keys == python_keys, f"Mismatch: Python={python_keys}, TS={found_keys}"
+        ts_keys = set()
+        for key in python_keys:
+            if key in ts_content:
+                ts_keys.add(key)
+        missing = python_keys - ts_keys
+        assert not missing, f"Keys missing from TS constants: {missing}"
+
+    def test_no_extra_keys_in_frontend(self) -> None:
+        ts_path = Path("dashboard/frontend/lib/constants.ts")
+        ts_content = ts_path.read_text(encoding="utf-8")
+        # Extract top-level keys from STARTER_PRESETS object (indented with 2 spaces)
+        match = re.search(r"STARTER_PRESETS\s*=\s*\{([\s\S]*?)\}\s*as\s*const", ts_content)
+        assert match, "Could not find STARTER_PRESETS in constants.ts"
+        ts_keys = set(re.findall(r"^\s{2}(\w+):", match.group(1), re.MULTILINE))
+        python_keys = set(STARTER_PRESET_KEYS)
+        extra = ts_keys - python_keys
+        assert not extra, f"Extra keys in TS constants not in Python: {extra}"
