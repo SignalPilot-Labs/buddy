@@ -2,7 +2,8 @@
 
 import pytest
 
-from utils.models import DEFAULT_MODEL, StartRequest, InjectRequest
+from db.constants import DEFAULT_MODEL
+from utils.models import StartRequest, InjectRequest
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
