@@ -180,6 +180,11 @@ ENV_KEY_ALLOW_DOCKER = "AF_ALLOW_DOCKER"
 # ── Agent Tool Names ──
 AGENT_TOOL_NAME = "Agent"
 
+# ── Sandbox ──
+SANDBOX_LOG_TAIL_LINES = 200
+ENV_KEY_MAX_BUDGET_USD = "MAX_BUDGET_USD"
+DEFAULT_BUDGET_USD: str = "0"
+
 # ── Sandbox Pool (per-run containers) ──
 SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
 SANDBOX_POOL_NETWORK = "autofyn_default"  # compose default network
