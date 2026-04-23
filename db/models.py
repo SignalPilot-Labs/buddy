@@ -3,6 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from db.constants import RUN_STATUS_RUNNING
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -44,7 +45,7 @@ class Run(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     branch_name: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="running")
+    status: Mapped[str] = mapped_column(String, nullable=False, default=RUN_STATUS_RUNNING)
     pr_url: Mapped[str | None] = mapped_column(String)
     total_tool_calls: Mapped[int] = mapped_column(Integer, default=0)
     total_cost_usd: Mapped[float] = mapped_column(Float, default=0)

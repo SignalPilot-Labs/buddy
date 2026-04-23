@@ -29,6 +29,10 @@ from agent_session.pulse import PulseWatchdog
 from agent_session.stream import StreamDispatcher, StreamSignal
 from agent_session.time_lock import TimeLock
 from agent_session.tracker import SubagentTracker
+from db.constants import (
+    RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_RUNNING,
+)
 from utils import db
 from utils.constants import idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
@@ -205,7 +209,7 @@ class RoundRunner:
                     elif is_rate_limited:
                         is_rate_limited = False
                         await db.update_run_status(
-                            self._run.run_id, "running",
+                            self._run.run_id, RUN_STATUS_RUNNING,
                         )
 
                     # Only run the idle timer when nothing is actively
@@ -327,7 +331,7 @@ class RoundRunner:
                 await db.save_rate_limit_reset(
                     self._run.run_id, int(resets_at),
                 )
-                await db.update_run_status(self._run.run_id, "rate_limited")
+                await db.update_run_status(self._run.run_id, RUN_STATUS_RATE_LIMITED)
             return None  # continue the round
         if signal.kind == "session_error":
             return RoundResult(

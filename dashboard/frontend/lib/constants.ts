@@ -172,6 +172,7 @@ export function saveStoredModel(id: ModelId): void {
 import type { RunStatus } from "./types";
 
 export const ACTIVE_STATUSES: ReadonlyArray<RunStatus> = [
+  "starting",
   "running",
   "paused",
   "rate_limited",

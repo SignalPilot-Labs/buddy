@@ -21,13 +21,14 @@ from backend.constants import (
 )
 from backend.models import RunId
 from backend.utils import model_to_dict, session
+from db.constants import TERMINAL_RUN_STATUSES
 from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.streaming")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_query)])
 
-_RUN_ENDED_STATUSES = frozenset({"completed", "completed_no_changes", "stopped", "killed", "crashed", "error"})
+_RUN_ENDED_STATUSES = TERMINAL_RUN_STATUSES
 
 # Sortable event tuple: (timestamp, type_priority, sse_string)
 _SortableEvent = tuple[datetime, int, str]

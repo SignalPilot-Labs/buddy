@@ -15,7 +15,7 @@ from typing import Literal, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, SUPPORTED_SONNET, VALID_EFFORTS, VALID_MODELS
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, RUN_STATUS_STARTING, STARTER_PRESET_KEYS, SUPPORTED_SONNET, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 _FALLBACK_MAP: dict[str, str | None] = {
@@ -314,7 +314,7 @@ class ActiveRun:
     """Tracks one in-progress run in the server's run dict."""
 
     run_id: str | None = None
-    status: str = "starting"
+    status: str = RUN_STATUS_STARTING
     started_at: float = field(default_factory=time.time)
     error_message: str | None = None
     task: asyncio.Task | None = field(default=None, repr=False)

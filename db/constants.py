@@ -6,6 +6,63 @@ The `db` package is the only Python package imported by both `autofyn/` and
 
 import posixpath
 
+# ── Secret Redaction ──
+SECRET_REDACT_MASK: str = "***REDACTED***"
+
+# ── Run Statuses ──
+# Individual status values — used at assignment/comparison sites.
+RUN_STATUS_STARTING: str = "starting"
+RUN_STATUS_RUNNING: str = "running"
+RUN_STATUS_PAUSED: str = "paused"
+RUN_STATUS_RATE_LIMITED: str = "rate_limited"
+RUN_STATUS_COMPLETED: str = "completed"
+RUN_STATUS_COMPLETED_NO_CHANGES: str = "completed_no_changes"
+RUN_STATUS_STOPPED: str = "stopped"
+RUN_STATUS_ERROR: str = "error"
+RUN_STATUS_CRASHED: str = "crashed"
+RUN_STATUS_KILLED: str = "killed"
+
+# Canonical set of all run status values.
+# Cross-language sync test (test_run_status_sync.py) verifies this matches
+# the TypeScript RunStatus union in dashboard/frontend/lib/types.ts.
+RUN_STATUSES: frozenset[str] = frozenset({
+    RUN_STATUS_STARTING,
+    RUN_STATUS_RUNNING,
+    RUN_STATUS_PAUSED,
+    RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_COMPLETED_NO_CHANGES,
+    RUN_STATUS_STOPPED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_KILLED,
+})
+
+# Statuses where the run is still alive (not terminal).
+ACTIVE_RUN_STATUSES: frozenset[str] = frozenset({
+    RUN_STATUS_STARTING,
+    RUN_STATUS_RUNNING,
+    RUN_STATUS_PAUSED,
+    RUN_STATUS_RATE_LIMITED,
+})
+
+# Truly terminal statuses — run's background task has stopped.
+TERMINAL_RUN_STATUSES: frozenset[str] = frozenset({
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_COMPLETED_NO_CHANGES,
+    RUN_STATUS_STOPPED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_KILLED,
+})
+
+# Statuses that the /cleanup endpoint removes from the in-memory registry.
+# Only terminal runs — active runs (including rate_limited) still have
+# live sandboxes and background tasks.
+CLEANABLE_RUN_STATUSES: frozenset[str] = frozenset(
+    TERMINAL_RUN_STATUSES
+)
+
 # ── Models ──
 # Pinned to exact SDK model IDs. No aliases, no translation layer.
 SUPPORTED_OPUS: str = "claude-opus-4-6"

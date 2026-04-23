@@ -25,8 +25,15 @@ from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
 from sandbox_client.pool import SandboxPool
 from utils import db
-from utils.constants import (
+from db.constants import (
     ACTIVE_RUN_STATUSES,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_KILLED,
+    RUN_STATUS_RUNNING,
+)
+from internal_endpoints import register_internal_routes
+from utils.constants import (
     AccessNoiseFilter,
     ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
@@ -38,12 +45,11 @@ from utils.constants import (
     max_concurrent_runs,
     server_port,
 )
-from internal_endpoints import register_internal_routes
 from utils.models import ActiveRun, StartRequest
+from utils.secrets import scrub_secrets
 
 log = logging.getLogger("server")
 
-_SECRET_MASK: str = "***REDACTED***"
 _SECRET_ENV_KEYS: tuple[str, ...] = (
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_CLAUDE_TOKEN,
@@ -54,23 +60,13 @@ _SECRET_ENV_KEYS: tuple[str, ...] = (
 
 
 def _scrub_secrets(text: str) -> str:
-    """Replace any in-process agent-env secret value with `_SECRET_MASK`.
+    """Gather secret values from env and scrub them from `text`.
 
-    The agent container holds these secrets in its own `os.environ` at the
-    time any audit-write or run-finalisation runs. Substring-replace the
-    live values out of exception strings, tracebacks, and sandbox-log tails
-    before the text crosses the DB / log / in-memory boundary.
-
-    Reads `os.environ` at call time — not a cached snapshot — because the
-    run env can be merged late (see `endpoints.py:63`) and tests mutate env
+    Reads os.environ at call time — not a cached snapshot — because the
+    run env can be merged late (see endpoints.py) and tests mutate env
     between cases.
     """
-    scrubbed = text
-    for key in _SECRET_ENV_KEYS:
-        value = os.environ.get(key)
-        if value:
-            scrubbed = scrubbed.replace(value, _SECRET_MASK)
-    return scrubbed
+    return scrub_secrets(text, [os.environ.get(k) for k in _SECRET_ENV_KEYS])
 
 
 class AgentServer:
@@ -154,7 +150,7 @@ class AgentServer:
                 raise HTTPException(status_code=404, detail="Run not found")
             return run
         for r in self._runs.values():
-            if r.status == "running" and r.inbox:
+            if r.status == RUN_STATUS_RUNNING and r.inbox:
                 log.warning(
                     "get_run_or_first called without run_id — "
                     "falling back to first active run",
@@ -210,7 +206,7 @@ class AgentServer:
             body.host_mounts,
         )
         await db.log_audit(run_id, "sandbox_created", {})
-        terminal_status = "error"
+        terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
             bootstrap = await bootstrap_run(
@@ -226,7 +222,7 @@ class AgentServer:
                 git_token=git_token,
                 clone_timeout=self._clone_timeout,
             )
-            active.status = "running"
+            active.status = RUN_STATUS_RUNNING
             active.inbox = bootstrap.inbox
             active.time_lock = bootstrap.time_lock
             active.run_context = bootstrap.run
@@ -297,13 +293,13 @@ class AgentServer:
                     traceback.format_exception(type(exc), exc, exc.__traceback__),
                 )
                 log.error("Run %s crashed:\n%s", active.run_id, _scrub_secrets(tb))
-                active.status = "crashed"
+                active.status = RUN_STATUS_CRASHED
                 active.error_message = _scrub_secrets(str(exc))
                 if active.run_id and context is not None:
                     asyncio.create_task(
                         db.finish_run(
                             active.run_id,
-                            "crashed",
+                            RUN_STATUS_CRASHED,
                             None,
                             context.total_cost,
                             context.total_input_tokens,
@@ -317,16 +313,16 @@ class AgentServer:
                     )
                 elif active.run_id:
                     asyncio.create_task(
-                        db.update_run_status(active.run_id, "crashed"),
+                        db.update_run_status(active.run_id, RUN_STATUS_CRASHED),
                     )
         except asyncio.CancelledError:
-            active.status = "killed"
+            active.status = RUN_STATUS_KILLED
             active.error_message = "Cancelled"
             if active.run_id and context is not None:
                 asyncio.create_task(
                     db.finish_run(
                         active.run_id,
-                        "killed",
+                        RUN_STATUS_KILLED,
                         None,
                         context.total_cost,
                         context.total_input_tokens,
@@ -340,7 +336,7 @@ class AgentServer:
                 )
             elif active.run_id:
                 asyncio.create_task(
-                    db.update_run_status(active.run_id, "killed"),
+                    db.update_run_status(active.run_id, RUN_STATUS_KILLED),
                 )
         finally:
             active.task = None

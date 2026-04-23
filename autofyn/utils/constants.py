@@ -146,7 +146,6 @@ def max_concurrent_runs() -> int:
     return _agent_cfg()["max_concurrent_runs"]
 
 
-ACTIVE_RUN_STATUSES = ("starting", "running", "paused")
 # Bound on the completed-run GitHub-diff LRU. Each entry holds a full
 # unified diff blob; capping prevents unbounded growth over the agent's
 # lifetime (many completed runs viewed in dashboard).

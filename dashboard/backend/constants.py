@@ -1,6 +1,14 @@
 """Dashboard backend constants."""
 
 from config.loader import agent_config as _agent_config
+from db.constants import (
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_COMPLETED_NO_CHANGES,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_KILLED,
+    RUN_STATUS_STOPPED,
+)
 
 APP_TITLE = "AutoFyn Dashboard API"
 
@@ -64,23 +72,22 @@ SIGNAL_AGENT_PATHS: dict[str, str] = {
 
 # Run status sets — single source of truth for the runs endpoints. Add a new
 # status here, not inline in runs.py.
-RESTARTABLE_STATUSES: frozenset[str] = frozenset(
-    {
-        "completed",
-        "completed_no_changes",
-        "stopped",
-        "error",
-        "crashed",
-        "killed",
-    }
-)
+RESTARTABLE_STATUSES: frozenset[str] = frozenset({
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_COMPLETED_NO_CHANGES,
+    RUN_STATUS_STOPPED,
+    RUN_STATUS_ERROR,
+    RUN_STATUS_CRASHED,
+    RUN_STATUS_KILLED,
+})
 
-ACTIVE_STATUSES: frozenset[str] = frozenset({"running", "paused", "rate_limited"})
 
 # Statuses that allow injecting into a stopped run by spawning a fresh resume.
-INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset(
-    {"completed", "stopped", "error"}
-)
+INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset({
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_STOPPED,
+    RUN_STATUS_ERROR,
+})
 
 # ── HTTP headers ──
 # Sync: autofyn/utils/constants.py must define the same constant.

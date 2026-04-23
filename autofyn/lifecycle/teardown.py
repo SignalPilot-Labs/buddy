@@ -10,6 +10,11 @@ PR creation is skipped when status == "killed" (sandbox may be gone).
 
 import logging
 
+from db.constants import (
+    RUN_STATUS_COMPLETED,
+    RUN_STATUS_COMPLETED_NO_CHANGES,
+    RUN_STATUS_KILLED,
+)
 from memory.metadata import MetadataStore
 from sandbox_client.client import SandboxClient
 from utils import db
@@ -33,14 +38,14 @@ async def finalize_run(
     resolved_status = status
     diff_stats: list[dict] | None = None
 
-    if status != "killed" and not run.skip_pr:
+    if status != RUN_STATUS_KILLED and not run.skip_pr:
         result = await _run_teardown(sandbox, run, metadata_store, exec_timeout)
         if result is not None:
             pr_url = result.pr_url
             diff_stats = result.diff_stats
             await _log_teardown_outcome(run, result)
-            if result.commits_ahead == 0 and status == "completed":
-                resolved_status = "completed_no_changes"
+            if result.commits_ahead == 0 and status == RUN_STATUS_COMPLETED:
+                resolved_status = RUN_STATUS_COMPLETED_NO_CHANGES
 
     await db.finish_run(
         run.run_id,

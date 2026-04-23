@@ -16,27 +16,11 @@ import logging
 import httpx
 
 from utils.models import SaveResult, TeardownResult
+from utils.secrets import scrub_secrets
 
 log = logging.getLogger("sandbox_client.repo")
 
 _SECRET_BODY_KEYS: frozenset[str] = frozenset({"token", "claude_token", "git_token"})
-_SECRET_MASK: str = "***REDACTED***"
-
-
-def _scrub_secrets(text: str, body: dict) -> str:
-    """Replace every value of a known-secret key from `body` with `_SECRET_MASK`.
-
-    `_post` knows exactly which secrets it sent; this scrubs them out of the
-    response text before that text is interpolated into a RuntimeError.
-    Substring replace is sufficient — even a token fragment that survived
-    truncation would be scrubbed because we replace before truncation.
-    """
-    scrubbed = text
-    for key in _SECRET_BODY_KEYS:
-        value = body.get(key)
-        if value:
-            scrubbed = scrubbed.replace(value, _SECRET_MASK)
-    return scrubbed
 
 
 class Repo:
@@ -124,7 +108,7 @@ class Repo:
         """Send a POST and return the JSON response dict."""
         resp = await self._http.post(path, json=body)
         if resp.status_code >= 400:
-            scrubbed = _scrub_secrets(resp.text, body)
+            scrubbed = scrub_secrets(resp.text, [body.get(k) for k in _SECRET_BODY_KEYS])
             raise RuntimeError(
                 f"sandbox {path} -> {resp.status_code}: {scrubbed[:1000]}"
             )
