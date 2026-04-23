@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from endpoints import register_routes
+from endpoints.registry import register_routes
 from utils.models import ActiveRun
 
 
