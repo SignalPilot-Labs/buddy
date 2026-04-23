@@ -80,8 +80,8 @@ class TestPresetResolutionInEndpoint:
             create_run_calls.append(args)
 
         with (
-            patch("endpoints.db.create_run_starting", side_effect=capture_create_run),
-            patch("endpoints.db.log_audit", AsyncMock()),
+            patch("endpoints.run.db.create_run_starting", side_effect=capture_create_run),
+            patch("endpoints.run.db.log_audit", AsyncMock()),
             patch("server.AgentServer.execute_run", AsyncMock()),
         ):
             transport = ASGITransport(app=app)

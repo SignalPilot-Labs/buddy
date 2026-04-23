@@ -19,7 +19,7 @@ from starlette.responses import JSONResponse
 import uvicorn
 
 from config.loader import sandbox_config
-from endpoints import register_routes
+from endpoints.registry import register_routes
 from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run

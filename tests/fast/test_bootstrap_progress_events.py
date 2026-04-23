@@ -56,8 +56,8 @@ class TestRunStartingEvent:
         from httpx import ASGITransport, AsyncClient
 
         with (
-            patch("endpoints.db.create_run_starting", AsyncMock()),
-            patch("endpoints.db.log_audit", side_effect=capture_log_audit),
+            patch("endpoints.run.db.create_run_starting", AsyncMock()),
+            patch("endpoints.run.db.log_audit", side_effect=capture_log_audit),
             patch("server.AgentServer.execute_run", AsyncMock()),
         ):
             transport = ASGITransport(app=app)
@@ -97,9 +97,9 @@ class TestRunStartingEvent:
         from httpx import ASGITransport, AsyncClient
 
         with (
-            patch("endpoints.db.create_run_starting", AsyncMock()),
-            patch("endpoints.db.log_audit", side_effect=capture_log_audit),
-            patch("endpoints.asyncio.create_task", side_effect=tracking_create_task),
+            patch("endpoints.run.db.create_run_starting", AsyncMock()),
+            patch("endpoints.run.db.log_audit", side_effect=capture_log_audit),
+            patch("endpoints.run.asyncio.create_task", side_effect=tracking_create_task),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:

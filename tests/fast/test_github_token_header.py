@@ -10,7 +10,7 @@ import pytest
 from fastapi import FastAPI
 from starlette.testclient import TestClient
 
-from endpoints import register_routes
+from endpoints.registry import register_routes
 
 
 @pytest.fixture
@@ -40,7 +40,7 @@ class TestBranchesHeaderAuth:
         fake = MagicMock()
         fake.status_code = 200
         fake.json.return_value = [{"name": "main"}]
-        with patch("endpoints.httpx.AsyncClient") as mock_cls:
+        with patch("endpoints.diff.httpx.AsyncClient") as mock_cls:
             ctx = mock_cls.return_value.__aenter__.return_value
             async def _get(*args, **kwargs):
                 return fake
@@ -71,7 +71,7 @@ class TestDiffRepoHeaderAuth:
             assert token == "ghp_abc"
             return {"diff": "diff --git a/x b/x"}
 
-        with patch("endpoints.fetch_github_diff", side_effect=_fake_fetch):
+        with patch("endpoints.diff.fetch_github_diff", side_effect=_fake_fetch):
             res = client.get(
                 "/diff/repo",
                 params=self._PARAMS,
