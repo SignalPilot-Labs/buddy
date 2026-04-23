@@ -22,12 +22,21 @@ def _agent_cfg() -> dict:
 
 
 # ── Logging ──
+_NOISY_PATHS: tuple[str, ...] = (
+    "GET /health",
+    "GET /logs",
+    "/diff",
+    "/file_system/ls",
+    "/file_system/read_dir",
+)
+
+
 class AccessNoiseFilter(logging.Filter):
-    """Drop health checks and high-frequency polling from access logs."""
+    """Drop health checks and high-frequency polling from access and httpx logs."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         msg = record.getMessage()
-        return "GET /health" not in msg and "GET /logs" not in msg and "/diff" not in msg
+        return all(path not in msg for path in _NOISY_PATHS)
 
 
 # ── Timeouts ──

@@ -7,10 +7,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { EventFeed } from "@/components/feed/EventFeed";
-import type { FeedEvent, PendingMessage } from "@/lib/types";
+import type { FeedEvent } from "@/lib/types";
 
 const DEFAULT_FEED_PROPS = {
-  pendingMessages: [] as PendingMessage[],
   runActive: false,
   runPaused: false,
   isLoading: false,

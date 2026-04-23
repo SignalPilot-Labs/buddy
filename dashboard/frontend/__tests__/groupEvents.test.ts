@@ -260,7 +260,7 @@ describe("milestone detail text", () => {
 });
 
 describe("run_started milestone detail", () => {
-  it("shows branch name when present", () => {
+  it("renders with empty detail (model/branch shown by earlier progress events)", () => {
     const events: FeedEvent[] = [
       {
         _kind: "audit",
@@ -277,49 +277,8 @@ describe("run_started milestone detail", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].detail).toBe("opus · autofyn/fix-the-bug");
-    }
-  });
-
-  it("does not show null branch name", () => {
-    const events: FeedEvent[] = [
-      {
-        _kind: "audit",
-        data: {
-          id: 2,
-          run_id: "r",
-          event_type: "run_started",
-          details: { model: "opus", branch: null },
-          ts: new Date().toISOString(),
-        },
-      },
-    ];
-    const result = groupEvents(events);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("milestone");
-    if (result[0].type === "milestone") {
-      expect(result[0].detail).toBe("opus");
-    }
-  });
-
-  it("handles missing branch gracefully", () => {
-    const events: FeedEvent[] = [
-      {
-        _kind: "audit",
-        data: {
-          id: 3,
-          run_id: "r",
-          event_type: "run_started",
-          details: { model: "sonnet" },
-          ts: new Date().toISOString(),
-        },
-      },
-    ];
-    const result = groupEvents(events);
-    expect(result).toHaveLength(1);
-    expect(result[0].type).toBe("milestone");
-    if (result[0].type === "milestone") {
-      expect(result[0].detail).toBe("sonnet");
+      expect(result[0].label).toBe("Run Started");
+      expect(result[0].detail).toBe("");
     }
   });
 });

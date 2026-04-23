@@ -209,6 +209,7 @@ class AgentServer:
             body.env,
             body.host_mounts,
         )
+        await db.log_audit(run_id, "sandbox_created", {})
         terminal_status = "error"
         bootstrap = None
         try:
@@ -358,7 +359,7 @@ def main() -> None:
     """Run the agent HTTP server."""
     logging.basicConfig(level=logging.INFO, format="[%(name)s] %(message)s")
     _filt = AccessNoiseFilter()
-    for name in ("uvicorn.access", "uvicorn", ""):
+    for name in ("uvicorn.access", "uvicorn", "httpx", ""):
         logging.getLogger(name).addFilter(_filt)
     uvicorn.run(app, host=SERVER_HOST, port=server_port(), log_level="info")
 

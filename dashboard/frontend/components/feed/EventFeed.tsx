@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
-import type { FeedEvent, PendingMessage } from "@/lib/types";
+import type { FeedEvent } from "@/lib/types";
 import { SCROLL_BOTTOM_THRESHOLD, SKELETON_COUNT, SKELETON_HEIGHT, SKELETON_WIDTHS } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
@@ -34,7 +34,6 @@ const SKELETON_BORDERS = [
 
 export function EventFeed({
   events,
-  pendingMessages,
   runActive,
   runPaused,
   isLoading,
@@ -42,7 +41,6 @@ export function EventFeed({
   hasSelectedRun,
 }: {
   events: FeedEvent[];
-  pendingMessages: PendingMessage[];
   runActive: boolean;
   runPaused: boolean;
   isLoading: boolean;
@@ -77,7 +75,7 @@ export function EventFeed({
     if (autoScroll && containerRef.current?.scrollTo) {
       containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: SCROLL_BEHAVIOR });
     }
-  }, [grouped, pendingMessages, autoScroll]);
+  }, [grouped, autoScroll]);
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return;
@@ -110,7 +108,7 @@ export function EventFeed({
 
   const newEventCount = Math.max(0, events.length - seenCount);
 
-  const hasContent = events.length > 0 || pendingMessages.length > 0;
+  const hasContent = events.length > 0;
   const showSkeleton = isLoading && !hasContent;
   const containerOpacity = isLoading && hasContent ? LOADING_OPACITY : 1;
 
@@ -165,7 +163,7 @@ export function EventFeed({
                   >
                     <GroupedEventCard
                       event={gev}
-                      isLast={i === grouped.length - 1 && pendingMessages.length === 0}
+                      isLast={i === grouped.length - 1}
                       runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
                       runPaused={runPaused}
                     />
@@ -173,15 +171,6 @@ export function EventFeed({
                 </motion.div>
               ))}
             </AnimatePresence>
-            {pendingMessages.map((msg) => (
-              <UserPromptCard
-                key={`pending-${msg.id}`}
-                prompt={msg.prompt}
-                ts={msg.ts}
-                pending={msg.status === "pending"}
-                failed={msg.status === "failed"}
-              />
-            ))}
           </>
         )}
       </div>

@@ -75,22 +75,46 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
   const ts = event.data.ts;
 
   switch (event.data.event_type) {
-    case "run_started": {
-      // branch_name is NULL until bootstrap assigns a real branch.
-      const branch = d.branch || "";
-      const detail = branch
-        ? `${d.model || "claude"} · ${branch}`
-        : `${d.model || "claude"}`;
+    case "run_starting":
       return {
-        id: `ms-${ts}-Run Started`,
+        id: `ms-${ts}-Run Starting`,
         type: "milestone",
-        label: "Run Started",
-        detail,
+        label: "Run Starting",
+        detail: String(d.repo || ""),
+        color: "#ffaa00",
+        ts,
+        event,
+      };
+    case "sandbox_created":
+      return {
+        id: `ms-${ts}-Sandbox Created`,
+        type: "milestone",
+        label: "Sandbox Created",
+        detail: "",
         color: "#88ccff",
         ts,
         event,
       };
-    }
+    case "repo_cloned":
+      return {
+        id: `ms-${ts}-Repo Cloned`,
+        type: "milestone",
+        label: "Repo Cloned",
+        detail: String(d.repo || ""),
+        color: "#88ccff",
+        ts,
+        event,
+      };
+    case "run_started":
+      return {
+        id: `ms-${ts}-Run Started`,
+        type: "milestone",
+        label: "Run Started",
+        detail: "",
+        color: "#88ccff",
+        ts,
+        event,
+      };
     case "round_ended": {
       const roundNum = d.round_number as number | undefined;
       const label = roundNum ? `Round ${roundNum} complete` : "Round complete";

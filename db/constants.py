@@ -111,6 +111,10 @@ def validate_host_mount(
 # and the TypeScript frontend must stay in sync with this set — there are
 # cross-language tests that verify it.
 AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
+    # Bootstrap progress
+    "run_starting",
+    "sandbox_created",
+    "repo_cloned",
     # Lifecycle
     "run_started",
     "run_ended",

@@ -59,6 +59,10 @@ export const SKELETON_COUNT = 5;
 export const SKELETON_HEIGHT = "h-12";
 export const SKELETON_WIDTHS: ReadonlyArray<string> = ["w-1/3", "w-1/2", "w-2/5", "w-3/5", "w-1/4"];
 
+// Connection banner grace period — suppress transient "Disconnected" flash
+// during run switches where SSE disconnects and reconnects within seconds.
+export const CONNECTION_BANNER_DELAY_MS = 5000;
+
 // SSE reconnect backoff
 export const RECONNECT_BASE_MS = 1000;
 export const RECONNECT_MAX_MS = 30000;

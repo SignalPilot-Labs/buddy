@@ -171,14 +171,6 @@ export const STATUS_META: Record<
   },
 };
 
-/* ── Pending Message (UI-only, never in event stream) ── */
-export interface PendingMessage {
-  id: number;
-  prompt: string;
-  ts: string;
-  status: "pending" | "failed";
-}
-
 /* ── Tool Categories ── */
 // All 20 tool types from the database, mapped to visual categories
 export type ToolCategory =
@@ -300,7 +292,10 @@ export type AuditEventType =
   | "idle_timeout"
   | "idle_nudge"
   | "tool_timeout"
-  | "agent_restarted";
+  | "agent_restarted"
+  | "run_starting"
+  | "sandbox_created"
+  | "repo_cloned";
 
 export interface AuditEventMeta {
   label: string;
@@ -336,6 +331,9 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   no_changes:          { label: "No Changes",        color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
   idle_timeout:        { label: "Idle Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   tool_timeout:        { label: "Tool Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  run_starting:        { label: "Run Starting",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  sandbox_created:       { label: "Sandbox Created",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  repo_cloned:         { label: "Repo Cloned",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
 };
 
 /* ── WorkTree Types ── */

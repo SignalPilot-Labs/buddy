@@ -11,10 +11,9 @@ import { describe, it, expect } from "vitest";
 import { groupEvents } from "@/lib/groupEvents";
 import { EventFeed } from "@/components/feed/EventFeed";
 import { AgentRunCard } from "@/components/feed/AgentRunCard";
-import type { FeedEvent, ToolCall, PendingMessage } from "@/lib/types";
+import type { FeedEvent, ToolCall } from "@/lib/types";
 
 const DEFAULT_FEED_PROPS = {
-  pendingMessages: [] as PendingMessage[],
   runActive: false,
   runPaused: false,
   isLoading: false,
@@ -88,124 +87,25 @@ describe("groupEvents server prompt events", () => {
   });
 });
 
-/* ── EventFeed: pending messages rendered at bottom ── */
+/* ── EventFeed: server prompt events render correctly ── */
 
-describe("EventFeed pending messages", () => {
-  it("renders pending message as user bubble with 'You' label", () => {
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "fix the bug", ts: new Date().toISOString(), status: "pending" },
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.getByText("You")).toBeInTheDocument();
-    expect(screen.getByText("fix the bug")).toBeInTheDocument();
-  });
-
-  it("renders pending message with pulsing indicator", () => {
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "hello", ts: new Date().toISOString(), status: "pending" },
-    ];
-    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    const pulsingDots = container.querySelectorAll(".animate-pulse");
-    expect(pulsingDots.length).toBeGreaterThan(0);
-  });
-
-  it("renders failed message with 'not delivered' text", () => {
-    const pending: PendingMessage[] = [
-      { id: -2, prompt: "failed msg", ts: new Date().toISOString(), status: "failed" },
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.getByText("not delivered")).toBeInTheDocument();
-  });
-
-  it("renders pending messages after server events", () => {
-    const events: FeedEvent[] = [
-      makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
-    ];
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "my message", ts: new Date().toISOString(), status: "pending" },
-    ];
-    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(container).toBeInTheDocument();
-    expect(screen.getByText("my message")).toBeInTheDocument();
-    expect(screen.getByText("Run Started")).toBeInTheDocument();
-  });
-
-  it("does not render pending messages when list is empty", () => {
-    const events: FeedEvent[] = [
-      makeAuditEvent(50, "prompt_injected", { prompt: "delivered" }),
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
-    expect(screen.getByText("delivered")).toBeInTheDocument();
-    // Only one "You" label from the server event
-    expect(screen.getAllByText("You")).toHaveLength(1);
-  });
-});
-
-/* ── EventFeed: no duplicate when server event + empty pending ── */
-
-describe("EventFeed no duplicate user bubbles", () => {
-  it("server prompt_injected renders once when pendingMessages is empty", () => {
+describe("EventFeed server prompt rendering", () => {
+  it("server prompt_injected renders as user bubble", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(50, "prompt_injected", { prompt: "hello agent" }),
     ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
     expect(screen.getAllByText("You")).toHaveLength(1);
     expect(screen.getAllByText("hello agent")).toHaveLength(1);
   });
 
-  it("server event + pending for different messages shows both", () => {
-    const events: FeedEvent[] = [
-      makeAuditEvent(50, "prompt_injected", { prompt: "first message" }),
-    ];
-    const pending: PendingMessage[] = [
-      { id: -2, prompt: "second message", ts: new Date().toISOString(), status: "pending" },
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.getAllByText("You")).toHaveLength(2);
-    expect(screen.getByText("first message")).toBeInTheDocument();
-    expect(screen.getByText("second message")).toBeInTheDocument();
-  });
-});
-
-/* ── EventFeed: multiple pending messages ── */
-
-describe("EventFeed multiple pending messages", () => {
-  it("renders multiple pending messages in order", () => {
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "msg one", ts: "2026-01-01T10:00:00Z", status: "pending" },
-      { id: -2, prompt: "msg two", ts: "2026-01-01T10:00:05Z", status: "pending" },
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.getAllByText("You")).toHaveLength(2);
-    expect(screen.getByText("msg one")).toBeInTheDocument();
-    expect(screen.getByText("msg two")).toBeInTheDocument();
-  });
-
-  it("renders mix of pending and failed messages", () => {
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "delivered later", ts: "2026-01-01T10:00:00Z", status: "pending" },
-      { id: -2, prompt: "could not send", ts: "2026-01-01T10:00:05Z", status: "failed" },
-    ];
-    const { container } = render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.getByText("delivered later")).toBeInTheDocument();
-    expect(screen.getByText("could not send")).toBeInTheDocument();
-    expect(screen.getByText("not delivered")).toBeInTheDocument();
-    // Pending should have pulse, failed should not
-    const pulsingDots = container.querySelectorAll(".animate-pulse");
-    expect(pulsingDots).toHaveLength(1);
-  });
-});
-
-/* ── EventFeed: pending after full event history (page load scenario) ── */
-
-describe("EventFeed page refresh scenario", () => {
-  it("renders server events from history without pending (post-refresh)", () => {
+  it("renders server events from history (post-refresh)", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
       makeAuditEvent(50, "prompt_injected", { prompt: "fix the bug" }),
       makeAuditEvent(51, "run_resumed", {}),
     ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
     expect(screen.getByText("Run Started")).toBeInTheDocument();
     expect(screen.getByText("fix the bug")).toBeInTheDocument();
     expect(screen.getByText("Run Resumed")).toBeInTheDocument();
@@ -213,34 +113,24 @@ describe("EventFeed page refresh scenario", () => {
   });
 });
 
-/* ── EventFeed: empty state only when both events and pending empty ── */
+/* ── EventFeed: empty state ── */
 
 describe("EventFeed empty state", () => {
-  it("shows no-run-selected empty state when no events, no pending, no run selected", () => {
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={[]} hasSelectedRun={false} />);
+  it("shows no-run-selected empty state when no events and no run selected", () => {
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} hasSelectedRun={false} />);
     expect(screen.getByText("Waiting for events")).toBeInTheDocument();
   });
 
-  it("shows waiting-for-activity empty state when run selected but no events", () => {
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={[]} hasSelectedRun={true} />);
+  it("shows waiting-for-activity when run selected but no events", () => {
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} hasSelectedRun={true} />);
     expect(screen.getByText("Waiting for agent activity")).toBeInTheDocument();
-  });
-
-  it("does not show empty state when pending messages exist", () => {
-    const pending: PendingMessage[] = [
-      { id: -1, prompt: "hello", ts: new Date().toISOString(), status: "pending" },
-    ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={[]} pendingMessages={pending} hasSelectedRun={true} />);
-    expect(screen.queryByText("Waiting for events")).not.toBeInTheDocument();
-    expect(screen.queryByText("Waiting for agent activity")).not.toBeInTheDocument();
-    expect(screen.getByText("hello")).toBeInTheDocument();
   });
 
   it("does not show empty state when events exist", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
     ];
-    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} pendingMessages={[]} hasSelectedRun={true} />);
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} hasSelectedRun={true} />);
     expect(screen.queryByText("Waiting for events")).not.toBeInTheDocument();
     expect(screen.queryByText("Waiting for agent activity")).not.toBeInTheDocument();
   });
