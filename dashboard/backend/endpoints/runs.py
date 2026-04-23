@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
 from backend.constants import (
-    ACTIVE_STATUSES,
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
     DEFAULT_BASE_BRANCH,
@@ -36,6 +35,7 @@ from backend.utils import (
     session,
 )
 from db.constants import (
+    ACTIVE_RUN_STATUSES,
     DEFAULT_MODEL,
     RUN_STATUS_PAUSED,
     RUN_STATUS_RATE_LIMITED,
@@ -149,7 +149,7 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
         if run.status in (RUN_STATUS_PAUSED, RUN_STATUS_RATE_LIMITED):
             prompt = (body.payload or "").strip() or None
             if prompt:
-                await send_control_signal(run_id, "inject", set(ACTIVE_STATUSES), prompt, None)
+                await send_control_signal(run_id, "inject", set(ACTIVE_RUN_STATUSES), prompt, None)
             if run.status == RUN_STATUS_PAUSED:
                 return await send_control_signal(run_id, "resume", {RUN_STATUS_PAUSED}, None, None)
             return {"ok": True, "signal": "inject", "run_id": run_id}
@@ -171,9 +171,9 @@ async def inject_prompt(run_id: str = RunId, body: ControlSignalRequest = Body()
         run = await s.get(Run, run_id)
         if not run:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status in ACTIVE_STATUSES:
+        if run.status in ACTIVE_RUN_STATUSES:
             return await send_control_signal(
-                run_id, "inject", set(ACTIVE_STATUSES), prompt, None,
+                run_id, "inject", set(ACTIVE_RUN_STATUSES), prompt, None,
             )
         if run.status in INJECTABLE_TERMINAL_STATUSES:
             return await _resume_completed_run(run, run_id, prompt, s)
@@ -185,14 +185,14 @@ async def stop_run(run_id: str = RunId, body: StopRunRequest = Body()) -> dict:
     """Stop a running agent."""
     reason = (body.payload or "").strip() or DEFAULT_STOP_REASON
     return await send_control_signal(
-        run_id, "stop", set(ACTIVE_STATUSES), reason, {"skip_pr": body.skip_pr},
+        run_id, "stop", set(ACTIVE_RUN_STATUSES), reason, {"skip_pr": body.skip_pr},
     )
 
 
 @router.post("/runs/{run_id}/unlock")
 async def unlock_run(run_id: str = RunId) -> dict:
     """Unlock a session time gate."""
-    return await send_control_signal(run_id, "unlock", set(ACTIVE_STATUSES), None, None)
+    return await send_control_signal(run_id, "unlock", set(ACTIVE_RUN_STATUSES), None, None)
 
 
 # ---------------------------------------------------------------------------
@@ -332,7 +332,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
     # Active runs: ask the sandbox for a live working-tree diff. GitHub
     # is never consulted — no chance of placeholder-branch collision.
     # Terminal runs: sandbox is gone, use GitHub compare API.
-    is_active = run_status in ACTIVE_STATUSES or run_status == RUN_STATUS_STARTING
+    is_active = run_status in ACTIVE_RUN_STATUSES or run_status == RUN_STATUS_STARTING
     source = "sandbox" if is_active else "github"
 
     creds = await read_credentials(github_repo)

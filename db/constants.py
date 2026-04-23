@@ -38,13 +38,12 @@ RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_KILLED,
 })
 
-# Core active statuses — used for concurrency counting in server.py.
-# Does NOT include rate_limited (rate-limited runs don't consume a concurrency
-# slot) and does NOT include starting (see dashboard/backend/constants.py note).
+# Statuses where the run is still alive (not terminal).
 ACTIVE_RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_STARTING,
     RUN_STATUS_RUNNING,
     RUN_STATUS_PAUSED,
+    RUN_STATUS_RATE_LIMITED,
 })
 
 # Truly terminal statuses — run's background task has stopped.

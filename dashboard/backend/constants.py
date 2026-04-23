@@ -7,9 +7,6 @@ from db.constants import (
     RUN_STATUS_CRASHED,
     RUN_STATUS_ERROR,
     RUN_STATUS_KILLED,
-    RUN_STATUS_PAUSED,
-    RUN_STATUS_RATE_LIMITED,
-    RUN_STATUS_RUNNING,
     RUN_STATUS_STOPPED,
 )
 
@@ -84,14 +81,6 @@ RESTARTABLE_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_KILLED,
 })
 
-# Dashboard-specific active grouping — differs from db.constants.ACTIVE_RUN_STATUSES
-# because the dashboard includes rate_limited (shown as active in UI) but excludes
-# starting (ephemeral, not visible to users).
-ACTIVE_STATUSES: frozenset[str] = frozenset({
-    RUN_STATUS_RUNNING,
-    RUN_STATUS_PAUSED,
-    RUN_STATUS_RATE_LIMITED,
-})
 
 # Statuses that allow injecting into a stopped run by spawning a fresh resume.
 INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset({
