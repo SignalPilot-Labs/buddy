@@ -1,0 +1,1 @@
+Refactor and improve code quality across this codebase. Fix duplicated logic, overly complex functions, inconsistent patterns, poor separation of concerns, performance bottlenecks, dead code, magic values, fragile code patterns, CLAUDE.md violations, god classes and god functions. Do iterative improvement, and small changes each round.

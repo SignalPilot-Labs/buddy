@@ -1,0 +1,1 @@
+Find and fix bugs across this codebase — error handling gaps, unhandled edge cases, logical errors, concurrency bugs, type cast bugs, network connection bugs, race conditions, incorrect logic, silent failures, memory leaks, unbound disk growth. Every fix must include a regression test. Do iterative improvement -- not all work in one round.

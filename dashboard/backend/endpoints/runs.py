@@ -206,6 +206,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
     creds = await read_credentials(body.repo)
     return await agent_request("POST", "/start", AGENT_TIMEOUT_LONG, {
         "prompt": body.prompt,
+        "preset": body.preset,
         "max_budget_usd": body.max_budget_usd,
         "duration_minutes": body.duration_minutes,
         "base_branch": body.base_branch,

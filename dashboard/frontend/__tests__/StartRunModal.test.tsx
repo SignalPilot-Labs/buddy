@@ -9,6 +9,7 @@ import { render } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StartRunModal } from "@/components/controls/StartRunModal";
+import { STARTER_PRESETS, STARTER_PRESET_KEYS } from "@/lib/constants";
 
 function renderModal(overrides = {}) {
   const defaults = {
@@ -35,7 +36,7 @@ describe("StartRunModal", () => {
 
   it("does not render when closed", () => {
     renderModal({ open: false });
-    expect(document.body.textContent).not.toContain("General improvement");
+    expect(document.body.textContent).not.toContain("Security hardening");
   });
 
   it("shows model selector with model options", () => {
@@ -125,5 +126,85 @@ describe("StartRunModal", () => {
 
     // After clicking: the ModelSelector radiogroup should now appear
     expect(document.body.querySelector('[role="radiogroup"]')).not.toBeNull();
+  });
+});
+
+/* ── Starter preset regression tests ── */
+
+describe("StartRunModal starter presets", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("renders all preset labels from STARTER_PRESETS", () => {
+    renderModal();
+    for (const key of STARTER_PRESET_KEYS) {
+      expect(document.body.textContent).toContain(STARTER_PRESETS[key].label);
+    }
+  });
+
+  it("clicking a preset then starting sends preset key, not prompt", async () => {
+    const { props } = renderModal();
+    // Click the first preset (security_hardening)
+    const presetBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes(STARTER_PRESETS.security_hardening.label),
+    );
+    expect(presetBtn).toBeDefined();
+    await userEvent.click(presetBtn!);
+
+    const startBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("New Run") && !b.textContent?.includes("Starting"),
+    );
+    await userEvent.click(startBtn!);
+
+    expect(props.onStart).toHaveBeenCalledOnce();
+    const [prompt, preset] = props.onStart.mock.calls[0];
+    expect(prompt).toBeUndefined();
+    expect(preset).toBe("security_hardening");
+  });
+
+  it("typing custom prompt then starting sends prompt, not preset", async () => {
+    const { props } = renderModal();
+    const textarea = document.querySelector("textarea")!;
+    await userEvent.type(textarea, "optimize latency");
+
+    const startBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("New Run") && !b.textContent?.includes("Starting"),
+    );
+    await userEvent.click(startBtn!);
+
+    expect(props.onStart).toHaveBeenCalledOnce();
+    const [prompt, preset] = props.onStart.mock.calls[0];
+    expect(prompt).toBe("optimize latency");
+    expect(preset).toBeUndefined();
+  });
+
+  it("selecting a preset then typing custom text deselects the preset", async () => {
+    const { props } = renderModal();
+    // Click a preset
+    const presetBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes(STARTER_PRESETS.bug_sweep.label),
+    );
+    await userEvent.click(presetBtn!);
+
+    // Type in custom prompt — should deselect preset
+    const textarea = document.querySelector("textarea")!;
+    await userEvent.type(textarea, "custom task");
+
+    const startBtn = Array.from(document.querySelectorAll("button")).find(
+      (b) => b.textContent?.includes("New Run") && !b.textContent?.includes("Starting"),
+    );
+    await userEvent.click(startBtn!);
+
+    const [prompt, preset] = props.onStart.mock.calls[0];
+    expect(prompt).toBe("custom task");
+    expect(preset).toBeUndefined();
+  });
+
+  it("every preset key in STARTER_PRESET_KEYS is a non-empty string", () => {
+    for (const key of STARTER_PRESET_KEYS) {
+      expect(typeof key).toBe("string");
+      expect(key.length).toBeGreaterThan(0);
+    }
   });
 });

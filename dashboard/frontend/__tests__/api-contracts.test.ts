@@ -35,10 +35,11 @@ afterEach(() => {
 
 describe("startRun", () => {
   it("sends POST to /api/agent/start with all params", async () => {
-    await startRun("fix bugs", 10, 30, "main", "opus", "high", "owner/repo");
+    await startRun("fix bugs", undefined, 10, 30, "main", "opus", "high", "owner/repo");
     expect(fetchCalls).toHaveLength(1);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBe("fix bugs");
+    expect(body.preset).toBeNull();
     expect(body.max_budget_usd).toBe(10);
     expect(body.duration_minutes).toBe(30);
     expect(body.base_branch).toBe("main");
@@ -47,15 +48,23 @@ describe("startRun", () => {
     expect(body.repo).toBe("owner/repo");
   });
 
+  it("sends preset key instead of prompt", async () => {
+    await startRun(undefined, "security_hardening", 0, 0, "main", "opus", "high", null);
+    const body = JSON.parse(fetchCalls[0].init.body as string);
+    expect(body.prompt).toBeNull();
+    expect(body.preset).toBe("security_hardening");
+  });
+
   it("returns run_id from response", async () => {
-    const result = await startRun("test", 0, 0, "main", "sonnet", "high", null);
+    const result = await startRun("test", undefined, 0, 0, "main", "sonnet", "high", null);
     expect(result.run_id).toBe("test-run-id");
   });
 
-  it("sends null prompt when undefined", async () => {
-    await startRun(undefined, 0, 0, "main", "opus-4-5", "medium", null);
+  it("sends null prompt and preset when both undefined", async () => {
+    await startRun(undefined, undefined, 0, 0, "main", "opus-4-5", "medium", null);
     const body = JSON.parse(fetchCalls[0].init.body as string);
     expect(body.prompt).toBeNull();
+    expect(body.preset).toBeNull();
   });
 });
 

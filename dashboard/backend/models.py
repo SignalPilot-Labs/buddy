@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -26,6 +26,7 @@ class StartRunRequest(BaseModel):
     """Request body for starting a new run."""
 
     prompt: str | None = None
+    preset: str | None = Field(None, pattern=VALID_PRESET_PATTERN, description="Starter preset key. Mutually exclusive with prompt.")
     max_budget_usd: float = Field(default=0, ge=0, description="Max spend in USD. 0 = unlimited.")
     duration_minutes: float = Field(default=0, ge=0, description="Session duration in minutes. 0 = unlimited.")
     base_branch: str = Field(default="main", min_length=1, max_length=256, description="Branch to base the work on.")

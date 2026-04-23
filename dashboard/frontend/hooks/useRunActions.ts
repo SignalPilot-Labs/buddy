@@ -45,6 +45,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   const handleStartRun = useCallback(
     async (
       prompt: string | undefined,
+      preset: string | undefined,
       budget: number,
       durationMinutes: number,
       baseBranch: string,
@@ -56,7 +57,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
+        const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
         await refreshRunsRef.current();
         if (result.run_id) {
           await handleSelectRun(result.run_id);
