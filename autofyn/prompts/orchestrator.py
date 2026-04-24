@@ -9,7 +9,7 @@ rounds summary, prior-round file index, user messages).
 from claude_agent_sdk.types import SystemPromptPreset
 
 from prompts.loader import load_markdown, render_environment, render_time_status
-from utils.models import RoundContext, RoundsMetadata, UserAction
+from utils.models import RoundContext, UserAction
 
 
 def build_round_system_prompt(
@@ -36,17 +36,6 @@ def build_round_system_prompt(
             )
         )
 
-    if context.metadata.rounds:
-        sections.append(_prior_rounds_block(context.metadata))
-
-    if context.previous_round_reports:
-        sections.append(
-            _prior_reports_block(
-                context.round_number - 1,
-                context.previous_round_reports,
-            )
-        )
-
     if context.user_activity:
         sections.append(_user_activity_block(context.user_activity))
 
@@ -68,25 +57,6 @@ def _apply_placeholders(template: str, context: RoundContext) -> str:
 # ── Dynamic context blocks ───────────────────────────────────────────
 
 
-def _prior_rounds_block(metadata: RoundsMetadata) -> str:
-    """Summarize what previous rounds accomplished."""
-    lines = ["## Previous rounds"]
-    for entry in metadata.rounds:
-        lines.append(f"- Round {entry.n}: {entry.summary}")
-    return "\n".join(lines)
-
-
-def _prior_reports_block(prior_round: int, files: list[str]) -> str:
-    """Index of files produced in the immediately previous round."""
-    lines = [
-        f"## Prior round reports (round {prior_round})",
-        "Read these on demand — do not dump them into subagent prompts wholesale.",
-    ]
-    for name in files:
-        lines.append(f"- /tmp/round-{prior_round}/{name}")
-    return "\n".join(lines)
-
-
 def _user_activity_block(activity: list[UserAction]) -> str:
     """Chronological timeline of user actions across the entire run."""
     lines = ["## User activity (chronological)"]
@@ -99,20 +69,14 @@ def _user_activity_block(activity: list[UserAction]) -> str:
         else:
             lines.append(f"- [{timestamp}] {action.text}")
     lines.append(
-        "The latest user message takes priority over previous plans.",
+        "Priority: The user's latest message takes highest priority.",
     )
     return "\n".join(lines)
 
 
 def build_initial_prompt(round_number: int, task: str, is_grace_round: bool) -> str:
     """Short per-round kickoff message paired with the round system prompt."""
-    header = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
-    if round_number == 1:
-        return f"{header}\n\nComplete the first-round setup before beginning work."
-    suffix = (
-        f"{header}\n\nRead prior-round context from /tmp/round-*/ as needed, "
-        "then continue."
-    )
+    prompt = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
     if is_grace_round:
-        suffix += "\n\nTime lock has expired. This is your final round. Wrap up the work, ship it, then call end_session."
-    return suffix
+        prompt += "\n\nTime lock has expired. This is your final round. Wrap up, ship it, call end_session."
+    return prompt

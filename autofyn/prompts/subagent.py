@@ -30,18 +30,10 @@ AGENTS_WITH_VERIFICATION: tuple[str, ...] = (
     "review/security-reviewer",
 )
 
-# Which subagents should see prior-round reports (only when round > 1).
-# Builders and code-explorer work off the CURRENT round only. Planners
-# need prior context to avoid re-diagnosing or re-planning shipped work;
-# reviewers benefit from calibration lessons and prior findings.
-AGENTS_WITH_PRIOR_CONTEXT: tuple[str, ...] = (
-    "plan/architect",
-    "plan/debugger",
-    "review/spec-reviewer",
-    "review/code-reviewer",
-    "review/ui-reviewer",
-    "review/security-reviewer",
-)
+# All subagents except code-explorer get run_state.md context for round > 1.
+# Explorer gets its context from the orchestrator's dispatch prompt — it
+# doesn't need cross-round state.
+AGENTS_WITHOUT_RUN_STATE: tuple[str, ...] = ("explore/code-explorer",)
 
 
 SUBAGENT_DEFS: tuple[SubagentDef, ...] = (
@@ -192,12 +184,8 @@ def build_agent_defs(
     git_rules = load_markdown("query/git-rules")
     dispatch_rules = load_markdown("query/dispatch-rules")
     verification_rules = load_markdown("query/verification-rules")
-    prior_context = (
-        _substitute(
-            load_markdown("query/prior-round-context"),
-            round_number,
-            prior_round_number,
-        )
+    run_state_context = (
+        load_markdown("query/prior-round-context")
         if round_number > 1
         else None
     )
@@ -212,8 +200,8 @@ def build_agent_defs(
         prompt_parts = [agent_body, env_block, git_rules, dispatch_rules]
         if path in AGENTS_WITH_VERIFICATION:
             prompt_parts.append(verification_rules)
-        if prior_context and path in AGENTS_WITH_PRIOR_CONTEXT:
-            prompt_parts.append(prior_context)
+        if run_state_context and path not in AGENTS_WITHOUT_RUN_STATE:
+            prompt_parts.append(run_state_context)
         result[defn.name] = {
             "description": defn.description,
             "prompt": "\n\n".join(prompt_parts),

@@ -44,7 +44,7 @@ class TestUserActivityBlockRendering:
     def test_priority_message_appended(self) -> None:
         actions = [UserAction(timestamp="2026-04-13T12:00:00", kind="task", text="x")]
         block = _user_activity_block(actions)
-        assert "The latest user message takes priority" in block
+        assert "latest message takes highest priority" in block
 
     def test_full_timeline_ordering(self) -> None:
         actions = [
