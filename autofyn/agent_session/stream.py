@@ -244,7 +244,7 @@ class StreamDispatcher:
             out = usage.get("output_tokens", 0)
             cache_create = usage.get("cache_creation_input_tokens", 0)
             cache_read = usage.get("cache_read_input_tokens", 0)
-            self._latest_context_tokens = inp + out + cache_create + cache_read
+            self._latest_context_tokens = inp + cache_create + cache_read
             self._run.total_input_tokens += inp
             self._run.total_output_tokens += out
             self._run.cache_creation_input_tokens += cache_create
