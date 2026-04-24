@@ -29,6 +29,8 @@ from db.constants import MODELS_SUPPORTING_MAX_EFFORT, RUN_STATUS_RUNNING
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
     DEFAULT_AGENT_ROLE,
+    RUN_STATE_PATH,
+    RUN_STATE_TEMPLATE,
     SESSION_PERMISSION_MODE,
     WORK_DIR,
 )
@@ -113,6 +115,7 @@ async def bootstrap_run(
         # Seed an empty rounds.json so the first-round orchestrator sees
         # the canonical schema instead of a missing file.
         await metadata.save(RoundsMetadata.empty())
+        await sandbox.file_system.write(RUN_STATE_PATH, RUN_STATE_TEMPLATE, append=False)
     else:
         log.info("Resumed run %s at round %d", run_id, starting_round + 1)
 
