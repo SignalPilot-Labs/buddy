@@ -20,6 +20,24 @@ Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
 
 Each round runs Claude in a sandboxed Docker container with fresh context. A persistent run state tracks the goal, eval history, and learned rules across rounds — the agent measures progress, learns from failures, and improves instead of degrading.
 
+## How it works
+
+Most AI coding agents run Claude in a single long context or a naive bash loop — dump progress to a file, read it back, repeat. They have no structured memory across iterations, no measurement of whether they're improving, and no mechanism to stop repeating mistakes. Context degrades, errors compound, and the agent drifts.
+
+AutoFyn takes a different approach, inspired by reinforcement learning:
+
+**State.** Each round starts fresh with a persistent `run_state.md` that carries the goal, eval history, and learned rules across rounds. This is the agent's memory — not a chat log, but a structured representation of what it knows.
+
+**Reward signal.** Every round ends with a measurable eval: run the benchmark, count the vulnerabilities, check the test suite. The result is appended to an eval history with trend annotations (IMPROVED, PLATEAU, REGRESSION, BREAKTHROUGH). The agent sees whether it's making progress or going in circles.
+
+**Policy updates.** When reviewers find patterns — a recurring mistake, a repo quirk, a constraint violation — the orchestrator promotes them to Rules: `ALWAYS/NEVER: <action> (because <reason>, round N)`. These persist across rounds and are injected into every subagent's context. The agent learns from its failures and doesn't repeat them.
+
+**Explore → Plan → Build → Review.** Each round follows a fixed pipeline. Specialized subagents handle each phase — an architect designs, a builder implements, reviewers verify. The orchestrator delegates but never writes code itself. Reviewers are independent: they get file paths, not instructions on what to approve, so they function as an unbiased feedback loop.
+
+**Time-locked sessions.** The agent can't declare victory early. `end_session` is denied until the time limit, forcing the agent to keep iterating. Combined with eval history, this means the agent spends its budget on measurable improvement rather than premature PRs.
+
+The result: an agent that measures, learns, and improves over rounds instead of degrading. Each round builds on the last — not by carrying forward a growing context window, but by carrying forward structured knowledge about what works.
+
 ## Results
 
 ### Security audits
