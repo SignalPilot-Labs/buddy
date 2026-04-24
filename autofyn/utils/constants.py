@@ -74,7 +74,6 @@ METADATA_PATH = "/tmp/rounds.json"
 RUN_STATE_PATH = "/tmp/run_state.md"
 RUN_STATE_TEMPLATE = """\
 ## Goal
-<!-- Set in Round 1 -->
 
 ## Eval History
 
