@@ -75,6 +75,8 @@ RUN_STATE_PATH = "/tmp/run_state.md"
 RUN_STATE_TEMPLATE = """\
 ## Goal
 
+## Goal Updates
+
 ## Eval History
 
 ## Rules
