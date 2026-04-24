@@ -3,7 +3,7 @@
 from utils.constants import ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN
 
 
-def _merge_tokens_into_env(
+def merge_tokens_into_env(
     env: dict[str, str] | None,
     claude_token: str | None,
     git_token: str | None,

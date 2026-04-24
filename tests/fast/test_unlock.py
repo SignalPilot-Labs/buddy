@@ -9,7 +9,7 @@ Covers:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from agent_session.time_lock import TimeLock
 from user.control import UserControl

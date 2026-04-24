@@ -108,7 +108,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
         repo: str,
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
         source: Literal["sandbox", "github"] = "sandbox",
-    ):
+    ) -> dict:
         """Full unified diff.
 
         `source` controls the retrieval path:
@@ -147,7 +147,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
             raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
     @app.get("/diff/repo/stats")
-    async def diff_repo_stats(run_id: str):
+    async def diff_repo_stats(run_id: str) -> dict:
         """Per-file diff stats without transferring the full diff body.
 
         Intended for the dashboard Changes-panel header poll. Only handles
@@ -165,7 +165,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
         return {"files": files}
 
     @app.get("/diff/tmp")
-    async def diff_tmp(run_id: str):
+    async def diff_tmp(run_id: str) -> dict:
         """Unified diff of round files (all treated as new files).
 
         During round 1 the archive on the host volume is still empty — the files
@@ -184,7 +184,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
     async def list_branches(
         repo: str,
         token: Annotated[str, Header(alias=HEADER_GITHUB_TOKEN)],
-    ):
+    ) -> list[str]:
         """List branches on the GitHub remote for the given repo.
 
         Called by the dashboard's StartRunModal to populate the "branch from"

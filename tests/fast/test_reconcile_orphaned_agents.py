@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from utils.db import reconcile_orphaned_agent_calls
+from utils.db_reconcile import reconcile_orphaned_agent_calls
 
 
 def _make_tool_call(tool_use_id: str, phase: str, tool_name: str) -> MagicMock:

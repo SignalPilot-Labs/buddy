@@ -34,6 +34,7 @@ from db.constants import (
     RUN_STATUS_RUNNING,
 )
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
 from utils.run_config import RunAgentConfig
@@ -102,7 +103,7 @@ class RoundRunner:
             finally:
                 pulse.cancel()
         except asyncio.CancelledError:
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "killed",
                 {
@@ -118,7 +119,7 @@ class RoundRunner:
                 exc,
                 exc_info=True,
             )
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "fatal_error",
                 {
@@ -267,7 +268,7 @@ class RoundRunner:
         nudge_count: int,
         idle_since: float,
         session_id: str,
-    ) -> tuple[RoundResult | None, int, asyncio.Task]:
+    ) -> tuple[RoundResult | None, int, asyncio.Task | None]:
         """Handle an idle timeout firing. Returns (terminal_result_or_none, new_nudge_count, new_idle_task)."""
         nudge_count += 1
         if nudge_count > idle_nudge_max_attempts():
@@ -277,7 +278,7 @@ class RoundRunner:
                 round_number,
                 idle_nudge_max_attempts(),
             )
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "idle_timeout",
                 {
@@ -286,8 +287,7 @@ class RoundRunner:
                 },
             )
             terminal = RoundResult(status="complete", session_id=session_id)
-            idle_task: asyncio.Task = asyncio.create_task(asyncio.sleep(0))
-            return terminal, nudge_count, idle_task
+            return terminal, nudge_count, None
 
         backoff = self._run_config.session_idle_timeout_sec * (2 ** (nudge_count - 1))
         idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
@@ -299,7 +299,7 @@ class RoundRunner:
             idle_nudge_max_attempts(),
             backoff,
         )
-        await db.log_audit(
+        await log_audit(
             self._run.run_id,
             "idle_nudge",
             {
@@ -344,7 +344,7 @@ class RoundRunner:
             # but do NOT end the round. The stream will resume automatically.
             data = signal.rate_limit_data or {}
             resets_at = data.get("resets_at")
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "rate_limit",
                 {

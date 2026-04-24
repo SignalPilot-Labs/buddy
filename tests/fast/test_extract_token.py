@@ -4,8 +4,6 @@ The claude CLI line-wraps stdout at 80 columns when piped, splitting
 the token across lines. _extract_token must reassemble the full token.
 """
 
-import pytest
-
 from cli.commands.services import _extract_token
 
 

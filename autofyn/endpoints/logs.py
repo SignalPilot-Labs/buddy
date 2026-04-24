@@ -16,7 +16,7 @@ def register_log_routes(app: FastAPI, server: "AgentServer") -> None:
     """Register log route handlers."""
 
     @app.get("/logs")
-    async def get_logs(tail: int, run_id: str | None = None):
+    async def get_logs(tail: int, run_id: str | None = None) -> dict:
         """Return agent container logs, optionally filtered by run_id.
 
         Log lines from the agent use run_id[:8] as prefix, e.g.

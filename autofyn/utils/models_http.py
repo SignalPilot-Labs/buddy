@@ -6,7 +6,7 @@ describe the shape of HTTP request bodies and response payloads.
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, VALID_EFFORTS, VALID_MODELS
+from db.constants import DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
@@ -17,7 +17,7 @@ class StartRequest(BaseModel):
     preset: str | None = None
     max_budget_usd: float = 0
     duration_minutes: float = 0
-    base_branch: str = "main"
+    base_branch: str = DEFAULT_BASE_BRANCH
     model: str = DEFAULT_MODEL
     effort: str = DEFAULT_EFFORT
     claude_token: str | None = Field(default=None, repr=False)

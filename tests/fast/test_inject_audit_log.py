@@ -10,8 +10,6 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from backend.utils import send_control_signal
-from db.models import AuditLog
-
 
 def _mock_run(status: str) -> MagicMock:
     """Create a mock Run ORM object with given status."""
@@ -68,7 +66,7 @@ class TestInjectWritesAuditLog:
         ):
             await send_control_signal("run-1", "inject", {"running"}, "fix the bug", None)
 
-        audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
+        audit_entries = [obj for obj in session_mock.added if type(obj).__name__ == "AuditLog"]
         assert len(audit_entries) == 1
         assert audit_entries[0].event_type == "prompt_injected"
 
@@ -85,7 +83,7 @@ class TestInjectWritesAuditLog:
                 "run-1", "inject", {"running"}, "use 10px minimum", None
             )
 
-        audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
+        audit_entries = [obj for obj in session_mock.added if type(obj).__name__ == "AuditLog"]
         assert audit_entries[0].details["prompt"] == "use 10px minimum"
 
     @pytest.mark.asyncio
@@ -99,7 +97,7 @@ class TestInjectWritesAuditLog:
         ):
             await send_control_signal("run-42", "inject", {"running"}, "hello", None)
 
-        audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
+        audit_entries = [obj for obj in session_mock.added if type(obj).__name__ == "AuditLog"]
         assert audit_entries[0].run_id == "run-42"
 
     @pytest.mark.asyncio
@@ -115,7 +113,7 @@ class TestInjectWritesAuditLog:
                 await send_control_signal("run-1", signal, {"running"}, "payload", None)
 
             audit_entries = [
-                obj for obj in session_mock.added if isinstance(obj, AuditLog)
+                obj for obj in session_mock.added if type(obj).__name__ == "AuditLog"
             ]
             assert (
                 len(audit_entries) == 0
@@ -132,5 +130,5 @@ class TestInjectWritesAuditLog:
         ):
             await send_control_signal("run-1", "inject", {"running"}, None, None)
 
-        audit_entries = [obj for obj in session_mock.added if isinstance(obj, AuditLog)]
+        audit_entries = [obj for obj in session_mock.added if type(obj).__name__ == "AuditLog"]
         assert len(audit_entries) == 0

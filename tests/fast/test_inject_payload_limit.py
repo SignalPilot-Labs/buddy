@@ -3,7 +3,7 @@
 import pytest
 
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
-from utils.models import InjectRequest
+from utils.models_http import InjectRequest
 
 
 class TestInjectPayloadLimit:

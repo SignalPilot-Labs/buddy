@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from utils.models import ResumeRequest, StartRequest
+from utils.models_http import ResumeRequest, StartRequest
 
 
 SENTINEL_CLAUDE = "SENTINEL_CLAUDE_TOKEN_ABC_987654321"

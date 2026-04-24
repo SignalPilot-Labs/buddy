@@ -10,6 +10,7 @@ import logging
 
 from agent_session.tracker import SubagentTracker
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import (
     LOG_PREVIEW_LIMIT,
     USAGE_EMIT_INTERVAL,
@@ -150,7 +151,7 @@ class StreamDispatcher:
                     "[%s] %s", self._rid, text[:LOG_PREVIEW_LIMIT].replace("\n", " ")
                 )
                 if text.strip():
-                    await db.log_audit(
+                    await log_audit(
                         run_id,
                         "llm_text",
                         {
@@ -162,7 +163,7 @@ class StreamDispatcher:
                 thinking = block.get("thinking", "")
                 log.info("[%s] [thinking] %s...", self._rid, thinking[:100])
                 if thinking.strip():
-                    await db.log_audit(
+                    await log_audit(
                         run_id,
                         "llm_thinking",
                         {
@@ -255,7 +256,7 @@ class StreamDispatcher:
             )
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "usage",
                 {

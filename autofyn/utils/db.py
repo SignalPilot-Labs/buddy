@@ -21,36 +21,9 @@ from db.constants import (
 )
 from db.models import AuditLog, ControlSignal, Run, ToolCall
 from utils.db_helpers import swallow_errors
-from utils.db_logging import log_audit, log_audit_raw, log_tool_call, log_tool_call_raw
-from utils.db_reconcile import reconcile_orphaned_agent_calls
 from utils.models import UserAction
 
 log = logging.getLogger("agent.db")
-
-# Re-export all public symbols that callers access via `db.<name>`.
-# This keeps all 10+ callers unchanged after the split into sibling modules.
-__all__ = [
-    "close_db",
-    "create_run_starting",
-    "finish_run",
-    "get_run_base_branch",
-    "get_run_branch_name",
-    "get_run_for_resume",
-    "get_user_activity",
-    "init_db",
-    "log_audit",
-    "log_audit_raw",
-    "log_tool_call",
-    "log_tool_call_raw",
-    "mark_crashed_runs",
-    "reconcile_orphaned_agent_calls",
-    "save_rate_limit_reset",
-    "save_session_id",
-    "swallow_errors",
-    "update_run_branch",
-    "update_run_cost",
-    "update_run_status",
-]
 
 
 async def init_db() -> None:

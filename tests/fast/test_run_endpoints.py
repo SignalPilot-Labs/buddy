@@ -3,7 +3,7 @@
 import pytest
 
 from db.constants import DEFAULT_MODEL
-from utils.models import StartRequest
+from utils.models_http import StartRequest
 
 
 class TestStartRequestModel:

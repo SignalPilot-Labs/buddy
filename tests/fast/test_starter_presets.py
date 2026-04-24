@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from db.constants import STARTER_PRESET_KEYS
 from prompts.loader import load_markdown
-from utils.models import StartRequest
+from utils.models_http import StartRequest
 
 
 class TestStarterPresetFiles:
@@ -77,7 +77,7 @@ class TestPresetResolutionInEndpoint:
 
         with (
             patch("endpoints.run.db.create_run_starting", side_effect=capture_create_run),
-            patch("endpoints.run.db.log_audit", AsyncMock()),
+            patch("endpoints.run.log_audit", AsyncMock()),
             patch("server.AgentServer.execute_run", AsyncMock()),
         ):
             transport = ASGITransport(app=app)

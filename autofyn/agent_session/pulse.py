@@ -13,7 +13,7 @@ from prompts.loader import render_stuck_recovery, render_tool_timeout
 from sandbox_client.client import SandboxClient
 from user.inbox import UserInbox
 from agent_session.tracker import SubagentTracker
-from utils import db
+from utils.db_logging import log_audit
 from utils.constants import pulse_check_interval_sec
 from utils.run_config import RunAgentConfig
 
@@ -73,7 +73,7 @@ class PulseWatchdog:
             self._rid,
             ", ".join(descriptions),
         )
-        await db.log_audit(
+        await log_audit(
             self._run_id,
             "stuck_recovery",
             {
@@ -114,7 +114,7 @@ class PulseWatchdog:
                 key[:8],
                 elapsed,
             )
-            await db.log_audit(
+            await log_audit(
                 self._run_id,
                 "tool_timeout",
                 {"agent_key": key, "elapsed_seconds": elapsed},
