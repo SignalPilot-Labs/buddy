@@ -206,7 +206,8 @@ async def read_token_pool(s: AsyncSession) -> list[str]:
     if pool:
         try:
             return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-        except (json.JSONDecodeError, TypeError, Exception):
+        except (json.JSONDecodeError, TypeError):
+            log.warning("Failed to parse/decrypt token pool, returning empty", exc_info=True)
             return []
     return []
 
