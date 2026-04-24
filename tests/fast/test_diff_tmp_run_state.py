@@ -32,9 +32,9 @@ class TestCollectTmpFromSandboxRunState:
         client = MagicMock()
         client.file_system.ls = AsyncMock(return_value=["round-1"])
         client.file_system.read_dir = AsyncMock(return_value={"report.md": "hi"})
-        client.file_system.read = AsyncMock(return_value="state content")
+        client.file_system.read = AsyncMock(side_effect=["state content", None])
         entries = await _collect_tmp_from_sandbox(client)
-        assert entries[-1] == ("tmp/run_state.md", "state content")
+        assert ("tmp/run_state.md", "state content") in entries
 
     @pytest.mark.asyncio
     async def test_excludes_run_state_when_not_present(self) -> None:
@@ -52,9 +52,10 @@ class TestCollectTmpFromSandboxRunState:
         client = MagicMock()
         client.file_system.ls = AsyncMock(return_value=["other", "cache"])
         client.file_system.read_dir = AsyncMock(return_value=None)
-        client.file_system.read = AsyncMock(return_value="## Goal\n\nStarting.")
+        client.file_system.read = AsyncMock(side_effect=["## Goal\n\nStarting.", None])
         entries = await _collect_tmp_from_sandbox(client)
-        assert entries == [("tmp/run_state.md", "## Goal\n\nStarting.")]
+        assert ("tmp/run_state.md", "## Goal\n\nStarting.") in entries
+        assert not any(e[0] == "tmp/rounds.json" for e in entries)
         client.file_system.read_dir.assert_not_awaited()
 
     @pytest.mark.asyncio

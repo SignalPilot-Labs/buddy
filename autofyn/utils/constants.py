@@ -73,6 +73,14 @@ ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
 RUN_STATE_PATH = "/tmp/run_state.md"
 RUN_STATE_REL_PATH = "tmp/run_state.md"
+ROUNDS_JSON_REL_PATH = "tmp/rounds.json"
+
+# Single source of truth: root-level /tmp files to include in diffs.
+# (rel_path for diff output, abs_path for sandbox reads, filename for archive reads)
+TMP_ROOT_FILES: tuple[tuple[str, str, str], ...] = (
+    (RUN_STATE_REL_PATH, RUN_STATE_PATH, "run_state.md"),
+    (ROUNDS_JSON_REL_PATH, METADATA_PATH, "rounds.json"),
+)
 RUN_STATE_TEMPLATE = """\
 ## Goal
 
