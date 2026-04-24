@@ -5,12 +5,15 @@ All wrapped variants swallow errors (use for agent-internal code).
 """
 
 from db.connection import get_session_factory
+from db.constants import AUDIT_EVENT_TYPES
 from db.models import AuditLog, ToolCall
 from utils.db_helpers import swallow_errors
 
 
 async def log_audit_raw(run_id: str, event_type: str, details: dict | None) -> None:
     """Log an audit event. Raises on failure (use for HTTP endpoints)."""
+    if event_type not in AUDIT_EVENT_TYPES:
+        raise ValueError(f"Unknown audit event type: {event_type}")
     async with get_session_factory()() as s:
         s.add(
             AuditLog(

@@ -26,13 +26,13 @@ _SANDBOX_SECRET = "test-sandbox-secret"
 _WRONG_SECRET = "wrong-secret"
 
 _AUDIT_PAYLOAD = {
-    "run_id": "run-1",
+    "run_id": "00000000-0000-0000-0000-000000000001",
     "event_type": "tool_timeout",
     "details": {"tool": "Bash"},
 }
 
 _TOOL_CALL_PAYLOAD = {
-    "run_id": "run-1",
+    "run_id": "00000000-0000-0000-0000-000000000001",
     "phase": "pre",
     "tool_name": "Bash",
     "input_data": {"command": "ls"},
@@ -64,7 +64,7 @@ class TestInternalAuditEndpoint:
             )
         assert resp.status_code == 200
         assert resp.json() == {"ok": True}
-        mock.assert_awaited_once_with("run-1", "tool_timeout", {"tool": "Bash"})
+        mock.assert_awaited_once_with("00000000-0000-0000-0000-000000000001", "tool_timeout", {"tool": "Bash"})
 
     def test_missing_run_id_returns_422(self, client: TestClient) -> None:
         payload = {k: v for k, v in _AUDIT_PAYLOAD.items() if k != "run_id"}
@@ -98,7 +98,7 @@ class TestInternalToolCallEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"ok": True}
         mock.assert_awaited_once_with(
-            "run-1",
+            "00000000-0000-0000-0000-000000000001",
             "pre",
             "Bash",
             {"command": "ls"},
