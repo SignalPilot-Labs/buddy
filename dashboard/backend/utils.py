@@ -238,7 +238,7 @@ async def list_pool_tokens() -> list[dict]:
         current_idx = int(idx_row.value) if idx_row else 0
     if not tokens:
         return []
-    active_idx = current_idx % len(tokens)
+    active_idx = (current_idx - 1) % len(tokens)
     return [
         {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": i == active_idx}
         for i, t in enumerate(tokens)

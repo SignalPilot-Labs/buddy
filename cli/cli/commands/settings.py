@@ -94,6 +94,8 @@ def set_settings(
         body["dashboard_api_key"] = api_key
 
     if not body:
+        if claude_token is not None:
+            return
         console.print("[yellow]Nothing to update. Pass at least one --option.[/yellow]")
         raise typer.Exit(1)
 

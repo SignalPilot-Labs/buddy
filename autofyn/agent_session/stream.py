@@ -221,7 +221,7 @@ class StreamDispatcher:
         if session_id:
             await db.save_session_id(run_id, session_id)
         round_cost = data.get("total_cost_usd")
-        if round_cost:
+        if round_cost is not None:
             self._run.total_cost = self._cost_baseline + round_cost
             self._cost_baseline = self._run.total_cost
             self._input_baseline = self._run.total_input_tokens
