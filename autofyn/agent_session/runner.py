@@ -177,6 +177,8 @@ class RoundRunner:
                     if terminal is not None:
                         return terminal
 
+                fired_idle = idle_task
+
                 if sse_task in done:
                     sse_task, terminal, is_rate_limited = await self._handle_sse_event(
                         sse_task,
@@ -205,7 +207,7 @@ class RoundRunner:
                     nudge_count = 0
                     idle_since = asyncio.get_event_loop().time()
 
-                if idle_task is not None and idle_task in done:
+                if fired_idle is not None and fired_idle in done:
                     terminal, nudge_count, idle_task = await self._handle_idle_timeout(
                         round_number, nudge_count, idle_since, session_id
                     )

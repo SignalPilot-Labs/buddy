@@ -121,8 +121,7 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
         audit_events, new_audit_id = await _fetch_new_audit_events(s, run_id, last_audit_id)
 
     merged = sorted(tool_events + audit_events, key=lambda ev: (ev[0], ev[1]))
-    found_any = bool(merged)
-    ended_payload = None if found_any else await _check_run_ended(run_id)
+    ended_payload = await _check_run_ended(run_id)
     return _PollResult(merged, new_tool_id, new_audit_id, ended_payload)
 
 
