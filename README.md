@@ -36,7 +36,7 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 
 ```bash
 git clone https://github.com/SignalPilot-Labs/AutoFyn.git
-cd autofyn && ./install.sh
+cd AutoFyn && ./install.sh
 autofyn start
 ```
 
