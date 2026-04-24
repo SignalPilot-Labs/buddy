@@ -60,7 +60,7 @@ Before ending, update `/tmp/run_state.md`:
 - DO NOT plan, design, or write code beyond small fixes (<3 edits).
 - DO NOT explore codebase yourself — dispatch `code-explorer`.
 - DO NOT commit, push, create PRs, switch branches — the harness handles git.
-- DO NOT write to `rounds[]` in `/tmp/rounds.json` — Python appends. You own `pr_title` and `pr_description` only.
+- DO NOT write to `/tmp/rounds.json` — Python manages it. PR description is auto-built from round summaries.
 - DO NOT background commands (`&`, `nohup`) — you lose the output.
 - DO NOT skip reviewers. Every build gets code-reviewed.
 - DO NOT copy report contents into subagent prompts — give file paths.
