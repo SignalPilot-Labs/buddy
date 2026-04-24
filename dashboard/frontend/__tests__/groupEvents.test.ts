@@ -329,7 +329,7 @@ describe("groupEvents", () => {
       makeToolEvent({
         tool_name: "mcp__session_gate__end_round",
         id: 1,
-        input_data: { summary: "Fix event batching" },
+        input_data: { round_summary: "Fix event batching", session_summary: "Auth hardening" },
       }),
     ];
     const result = groupEvents(events);
@@ -342,15 +342,16 @@ describe("groupEvents", () => {
     }
   });
 
-  it("renders end_session as an End Session milestone", () => {
+  it("renders end_session as an End Session milestone with session_summary", () => {
     const events: FeedEvent[] = [
-      makeToolEvent({ tool_name: "mcp__session_gate__end_session", id: 1 }),
+      makeToolEvent({ tool_name: "mcp__session_gate__end_session", id: 1, input_data: { round_summary: "Final cleanup", session_summary: "Optimize compression" } }),
     ];
     const result = groupEvents(events);
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
       expect(result[0].label).toBe("End Run Requested");
+      expect(result[0].detail).toBe("Optimize compression");
     }
   });
 
