@@ -18,7 +18,7 @@ built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPi
 
 Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
 
-Each round runs Claude in a sandboxed Docker container with fresh context. Knowledge persists externally through git history, round reports, and a lessons file — the agent improves across rounds instead of degrading.
+Each round runs Claude in a sandboxed Docker container with fresh context. A persistent run state tracks the goal, eval history, and learned rules across rounds — the agent measures progress, learns from failures, and improves instead of degrading.
 
 ## Results
 
