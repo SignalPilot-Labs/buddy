@@ -99,7 +99,7 @@ These rules are mandatory. All AI agents must follow them. No exceptions.
 ## Size Limits
 
 - No function longer than 50 lines except in critical cases. Extract helpers.
-- No file longer than 400 lines. Split into focused modules.
+- No file longer than 500 lines. Split into focused modules.
 
 ## Tests
 
