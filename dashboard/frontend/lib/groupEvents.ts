@@ -163,10 +163,11 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       if (cat === "session_gate") {
         const toolName = tc.tool_name.toLowerCase();
         if (toolName.includes("end_round")) {
-          const summary = (tc.input_data?.summary as string) || "";
+          const summary = (tc.input_data?.round_summary as string) || "";
           result.push({ id: `ms-${tc.ts}-End Round Requested`, type: "milestone", label: "End Round Requested", detail: summary, color: "#00ff88", ts: tc.ts });
         } else {
-          result.push({ id: `ms-${tc.ts}-End Run Requested`, type: "milestone", label: "End Run Requested", detail: "", color: "#ffffff", ts: tc.ts });
+          const summary = (tc.input_data?.session_summary as string) || "";
+          result.push({ id: `ms-${tc.ts}-End Run Requested`, type: "milestone", label: "End Run Requested", detail: summary, color: "#ffffff", ts: tc.ts });
         }
         i++;
         continue;
