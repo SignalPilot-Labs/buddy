@@ -21,8 +21,7 @@ class MetadataStore:
     Public API:
         load()                                  -> RoundsMetadata
         save(metadata)                          -> None
-        record_round(n, summary, pr_title?,     -> RoundsMetadata
-                     pr_description?)
+        record_round(n, summary, pr_title?)     -> RoundsMetadata
     """
 
     def __init__(self, sandbox: SandboxClient) -> None:
@@ -40,7 +39,6 @@ class MetadataStore:
             return RoundsMetadata.empty()
         return RoundsMetadata(
             pr_title=str(data.get("pr_title", "")),
-            pr_description=str(data.get("pr_description", "")),
             rounds=[
                 RoundEntry(
                     n=int(r.get("n", 0)),
@@ -62,18 +60,15 @@ class MetadataStore:
         n: int,
         summary: str,
         pr_title: str | None,
-        pr_description: str | None,
     ) -> RoundsMetadata:
         """Append a round entry (or overwrite one with the same n).
 
-        Updates PR title/description if non-None is provided. Returns the
+        Updates PR title if non-None is provided. Returns the
         resulting metadata so callers can persist or log it.
         """
         metadata = await self.load()
         if pr_title is not None:
             metadata.pr_title = pr_title
-        if pr_description is not None:
-            metadata.pr_description = pr_description
 
         entry = RoundEntry(
             n=n,
