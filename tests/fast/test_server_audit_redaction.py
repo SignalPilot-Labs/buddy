@@ -30,7 +30,8 @@ with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer
 
 from utils.constants import ENV_KEY_ANTHROPIC_API, ENV_KEY_CLAUDE_TOKEN, ENV_KEY_GIT_TOKEN, ENV_KEY_INTERNAL_SECRET, ENV_KEY_SANDBOX_SECRET
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun
+from utils.models_http import StartRequest
 from utils.secrets import scrub_secrets
 
 _SECRET_ENV_KEYS: tuple[str, ...] = (
@@ -144,7 +145,7 @@ class TestServerAuditRedaction:
 
         with (
             patch("server.bootstrap_run", side_effect=RuntimeError(f"boom {sentinel}")),
-            patch("server.db.log_audit", log_audit_mock),
+            patch("server.log_audit", log_audit_mock),
         ):
             active = _make_active_run("run-a")
             body = StartRequest(
@@ -188,7 +189,7 @@ class TestServerAuditRedaction:
 
         with (
             patch("server.bootstrap_run", side_effect=RuntimeError(f"boom {sentinel}")),
-            patch("server.db.log_audit", AsyncMock()),
+            patch("server.log_audit", AsyncMock()),
             caplog.at_level(logging.ERROR, logger="server"),
         ):
             active = _make_active_run("run-b")

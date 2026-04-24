@@ -14,30 +14,6 @@ from dataclasses import asdict, dataclass, field
 from typing import Literal, TYPE_CHECKING
 
 from db.constants import RUN_STATUS_STARTING, SUPPORTED_SONNET
-from utils.models_http import (
-    StartRequest,
-    InjectRequest,
-    StopRequest,
-    ResumeRequest,
-    HealthRunEntry,
-    HealthResponse,
-    InternalAuditRequest,
-    InternalToolCallRequest,
-)
-
-# Re-export HTTP schemas so all callers using `from utils.models import <Class>`
-# continue to work unchanged after the split into sibling modules.
-__all__ = [
-    "StartRequest",
-    "InjectRequest",
-    "StopRequest",
-    "ResumeRequest",
-    "HealthRunEntry",
-    "HealthResponse",
-    "InternalAuditRequest",
-    "InternalToolCallRequest",
-]
-
 _FALLBACK_MAP: dict[str, str | None] = {
     "claude-opus-4-6": SUPPORTED_SONNET,
     "claude-sonnet-4-6": None,

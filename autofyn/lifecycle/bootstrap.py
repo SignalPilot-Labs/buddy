@@ -24,6 +24,7 @@ from user.inbox import UserInbox
 from sandbox_client.client import SandboxClient
 from agent_session.time_lock import TimeLock
 from utils import db
+from utils.db_logging import log_audit
 from db.constants import MODELS_SUPPORTING_MAX_EFFORT, RUN_STATUS_RUNNING
 from utils.constants import (
     BRANCH_SLUG_MAX_LEN,
@@ -75,7 +76,7 @@ async def bootstrap_run(
         working_branch=branch_name,
         timeout=clone_timeout,
     )
-    await db.log_audit(run_id, "repo_cloned", {"repo": github_repo, "branch": branch_name})
+    await log_audit(run_id, "repo_cloned", {"repo": github_repo, "branch": branch_name})
     run_config = await load_run_agent_config(sandbox)
     if existing_branch:
         await db.update_run_status(run_id, RUN_STATUS_RUNNING)
@@ -225,7 +226,7 @@ async def _log_run_started(
     custom_prompt: str,
 ) -> None:
     """Emit run_started and prompt_submitted audit events."""
-    await db.log_audit(
+    await log_audit(
         run_id,
         "run_started",
         {
@@ -238,7 +239,7 @@ async def _log_run_started(
     )
     # Full prompt (not truncated) — the frontend renders this text verbatim
     # in the user prompt bubble.
-    await db.log_audit(
+    await log_audit(
         run_id,
         "prompt_submitted",
         {"prompt": custom_prompt},

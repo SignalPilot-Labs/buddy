@@ -15,6 +15,7 @@ from sandbox_client.client import SandboxClient
 from agent_session.time_lock import TimeLock
 from user.inbox import UserInbox
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import (
     session_error_base_backoff_sec,
     session_error_max_retries,
@@ -45,7 +46,7 @@ async def handle_session_error(
         result.error,
         backoff_sec,
     )
-    await db.log_audit(
+    await log_audit(
         run.run_id,
         "session_error",
         {
@@ -77,7 +78,7 @@ async def handle_stopped(
     """Handle a stopped round: log, audit, commit+push."""
     rid = run.run_id[:8]
     log.info("[%s] Round %d stopped by user", rid, round_number)
-    await db.log_audit(
+    await log_audit(
         run.run_id,
         "stop_requested",
         {"round_number": round_number},
@@ -100,7 +101,7 @@ async def handle_paused(
     """Handle a paused round. Returns terminal status or None to continue."""
     rid = run.run_id[:8]
     log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
-    await db.log_audit(
+    await log_audit(
         run.run_id,
         "pause_requested",
         {"round_number": round_number},
@@ -111,7 +112,7 @@ async def handle_paused(
         log.info("[%s] Stopped during pause", rid)
         return RUN_STATUS_STOPPED
     await db.update_run_status(run.run_id, RUN_STATUS_RUNNING)
-    await db.log_audit(run.run_id, "run_resumed", {})
+    await log_audit(run.run_id, "run_resumed", {})
     return None
 
 
@@ -163,7 +164,7 @@ async def handle_complete_or_ended(
             rid,
             max_rounds,
         )
-        await db.log_audit(
+        await log_audit(
             run.run_id,
             "max_rounds_reached",
             {"round_number": round_number, "cap": max_rounds},
@@ -217,7 +218,7 @@ async def _commit_and_push_round(
             round_number,
             result.push_error,
         )
-        await db.log_audit(
+        await log_audit(
             run.run_id,
             "push_failed",
             {
@@ -227,7 +228,7 @@ async def _commit_and_push_round(
         )
         return
 
-    await db.log_audit(
+    await log_audit(
         run.run_id,
         "round_ended",
         {

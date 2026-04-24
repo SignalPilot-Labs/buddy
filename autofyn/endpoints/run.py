@@ -9,16 +9,13 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI, HTTPException
 
 from db.constants import RUN_STATUS_STARTING
-from endpoints.helpers import _merge_tokens_into_env
+from endpoints.helpers import merge_tokens_into_env
 from prompts.loader import load_markdown
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import max_concurrent_runs
-from utils.models import (
-    ActiveRun,
-    HealthResponse,
-    HealthRunEntry,
-    StartRequest,
-)
+from utils.models import ActiveRun
+from utils.models_http import HealthResponse, HealthRunEntry, StartRequest
 
 if TYPE_CHECKING:
     from server import AgentServer
@@ -52,11 +49,11 @@ def register_run_routes(app: FastAPI, server: "AgentServer") -> None:
         )
 
     @app.post("/start")
-    async def start_run(body: StartRequest):
+    async def start_run(body: StartRequest) -> dict:
         """Start a new run — bootstraps a sandbox and kicks off the round loop."""
         server.ensure_capacity()
 
-        body.env = _merge_tokens_into_env(
+        body.env = merge_tokens_into_env(
             body.env,
             body.claude_token,
             body.git_token,
@@ -85,7 +82,7 @@ def register_run_routes(app: FastAPI, server: "AgentServer") -> None:
             body.model,
         )
 
-        await db.log_audit(run_id, "run_starting", {"repo": body.github_repo})
+        await log_audit(run_id, "run_starting", {"repo": body.github_repo})
 
         active = ActiveRun(run_id=run_id)
         server.register_run(active)

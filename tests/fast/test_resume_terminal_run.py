@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from endpoints.control import _restart_terminal_run
 from endpoints.registry import register_routes
 from lifecycle.bootstrap import bootstrap_run
-from utils.models import ResumeRequest
+from utils.models_http import ResumeRequest
 
 
 def _mock_run_info(branch_name: str | None) -> dict:

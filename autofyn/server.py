@@ -25,6 +25,7 @@ from lifecycle.teardown import finalize_run
 from sandbox_client.client import SandboxClient
 from sandbox_client.pool import SandboxPool
 from utils import db
+from utils.db_logging import log_audit
 from db.constants import (
     ACTIVE_RUN_STATUSES,
     RUN_STATUS_CRASHED,
@@ -48,7 +49,8 @@ from utils.constants import (
     max_concurrent_runs,
     server_port,
 )
-from utils.models import ActiveRun, BootstrapResult, RunContext, StartRequest
+from utils.models import ActiveRun, BootstrapResult, RunContext
+from utils.models_http import StartRequest
 from utils.secrets import scrub_secrets
 
 log = logging.getLogger("server")
@@ -221,7 +223,7 @@ class AgentServer:
         """
         tail_lines = await self._pool.get_sandbox_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
         sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
-        await db.log_audit(
+        await log_audit(
             run_id,
             "sandbox_crash",
             {
@@ -250,7 +252,7 @@ class AgentServer:
             if bootstrap and bootstrap.time_lock
             else None
         )
-        await db.log_audit(
+        await log_audit(
             run_id,
             "run_ended",
             {
@@ -273,7 +275,7 @@ class AgentServer:
             body.env,
             body.host_mounts,
         )
-        await db.log_audit(run_id, "sandbox_created", {})
+        await log_audit(run_id, "sandbox_created", {})
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:

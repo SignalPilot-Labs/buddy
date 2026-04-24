@@ -32,6 +32,7 @@ from sandbox_client.client import SandboxClient
 from agent_session.runner import RoundRunner
 from agent_session.time_lock import TimeLock
 from utils import db
+from utils.db_reconcile import reconcile_orphaned_agent_calls
 from db.constants import (
     RUN_STATUS_ERROR,
     RUN_STATUS_PAUSED,
@@ -119,7 +120,7 @@ async def run_rounds(
         )
 
         result = await runner.run(options, initial_prompt, round_number)
-        await db.reconcile_orphaned_agent_calls(run.run_id)
+        await reconcile_orphaned_agent_calls(run.run_id)
 
         terminal, consecutive_session_errors = await _handle_round_outcome(
             result=result,

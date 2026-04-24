@@ -56,7 +56,7 @@ class TestInternalAuditEndpoint:
     """POST /internal/audit — DB call and validation."""
 
     def test_valid_payload_calls_log_audit(self, client: TestClient) -> None:
-        with patch("internal_endpoints.db.log_audit", new_callable=AsyncMock) as mock:
+        with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock) as mock:
             resp = client.post(
                 "/internal/audit",
                 json=_AUDIT_PAYLOAD,
@@ -89,7 +89,7 @@ class TestInternalToolCallEndpoint:
     """POST /internal/tool-call — DB call and validation."""
 
     def test_valid_payload_calls_log_tool_call(self, client: TestClient) -> None:
-        with patch("internal_endpoints.db.log_tool_call", new_callable=AsyncMock) as mock:
+        with patch("internal_endpoints.log_tool_call_raw", new_callable=AsyncMock) as mock:
             resp = client.post(
                 "/internal/tool-call",
                 json=_TOOL_CALL_PAYLOAD,
@@ -135,7 +135,7 @@ class TestDualSecretAuth:
     """Auth middleware accepts agent secret, sandbox secret; rejects others."""
 
     def test_agent_secret_accepted(self, client: TestClient) -> None:
-        with patch("internal_endpoints.db.log_audit", new_callable=AsyncMock):
+        with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock):
             resp = client.post(
                 "/internal/audit",
                 json=_AUDIT_PAYLOAD,
@@ -144,7 +144,7 @@ class TestDualSecretAuth:
         assert resp.status_code == 200
 
     def test_sandbox_secret_accepted(self, client: TestClient) -> None:
-        with patch("internal_endpoints.db.log_audit", new_callable=AsyncMock):
+        with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock):
             resp = client.post(
                 "/internal/audit",
                 json=_AUDIT_PAYLOAD,
