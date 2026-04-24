@@ -22,8 +22,7 @@ from utils.constants import (
     HEADER_GITHUB_TOKEN,
     ROUND_ARCHIVE_AGENT_DIR,
     ROUND_DIR_NAME_RE,
-    RUN_STATE_PATH,
-    RUN_STATE_REL_PATH,
+    TMP_ROOT_FILES,
 )
 from utils.diff import fetch_github_diff
 
@@ -74,9 +73,10 @@ async def _collect_tmp_from_sandbox(
             continue
         for fname, content in sorted(files.items()):
             entries.append((f"tmp/{round_name}/{fname}", content))
-    run_state_content = await client.file_system.read(RUN_STATE_PATH)
-    if run_state_content is not None:
-        entries.append((RUN_STATE_REL_PATH, run_state_content))
+    for rel_path, abs_path, _filename in TMP_ROOT_FILES:
+        content = await client.file_system.read(abs_path)
+        if content is not None:
+            entries.append((rel_path, content))
     return entries
 
 
@@ -97,6 +97,13 @@ def _collect_tmp_from_archive(run_id: str) -> list[tuple[str, str]]:
             except (OSError, UnicodeDecodeError):
                 continue
             entries.append((f"tmp/{round_dir.name}/{f.name}", content))
+    for rel_path, _abs_path, filename in TMP_ROOT_FILES:
+        fpath = archive_root / filename
+        if fpath.is_file():
+            try:
+                entries.append((rel_path, fpath.read_text(encoding="utf-8")))
+            except (OSError, UnicodeDecodeError):
+                pass
     return entries
 
 
