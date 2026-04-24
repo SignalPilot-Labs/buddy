@@ -331,12 +331,14 @@ class RoundRunner:
                 status="complete",
                 session_id=session_id,
                 round_summary=signal.round_summary,
+                session_summary=signal.session_summary,
             )
         if signal.kind == "run_ended":
             return RoundResult(
                 status="ended",
                 session_id=session_id,
                 round_summary=signal.round_summary,
+                session_summary=signal.session_summary,
             )
         if signal.kind == "rate_limit_info":
             # Informational only — the SDK handles retry internally.

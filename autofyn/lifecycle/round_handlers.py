@@ -89,6 +89,7 @@ async def handle_stopped(
         round_number,
         metadata_store,
         result.round_summary,
+        result.session_summary,
         exec_timeout,
     )
 
@@ -135,6 +136,7 @@ async def handle_complete_or_ended(
         round_number,
         metadata_store,
         result.round_summary,
+        result.session_summary,
         exec_timeout,
     )
 
@@ -186,11 +188,11 @@ async def _commit_and_push_round(
     round_number: int,
     metadata_store: MetadataStore,
     end_round_summary: str | None,
+    session_summary: str | None,
     exec_timeout: int,
 ) -> None:
-    """Commit the round. Uses the end_round/end_session summary if the
-    orchestrator called one; otherwise autocommits and the loop continues
-    into the next round."""
+    """Commit the round. round_summary becomes the git commit message.
+    session_summary becomes the PR title in rounds.json."""
     summary = end_round_summary or " ended without summary -- autocommit"
     message = f"[Round {round_number}] {summary}"
 
@@ -200,15 +202,10 @@ async def _commit_and_push_round(
         log.info("Round %d produced no commit", round_number)
         return
 
-    # Append the round entry to /tmp/rounds.json. The orchestrator prompt
-    # promises Python does this on its behalf ("Python appends your round
-    # entry automatically when you call end_round"), so it must actually
-    # happen — otherwise rounds[] stays empty and teardown has no history
-    # to build the final PR body from.
     await metadata_store.record_round(
         n=round_number,
         summary=summary,
-        pr_title=None,
+        pr_title=session_summary,
         pr_description=None,
     )
 

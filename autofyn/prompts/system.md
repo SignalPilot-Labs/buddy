@@ -78,10 +78,13 @@ Before ending, update `/tmp/run_state.md`:
 
 # Ending
 
-Check `git status` for build artifacts → `.gitignore`. Update `pr_title` and `pr_description` in `/tmp/rounds.json`.
+Check `git status` for build artifacts → `.gitignore`.
 
-`end_round(summary)` or `end_session(summary)`. Summary ≤60 chars will appear as `[Round {ROUND_NUMBER}] <summary>` in git.
+Both tools take two arguments:
+- `round_summary` — ≤60 chars, becomes `[Round {ROUND_NUMBER}] <round_summary>` in git commit
+- `session_summary` — PR title. Refine it each round as the work evolves.
 
-- `end_round` — commits, starts next round. Default.
-- `end_session` — commits, ends run. Only when all APPROVE and goal achieved. If denied, call `end_round`.
-- Time-locked: `end_session` denied until time runs out.
+`end_round(round_summary, session_summary)` — commits, starts next round. Default.
+`end_session(round_summary, session_summary)` — commits, ends run, session_summary becomes final PR title. Only when all APPROVE and goal achieved. If denied, call `end_round`.
+
+Time-locked: `end_session` denied until time runs out.

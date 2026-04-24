@@ -55,12 +55,17 @@ class SessionGate:
                 " complete. Does NOT end the whole run — use `end_session`"
                 " for that."
             ),
-            {"summary": str},
+            {"round_summary": str, "session_summary": str},
         )
         async def end_round_tool(args: dict[str, Any]) -> dict[str, Any]:
-            summary = args["summary"]
             mark_ended()
-            emit({"event": "end_round", "data": {"summary": summary}})
+            emit({
+                "event": "end_round",
+                "data": {
+                    "round_summary": args["round_summary"],
+                    "session_summary": args["session_summary"],
+                },
+            })
             return {"content": [{"type": "text", "text": "Round ended."}]}
 
         @tool(
@@ -70,7 +75,7 @@ class SessionGate:
                 " to build, fix, or verify across any future round. Denied"
                 " while the time lock has time remaining."
             ),
-            {"summary": str},
+            {"round_summary": str, "session_summary": str},
         )
         async def end_session_tool(args: dict[str, Any]) -> dict[str, Any]:
             elapsed_sec = time.time() - start
@@ -88,7 +93,8 @@ class SessionGate:
                     {
                         "event": "end_session",
                         "data": {
-                            "summary": args["summary"],
+                            "round_summary": args["round_summary"],
+                            "session_summary": args["session_summary"],
                             "elapsed_minutes": round(elapsed_min, 1),
                         },
                     }

@@ -136,6 +136,7 @@ class RoundResult:
     session_id: str | None
     error: str | None = None
     round_summary: str | None = None
+    session_summary: str | None = None
 
 
 @dataclass
@@ -275,6 +276,7 @@ class StreamSignal:
     kind: SignalKind
     rate_limit_data: dict | None = None
     round_summary: str | None = None
+    session_summary: str | None = None
     error: str | None = None
 
 

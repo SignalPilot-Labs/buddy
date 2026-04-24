@@ -112,13 +112,22 @@ class StreamDispatcher:
             return StreamSignal(kind="round_complete")
 
         if kind == "end_round":
-            summary = data.get("summary") or ""
-            log.info("[%s] end_round: %s", self._rid, summary[:80])
-            return StreamSignal(kind="round_complete", round_summary=summary)
+            round_summary = data.get("round_summary") or ""
+            session_summary = data.get("session_summary") or ""
+            log.info("[%s] end_round: %s", self._rid, round_summary[:80])
+            return StreamSignal(
+                kind="round_complete",
+                round_summary=round_summary,
+                session_summary=session_summary,
+            )
 
         if kind == "end_session":
             log.info("[%s] end_session received", self._rid)
-            return StreamSignal(kind="run_ended", round_summary=data.get("summary"))
+            return StreamSignal(
+                kind="run_ended",
+                round_summary=data.get("round_summary"),
+                session_summary=data.get("session_summary"),
+            )
 
         if kind == "end_session_denied":
             log.info(
