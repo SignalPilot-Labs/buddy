@@ -36,11 +36,12 @@ class TestEndRound:
     @pytest.mark.asyncio
     async def test_end_round_marks_ended(self) -> None:
         gate, emitted, ended = _make_gate(60, 10, False)
-        result = await gate._end_round.handler({"summary": "round done"})
+        result = await gate._end_round.handler({"round_summary": "round done", "session_summary": "Test PR"})
 
         assert len(ended) == 1
         assert emitted[-1]["event"] == "end_round"
-        assert emitted[-1]["data"]["summary"] == "round done"
+        assert emitted[-1]["data"]["round_summary"] == "round done"
+        assert emitted[-1]["data"]["session_summary"] == "Test PR"
         assert result["content"][0]["text"] == "Round ended."
 
 
@@ -52,7 +53,7 @@ class TestEndSessionLocked:
         gate, emitted, ended = _make_gate(60, 10, False)
 
         with patch("session.gate.log_audit", new_callable=AsyncMock):
-            result = await gate._end_session.handler({"summary": "all done"})
+            result = await gate._end_session.handler({"round_summary": "all done", "session_summary": "PR title"})
 
         assert len(ended) == 0
         assert "SESSION LOCKED" in result["content"][0]["text"]
@@ -63,7 +64,7 @@ class TestEndSessionLocked:
         gate, emitted, ended = _make_gate(60, 58, False)
 
         with patch("session.gate.log_audit", new_callable=AsyncMock):
-            result = await gate._end_session.handler({"summary": "done"})
+            result = await gate._end_session.handler({"round_summary": "done", "session_summary": "PR title"})
 
         assert len(ended) == 1
         assert emitted[-1]["event"] == "end_session"
@@ -74,7 +75,7 @@ class TestEndSessionLocked:
         gate, emitted, ended = _make_gate(60, 10, True)
 
         with patch("session.gate.log_audit", new_callable=AsyncMock):
-            await gate._end_session.handler({"summary": "forced"})
+            await gate._end_session.handler({"round_summary": "forced", "session_summary": "PR title"})
 
         assert len(ended) == 1
         assert emitted[-1]["event"] == "end_session"
@@ -84,6 +85,6 @@ class TestEndSessionLocked:
         gate, emitted, ended = _make_gate(0, 0, False)
 
         with patch("session.gate.log_audit", new_callable=AsyncMock):
-            await gate._end_session.handler({"summary": "no lock"})
+            await gate._end_session.handler({"round_summary": "no lock", "session_summary": "PR title"})
 
         assert len(ended) == 1
