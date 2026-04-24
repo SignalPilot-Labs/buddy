@@ -20,24 +20,6 @@ Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
 
 Each round runs Claude in a sandboxed Docker container with fresh context. A persistent run state tracks the goal, eval history, and learned rules across rounds — the agent measures progress, learns from failures, and improves instead of degrading.
 
-## How it works
-
-Most AI coding agents run Claude in a single long context or a naive bash loop — dump progress to a file, read it back, repeat. They have no structured memory across iterations, no measurement of whether they're improving, and no mechanism to stop repeating mistakes. Context degrades, errors compound, and the agent drifts.
-
-AutoFyn takes a different approach, inspired by reinforcement learning:
-
-**State.** Each round starts fresh with a persistent `run_state.md` that carries the goal, eval history, and learned rules across rounds. This is the agent's memory — not a chat log, but a structured representation of what it knows.
-
-**Reward signal.** Every round ends with a measurable eval: run the benchmark, count the vulnerabilities, check the test suite. The result is appended to an eval history with trend annotations (IMPROVED, PLATEAU, REGRESSION, BREAKTHROUGH). The agent sees whether it's making progress or going in circles.
-
-**Policy updates.** When reviewers find patterns — a recurring mistake, a repo quirk, a constraint violation — the orchestrator promotes them to Rules: `ALWAYS/NEVER: <action> (because <reason>, round N)`. These persist across rounds and are injected into every subagent's context. The agent learns from its failures and doesn't repeat them.
-
-**Explore → Plan → Build → Review.** Each round follows a fixed pipeline. Specialized subagents handle each phase — an architect designs, a builder implements, reviewers verify. The orchestrator delegates but never writes code itself. Reviewers are independent: they get file paths, not instructions on what to approve, so they function as an unbiased feedback loop.
-
-**Time-locked sessions.** The agent can't declare victory early. `end_session` is denied until the time limit, forcing the agent to keep iterating. Combined with eval history, this means the agent spends its budget on measurable improvement rather than premature PRs.
-
-The result: an agent that measures, learns, and improves over rounds instead of degrading. Each round builds on the last — not by carrying forward a growing context window, but by carrying forward structured knowledge about what works.
-
 ## Results
 
 ### Security audits
@@ -71,6 +53,16 @@ To configure manually:
 ```bash
 autofyn settings set --claude-token YOUR_KEY --git-token YOUR_TOKEN --github-repo owner/repo
 ```
+
+## How it works
+
+LLM agents that run in a loop hit three failure modes: context grows until the model loses track, mistakes repeat because nothing is learned between iterations, and the agent can't tell whether it's making progress or going in circles. AutoFyn's round loop addresses each one, borrowing from how RL agents learn.
+
+- **State, not context.** Each round gets a clean context window. Cross-round knowledge is a structured `run_state.md` — the goal, eval history, and learned rules — not a growing chat log. The agent reads state, acts, writes state back. Context never degrades because it never accumulates.
+- **Dense reward signal.** Every round ends with a real eval: run the benchmark, execute the exploit, check the test suite. The score delta is appended to eval history with trend annotations (IMPROVED, PLATEAU, REGRESSION, BREAKTHROUGH). The agent knows whether it's converging or drifting — and so do you.
+- **Policy updates from failures.** Reviewer findings and repeated mistakes become persistent Rules: `ALWAYS: run migrations before tests (because round 4 broke prod, round 4)`. Injected into every subagent's context next round. The same mistake doesn't happen twice because the lesson is encoded in state, not hoped to survive in context.
+- **Honest feedback loop.** Reviewers are independent — they receive file paths, not the orchestrator's intent. A round that improves the metric but violates a constraint is rejected. The signal is unbiased, so the agent corrects course instead of reinforcing bad decisions.
+- **Time-locked episodes.** `end_session` is denied until the budget expires. The agent can't ship a half-done PR at round 2. It iterates toward the target for the full duration, with eval history telling it what's working.
 
 ## CLI reference
 
