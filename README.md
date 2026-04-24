@@ -54,6 +54,16 @@ To configure manually:
 autofyn settings set --claude-token YOUR_KEY --git-token YOUR_TOKEN --github-repo owner/repo
 ```
 
+## How it works
+
+LLM agents that run in a loop hit three failure modes: context grows until the model loses track, mistakes repeat because nothing is learned between iterations, and the agent can't tell whether it's making progress or going in circles. AutoFyn's round loop addresses each one, borrowing from how RL agents learn.
+
+- **State, not context.** Each round gets a clean context window. Cross-round knowledge is a structured `run_state.md` — the goal, eval history, and learned rules — not a growing chat log. The agent reads state, acts, writes state back. Context never degrades because it never accumulates.
+- **Dense reward signal.** Every round ends with a real eval: run the benchmark, execute the exploit, check the test suite. The score delta is appended to eval history with trend annotations (IMPROVED, PLATEAU, REGRESSION, BREAKTHROUGH). The agent knows whether it's converging or drifting — and so do you.
+- **Policy updates from failures.** Reviewer findings and repeated mistakes become persistent Rules: `ALWAYS: run migrations before tests (because round 4 broke prod, round 4)`. Injected into every subagent's context next round. The same mistake doesn't happen twice because the lesson is encoded in state, not hoped to survive in context.
+- **Honest feedback loop.** Reviewers are independent — they receive file paths, not the orchestrator's intent. A round that improves the metric but violates a constraint is rejected. The signal is unbiased, so the agent corrects course instead of reinforcing bad decisions.
+- **Time-locked episodes.** `end_session` is denied until the budget expires. The agent can't ship a half-done PR at round 2. It iterates toward the target for the full duration, with eval history telling it what's working.
+
 ## CLI reference
 
 ```
