@@ -2,7 +2,7 @@
 
 import pytest
 
-from utils.models import InjectRequest
+from utils.models_http import InjectRequest
 
 
 class TestInjectRequestValidation:

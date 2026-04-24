@@ -19,7 +19,8 @@ os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
 os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 
 from server import AgentServer
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun
+from utils.models_http import StartRequest
 
 
 @dataclass
@@ -101,7 +102,7 @@ class TestRunEndedAudit:
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", return_value="completed"),
             patch("server.finalize_run", new_callable=AsyncMock),
-            patch("server.db.log_audit", side_effect=fake_audit),
+            patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
@@ -128,7 +129,7 @@ class TestRunEndedAudit:
         with (
             patch("server.SandboxPool") as MockPool,
             patch("server.bootstrap_run", side_effect=RuntimeError("clone failed")),
-            patch("server.db.log_audit", side_effect=fake_audit),
+            patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
@@ -159,7 +160,7 @@ class TestRunEndedAudit:
             patch("server.SandboxPool") as MockPool,
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", side_effect=RuntimeError("sandbox died")),
-            patch("server.db.log_audit", side_effect=fake_audit),
+            patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
@@ -200,7 +201,7 @@ class TestRunEndedAudit:
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", return_value="stopped"),
             patch("server.finalize_run", new_callable=AsyncMock),
-            patch("server.db.log_audit", side_effect=fake_audit),
+            patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))

@@ -14,9 +14,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from endpoints import _restart_terminal_run, register_routes
+from endpoints.control import _restart_terminal_run
+from endpoints.registry import register_routes
 from lifecycle.bootstrap import bootstrap_run
-from utils.models import ResumeRequest
+from utils.models_http import ResumeRequest
 
 
 def _mock_run_info(branch_name: str | None) -> dict:
@@ -63,8 +64,8 @@ class TestRestartTerminalRun:
         server.remove_run = MagicMock()
 
         body = _make_resume_body("run-1", "continue the work")
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 result = await _restart_terminal_run(server, body)
 
@@ -83,8 +84,8 @@ class TestRestartTerminalRun:
         server.remove_run = MagicMock()
 
         body = _make_resume_body("run-1", "new instructions")
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 await _restart_terminal_run(server, body)
 
@@ -101,8 +102,8 @@ class TestRestartTerminalRun:
         server.remove_run = MagicMock()
 
         body = _make_resume_body("run-1", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 await _restart_terminal_run(server, body)
 
@@ -113,7 +114,7 @@ class TestRestartTerminalRun:
         """Restart of a non-existent run must raise 404."""
         server = MagicMock()
         body = _make_resume_body("nonexistent", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=None):
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=None):
             with pytest.raises(HTTPException) as exc_info:
                 await _restart_terminal_run(server, body)
         assert exc_info.value.status_code == 404
@@ -123,7 +124,7 @@ class TestRestartTerminalRun:
         """Restart of a run with no branch must raise 409."""
         server = MagicMock()
         body = _make_resume_body("run-1", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info(None)):
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info(None)):
             with pytest.raises(HTTPException) as exc_info:
                 await _restart_terminal_run(server, body)
         assert exc_info.value.status_code == 409
@@ -137,8 +138,8 @@ class TestRestartTerminalRun:
         server.remove_run = MagicMock()
 
         body = _make_resume_body("run-1", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 await _restart_terminal_run(server, body)
 
@@ -303,8 +304,8 @@ class TestResumeEdgeCases:
         run_info["status"] = "completed"
 
         body = _make_resume_body("run-1", "continue please")
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 result = await _restart_terminal_run(server, body)
 
@@ -322,8 +323,8 @@ class TestResumeEdgeCases:
         run_info["status"] = "crashed"
 
         body = _make_resume_body("run-1", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 result = await _restart_terminal_run(server, body)
 
@@ -341,8 +342,8 @@ class TestResumeEdgeCases:
         run_info["status"] = "stopped"
 
         body = _make_resume_body("run-1", "keep going")
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 result = await _restart_terminal_run(server, body)
 
@@ -444,8 +445,8 @@ class TestResumeStateTransitions:
             run_info["status"] = status
 
             body = _make_resume_body("run-1", None)
-            with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
-                with patch("endpoints.asyncio.create_task") as mock_task:
+            with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+                with patch("endpoints.control.asyncio.create_task") as mock_task:
                     mock_task.return_value = MagicMock()
                     result = await _restart_terminal_run(server, body)
 
@@ -467,8 +468,8 @@ class TestResumeStateTransitions:
         run_info["status"] = "running"
 
         body = _make_resume_body("run-1", None)
-        with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
-            with patch("endpoints.asyncio.create_task") as mock_task:
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
                 mock_task.return_value = MagicMock()
                 await _restart_terminal_run(server, body)
 
@@ -485,8 +486,8 @@ class TestResumeStateTransitions:
             server.remove_run = MagicMock()
 
             body = _make_resume_body("run-1", None)
-            with patch("endpoints.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/branch")):
-                with patch("endpoints.asyncio.create_task") as mock_task:
+            with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/branch")):
+                with patch("endpoints.control.asyncio.create_task") as mock_task:
                     mock_task.return_value = MagicMock()
                     await _restart_terminal_run(server, body)
 

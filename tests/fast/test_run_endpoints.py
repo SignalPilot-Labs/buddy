@@ -2,8 +2,8 @@
 
 import pytest
 
-from utils.models import DEFAULT_MODEL, StartRequest, InjectRequest
-from utils.constants import INJECT_PAYLOAD_MAX_LEN
+from db.constants import DEFAULT_MODEL
+from utils.models_http import StartRequest
 
 
 class TestStartRequestModel:
@@ -33,19 +33,3 @@ class TestStartRequestModel:
         req = StartRequest(model="claude-sonnet-4-6")
         data = req.model_dump()
         assert data["model"] == "claude-sonnet-4-6"
-
-
-class TestInjectPayloadLimit:
-    """Tests for inject payload size validation."""
-
-    def test_accepts_normal_payload(self):
-        req = InjectRequest(payload="hello")
-        assert req.payload == "hello"
-
-    def test_rejects_oversized_payload(self):
-        with pytest.raises(ValueError, match="under"):
-            InjectRequest(payload="x" * (INJECT_PAYLOAD_MAX_LEN + 1))
-
-    def test_accepts_none_payload(self):
-        req = InjectRequest(payload=None)
-        assert req.payload is None

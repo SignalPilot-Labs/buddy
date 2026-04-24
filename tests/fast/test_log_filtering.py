@@ -39,7 +39,7 @@ class TestLogRunFilter:
         ]
         result = _filter(lines, RUN_A)
         assert len(result) == 2
-        assert all(PREFIX_A in l for l in result)
+        assert all(PREFIX_A in line for line in result)
 
     def test_excludes_other_run(self) -> None:
         lines = [

@@ -10,6 +10,7 @@ import logging
 
 from agent_session.tracker import SubagentTracker
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import (
     LOG_PREVIEW_LIMIT,
     USAGE_EMIT_INTERVAL,
@@ -111,13 +112,22 @@ class StreamDispatcher:
             return StreamSignal(kind="round_complete")
 
         if kind == "end_round":
-            summary = data.get("summary") or ""
-            log.info("[%s] end_round: %s", self._rid, summary[:80])
-            return StreamSignal(kind="round_complete", round_summary=summary)
+            round_summary = data.get("round_summary") or ""
+            session_summary = data.get("session_summary") or ""
+            log.info("[%s] end_round: %s", self._rid, round_summary[:80])
+            return StreamSignal(
+                kind="round_complete",
+                round_summary=round_summary,
+                session_summary=session_summary,
+            )
 
         if kind == "end_session":
             log.info("[%s] end_session received", self._rid)
-            return StreamSignal(kind="run_ended", round_summary=data.get("summary"))
+            return StreamSignal(
+                kind="run_ended",
+                round_summary=data.get("round_summary"),
+                session_summary=data.get("session_summary"),
+            )
 
         if kind == "end_session_denied":
             log.info(
@@ -150,7 +160,7 @@ class StreamDispatcher:
                     "[%s] %s", self._rid, text[:LOG_PREVIEW_LIMIT].replace("\n", " ")
                 )
                 if text.strip():
-                    await db.log_audit(
+                    await log_audit(
                         run_id,
                         "llm_text",
                         {
@@ -162,7 +172,7 @@ class StreamDispatcher:
                 thinking = block.get("thinking", "")
                 log.info("[%s] [thinking] %s...", self._rid, thinking[:100])
                 if thinking.strip():
-                    await db.log_audit(
+                    await log_audit(
                         run_id,
                         "llm_thinking",
                         {
@@ -255,7 +265,7 @@ class StreamDispatcher:
             )
         self._message_count += 1
         if self._message_count % USAGE_EMIT_INTERVAL == 0:
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "usage",
                 {

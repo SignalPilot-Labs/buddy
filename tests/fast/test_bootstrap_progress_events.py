@@ -19,7 +19,8 @@ with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer, app
 
 from utils.constants import ENV_KEY_GIT_TOKEN, INTERNAL_SECRET_HEADER
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun
+from utils.models_http import StartRequest
 
 
 def _make_server() -> AgentServer:
@@ -56,8 +57,8 @@ class TestRunStartingEvent:
         from httpx import ASGITransport, AsyncClient
 
         with (
-            patch("endpoints.db.create_run_starting", AsyncMock()),
-            patch("endpoints.db.log_audit", side_effect=capture_log_audit),
+            patch("endpoints.run.db.create_run_starting", AsyncMock()),
+            patch("endpoints.run.log_audit", side_effect=capture_log_audit),
             patch("server.AgentServer.execute_run", AsyncMock()),
         ):
             transport = ASGITransport(app=app)
@@ -97,9 +98,9 @@ class TestRunStartingEvent:
         from httpx import ASGITransport, AsyncClient
 
         with (
-            patch("endpoints.db.create_run_starting", AsyncMock()),
-            patch("endpoints.db.log_audit", side_effect=capture_log_audit),
-            patch("endpoints.asyncio.create_task", side_effect=tracking_create_task),
+            patch("endpoints.run.db.create_run_starting", AsyncMock()),
+            patch("endpoints.run.log_audit", side_effect=capture_log_audit),
+            patch("endpoints.run.asyncio.create_task", side_effect=tracking_create_task),
         ):
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -137,7 +138,7 @@ class TestSandboxReadyEvent:
 
         with (
             patch("server.bootstrap_run", side_effect=RuntimeError("abort early")),
-            patch("server.db.log_audit", side_effect=capture_log_audit),
+            patch("server.log_audit", side_effect=capture_log_audit),
         ):
             active = ActiveRun(run_id="run-progress", status="starting")
             with pytest.raises(RuntimeError, match="abort early"):
@@ -174,7 +175,7 @@ class TestSandboxReadyEvent:
 
         with (
             patch("server.bootstrap_run", side_effect=mock_bootstrap),
-            patch("server.db.log_audit", side_effect=mock_log_audit),
+            patch("server.log_audit", side_effect=mock_log_audit),
         ):
             active = ActiveRun(run_id="run-order", status="starting")
             with pytest.raises(RuntimeError):
@@ -203,7 +204,7 @@ class TestRepoClonedEvent:
         mock_sandbox.file_system.read = AsyncMock(side_effect=Exception("no CLAUDE.md"))
 
         with (
-            patch("lifecycle.bootstrap.db.log_audit", side_effect=capture_log_audit),
+            patch("lifecycle.bootstrap.log_audit", side_effect=capture_log_audit),
             patch("lifecycle.bootstrap.db.get_run_branch_name", AsyncMock(return_value=None)),
             patch("lifecycle.bootstrap.db.update_run_branch", AsyncMock()),
             patch("lifecycle.bootstrap.load_run_agent_config", AsyncMock(return_value=None)),

@@ -11,7 +11,6 @@ import hmac
 import logging
 import os
 import traceback
-import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -19,12 +18,14 @@ from starlette.responses import JSONResponse
 import uvicorn
 
 from config.loader import sandbox_config
-from endpoints import register_routes
+from endpoints.registry import register_routes
 from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
+from sandbox_client.client import SandboxClient
 from sandbox_client.pool import SandboxPool
 from utils import db
+from utils.db_logging import log_audit
 from db.constants import (
     ACTIVE_RUN_STATUSES,
     RUN_STATUS_CRASHED,
@@ -35,17 +36,21 @@ from db.constants import (
 from internal_endpoints import register_internal_routes
 from utils.constants import (
     AccessNoiseFilter,
+    DEFAULT_BUDGET_USD,
     ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
+    ENV_KEY_MAX_BUDGET_USD,
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
+    SANDBOX_LOG_TAIL_LINES,
     SERVER_HOST,
     max_concurrent_runs,
     server_port,
 )
-from utils.models import ActiveRun, StartRequest
+from utils.models import ActiveRun, BootstrapResult, RunContext
+from utils.models_http import StartRequest
 from utils.secrets import scrub_secrets
 
 log = logging.getLogger("server")
@@ -178,8 +183,15 @@ class AgentServer:
 
     # ── Run Lifecycle ──────────────────────────────────────────────────
 
-    async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
-        """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
+    def _validate_run_inputs(
+        self,
+        active: ActiveRun,
+        body: StartRequest,
+    ) -> tuple[str, str, str, float, str]:
+        """Validate required run fields. Raises RuntimeError for any missing value.
+
+        Returns (run_id, github_repo, task, budget, git_token).
+        """
         run_id = active.run_id
         if run_id is None:
             raise RuntimeError("execute_run requires ActiveRun.run_id")
@@ -187,17 +199,75 @@ class AgentServer:
         github_repo = body.github_repo
         if not github_repo:
             raise RuntimeError("github_repo is required")
+
         task = body.prompt
         if not task:
             raise RuntimeError("prompt is required — AutoFyn needs a task")
 
         budget = body.max_budget_usd or float(
-            os.environ.get("MAX_BUDGET_USD", "0"),
+            os.environ.get(ENV_KEY_MAX_BUDGET_USD, DEFAULT_BUDGET_USD),
         )
+
         run_env = body.env or {}
         git_token = run_env.get(ENV_KEY_GIT_TOKEN, "")
         if not git_token:
             raise RuntimeError(f"{ENV_KEY_GIT_TOKEN} missing from run env")
+
+        return run_id, github_repo, task, budget, git_token
+
+    async def _capture_crash_logs(self, run_id: str, exc: Exception) -> None:
+        """Capture sandbox logs on exception and persist them as a sandbox_crash audit event.
+
+        Scrubs secrets before logging and storing, so tokens never appear
+        in audit history or the server log.
+        """
+        tail_lines = await self._pool.get_sandbox_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
+        sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
+        await log_audit(
+            run_id,
+            "sandbox_crash",
+            {
+                "error": _scrub_secrets(str(exc)),
+                "sandbox_logs": sandbox_logs,
+            },
+        )
+        if tail_lines:
+            log.error(
+                "Run %s sandbox tail logs:\n%s",
+                run_id,
+                sandbox_logs,
+            )
+
+    async def _cleanup_run(
+        self,
+        run_id: str,
+        active: ActiveRun,
+        terminal_status: str,
+        bootstrap: BootstrapResult | None,
+        sandbox: SandboxClient,
+    ) -> None:
+        """Emit the run_ended audit event and tear down the sandbox."""
+        elapsed = (
+            round(bootstrap.time_lock.elapsed_minutes(), 1)
+            if bootstrap and bootstrap.time_lock
+            else None
+        )
+        await log_audit(
+            run_id,
+            "run_ended",
+            {
+                "status": active.status or terminal_status,
+                "elapsed_minutes": elapsed,
+            },
+        )
+        active.inbox = None
+        active.time_lock = None
+        await sandbox.close()
+        await self._pool.destroy(run_id)
+
+    async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
+        """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
+        run_id, github_repo, task, budget, git_token = self._validate_run_inputs(active, body)
 
         sandbox = await self._pool.create(
             run_id,
@@ -205,7 +275,7 @@ class AgentServer:
             body.env,
             body.host_mounts,
         )
-        await db.log_audit(run_id, "sandbox_created", {})
+        await log_audit(run_id, "sandbox_created", {})
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
@@ -251,37 +321,39 @@ class AgentServer:
             # container. Otherwise failures lose their root cause. Persist
             # them as an audit event so they survive container cleanup and
             # show up in the dashboard timeline.
-            tail_lines = await self._pool.get_sandbox_logs(run_id, tail=200)
-            sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
-            await db.log_audit(
-                run_id,
-                "sandbox_crash",
-                {
-                    "error": _scrub_secrets(str(exc)),
-                    "sandbox_logs": sandbox_logs,
-                },
-            )
-            if tail_lines:
-                log.error(
-                    "Run %s sandbox tail logs:\n%s",
-                    run_id,
-                    sandbox_logs,
-                )
+            await self._capture_crash_logs(run_id, exc)
             raise
         finally:
-            elapsed = round(bootstrap.time_lock.elapsed_minutes(), 1) if bootstrap and bootstrap.time_lock else None
-            await db.log_audit(
-                run_id,
-                "run_ended",
-                {
-                    "status": active.status or terminal_status,
-                    "elapsed_minutes": elapsed,
-                },
+            await self._cleanup_run(run_id, active, terminal_status, bootstrap, sandbox)
+
+    def _persist_terminal_status(
+        self,
+        run_id: str,
+        status: str,
+        error_message: str,
+        context: RunContext | None,
+    ) -> None:
+        """Fire-and-forget DB write for crash or cancel terminal states."""
+        if context is not None:
+            asyncio.create_task(
+                db.finish_run(
+                    run_id,
+                    status,
+                    None,
+                    context.total_cost,
+                    context.total_input_tokens,
+                    context.total_output_tokens,
+                    error_message,
+                    None,
+                    None,
+                    context.cache_creation_input_tokens,
+                    context.cache_read_input_tokens,
+                )
             )
-            active.inbox = None
-            active.time_lock = None
-            await sandbox.close()
-            await self._pool.destroy(run_id)
+        else:
+            asyncio.create_task(
+                db.update_run_status(run_id, status),
+            )
 
     def on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
         """Persist final status for crashes and cancels."""
@@ -295,56 +367,25 @@ class AgentServer:
                 log.error("Run %s crashed:\n%s", active.run_id, _scrub_secrets(tb))
                 active.status = RUN_STATUS_CRASHED
                 active.error_message = _scrub_secrets(str(exc))
-                if active.run_id and context is not None:
-                    asyncio.create_task(
-                        db.finish_run(
-                            active.run_id,
-                            RUN_STATUS_CRASHED,
-                            None,
-                            context.total_cost,
-                            context.total_input_tokens,
-                            context.total_output_tokens,
-                            active.error_message,
-                            None,
-                            None,
-                            context.cache_creation_input_tokens,
-                            context.cache_read_input_tokens,
-                        )
-                    )
-                elif active.run_id:
-                    asyncio.create_task(
-                        db.update_run_status(active.run_id, RUN_STATUS_CRASHED),
+                if active.run_id:
+                    self._persist_terminal_status(
+                        active.run_id,
+                        RUN_STATUS_CRASHED,
+                        active.error_message,
+                        context,
                     )
         except asyncio.CancelledError:
             active.status = RUN_STATUS_KILLED
             active.error_message = "Cancelled"
-            if active.run_id and context is not None:
-                asyncio.create_task(
-                    db.finish_run(
-                        active.run_id,
-                        RUN_STATUS_KILLED,
-                        None,
-                        context.total_cost,
-                        context.total_input_tokens,
-                        context.total_output_tokens,
-                        "Cancelled",
-                        None,
-                        None,
-                        context.cache_creation_input_tokens,
-                        context.cache_read_input_tokens,
-                    )
-                )
-            elif active.run_id:
-                asyncio.create_task(
-                    db.update_run_status(active.run_id, RUN_STATUS_KILLED),
+            if active.run_id:
+                self._persist_terminal_status(
+                    active.run_id,
+                    RUN_STATUS_KILLED,
+                    "Cancelled",
+                    context,
                 )
         finally:
             active.task = None
-
-
-def _new_run_id() -> str:
-    """Generate a fresh run id."""
-    return str(uuid.uuid4())
 
 
 _server = AgentServer()

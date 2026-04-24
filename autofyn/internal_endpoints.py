@@ -12,8 +12,8 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 
-from utils import db
-from utils.models import InternalAuditRequest, InternalToolCallRequest
+from utils.db_logging import log_audit_raw, log_tool_call_raw
+from utils.models_http import InternalAuditRequest, InternalToolCallRequest
 
 log = logging.getLogger("internal_endpoints")
 
@@ -25,7 +25,7 @@ def register_internal_routes(app: FastAPI) -> None:
     async def internal_audit(body: InternalAuditRequest) -> dict:
         """Receive an audit event from a sandbox and write it to the DB."""
         try:
-            await db.log_audit_raw(body.run_id, body.event_type, body.details)
+            await log_audit_raw(body.run_id, body.event_type, body.details)
         except Exception:
             log.error("DB write failed for /internal/audit", exc_info=True)
             raise HTTPException(status_code=500, detail="DB write failed")
@@ -35,7 +35,7 @@ def register_internal_routes(app: FastAPI) -> None:
     async def internal_tool_call(body: InternalToolCallRequest) -> dict:
         """Receive a tool-call event from a sandbox and write it to the DB."""
         try:
-            await db.log_tool_call_raw(
+            await log_tool_call_raw(
                 body.run_id,
                 body.phase,
                 body.tool_name,

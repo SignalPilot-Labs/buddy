@@ -16,7 +16,12 @@ import re
 from pathlib import Path
 
 from sandbox_client.client import SandboxClient
-from utils.constants import METADATA_PATH, ROUND_ARCHIVE_AGENT_DIR, ROUND_DIR_PREFIX
+from utils.constants import (
+    METADATA_PATH,
+    ROUND_ARCHIVE_AGENT_DIR,
+    ROUND_DIR_PREFIX,
+    RUN_STATE_PATH,
+)
 
 log = logging.getLogger("memory.archiver")
 
@@ -35,6 +40,7 @@ class RoundArchiver:
         self._sandbox = sandbox
         self._host_root = Path(ROUND_ARCHIVE_AGENT_DIR) / run_id
         self._rounds_json_host = self._host_root / "rounds.json"
+        self._run_state_host = self._host_root / "run_state.md"
 
     async def archive_round(self, round_number: int) -> None:
         """Pull /tmp/round-<n> and /tmp/rounds.json into the host volume."""
@@ -47,10 +53,13 @@ class RoundArchiver:
         host_dir.mkdir(parents=True, exist_ok=True)
         for name, content in files.items():
             (host_dir / name).write_text(content, encoding="utf-8")
-        # rounds.json accumulates across rounds — overwrite each time.
+        # rounds.json and run_state.md accumulate across rounds — overwrite each time.
         rounds_json = await self._sandbox.file_system.read(METADATA_PATH)
         if rounds_json is not None:
             self._rounds_json_host.write_text(rounds_json, encoding="utf-8")
+        run_state = await self._sandbox.file_system.read(RUN_STATE_PATH)
+        if run_state is not None:
+            self._run_state_host.write_text(run_state, encoding="utf-8")
         log.info(
             "Archived round %d (%d files) to %s",
             round_number, len(files), host_dir,
@@ -82,6 +91,12 @@ class RoundArchiver:
             await self._sandbox.file_system.write(
                 METADATA_PATH,
                 self._rounds_json_host.read_text(encoding="utf-8"),
+                append=False,
+            )
+        if self._run_state_host.is_file():
+            await self._sandbox.file_system.write(
+                RUN_STATE_PATH,
+                self._run_state_host.read_text(encoding="utf-8"),
                 append=False,
             )
         if highest > 0:

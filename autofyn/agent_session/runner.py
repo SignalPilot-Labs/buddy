@@ -34,6 +34,7 @@ from db.constants import (
     RUN_STATUS_RUNNING,
 )
 from utils import db
+from utils.db_logging import log_audit
 from utils.constants import idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
 from utils.run_config import RunAgentConfig
@@ -102,7 +103,7 @@ class RoundRunner:
             finally:
                 pulse.cancel()
         except asyncio.CancelledError:
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "killed",
                 {
@@ -118,7 +119,7 @@ class RoundRunner:
                 exc,
                 exc_info=True,
             )
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "fatal_error",
                 {
@@ -170,51 +171,25 @@ class RoundRunner:
                 )
 
                 if op_task in done:
-                    event = op_task.result()
-                    op_task = asyncio.create_task(self._inbox.next_event())
-                    outcome = await control.handle(event)
-                    if outcome.kind == "break_stop":
-                        return RoundResult(
-                            status="stopped",
-                            session_id=session_id,
-                        )
-                    if outcome.kind == "break_pause":
-                        return RoundResult(
-                            status="paused",
-                            session_id=session_id,
-                        )
-
-                if sse_task in done:
-                    sse_event = sse_task.result()
-                    if sse_event is None:
-                        return RoundResult(
-                            status="complete",
-                            session_id=session_id,
-                        )
-                    sse_task = asyncio.create_task(_next_event(stream_iter))
-                    signal = await dispatcher.dispatch(sse_event)
-                    terminal = await self._apply_signal(
-                        signal,
-                        session_id,
-                        control,
-                        round_number,
+                    op_task, terminal = await self._handle_user_event(
+                        op_task, control, session_id
                     )
                     if terminal is not None:
                         return terminal
 
-                    # Track rate limit state for idle suppression and
-                    # DB status transitions.
-                    if signal.kind == "rate_limit_info":
-                        is_rate_limited = True
-                    elif is_rate_limited:
-                        is_rate_limited = False
-                        await db.update_run_status(
-                            self._run.run_id, RUN_STATUS_RUNNING,
-                        )
-
-                    # Only run the idle timer when nothing is actively
-                    # in progress. Tools in-flight, active subagents,
-                    # and rate-limit waits all suppress idle detection.
+                if sse_task in done:
+                    sse_task, terminal, is_rate_limited = await self._handle_sse_event(
+                        sse_task,
+                        stream_iter,
+                        dispatcher,
+                        control,
+                        session_id,
+                        round_number,
+                        is_rate_limited,
+                    )
+                    if terminal is not None:
+                        return terminal
+                    # Manage idle timer after SSE activity.
                     if idle_task is not None:
                         idle_task.cancel()
                     if (
@@ -227,64 +202,116 @@ class RoundRunner:
                         idle_task = asyncio.create_task(
                             asyncio.sleep(self._run_config.session_idle_timeout_sec),
                         )
-                    # Any real SSE activity resets the nudge counter and timer.
                     nudge_count = 0
                     idle_since = asyncio.get_event_loop().time()
 
                 if idle_task is not None and idle_task in done:
-                    nudge_count += 1
-                    if nudge_count > idle_nudge_max_attempts():
-                        log.info(
-                            "[%s] Round %d idle after %d nudges — ending",
-                            self._rid,
-                            round_number,
-                            idle_nudge_max_attempts(),
-                        )
-                        await db.log_audit(
-                            self._run.run_id,
-                            "idle_timeout",
-                            {
-                                "round_number": round_number,
-                                "nudge_attempts": idle_nudge_max_attempts(),
-                            },
-                        )
-                        return RoundResult(
-                            status="complete",
-                            session_id=session_id,
-                        )
-                    # Nudge: interrupt + inject, then backoff exponentially.
-                    backoff = self._run_config.session_idle_timeout_sec * (2 ** (nudge_count - 1))
-                    idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
-                    log.info(
-                        "[%s] Round %d idle nudge %d/%d — next in %ds",
-                        self._rid,
-                        round_number,
-                        nudge_count,
-                        idle_nudge_max_attempts(),
-                        backoff,
+                    terminal, nudge_count, idle_task = await self._handle_idle_timeout(
+                        round_number, nudge_count, idle_since, session_id
                     )
-                    await db.log_audit(
-                        self._run.run_id,
-                        "idle_nudge",
-                        {
-                            "round_number": round_number,
-                            "nudge_count": nudge_count,
-                            "idle_seconds": idle_seconds,
-                        },
-                    )
-                    await self._sandbox.session.interrupt(session_id)
-                    self._inbox.push(
-                        "inject",
-                        render_idle_nudge(idle_seconds),
-                    )
-                    idle_task = asyncio.create_task(
-                        asyncio.sleep(backoff),
-                    )
+                    if terminal is not None:
+                        return terminal
         finally:
             sse_task.cancel()
             op_task.cancel()
             if idle_task is not None:
                 idle_task.cancel()
+
+    async def _handle_user_event(
+        self,
+        op_task: asyncio.Task,
+        control: UserControl,
+        session_id: str,
+    ) -> tuple[asyncio.Task, RoundResult | None]:
+        """Process a user inbox event. Returns (new_op_task, terminal_result_or_none)."""
+        event = op_task.result()
+        op_task = asyncio.create_task(self._inbox.next_event())
+        outcome = await control.handle(event)
+        if outcome.kind == "break_stop":
+            return op_task, RoundResult(status="stopped", session_id=session_id)
+        if outcome.kind == "break_pause":
+            return op_task, RoundResult(status="paused", session_id=session_id)
+        return op_task, None
+
+    async def _handle_sse_event(
+        self,
+        sse_task: asyncio.Task,
+        stream_iter: AsyncIterator[dict],
+        dispatcher: StreamDispatcher,
+        control: UserControl,
+        session_id: str,
+        round_number: int,
+        is_rate_limited: bool,
+    ) -> tuple[asyncio.Task, RoundResult | None, bool]:
+        """Process one SSE event. Returns (new_sse_task, terminal_result_or_none, new_is_rate_limited)."""
+        sse_event = sse_task.result()
+        if sse_event is None:
+            return sse_task, RoundResult(status="complete", session_id=session_id), is_rate_limited
+        sse_task = asyncio.create_task(_next_event(stream_iter))
+        signal = await dispatcher.dispatch(sse_event)
+        terminal = await self._apply_signal(signal, session_id, control, round_number)
+        if terminal is not None:
+            return sse_task, terminal, is_rate_limited
+
+        # Track rate limit state for idle suppression and DB status transitions.
+        if signal.kind == "rate_limit_info":
+            is_rate_limited = True
+        elif is_rate_limited:
+            is_rate_limited = False
+            await db.update_run_status(self._run.run_id, RUN_STATUS_RUNNING)
+
+        return sse_task, None, is_rate_limited
+
+    async def _handle_idle_timeout(
+        self,
+        round_number: int,
+        nudge_count: int,
+        idle_since: float,
+        session_id: str,
+    ) -> tuple[RoundResult | None, int, asyncio.Task | None]:
+        """Handle an idle timeout firing. Returns (terminal_result_or_none, new_nudge_count, new_idle_task)."""
+        nudge_count += 1
+        if nudge_count > idle_nudge_max_attempts():
+            log.info(
+                "[%s] Round %d idle after %d nudges — ending",
+                self._rid,
+                round_number,
+                idle_nudge_max_attempts(),
+            )
+            await log_audit(
+                self._run.run_id,
+                "idle_timeout",
+                {
+                    "round_number": round_number,
+                    "nudge_attempts": idle_nudge_max_attempts(),
+                },
+            )
+            terminal = RoundResult(status="complete", session_id=session_id)
+            return terminal, nudge_count, None
+
+        backoff = self._run_config.session_idle_timeout_sec * (2 ** (nudge_count - 1))
+        idle_seconds = int(asyncio.get_event_loop().time() - idle_since)
+        log.info(
+            "[%s] Round %d idle nudge %d/%d — next in %ds",
+            self._rid,
+            round_number,
+            nudge_count,
+            idle_nudge_max_attempts(),
+            backoff,
+        )
+        await log_audit(
+            self._run.run_id,
+            "idle_nudge",
+            {
+                "round_number": round_number,
+                "nudge_count": nudge_count,
+                "idle_seconds": idle_seconds,
+            },
+        )
+        await self._sandbox.session.interrupt(session_id)
+        self._inbox.push("inject", render_idle_nudge(idle_seconds))
+        idle_task = asyncio.create_task(asyncio.sleep(backoff))
+        return None, nudge_count, idle_task
 
     async def _apply_signal(
         self,
@@ -304,12 +331,14 @@ class RoundRunner:
                 status="complete",
                 session_id=session_id,
                 round_summary=signal.round_summary,
+                session_summary=signal.session_summary,
             )
         if signal.kind == "run_ended":
             return RoundResult(
                 status="ended",
                 session_id=session_id,
                 round_summary=signal.round_summary,
+                session_summary=signal.session_summary,
             )
         if signal.kind == "rate_limit_info":
             # Informational only — the SDK handles retry internally.
@@ -317,7 +346,7 @@ class RoundRunner:
             # but do NOT end the round. The stream will resume automatically.
             data = signal.rate_limit_data or {}
             resets_at = data.get("resets_at")
-            await db.log_audit(
+            await log_audit(
                 self._run.run_id,
                 "rate_limit",
                 {

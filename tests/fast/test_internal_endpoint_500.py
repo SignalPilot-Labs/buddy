@@ -27,7 +27,7 @@ class TestInternalEndpoint500:
     """Internal endpoints must return 500 on DB failure, not 200."""
 
     def test_tool_call_returns_500_on_db_error(self) -> None:
-        with patch("utils.db.log_tool_call_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
+        with patch("internal_endpoints.log_tool_call_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
             resp = client.post("/internal/tool-call", json={
                 "run_id": "run-1",
                 "phase": "post",
@@ -45,7 +45,7 @@ class TestInternalEndpoint500:
         assert resp.status_code == 500
 
     def test_tool_call_returns_200_on_success(self) -> None:
-        with patch("utils.db.log_tool_call_raw", new_callable=AsyncMock):
+        with patch("internal_endpoints.log_tool_call_raw", new_callable=AsyncMock):
             resp = client.post("/internal/tool-call", json={
                 "run_id": "run-1",
                 "phase": "pre",
@@ -63,7 +63,7 @@ class TestInternalEndpoint500:
         assert resp.status_code == 200
 
     def test_audit_returns_500_on_db_error(self) -> None:
-        with patch("utils.db.log_audit_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
+        with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
             resp = client.post("/internal/audit", json={
                 "run_id": "run-1",
                 "event_type": "subagent_complete",
@@ -72,7 +72,7 @@ class TestInternalEndpoint500:
         assert resp.status_code == 500
 
     def test_audit_returns_200_on_success(self) -> None:
-        with patch("utils.db.log_audit_raw", new_callable=AsyncMock):
+        with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock):
             resp = client.post("/internal/audit", json={
                 "run_id": "run-1",
                 "event_type": "run_started",

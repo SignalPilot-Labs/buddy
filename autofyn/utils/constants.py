@@ -71,6 +71,7 @@ ROUND_DIR_PREFIX = "/tmp/round-"
 ROUND_DIR_NAME_RE = r"^round-\d+$"
 ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
+RUN_STATE_PATH = "/tmp/run_state.md"
 # Persistent round archive on the agent container's `autofyn-rounds`
 # volume. Sandboxes never mount this — the agent pulls/pushes reports
 # via file_system HTTP on round boundaries, keeping per-run isolation.
@@ -167,9 +168,23 @@ ENV_KEY_ANTHROPIC_API = "ANTHROPIC_API_KEY"
 HEADER_GITHUB_TOKEN = "X-GitHub-Token"
 INTERNAL_SECRET_HEADER = "X-Internal-Secret"
 
+# ── GitHub API ──
+GITHUB_API_BASE_URL = "https://api.github.com"
+GITHUB_API_TIMEOUT_SEC = 10
+GITHUB_BRANCHES_PER_PAGE = 100
+GITHUB_ERROR_PREVIEW_LEN = 200
+
 # ── Docker Access ──
 DOCKER_SOCKET_PATH = "/var/run/docker.sock"
 ENV_KEY_ALLOW_DOCKER = "AF_ALLOW_DOCKER"
+
+# ── Agent Tool Names ──
+AGENT_TOOL_NAME = "Agent"
+
+# ── Sandbox ──
+SANDBOX_LOG_TAIL_LINES = 200
+ENV_KEY_MAX_BUDGET_USD = "MAX_BUDGET_USD"
+DEFAULT_BUDGET_USD: str = "0"
 
 # ── Sandbox Pool (per-run containers) ──
 SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose

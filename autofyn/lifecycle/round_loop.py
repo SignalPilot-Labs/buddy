@@ -15,28 +15,28 @@ Round terminal states and what the loop does with them:
     error         : log and tear down
 """
 
-import asyncio
 import logging
 
 from lifecycle.bootstrap import BootstrapResult
+from lifecycle.round_handlers import (
+    handle_complete_or_ended,
+    handle_paused,
+    handle_session_error,
+    handle_stopped,
+)
 from memory.metadata import MetadataStore
 from user.inbox import UserInbox
-from prompts.orchestrator import RoundContext, build_round_system_prompt
+from prompts.orchestrator import RoundContext, build_initial_prompt, build_round_system_prompt
 from prompts.subagent import build_agent_defs
 from sandbox_client.client import SandboxClient
 from agent_session.runner import RoundRunner
 from agent_session.time_lock import TimeLock
 from utils import db
+from utils.db_reconcile import reconcile_orphaned_agent_calls
 from db.constants import (
-    RUN_STATUS_COMPLETED,
     RUN_STATUS_ERROR,
     RUN_STATUS_PAUSED,
-    RUN_STATUS_RUNNING,
     RUN_STATUS_STOPPED,
-)
-from utils.constants import (
-    session_error_base_backoff_sec,
-    session_error_max_retries,
 )
 from utils.models import RoundResult, RunContext
 
@@ -115,12 +115,12 @@ async def run_rounds(
             "preset": system_prompt["preset"],
             "append": system_prompt.get("append", ""),
         }
-        initial_prompt = _build_initial_prompt(
+        initial_prompt = build_initial_prompt(
             round_number, bootstrap.task, time_lock.grace_round_used
         )
 
         result = await runner.run(options, initial_prompt, round_number)
-        await db.reconcile_orphaned_agent_calls(run.run_id)
+        await reconcile_orphaned_agent_calls(run.run_id)
 
         terminal, consecutive_session_errors = await _handle_round_outcome(
             result=result,
@@ -174,210 +174,26 @@ async def _handle_round_outcome(
         return RUN_STATUS_ERROR, 0
 
     if result.status == "session_error":
-        consecutive_session_errors += 1
-        backoff_sec = session_error_base_backoff_sec() * (
-            2 ** (consecutive_session_errors - 1)
+        return await handle_session_error(
+            result, round_number, run, consecutive_session_errors
         )
-        log.warning(
-            "[%s] Round %d session error (%d/%d): %s — retrying in %ds",
-            rid,
-            round_number,
-            consecutive_session_errors,
-            session_error_max_retries(),
-            result.error,
-            backoff_sec,
-        )
-        await db.log_audit(
-            run.run_id,
-            "session_error",
-            {
-                "round_number": round_number,
-                "error": result.error,
-                "attempt": consecutive_session_errors,
-                "backoff_sec": backoff_sec,
-            },
-        )
-        if consecutive_session_errors >= session_error_max_retries():
-            log.error(
-                "[%s] %d consecutive session errors — giving up",
-                rid,
-                consecutive_session_errors,
-            )
-            return RUN_STATUS_ERROR, consecutive_session_errors
-        await asyncio.sleep(backoff_sec)
-        return None, consecutive_session_errors
 
     # Any non-error round resets the counter.
     consecutive_session_errors = 0
 
     if result.status == RUN_STATUS_STOPPED:
-        log.info("[%s] Round %d stopped by user", rid, round_number)
-        await db.log_audit(
-            run.run_id,
-            "stop_requested",
-            {"round_number": round_number},
-        )
-        await _commit_and_push_round(
-            sandbox,
-            run,
-            round_number,
-            metadata_store,
-            result.round_summary,
-            exec_timeout,
+        await handle_stopped(
+            round_number, sandbox, run, metadata_store, result, exec_timeout
         )
         return RUN_STATUS_STOPPED, 0
 
     if result.status == RUN_STATUS_PAUSED:
-        log.info("[%s] Round %d paused — awaiting resume", rid, round_number)
-        await db.log_audit(
-            run.run_id,
-            "pause_requested",
-            {
-                "round_number": round_number,
-            },
-        )
-        await db.update_run_status(run.run_id, RUN_STATUS_PAUSED)
-        resumed = await _await_resume(inbox)
-        if not resumed:
-            log.info("[%s] Stopped during pause", rid)
-            return RUN_STATUS_STOPPED, 0
-        await db.update_run_status(run.run_id, RUN_STATUS_RUNNING)
-        await db.log_audit(run.run_id, "run_resumed", {})
-        return None, 0
+        terminal = await handle_paused(round_number, run, inbox)
+        return terminal, 0
 
     # status in ("complete", "ended")
-    await _commit_and_push_round(
-        sandbox,
-        run,
-        round_number,
-        metadata_store,
-        result.round_summary,
-        exec_timeout,
+    terminal = await handle_complete_or_ended(
+        result, round_number, sandbox, run, metadata_store, exec_timeout,
+        time_lock, inbox, max_rounds,
     )
-
-    if result.status == "ended":
-        log.info("[%s] Orchestrator ended the run after round %d", rid, round_number)
-        return RUN_STATUS_COMPLETED, 0
-
-    if time_lock.is_expired():
-        if time_lock.grace_round_used:
-            log.info(
-                "[%s] Grace round finished after round %d — finishing",
-                rid,
-                round_number,
-            )
-            return RUN_STATUS_COMPLETED, 0
-        log.info(
-            "[%s] Time lock expired after round %d — allowing one grace round",
-            rid,
-            round_number,
-        )
-        time_lock.grace_round_used = True
-        return None, 0
-
-    if round_number >= max_rounds:
-        log.info(
-            "[%s] Round cap reached (%d) — finishing",
-            rid,
-            max_rounds,
-        )
-        await db.log_audit(
-            run.run_id,
-            "max_rounds_reached",
-            {"round_number": round_number, "cap": max_rounds},
-        )
-        return RUN_STATUS_COMPLETED, 0
-
-    if inbox.has_stop():
-        return RUN_STATUS_STOPPED, 0
-
-    return None, 0
-
-
-# ── Commit + push ────────────────────────────────────────────────────
-
-
-async def _commit_and_push_round(
-    sandbox: SandboxClient,
-    run: RunContext,
-    round_number: int,
-    metadata_store: MetadataStore,
-    end_round_summary: str | None,
-    exec_timeout: int,
-) -> None:
-    """Commit the round. Uses the end_round/end_session summary if the
-    orchestrator called one; otherwise autocommits and the loop continues
-    into the next round."""
-    summary = end_round_summary or " ended without summary -- autocommit"
-    message = f"[Round {round_number}] {summary}"
-
-    result = await sandbox.repo.save(message, exec_timeout)
-
-    if not result.committed:
-        log.info("Round %d produced no commit", round_number)
-        return
-
-    # Append the round entry to /tmp/rounds.json. The orchestrator prompt
-    # promises Python does this on its behalf ("Python appends your round
-    # entry automatically when you call end_round"), so it must actually
-    # happen — otherwise rounds[] stays empty and teardown has no history
-    # to build the final PR body from.
-    await metadata_store.record_round(
-        n=round_number,
-        summary=summary,
-        pr_title=None,
-        pr_description=None,
-    )
-
-    if not result.pushed:
-        log.warning(
-            "Round %d push failed: %s",
-            round_number,
-            result.push_error,
-        )
-        await db.log_audit(
-            run.run_id,
-            "push_failed",
-            {
-                "round_number": round_number,
-                "error": result.push_error,
-            },
-        )
-        return
-
-    await db.log_audit(
-        run.run_id,
-        "round_ended",
-        {
-            "round_number": round_number,
-            "summary": summary,
-            "message": message,
-            "total_cost_usd": run.total_cost,
-        },
-    )
-
-
-# ── Pause helpers ────────────────────────────────────────────────────
-
-
-async def _await_resume(inbox: UserInbox) -> bool:
-    """Block until resume or stop arrives. Returns True on resume."""
-    event = await inbox.wait_for_resume_or_stop()
-    return event.kind == "resume"
-
-
-# ── Prompt shim ──────────────────────────────────────────────────────
-
-
-def _build_initial_prompt(round_number: int, task: str, is_grace_round: bool) -> str:
-    """Short per-round kickoff message paired with the round system prompt."""
-    header = f"Round {round_number} is starting.\n\nTask:\n{task.strip()}"
-    if round_number == 1:
-        return f"{header}\n\nComplete the first-round setup before beginning work."
-    suffix = (
-        f"{header}\n\nRead prior-round context from /tmp/round-*/ as needed, "
-        "then continue."
-    )
-    if is_grace_round:
-        suffix += "\n\nTime lock has expired. This is your final round. Wrap up the work, ship it, then call end_session."
-    return suffix
+    return terminal, 0

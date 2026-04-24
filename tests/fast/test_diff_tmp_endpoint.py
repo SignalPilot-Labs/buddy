@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from endpoints import (
+from endpoints.diff import (
     _build_tmp_diff,
     _collect_tmp_from_archive,
     _collect_tmp_from_sandbox,
@@ -92,11 +92,11 @@ class TestCollectTmpFromArchive:
     """Reads archived round files from the agent's host volume."""
 
     def test_missing_archive_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("endpoints.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
+        monkeypatch.setattr("endpoints.diff.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
         assert _collect_tmp_from_archive("nonexistent-run") == []
 
     def test_reads_all_rounds_sorted(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("endpoints.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
+        monkeypatch.setattr("endpoints.diff.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
         run_dir = tmp_path / "run-1"
         (run_dir / "round-2").mkdir(parents=True)
         (run_dir / "round-1").mkdir()
@@ -109,7 +109,7 @@ class TestCollectTmpFromArchive:
         ]
 
     def test_skips_non_file_entries(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("endpoints.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
+        monkeypatch.setattr("endpoints.diff.ROUND_ARCHIVE_AGENT_DIR", str(tmp_path))
         run_dir = tmp_path / "run-1" / "round-1"
         run_dir.mkdir(parents=True)
         (run_dir / "keep.md").write_text("yes")

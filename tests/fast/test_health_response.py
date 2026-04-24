@@ -1,6 +1,6 @@
 """Tests for HealthResponse and HealthRunEntry models."""
 
-from utils.models import HealthResponse, HealthRunEntry
+from utils.models_http import HealthResponse, HealthRunEntry
 
 
 class TestHealthRunEntry:
