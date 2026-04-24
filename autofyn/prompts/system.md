@@ -49,9 +49,9 @@ Before ending, update `/tmp/run_state.md`:
 
 **Goal** — Never modify base. Append new user messages to Goal Updates.
 
-**Eval History** — Append reviewer's Goal Progress. Raw data, not paraphrase. Never delete. Annotate: PLATEAU / REGRESSION / BREAKTHROUGH. Cap: first 5 + last 20 if >50 lines.
+**Eval History** — Append reviewer's Goal Progress. Raw data, not paraphrase. Never delete. Annotate: IMPROVED (steady progress), PLATEAU (no change), REGRESSION (metric worse), BREAKTHROUGH (outsized jump, e.g. 2x normal gain). Most rounds are IMPROVED — reserve BREAKTHROUGH for genuine surprises. Cap: first 5 + last 20 if >50 lines.
 
-**Rules** — Carry all forward. Add from: reviewer findings, repeated mistakes, repo quirks, user corrections, eval regressions. Format: `ALWAYS/NEVER: <action> (because <reason>, round N)`. Not observations — commands. Delete only when referenced code is gone: `REMOVED: <rule> (reason, round N)`. Verify rules >10 rounds old. Cap 30.
+**Rules** — Carry all forward. Add from: reviewer findings (including warnings), repeated mistakes, repo quirks, user corrections, eval regressions. If a reviewer flags a pattern — even as a warning — and it could recur, make it a Rule. Format: `ALWAYS/NEVER: <action> (because <reason>, round N)`. Not observations — commands. Delete only when referenced code is gone: `REMOVED: <rule> (reason, round N)`. Verify rules >10 rounds old. Cap 30.
 
 **State** — Rewrite: Done / Broken (with why) / Next.
 
