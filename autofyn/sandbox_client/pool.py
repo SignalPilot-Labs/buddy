@@ -40,6 +40,7 @@ class SandboxPool:
     def __init__(self) -> None:
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
+        self._clients: dict[str, SandboxClient] = {}
         self._allow_docker = os.environ.get(ENV_KEY_ALLOW_DOCKER, "").lower() in ("1", "true", "yes")
         self._client_timeout: int = sandbox_config()["vm_timeout_sec"]
 
@@ -111,29 +112,42 @@ class SandboxPool:
         self._containers[run_key] = container.id or ""
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
 
+        stale_client = self._clients.pop(run_key, None)
+        if stale_client:
+            await stale_client.close()
+
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
         client = SandboxClient(url, health_timeout, self._client_timeout)
+        self._clients[run_key] = client
         await self._wait_healthy(client, container_name, health_timeout)
         return client
 
     async def destroy(self, run_key: str) -> None:
-        """Stop and remove a sandbox container + its volume."""
+        """Stop and remove a sandbox container + its volume. Closes cached client."""
         container_id = self._containers.pop(run_key, None)
         if not container_id:
             return
         container_name = f"autofyn-sandbox-{run_key}"
         volume_name = f"autofyn-repo-{run_key}"
 
+        client = self._clients.pop(run_key, None)
+        if client:
+            await client.close()
+
         await self._remove_container(container_id, container_name)
         await self._remove_volume(volume_name)
 
     def get_client(self, run_key: str) -> SandboxClient | None:
-        """Return a SandboxClient for a live sandbox, or None if not running."""
+        """Return a cached SandboxClient for a live sandbox, or None if not running."""
         if run_key not in self._containers:
             return None
+        if run_key in self._clients:
+            return self._clients[run_key]
         container_name = f"autofyn-sandbox-{run_key}"
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        return SandboxClient(url, health_timeout=5, timeout=self._client_timeout)
+        client = SandboxClient(url, health_timeout=5, timeout=self._client_timeout)
+        self._clients[run_key] = client
+        return client
 
     async def get_self_logs(self, tail: int) -> list[str]:
         """Fetch logs from the agent container itself."""

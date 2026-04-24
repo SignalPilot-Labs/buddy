@@ -19,23 +19,23 @@ class TestHostMountsBlock:
         assert _host_mounts_block([]) == ""
 
     def test_ro_mode_renders_as_read_only(self) -> None:
-        out = _host_mounts_block([{"target": "/data", "mode": "ro"}])
+        out = _host_mounts_block([{"container_path": "/data", "mode": "ro"}])
         assert "`/data` (read-only)" in out
         assert out.startswith("Host mounts:")
 
     def test_rw_mode_renders_as_read_write(self) -> None:
-        out = _host_mounts_block([{"target": "/cache", "mode": "rw"}])
+        out = _host_mounts_block([{"container_path": "/cache", "mode": "rw"}])
         assert "`/cache` (read-write)" in out
 
     def test_missing_mode_defaults_to_ro(self) -> None:
         # Agents shouldn't assume write access if mode is omitted.
-        out = _host_mounts_block([{"target": "/foo"}])
+        out = _host_mounts_block([{"container_path": "/foo"}])
         assert "(read-only)" in out
 
     def test_multiple_mounts_are_listed_in_order(self) -> None:
         out = _host_mounts_block([
-            {"target": "/a", "mode": "rw"},
-            {"target": "/b", "mode": "ro"},
+            {"container_path": "/a", "mode": "rw"},
+            {"container_path": "/b", "mode": "ro"},
         ])
         lines = out.splitlines()
         assert lines[0] == "Host mounts:"
@@ -82,7 +82,7 @@ class TestRenderEnvironment:
         out = render_environment(
             round_number=1,
             tool_call_timeout_min=60,
-            host_mounts=[{"target": "/workspace", "mode": "rw"}],
+            host_mounts=[{"container_path": "/workspace", "mode": "rw"}],
             user_env_keys=[],
         )
         assert "Host mounts:" in out

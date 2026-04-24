@@ -56,7 +56,14 @@ class SessionManager:
         """Stop a session and clean up."""
         session = self._sessions.pop(session_id, None)
         if session and session.task:
-            session.task.cancel()
+            task = session.task
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                log.warning("Session %s raised exception during cancellation", session_id, exc_info=True)
 
     def unlock(self, session_id: str) -> None:
         """Force-unlock a session's time gate."""

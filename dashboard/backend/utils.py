@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Any
 
 import httpx
+from cryptography.fernet import InvalidToken
 from fastapi import HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -155,6 +156,7 @@ async def read_credentials(repo: str | None) -> dict:
         token = await _pick_next_claude_token(s)
         if token:
             creds["claude_token"] = token
+            await s.commit()
 
         if repo:
             env_key = f"env_vars:{repo}"
@@ -192,7 +194,6 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
     idx = idx % len(tokens)
     picked = tokens[idx]
     await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
-    await s.commit()
     return picked
 
 
@@ -206,7 +207,8 @@ async def read_token_pool(s: AsyncSession) -> list[str]:
     if pool:
         try:
             return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-        except (json.JSONDecodeError, TypeError, Exception):
+        except (json.JSONDecodeError, TypeError, InvalidToken):
+            log.warning("Failed to parse/decrypt token pool, returning empty", exc_info=True)
             return []
     return []
 
@@ -237,7 +239,7 @@ async def list_pool_tokens() -> list[dict]:
         current_idx = int(idx_row.value) if idx_row else 0
     if not tokens:
         return []
-    active_idx = current_idx % len(tokens)
+    active_idx = (current_idx - 1) % len(tokens)
     return [
         {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": i == active_idx}
         for i, t in enumerate(tokens)

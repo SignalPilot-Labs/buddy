@@ -7,7 +7,7 @@ Covers:
 - _commit_and_push_round passes session_summary as pr_title to metadata
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

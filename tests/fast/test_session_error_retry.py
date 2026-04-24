@@ -98,7 +98,7 @@ class TestSessionErrorRetry:
 
     @pytest.mark.asyncio
     async def test_max_retries_stops_run(self):
-        """After MAX_RETRIES consecutive errors, return 'error' terminal status."""
+        """The Nth error (where N == max_retries) should still retry, not terminate."""
         with (
             patch("lifecycle.round_handlers.log_audit", new_callable=AsyncMock),
             patch("lifecycle.round_handlers.asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
@@ -116,9 +116,9 @@ class TestSessionErrorRetry:
                 max_rounds=128,
             )
 
-            assert terminal == "error", "Should give up after max retries"
+            assert terminal is None, "The Nth error should still retry"
             assert error_count == session_error_max_retries()
-            mock_sleep.assert_not_called()
+            mock_sleep.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_successful_round_resets_counter(self):

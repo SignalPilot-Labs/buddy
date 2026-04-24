@@ -56,7 +56,7 @@ async def handle_session_error(
             "backoff_sec": backoff_sec,
         },
     )
-    if consecutive_session_errors >= session_error_max_retries():
+    if consecutive_session_errors > session_error_max_retries():
         log.error(
             "[%s] %d consecutive session errors — giving up",
             rid,

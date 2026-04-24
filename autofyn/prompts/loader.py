@@ -94,5 +94,5 @@ def _host_mounts_block(host_mounts: list[dict[str, str]] | None) -> str:
     for m in host_mounts:
         mode = m.get("mode", "ro")
         access = "read-only" if mode == "ro" else "read-write"
-        lines.append(f"- `{m['target']}` ({access})")
+        lines.append(f"- `{m['container_path']}` ({access})")
     return "\n".join(lines)

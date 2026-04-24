@@ -57,8 +57,10 @@ def plain_status_icon(status: str) -> str:
 
 
 def format_duration(minutes: float | None) -> str:
-    if minutes is None or minutes == 0:
+    if minutes is None:
         return "—"
+    if minutes == 0:
+        return "unlimited"
     if minutes < 60:
         return f"{minutes:.0f}m"
     hours = int(minutes // 60)
@@ -67,7 +69,7 @@ def format_duration(minutes: float | None) -> str:
 
 
 def format_cost(usd: float | None) -> str:
-    if usd is None or usd == 0:
+    if usd is None:
         return "—"
     return f"${usd:.2f}"
 

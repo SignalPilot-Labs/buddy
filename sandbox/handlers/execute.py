@@ -67,6 +67,7 @@ async def handle_execute(request: web.Request) -> web.Response:
     except asyncio.TimeoutError:
         if proc:
             proc.kill()
+            await proc.wait()
         return web.json_response(
             {
                 "stdout": "",

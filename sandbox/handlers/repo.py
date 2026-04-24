@@ -152,7 +152,7 @@ async def handle_teardown(request: web.Request) -> web.Response:
     pr_url, pr_error = await _create_or_update_pr(
         state, pr_title, pr_description, base, timeout,
     )
-    diff = await _branch_diff(state.working_branch, base, timeout)
+    diff = await _branch_diff(state.working_branch, state.base_sha, timeout)
     return web.json_response(
         _build_teardown_response(auto_committed, ahead, True, None, pr_url, pr_error, diff)
     )

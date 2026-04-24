@@ -221,7 +221,7 @@ class StreamDispatcher:
         if session_id:
             await db.save_session_id(run_id, session_id)
         round_cost = data.get("total_cost_usd")
-        if round_cost:
+        if round_cost is not None:
             self._run.total_cost = self._cost_baseline + round_cost
             self._cost_baseline = self._run.total_cost
             self._input_baseline = self._run.total_input_tokens
@@ -244,7 +244,7 @@ class StreamDispatcher:
             out = usage.get("output_tokens", 0)
             cache_create = usage.get("cache_creation_input_tokens", 0)
             cache_read = usage.get("cache_read_input_tokens", 0)
-            self._latest_context_tokens = inp + out + cache_create + cache_read
+            self._latest_context_tokens = inp + cache_create + cache_read
             self._run.total_input_tokens += inp
             self._run.total_output_tokens += out
             self._run.cache_creation_input_tokens += cache_create

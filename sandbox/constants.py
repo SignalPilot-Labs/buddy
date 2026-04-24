@@ -99,3 +99,7 @@ STDERR_BRIEF_LIMIT: int = 200
 
 # ── Auto-commit message ──
 AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
+
+# ── Terminal session events ──
+# These events must never be dropped from the queue; they signal session end.
+TERMINAL_EVENTS: frozenset[str] = frozenset({"session_end", "session_error"})
