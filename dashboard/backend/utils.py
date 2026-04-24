@@ -27,7 +27,9 @@ from backend.constants import (
 from db.connection import get_session_factory
 from db.models import AuditLog, ControlSignal, Run, Setting
 
-_AGENT_INTERNAL_SECRET = os.environ.get("AGENT_INTERNAL_SECRET", "")
+_AGENT_INTERNAL_SECRET = os.environ["AGENT_INTERNAL_SECRET"]
+if not _AGENT_INTERNAL_SECRET:
+    raise RuntimeError("AGENT_INTERNAL_SECRET is empty — dashboard cannot start")
 
 log = logging.getLogger("backend.utils")
 
