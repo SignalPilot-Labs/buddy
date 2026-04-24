@@ -153,7 +153,6 @@ class RoundsMetadata:
     """Parsed `/tmp/rounds.json`. Mutated in-place by the round loop."""
 
     pr_title: str = ""
-    pr_description: str = ""
     rounds: list[RoundEntry] = field(default_factory=list)
 
     @classmethod
@@ -176,7 +175,6 @@ class RoundsMetadata:
         return json.dumps(
             {
                 "pr_title": self.pr_title,
-                "pr_description": self.pr_description,
                 "rounds": [asdict(r) for r in self.rounds],
             },
             indent=2,

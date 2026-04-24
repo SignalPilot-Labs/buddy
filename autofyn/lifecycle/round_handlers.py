@@ -206,7 +206,6 @@ async def _commit_and_push_round(
         n=round_number,
         summary=summary,
         pr_title=session_summary,
-        pr_description=None,
     )
 
     if not result.pushed:
