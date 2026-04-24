@@ -22,6 +22,12 @@ describe("norm", () => {
   it("returns unchanged if no prefix match", () => {
     expect(norm("relative/path.ts")).toBe("relative/path.ts");
   });
+  it("strips /tmp/ prefix to tmp/", () => {
+    expect(norm("/tmp/run_state.md")).toBe("tmp/run_state.md");
+  });
+  it("strips /tmp/round-N prefix to tmp/round-N", () => {
+    expect(norm("/tmp/round-1/architect.md")).toBe("tmp/round-1/architect.md");
+  });
 });
 
 describe("buildTreeFromDiff", () => {
@@ -393,5 +399,42 @@ describe("parseTmpDiffStats", () => {
     expect(parseTmpDiffStats(diff)).toEqual([
       { path: "tmp/round-1/report.md", linesAdded: 2 },
     ]);
+  });
+
+  it("includes tmp/run_state.md (not just tmp/round-N files)", () => {
+    const diff = [
+      makeDiff("tmp/run_state.md", ["line1", "line2", "line3"]),
+      makeDiff("tmp/round-1/plan.md", ["a", "b"]),
+    ].join("\n");
+    const result = parseTmpDiffStats(diff);
+    expect(result).toContainEqual({ path: "tmp/run_state.md", linesAdded: 3 });
+    expect(result).toContainEqual({ path: "tmp/round-1/plan.md", linesAdded: 2 });
+  });
+});
+
+describe("tmp/ partition logic (mirrors WorkTree.tsx liveTree split)", () => {
+  it("tmp/ files (including run_state.md) partition into tmpLive, not repoLive", () => {
+    const changes = [
+      { path: "tmp/run_state.md", action: "write" as const, linesAdded: 5, linesRemoved: 0, timestamp: "t1", toolCallId: 1, toolName: "Write" },
+      { path: "tmp/round-1/plan.md", action: "write" as const, linesAdded: 3, linesRemoved: 0, timestamp: "t2", toolCallId: 2, toolName: "Write" },
+      { path: "src/main.ts", action: "edit" as const, linesAdded: 1, linesRemoved: 0, timestamp: "t3", toolCallId: 3, toolName: "Edit" },
+    ];
+    const tmpLive = changes.filter(c => c.path.startsWith("tmp/"));
+    const repoLive = changes.filter(c => !c.path.startsWith("tmp/"));
+    expect(tmpLive.map(c => c.path)).toContain("tmp/run_state.md");
+    expect(tmpLive.map(c => c.path)).toContain("tmp/round-1/plan.md");
+    expect(repoLive.map(c => c.path)).toContain("src/main.ts");
+    expect(repoLive.map(c => c.path)).not.toContain("tmp/run_state.md");
+
+    const liveTree = mergeTrees(
+      buildTreeFromChanges(repoLive, null),
+      buildTreeFromChanges(tmpLive, "added"),
+    );
+    const runStateLeaf = liveTree.children.get("tmp")!.children.get("run_state.md")!;
+    const plan = liveTree.children.get("tmp")!.children.get("round-1")!.children.get("plan.md")!;
+    const src = liveTree.children.get("src")!.children.get("main.ts")!;
+    expect(runStateLeaf.status).toBe("added");
+    expect(plan.status).toBe("added");
+    expect(src.status).toBe("modified");
   });
 });

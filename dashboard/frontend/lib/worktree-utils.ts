@@ -35,6 +35,7 @@ export interface TreeNode {
 /* ── Path normalisation ── */
 export function norm(p: string): string {
   return p
+    .replace(/^\/tmp\//, "tmp/")
     .replace(/^\/home\/agentuser\/repo\//, "")
     .replace(/^\/workspace\//, "")
     .replace(/^\/home\/agentuser\//, "~/");
@@ -215,7 +216,7 @@ export function parseTmpDiffStats(
     const bIdx = header.lastIndexOf(" b/");
     if (bIdx === -1) continue;
     const path = header.slice(bIdx + 3);
-    if (!path.startsWith("tmp/round-")) continue;
+    if (!path.startsWith("tmp/")) continue;
     let added = 0;
     for (const line of s.slice(nl + 1).split("\n")) {
       if (line.startsWith("+") && !line.startsWith("+++")) added++;

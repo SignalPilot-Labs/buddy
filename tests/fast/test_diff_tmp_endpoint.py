@@ -48,6 +48,7 @@ class TestCollectTmpFromSandbox:
         client = MagicMock()
         client.file_system.ls = AsyncMock(return_value=["round-1", "other", "cache"])
         client.file_system.read_dir = AsyncMock(return_value={"report.md": "hi"})
+        client.file_system.read = AsyncMock(return_value=None)
         entries = await _collect_tmp_from_sandbox(client)
         # Only round-1 was processed.
         client.file_system.read_dir.assert_awaited_once_with("/tmp/round-1")
@@ -60,6 +61,7 @@ class TestCollectTmpFromSandbox:
             "round-..", "round-/etc", "round-abc", "round-", "round-1",
         ])
         client.file_system.read_dir = AsyncMock(return_value={"x.md": "ok"})
+        client.file_system.read = AsyncMock(return_value=None)
         entries = await _collect_tmp_from_sandbox(client)
         # Only the strictly-valid "round-1" is passed to read_dir.
         client.file_system.read_dir.assert_awaited_once_with("/tmp/round-1")
@@ -73,6 +75,7 @@ class TestCollectTmpFromSandbox:
             {"a.md": "one"},   # called for round-1
             {"b.md": "two"},   # called for round-2
         ])
+        client.file_system.read = AsyncMock(return_value=None)
         entries = await _collect_tmp_from_sandbox(client)
         assert entries == [
             ("tmp/round-1/a.md", "one"),
@@ -84,6 +87,7 @@ class TestCollectTmpFromSandbox:
         client = MagicMock()
         client.file_system.ls = AsyncMock(return_value=["round-1", "round-2"])
         client.file_system.read_dir = AsyncMock(side_effect=[None, {"x.md": "data"}])
+        client.file_system.read = AsyncMock(return_value=None)
         entries = await _collect_tmp_from_sandbox(client)
         assert entries == [("tmp/round-2/x.md", "data")]
 
