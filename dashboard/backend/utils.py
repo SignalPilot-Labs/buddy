@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Any
 
 import httpx
+from cryptography.fernet import InvalidToken
 from fastapi import HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -206,7 +207,7 @@ async def read_token_pool(s: AsyncSession) -> list[str]:
     if pool:
         try:
             return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-        except (json.JSONDecodeError, TypeError):
+        except (json.JSONDecodeError, TypeError, InvalidToken):
             log.warning("Failed to parse/decrypt token pool, returning empty", exc_info=True)
             return []
     return []

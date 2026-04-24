@@ -112,8 +112,13 @@ class SandboxPool:
         self._containers[run_key] = container.id or ""
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
 
+        stale_client = self._clients.pop(run_key, None)
+        if stale_client:
+            await stale_client.close()
+
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
         client = SandboxClient(url, health_timeout, self._client_timeout)
+        self._clients[run_key] = client
         await self._wait_healthy(client, container_name, health_timeout)
         return client
 

@@ -72,3 +72,27 @@ class TestSecurityPushRefspec:
         gate = _make_gate()
         result = gate.check_permission("Bash", {"command": "git push -u origin HEAD"})
         assert result is None
+
+    def test_https_url_with_colon_not_treated_as_refspec(self) -> None:
+        """Colon in HTTPS auth URL must not trigger refspec block.
+
+        The gate may still reject for other reasons (non-origin remote),
+        but the rejection must NOT be the refspec error.
+        """
+        gate = _make_gate()
+        result = gate.check_permission(
+            "Bash",
+            {"command": "git push https://user:token@github.com/owner/repo HEAD"},
+        )
+        if result is not None:
+            assert "refspec" not in result.lower()
+
+    def test_ssh_url_with_port_not_treated_as_refspec(self) -> None:
+        """Colon in SSH URL port must not trigger refspec block."""
+        gate = _make_gate()
+        result = gate.check_permission(
+            "Bash",
+            {"command": "git push ssh://git@github.com:22/owner/repo HEAD"},
+        )
+        if result is not None:
+            assert "refspec" not in result.lower()
