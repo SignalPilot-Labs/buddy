@@ -72,6 +72,16 @@ ROUND_DIR_NAME_RE = r"^round-\d+$"
 ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
 RUN_STATE_PATH = "/tmp/run_state.md"
+RUN_STATE_TEMPLATE = """\
+## Goal
+<!-- Set in Round 1 -->
+
+## Eval History
+
+## Rules
+
+## State
+"""
 # Persistent round archive on the agent container's `autofyn-rounds`
 # volume. Sandboxes never mount this — the agent pulls/pushes reports
 # via file_system HTTP on round boundaries, keeping per-run isolation.
