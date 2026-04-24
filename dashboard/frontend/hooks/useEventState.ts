@@ -36,12 +36,18 @@ export interface EventState {
 export function deduplicateToolEvents(
   history: FeedEvent[],
   live: FeedEvent[],
+  prebuiltMap?: Map<string, number>,
 ): { patchedHistory: FeedEvent[]; filteredLive: FeedEvent[] } {
-  const historyToolIdxMap = new Map<string, number>();
-  for (let i = 0; i < history.length; i++) {
-    const ev = history[i];
-    if (ev._kind === "tool" && ev.data.tool_use_id !== null) {
-      historyToolIdxMap.set(ev.data.tool_use_id, i);
+  let historyToolIdxMap: Map<string, number>;
+  if (prebuiltMap) {
+    historyToolIdxMap = prebuiltMap;
+  } else {
+    historyToolIdxMap = new Map<string, number>();
+    for (let i = 0; i < history.length; i++) {
+      const ev = history[i];
+      if (ev._kind === "tool" && ev.data.tool_use_id !== null) {
+        historyToolIdxMap.set(ev.data.tool_use_id, i);
+      }
     }
   }
 
@@ -83,11 +89,22 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyTruncated, setHistoryTruncated] = useState(false);
 
+  const historyToolIdxMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (let i = 0; i < historyEvents.length; i++) {
+      const ev = historyEvents[i];
+      if (ev._kind === "tool" && ev.data.tool_use_id !== null) {
+        map.set(ev.data.tool_use_id, i);
+      }
+    }
+    return map;
+  }, [historyEvents]);
+
   const allEvents = useMemo(() => {
     if (liveEvents.length === 0) return historyEvents;
     if (historyEvents.length === 0) return liveEvents;
 
-    const { patchedHistory, filteredLive } = deduplicateToolEvents(historyEvents, liveEvents);
+    const { patchedHistory, filteredLive } = deduplicateToolEvents(historyEvents, liveEvents, historyToolIdxMap);
 
     const lastHistoryTs = getEventTs(patchedHistory[patchedHistory.length - 1]);
     const firstLiveTs = filteredLive.length > 0 ? getEventTs(filteredLive[0]) : lastHistoryTs;
@@ -101,7 +118,7 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
       if (tsA > tsB) return 1;
       return getEventPriority(a) - getEventPriority(b) || getEventId(a) - getEventId(b);
     });
-  }, [historyEvents, liveEvents]);
+  }, [historyEvents, liveEvents, historyToolIdxMap]);
 
   const addEvent = useCallback((event: FeedEvent) => {
     setHistoryEvents((prev) => [...prev, event]);
