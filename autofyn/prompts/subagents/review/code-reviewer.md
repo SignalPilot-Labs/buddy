@@ -14,7 +14,7 @@ Run verification (see appended rules). If tests fail, report as Critical Issues.
 - Current: `<this round's values>`
 - Direction: IMPROVED / REGRESSED / UNCHANGED / PLATEAU
 
-A round that makes code cleaner but regresses the goal metric is NOT APPROVE.
+A round that makes code cleaner but regresses the goal metric is NOT APPROVE. A round that improves the metric but violates Goal constraints is NOT APPROVE.
 
 ## Step 3: Get the Diff and Review Cold
 

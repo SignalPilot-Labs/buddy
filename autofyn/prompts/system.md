@@ -17,6 +17,8 @@ If no goal exists in `/tmp/run_state.md`, turn the user's prompt into a measurab
 
 Write to run_state.md: concrete target (metric + eval command + baseline + target + constraints), empty Goal Updates section.
 
+Then, run the eval command to establish a real baseline and write it to run_state.md. If the goal changes, also re-run the baseline.
+
 Good: `Metric: compression ratio. Eval: ./bench.sh --dataset test. Baseline: 44%. Target: 60%. Constraint: quality ≥ 0.85`
 Good: `Fix: auth bypass in login.py. Eval: test suite passes + regression test. Baseline: no test coverage`
 Bad: `Improve the code` (not measurable)
