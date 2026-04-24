@@ -171,7 +171,10 @@ export function useDashboard(): DashboardState {
       setAgentHealth((prev) => {
         const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
         const hasNewRun = h.runs.some((r) => !prevIds.has(r.run_id));
-        if (hasNewRun) {
+        const selectedId = selectedRunIdRef.current;
+        const selectedWasActive = selectedId !== null && prev?.runs.some((r) => r.run_id === selectedId);
+        const selectedGone = selectedWasActive === true && !h.runs.some((r) => r.run_id === selectedId);
+        if (hasNewRun || selectedGone) {
           refreshRunsRef.current();
         }
         return h;

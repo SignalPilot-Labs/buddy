@@ -286,8 +286,8 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const liveChanges = useMemo(() => extractFileChanges(events), [events]);
   const writeChanges = useMemo(() => liveChanges.filter(c => c.action !== "read"), [liveChanges]);
   const liveTree = useMemo(() => {
-    const tmpLive = liveChanges.filter(c => c.path.startsWith("tmp/round-"));
-    const repoLive = liveChanges.filter(c => !c.path.startsWith("tmp/round-"));
+    const tmpLive = liveChanges.filter(c => c.path.startsWith("tmp/"));
+    const repoLive = liveChanges.filter(c => !c.path.startsWith("tmp/"));
     return mergeTrees(
       buildTreeFromChanges(repoLive, null),
       buildTreeFromChanges(tmpLive, "added"),
@@ -372,7 +372,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // files come from the tmp diff, everything else from the repo diff.
   // Pick the right source here so FileDiffViewer is simple.
   const diffForPath = (path: string): string | null =>
-    path.startsWith("tmp/round-") ? tmpDiff : repoDiff;
+    path.startsWith("tmp/") ? tmpDiff : repoDiff;
 
   // Always allow clicking files when the tree has content. Diff bodies
   // load async and may arrive after the tree renders — gating clicks on

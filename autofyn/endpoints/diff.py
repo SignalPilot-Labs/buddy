@@ -22,6 +22,8 @@ from utils.constants import (
     HEADER_GITHUB_TOKEN,
     ROUND_ARCHIVE_AGENT_DIR,
     ROUND_DIR_NAME_RE,
+    RUN_STATE_PATH,
+    RUN_STATE_REL_PATH,
 )
 from utils.diff import fetch_github_diff
 
@@ -63,8 +65,6 @@ async def _collect_tmp_from_sandbox(
     """Read /tmp/round-* from the live sandbox. Rounds are fetched in parallel."""
     entries_raw = await client.file_system.ls("/tmp")
     round_names = sorted(n for n in entries_raw if _ROUND_DIR_NAME.match(n))
-    if not round_names:
-        return []
     results = await asyncio.gather(*(
         client.file_system.read_dir(f"/tmp/{n}") for n in round_names
     ))
@@ -74,6 +74,9 @@ async def _collect_tmp_from_sandbox(
             continue
         for fname, content in sorted(files.items()):
             entries.append((f"tmp/{round_name}/{fname}", content))
+    run_state_content = await client.file_system.read(RUN_STATE_PATH)
+    if run_state_content is not None:
+        entries.append((RUN_STATE_REL_PATH, run_state_content))
     return entries
 
 

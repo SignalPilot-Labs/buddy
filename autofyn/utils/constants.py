@@ -72,6 +72,7 @@ ROUND_DIR_NAME_RE = r"^round-\d+$"
 ORCHESTRATOR_REPORT_NAME = "orchestrator.md"
 METADATA_PATH = "/tmp/rounds.json"
 RUN_STATE_PATH = "/tmp/run_state.md"
+RUN_STATE_REL_PATH = "tmp/run_state.md"
 RUN_STATE_TEMPLATE = """\
 ## Goal
 
