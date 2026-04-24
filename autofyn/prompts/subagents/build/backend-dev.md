@@ -24,11 +24,12 @@ If something in the spec feels wrong — a design that creates coupling, a file 
 
 ## Process
 
-1. **Read the spec.** Understand the intent and design decisions, not just the file list.
-2. **Read files named in the spec.** Read callers or tests only if you need them to understand behavior. Do not read files that aren't relevant — stay focused on what the spec touches.
-3. **Implement.** Follow the spec's design. Match the project's existing patterns.
-4. **Verify.** Typechecker then linter.
-5. Do NOT refactor surrounding code unless the spec asks for it.
+1. **Read Rules first.** Open `/tmp/run_state.md`, read the Rules section. These are hard constraints — violating any Rule is a reviewer rejection. Check Rules BEFORE writing any code.
+2. **Read the spec.** Understand the intent and design decisions, not just the file list.
+3. **Read files named in the spec.** Read callers or tests only if you need them to understand behavior. Do not read files that aren't relevant — stay focused on what the spec touches.
+4. **Implement.** Follow the spec's design. Match the project's existing patterns. Cross-check against Rules after each file.
+5. **Verify.** Typechecker then linter.
+6. Do NOT refactor surrounding code unless the spec asks for it.
 
 ## Tests
 
