@@ -145,11 +145,11 @@ async def stream_events(
             last_tool_id, last_audit_id = result.last_tool_id, result.last_audit_id
             for _ts, _priority, ev_str in result.events:
                 yield ev_str
-            if not result.events:
-                yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
             if result.ended_payload:
                 yield f"event: run_ended\ndata: {json.dumps(result.ended_payload)}\n\n"
                 return
+            if not result.events:
+                yield f"event: ping\ndata: {json.dumps({'ts': 'keepalive'})}\n\n"
             await asyncio.sleep(SSE_POLL_INTERVAL_SEC)
 
     return StreamingResponse(

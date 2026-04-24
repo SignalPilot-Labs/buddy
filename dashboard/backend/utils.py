@@ -155,6 +155,7 @@ async def read_credentials(repo: str | None) -> dict:
         token = await _pick_next_claude_token(s)
         if token:
             creds["claude_token"] = token
+            await s.commit()
 
         if repo:
             env_key = f"env_vars:{repo}"
@@ -192,7 +193,6 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
     idx = idx % len(tokens)
     picked = tokens[idx]
     await upsert_setting(s, "claude_token_index", str((idx + 1) % len(tokens)), False)
-    await s.commit()
     return picked
 
 
