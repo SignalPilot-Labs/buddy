@@ -33,6 +33,12 @@ class SessionManager:
         session = Session(session_id, options_dict)
         self._sessions[session_id] = session
         session.task = asyncio.create_task(session.run())
+
+        def _on_task_done(task: asyncio.Task) -> None:
+            self._sessions.pop(session_id, None)
+            log.info("Session %s removed from registry after task completion", session_id)
+
+        session.task.add_done_callback(_on_task_done)
         log.info("Session %s started", session_id)
         return session_id
 
