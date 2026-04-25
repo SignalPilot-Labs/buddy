@@ -1,1 +1,1 @@
-Improve test coverage across this codebase. Find untested critical paths — error handling, edge cases, integration points, data validation. Write tests that catch real bugs, not tests that just increase coverage numbers. If you find bugs while writing tests, fix them.
+Improve test coverage across this codebase. Find untested critical paths — error handling, edge cases, integration points, data validation, UI component logic. Write tests that catch real bugs, not tests that just increase coverage numbers. If you find bugs while writing tests, fix them.

@@ -183,7 +183,7 @@ describe("StartRunModal starter presets", () => {
     const { props } = renderModal();
     // Click a preset
     const presetBtn = Array.from(document.querySelectorAll("button")).find(
-      (b) => b.textContent?.includes(STARTER_PRESETS.bug_sweep.label),
+      (b) => b.textContent?.includes(STARTER_PRESETS.bug_bash.label),
     );
     await userEvent.click(presetBtn!);
 
