@@ -21,7 +21,7 @@ Rules (and why):
 import logging
 import re
 
-from constants import CREDENTIAL_PATTERNS, SECRET_ENV_VARS
+from constants import BASH_BLOCKED_PATH_PATTERNS, CREDENTIAL_PATTERNS, SECRET_ENV_VARS
 
 log = logging.getLogger("sandbox.security")
 
@@ -37,6 +37,7 @@ class SecurityGate:
         self._github_repo = github_repo
         self._branch_name = branch_name
         self._cred_re = re.compile("|".join(CREDENTIAL_PATTERNS), re.IGNORECASE)
+        self._bash_path_re = re.compile("|".join(BASH_BLOCKED_PATH_PATTERNS), re.IGNORECASE)
 
     def check_permission(
         self, tool_name: str, input_data: dict,
@@ -66,6 +67,7 @@ class SecurityGate:
         remote GitHub state, or rewrite branching outside the working branch."""
         return (
             self._check_token_exposure(cmd)
+            or self._check_bash_credential_files(cmd)
             or self._check_secret_var_refs(cmd)
             or self._check_proc_environ(cmd)
             or self._check_branch_integrity(cmd)
@@ -75,6 +77,12 @@ class SecurityGate:
             or self._check_gh_writes(cmd)
             or self._check_github_api_direct(cmd)
         )
+
+    def _check_bash_credential_files(self, cmd: str) -> str | None:
+        """Block bash commands that reference protected credential paths."""
+        if self._bash_path_re.search(cmd):
+            return "Blocked command that references credential file paths"
+        return None
 
     def _check_token_exposure(self, cmd: str) -> str | None:
         """Block commands that would print secrets to stdout (gets logged)."""

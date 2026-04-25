@@ -34,6 +34,11 @@ AGENT_URL_ENV_VAR: str = "AF_AGENT_URL"
 
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg["credential_patterns"]
+
+BASH_BLOCKED_PATH_PATTERNS: tuple[str, ...] = (
+    r"/opt/autofyn/config(/|$)",
+)
+
 SECRET_ENV_VARS: str = _security_cfg["secret_env_vars"]
 
 # ── Session ──
