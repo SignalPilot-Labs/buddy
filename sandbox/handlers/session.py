@@ -11,6 +11,7 @@ import logging
 
 from aiohttp import web
 
+from session.errors import ClientNotReadyError
 from session.errors import SessionNotFoundError
 from session.manager import SessionManager
 
@@ -71,7 +72,10 @@ async def handle_message(request: web.Request) -> web.Response:
     session_id = request.match_info["session_id"]
     sessions: SessionManager = request.app["sessions"]
     body = await request.json()
-    await sessions.send_message(session_id, body["text"])
+    try:
+        await sessions.send_message(session_id, body["text"])
+    except ClientNotReadyError as e:
+        return web.json_response({"error": str(e)}, status=503)
     return web.json_response({"status": "sent"})
 
 
@@ -80,7 +84,10 @@ async def handle_interrupt(request: web.Request) -> web.Response:
     """Interrupt a session's current response."""
     session_id = request.match_info["session_id"]
     sessions: SessionManager = request.app["sessions"]
-    await sessions.interrupt(session_id)
+    try:
+        await sessions.interrupt(session_id)
+    except ClientNotReadyError as e:
+        return web.json_response({"error": str(e)}, status=503)
     return web.json_response({"status": "interrupted"})
 
 

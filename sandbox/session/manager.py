@@ -9,6 +9,7 @@ import logging
 import uuid
 
 from constants import MAX_CONCURRENT_SESSIONS
+from session.errors import ClientNotReadyError
 from session.errors import SessionNotFoundError
 from session.session import Session
 
@@ -49,14 +50,16 @@ class SessionManager:
     async def send_message(self, session_id: str, text: str) -> None:
         """Send a follow-up query to the session."""
         s = self._get(session_id)
-        if s.client:
-            await s.client.query(text)
+        if s.client is None:
+            raise ClientNotReadyError(session_id)
+        await s.client.query(text)
 
     async def interrupt(self, session_id: str) -> None:
         """Interrupt the current response."""
         s = self._get(session_id)
-        if s.client:
-            await s.client.interrupt()
+        if s.client is None:
+            raise ClientNotReadyError(session_id)
+        await s.client.interrupt()
 
     async def stop(self, session_id: str) -> None:
         """Stop a session and clean up."""
