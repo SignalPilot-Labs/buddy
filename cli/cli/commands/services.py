@@ -21,7 +21,8 @@ from cli.constants import (
     MASK_PREFIX_CLAUDE,
     MASK_PREFIX_GIT,
     SIGINT_EXIT_CODE,
-    UP_SCRIPT,
+    START_SCRIPT,
+    UNINSTALL_SCRIPT,
 )
 from cli.git import detect_local_repo
 from cli.output import console, mask_secret
@@ -76,11 +77,11 @@ _DOCKER_WARNING = (
 
 
 def start_services(allow_docker: bool) -> None:
-    """Run up.sh — tears down stale containers then docker compose up -d."""
+    """Run start.sh — tears down stale containers then docker compose up -d."""
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
-    _run_script(UP_SCRIPT)
+    _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:
         _ensure_tokens()
@@ -277,3 +278,12 @@ def kill_services() -> None:
     )
     _compose(["down"])
     console.print("[green]✓[/green] AutoFyn containers removed")
+
+
+def uninstall_services() -> None:
+    """Remove all AutoFyn containers, images, CLI, and ~/.autofyn."""
+    typer.confirm(
+        "This will remove all AutoFyn containers, images, run history, and ~/.autofyn. Continue?",
+        abort=True,
+    )
+    _run_script(UNINSTALL_SCRIPT)

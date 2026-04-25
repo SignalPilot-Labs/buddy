@@ -112,6 +112,17 @@ def kill() -> None:
     services.kill_services()
 
 
+@app.command("uninstall")
+def uninstall() -> None:
+    """Remove all AutoFyn containers, images, and ~/.autofyn. Asks for confirmation.
+
+    \b
+    Example:
+      autofyn uninstall
+    """
+    services.uninstall_services()
+
+
 # ── Subcommand groups ───────────────────────────────────────────────────────
 
 app.add_typer(run.app, name="run")

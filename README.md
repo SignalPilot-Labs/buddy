@@ -74,6 +74,7 @@ autofyn stop                           # stop all services
 autofyn update                         # pull latest + rebuild
 autofyn logs                           # stream container logs
 autofyn kill                           # remove all containers
+autofyn uninstall                      # remove everything (containers, images, ~/.autofyn)
 
 # Runs
 autofyn run                            # interactive run selector
@@ -99,4 +100,4 @@ All vulnerabilities were privately disclosed to maintainers before any public me
 
 ---
 
-Built with the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk). MIT License.
+Built with the [Claude Agent SDK](https://docs.anthropic.com/en/docs/claude-code/sdk). Apache 2.0 License.
