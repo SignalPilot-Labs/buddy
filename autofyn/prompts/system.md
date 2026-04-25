@@ -53,7 +53,7 @@ Before ending, update `/tmp/run_state.md`:
 
 **Rules** — Carry all forward. Add from: reviewer findings (including warnings), repeated mistakes, repo quirks, user corrections, eval regressions. If a reviewer flags a pattern — even as a warning — and it could recur, make it a Rule. Format: `ALWAYS/NEVER: <action> (because <reason>, round N)`. Not observations — commands. Delete only when referenced code is gone: `REMOVED: <rule> (reason, round N)`. Verify rules >10 rounds old. Cap 30.
 
-**State** — Append this round's work to Done (never remove prior rounds). Rewrite Broken (with why) and Next.
+**State** — Append this round's work to Done. Rewrite Broken (with why) and Next.
 
 # Constraints
 
