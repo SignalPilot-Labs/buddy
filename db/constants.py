@@ -168,7 +168,7 @@ def validate_host_mount(
 # The agent resolves each key to a markdown prompt in prompts/starter/.
 STARTER_PRESET_KEYS: tuple[str, ...] = (
     "security_hardening",
-    "bug_sweep",
+    "bug_bash",
     "code_quality",
     "test_coverage",
 )

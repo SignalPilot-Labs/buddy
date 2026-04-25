@@ -75,7 +75,7 @@ export const DEFAULT_BASE_BRANCH = "main";
 // Keys must match STARTER_PRESET_KEYS in db/constants.py — sync test enforces this.
 export const STARTER_PRESETS = {
   security_hardening: { label: "Security hardening", icon: "shield", desc: "Fix security vulnerabilities" },
-  bug_sweep: { label: "Bug sweep", icon: "bug", desc: "Find and squash bugs" },
+  bug_bash: { label: "Bug bash", icon: "bug", desc: "Find and squash bugs" },
   code_quality: { label: "Code quality", icon: "sparkle", desc: "Refactor for quality and performance" },
   test_coverage: { label: "Test coverage", icon: "flask", desc: "Add missing tests" },
 } as const;
