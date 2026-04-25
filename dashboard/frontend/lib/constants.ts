@@ -5,7 +5,7 @@
 
 export const API_PORT = 3401;
 export const UI_PORT = 3400;
-/** API key injected by entrypoint.sh into /public/config.js at runtime. */
+/** API key injected server-side by layout.tsx into inline script at render time. */
 declare global {
   interface Window {
     __AUTOFYN_API_KEY__?: string;
@@ -13,10 +13,10 @@ declare global {
 }
 
 export function getApiKey(): string {
-  if (typeof window !== "undefined" && window.__AUTOFYN_API_KEY__) {
-    return window.__AUTOFYN_API_KEY__;
-  }
-  return process.env.DASHBOARD_API_KEY || "";
+  if (typeof window === "undefined") return "";
+  const key = window.__AUTOFYN_API_KEY__;
+  if (!key) throw new Error("API key not injected — check AUTOFYN_API_KEY env var on Next.js process");
+  return key;
 }
 
 export const API_KEY = getApiKey();

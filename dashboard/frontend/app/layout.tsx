@@ -11,6 +11,8 @@ export const viewport: Viewport = {
   themeColor: "#050505",
 };
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "AutoFyn",
   description: "Real-time monitoring dashboard for the AutoFyn agent",
@@ -53,7 +55,11 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..800&display=swap"
           rel="stylesheet"
         />
-        <script src="/config.js" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__AUTOFYN_API_KEY__=${JSON.stringify(process.env.AUTOFYN_API_KEY ?? "").replace(/</g, "\\u003c")};`,
+          }}
+        />
       </head>
       <body><MotionProvider>{children}</MotionProvider></body>
     </html>

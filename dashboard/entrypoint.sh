@@ -14,9 +14,6 @@ fi
 
 API_KEY="$(cat "$API_KEY_FILE")"
 
-# Inject into frontend runtime config (NEXT_PUBLIC_ only works at build time)
-echo "window.__AUTOFYN_API_KEY__=\"${API_KEY}\";" > /app/frontend/public/config.js
-
 echo "[dashboard] API key: ****${API_KEY: -4}"
 echo "[dashboard] Host IP: ${HOST_IP:-not set}"
 
@@ -35,7 +32,7 @@ done
 
 # ── Start Next.js frontend (standalone server) ───────────────────────────
 cd /app/frontend
-API_URL="http://localhost:${API_PORT}" PORT="$UI_PORT" HOSTNAME="0.0.0.0" node server.js &
+API_URL="http://localhost:${API_PORT}" AUTOFYN_API_KEY="$API_KEY" PORT="$UI_PORT" HOSTNAME="0.0.0.0" node server.js &
 NEXT_PID=$!
 
 echo "[dashboard] Next.js frontend ready on :${UI_PORT}"
