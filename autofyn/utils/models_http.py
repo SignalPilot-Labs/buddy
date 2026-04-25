@@ -8,7 +8,7 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
+from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS, validate_github_repo, validate_prompt_length
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
@@ -27,6 +27,12 @@ class StartRequest(BaseModel):
     github_repo: str | None = None
     env: dict[str, str] | None = None
     host_mounts: list[dict[str, str]] | None = None
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_max_length(cls, v: str | None) -> str | None:
+        """Validate prompt length."""
+        return validate_prompt_length(v)
 
     @field_validator("model")
     @classmethod
@@ -70,6 +76,12 @@ class StartRequest(BaseModel):
             raise ValueError(f"preset must be one of {STARTER_PRESET_KEYS}")
         return v
 
+    @field_validator("github_repo")
+    @classmethod
+    def github_repo_valid(cls, v: str | None) -> str | None:
+        """Validate github_repo format."""
+        return validate_github_repo(v)
+
     @model_validator(mode="after")
     def prompt_or_preset_exclusive(self) -> "StartRequest":
         """Ensure prompt and preset are mutually exclusive."""
@@ -108,6 +120,18 @@ class ResumeRequest(BaseModel):
     git_token: str | None = Field(repr=False)
     github_repo: str | None
     env: dict[str, str] | None
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_max_length(cls, v: str | None) -> str | None:
+        """Validate prompt length."""
+        return validate_prompt_length(v)
+
+    @field_validator("github_repo")
+    @classmethod
+    def github_repo_valid(cls, v: str | None) -> str | None:
+        """Validate github_repo format."""
+        return validate_github_repo(v)
 
 
 class HealthRunEntry(BaseModel):

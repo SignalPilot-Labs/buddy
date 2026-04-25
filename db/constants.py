@@ -4,6 +4,8 @@ The `db` package is the only Python package imported by both `autofyn/` and
 `dashboard/backend/`, so cross-container constants that must not drift live here.
 """
 
+import re
+
 import posixpath
 
 # ── Secret Redaction ──
@@ -183,6 +185,35 @@ TOOL_CALL_PHASES: frozenset[str] = frozenset({"pre", "post"})
 # ── UUID Pattern ──
 # Strict UUID pattern (hex with hyphens, grouped, case-insensitive).
 UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+# ── Input Limits ──
+# Maximum characters for a user-submitted prompt.  ~25 K tokens — generous
+# for any legitimate use-case but prevents multi-MB DoS payloads.
+PROMPT_MAX_LEN: int = 100_000
+
+# ── GitHub Repo ──
+# Maximum length and pattern for owner/repo slugs (ASCII-only).
+GITHUB_REPO_MAX_LEN: int = 256
+GITHUB_REPO_PATTERN: str = r"^[a-zA-Z0-9_\-\.]+/[a-zA-Z0-9_\-\.]+$"
+_GITHUB_REPO_RE: re.Pattern[str] = re.compile(GITHUB_REPO_PATTERN)
+
+
+def validate_prompt_length(v: str | None) -> str | None:
+    """Shared prompt length validator for Pydantic models."""
+    if v is not None and len(v) > PROMPT_MAX_LEN:
+        raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
+    return v
+
+
+def validate_github_repo(v: str | None) -> str | None:
+    """Shared github_repo format and length validator for Pydantic models."""
+    if v is None:
+        return v
+    if len(v) > GITHUB_REPO_MAX_LEN:
+        raise ValueError(f"github_repo must be under {GITHUB_REPO_MAX_LEN} characters")
+    if not _GITHUB_REPO_RE.fullmatch(v):
+        raise ValueError("github_repo must match owner/repo format")
+    return v
 
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across

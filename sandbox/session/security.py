@@ -66,6 +66,7 @@ class SecurityGate:
         remote GitHub state, or rewrite branching outside the working branch."""
         return (
             self._check_token_exposure(cmd)
+            or self._check_bash_credential_files(cmd)
             or self._check_secret_var_refs(cmd)
             or self._check_proc_environ(cmd)
             or self._check_branch_integrity(cmd)
@@ -75,6 +76,12 @@ class SecurityGate:
             or self._check_gh_writes(cmd)
             or self._check_github_api_direct(cmd)
         )
+
+    def _check_bash_credential_files(self, cmd: str) -> str | None:
+        """Block bash commands that reference protected credential paths."""
+        if self._cred_re.search(cmd):
+            return "Blocked command that references credential file paths"
+        return None
 
     def _check_token_exposure(self, cmd: str) -> str | None:
         """Block commands that would print secrets to stdout (gets logged)."""
