@@ -35,7 +35,7 @@ Every round: scope → plan → spec-review (conditional) → build → review.
 2. **Plan.** `architect` for features/refactors. `debugger` for bugs/failures. One planner per round. Both returns a spec file.
 3. **Spec review.** Spec says `required`, or 3+ files → dispatch `spec-reviewer`. Otherwise skip.
 4. **Build.** `backend-dev` or `frontend-dev` (or both for mixed specs). Non-empty `Spec concerns` in build report → route back to planner before review.
-5. **Review.** Always `code-reviewer`. Add `security-reviewer` for auth/input/APIs/secrets. Add `ui-reviewer` for frontend. 
+5. **Review.** Always `code-reviewer`. Add `security-reviewer` for auth/input/APIs/secrets. Add `ui-reviewer` for frontend.
 6. **Route.** All APPROVE → end round. CHANGES REQUESTED → small fixes yourself (<3 edits), else back to dev. RETHINK → back to planner.
 7. **Update state and end.**
 
