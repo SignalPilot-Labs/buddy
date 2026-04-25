@@ -17,7 +17,7 @@ API_KEY="$(cat "$API_KEY_FILE")"
 # Inject into frontend runtime config (NEXT_PUBLIC_ only works at build time)
 echo "window.__AUTOFYN_API_KEY__=\"${API_KEY}\";" > /app/frontend/public/config.js
 
-echo "[dashboard] API key: ${API_KEY}"
+echo "[dashboard] API key: ****${API_KEY: -4}"
 echo "[dashboard] Host IP: ${HOST_IP:-not set}"
 
 # ── Start FastAPI backend ─────────────────────────────────────────────────
