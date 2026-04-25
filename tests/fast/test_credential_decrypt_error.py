@@ -141,6 +141,28 @@ class TestCredentialDecryptError:
                 await utils_mod.read_credentials("org/repo")
 
     @pytest.mark.asyncio
+    async def test_read_credentials_env_vars_corrupt_json_raises(self) -> None:
+        """Corrupt env_vars JSON (decrypts OK but not valid JSON) must raise CredentialDecryptionError."""
+        env_setting = _make_setting("env_vars:org/repo", "CORRUPT_ENV", encrypted=True)
+        get_map: dict[str, MagicMock | None] = {
+            "git_token": None,
+            "github_repo": None,
+            "claude_tokens": None,
+            "env_vars:org/repo": env_setting,
+            "host_mounts:org/repo": None,
+        }
+
+        def fake_decrypt_corrupt_json(ciphertext: str, key_path: str) -> str:
+            return "NOT_VALID_JSON{{"
+
+        with (
+            patch.object(utils_mod, "session", _make_session_ctx(get_map)),
+            patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt_corrupt_json),
+        ):
+            with pytest.raises(CredentialDecryptionError, match="env_vars:org/repo"):
+                await utils_mod.read_credentials("org/repo")
+
+    @pytest.mark.asyncio
     async def test_read_token_pool_decrypt_failure_raises(self) -> None:
         """Corrupt token pool ciphertext must raise CredentialDecryptionError, not return []."""
         pool_setting = _make_setting("claude_tokens", "CORRUPT_POOL", encrypted=True)

@@ -179,7 +179,12 @@ async def read_credentials(repo: str | None) -> dict:
                     raise CredentialDecryptionError(
                         f"Stored credential '{env_key}' exists but cannot be decrypted — master key may have changed"
                     ) from e
-                creds["env"] = json.loads(plain)
+                try:
+                    creds["env"] = json.loads(plain)
+                except (json.JSONDecodeError, TypeError) as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{env_key}' exists but cannot be parsed — data may be corrupted"
+                    ) from e
 
             mounts_key = f"host_mounts:{repo}"
             mounts_setting = await s.get(Setting, mounts_key)
