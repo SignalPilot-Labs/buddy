@@ -1,11 +1,16 @@
 """Regression test for idle timeout race condition in RoundRunner._drive_stream.
 
 When both SSE task and idle task complete simultaneously (both in the asyncio.wait
-`done` set), the SSE branch replaces `idle_task` with a new task before the idle
-check runs. Without the `fired_idle` snapshot, the check `if idle_task in done`
-would test the NEW task (not in `done`), silently skipping idle timeout handling.
+`done` set), the inline idle-management block in `_drive_stream` cancels the old
+idle_task and creates a new one BEFORE the idle check runs. With the identity guard
+`idle_task is fired_idle`, the check correctly skips the idle handler because
+idle_task now points to the freshly-created task, not the one in `done`.
 
-Fix: capture `fired_idle = idle_task` before the SSE branch.
+Without the identity guard (old buggy code), the stale `fired_idle` reference still
+matched `fired_idle in done`, causing a spurious _handle_idle_timeout call that
+incremented nudge_count from 0 to 1 after genuine SSE activity.
+
+Fix: `if idle_task is not None and idle_task is fired_idle and fired_idle in done:`
 """
 
 import asyncio
@@ -56,15 +61,16 @@ def _make_runner() -> RoundRunner:
 
 
 class TestIdleRaceCondition:
-    """Idle timeout must fire even when SSE completes simultaneously."""
+    """Idle handler must NOT fire spuriously when SSE replaces idle_task in the same cycle."""
 
     @pytest.mark.asyncio
-    async def test_idle_fires_when_sse_and_idle_complete_simultaneously(self) -> None:
-        """_handle_idle_timeout is called even when both SSE and idle complete at once.
+    async def test_idle_does_not_fire_when_sse_replaces_idle_task(self) -> None:
+        """_handle_idle_timeout is NOT called when SSE activity replaced idle_task.
 
         Simulates the race by making asyncio.wait return a done set containing
-        both the SSE task and the idle task in the first iteration. Verifies that
-        _handle_idle_timeout is called despite the SSE branch replacing idle_task.
+        both the SSE task and the idle task in the first iteration. The inline
+        idle-management block in _drive_stream replaces idle_task with a new one
+        before the idle check runs. With the identity guard, idle must NOT fire.
         """
         runner = _make_runner()
 
@@ -147,6 +153,7 @@ class TestIdleRaceCondition:
                     raise
 
         assert len(sse_handle_calls) >= 1, "SSE handler should have been called"
-        assert len(idle_handle_calls) >= 1, (
-            "_handle_idle_timeout was not called — idle timeout race condition not fixed"
+        assert len(idle_handle_calls) == 0, (
+            "_handle_idle_timeout was called spuriously — "
+            "SSE activity replaced idle_task so the idle check must be skipped"
         )

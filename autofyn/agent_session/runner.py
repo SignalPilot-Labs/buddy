@@ -207,7 +207,7 @@ class RoundRunner:
                     nudge_count = 0
                     idle_since = asyncio.get_event_loop().time()
 
-                if fired_idle is not None and fired_idle in done:
+                if idle_task is not None and idle_task is fired_idle and fired_idle in done:
                     terminal, nudge_count, idle_task = await self._handle_idle_timeout(
                         round_number, nudge_count, idle_since, session_id
                     )
