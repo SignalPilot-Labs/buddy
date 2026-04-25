@@ -7,7 +7,7 @@ sandbox container — this class only shuttles HTTP requests.
 
 import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 import httpx
 
@@ -34,7 +34,7 @@ class Session:
         resp.raise_for_status()
         return resp.json()["session_id"]
 
-    async def stream_events(self, session_id: str) -> AsyncIterator[dict]:
+    async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
         """Stream SSE events from a sandbox session."""
         async with self._http.stream(
             "GET", f"/session/{session_id}/events", timeout=None,

@@ -122,6 +122,7 @@ class TestIdleRaceCondition:
 
         stream_mock = MagicMock()
         stream_mock.__aiter__ = MagicMock(return_value=stream_mock)
+        stream_mock.aclose = AsyncMock()
         runner._sandbox.session.stream_events = MagicMock(return_value=stream_mock)
         # next_event must return a coroutine (runner wraps it in create_task).
         runner._inbox.next_event = AsyncMock(side_effect=lambda: asyncio.sleep(9999))
