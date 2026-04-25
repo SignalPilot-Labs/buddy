@@ -37,8 +37,9 @@ DASHBOARD_CONTAINER: str = "autofyn-dashboard"
 API_KEY_CONTAINER_PATH: str = "/data/api.key"
 
 # Scripts
-UP_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "up.sh")
+START_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "start.sh")
 BUILD_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "build.sh")
+UNINSTALL_SCRIPT: str = str(Path(AUTOFYN_HOME) / "cli" / "scripts" / "uninstall.sh")
 
 # Git
 GIT_REMOTE_ORIGIN: str = "origin"
