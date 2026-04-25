@@ -11,6 +11,9 @@ export const viewport: Viewport = {
   themeColor: "#050505",
 };
 
+// Disable static page caching so the inline script reads AUTOFYN_API_KEY
+// from the server environment on every request (the key isn't available at
+// build time).
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

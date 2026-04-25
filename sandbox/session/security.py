@@ -21,7 +21,7 @@ Rules (and why):
 import logging
 import re
 
-from constants import BASH_BLOCKED_PATH_PATTERNS, CREDENTIAL_PATTERNS, SECRET_ENV_VARS
+from constants import CREDENTIAL_PATTERNS, SECRET_ENV_VARS
 
 log = logging.getLogger("sandbox.security")
 
@@ -37,7 +37,6 @@ class SecurityGate:
         self._github_repo = github_repo
         self._branch_name = branch_name
         self._cred_re = re.compile("|".join(CREDENTIAL_PATTERNS), re.IGNORECASE)
-        self._bash_path_re = re.compile("|".join(BASH_BLOCKED_PATH_PATTERNS), re.IGNORECASE)
 
     def check_permission(
         self, tool_name: str, input_data: dict,
@@ -80,7 +79,7 @@ class SecurityGate:
 
     def _check_bash_credential_files(self, cmd: str) -> str | None:
         """Block bash commands that reference protected credential paths."""
-        if self._bash_path_re.search(cmd):
+        if self._cred_re.search(cmd):
             return "Blocked command that references credential file paths"
         return None
 

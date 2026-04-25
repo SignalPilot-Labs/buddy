@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field, field_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_HOST_MOUNTS, PROMPT_MAX_LEN, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN, validate_prompt_length
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -37,9 +37,8 @@ class StartRunRequest(BaseModel):
     @field_validator("prompt")
     @classmethod
     def prompt_max_length(cls, v: str | None) -> str | None:
-        if v is not None and len(v) > PROMPT_MAX_LEN:
-            raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
-        return v
+        """Validate prompt length."""
+        return validate_prompt_length(v)
 
 
 class UpdateSettingsRequest(BaseModel):
