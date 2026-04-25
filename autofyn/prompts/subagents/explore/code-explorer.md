@@ -41,3 +41,4 @@ After writing, return a single line: `Report written to /tmp/round-{ROUND_NUMBER
 - Always cite specific file paths and line numbers
 - Include enough context that the planner can write a spec without re-reading the code
 - Focus on what's relevant to the task — don't dump the entire codebase
+- Trace information flow from origin to consumer (env → validator → fallback → function). Bad: "SECRET_KEY defaults to 'langflow' (see ensure_fernet_key)". Good: "SECRET_KEY: env var → field_validator generates 43-char token via secrets.token_urlsafe(32) → ensure_fernet_key() never sees the short path in default config (settings.py:84)."

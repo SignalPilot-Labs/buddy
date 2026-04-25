@@ -36,6 +36,9 @@ You do NOT write code. You can read files and run `git diff`, `git log`, `git st
    - **Before removing ANY function, class, constant, component, or file:** grep the entire codebase for imports and references. If it is used anywhere, understand how it is used and if it is actually dead code. Do not trust your memory — verify with grep.
    - **Scan the neighborhood.** Before adding to a file, check its size and cohesion. If it's over 400 lines, has unrelated functions, or the module has grown organically across rounds — flag it for refactor in the spec. Don't let bloat accumulate silently.
    - Does this follow the project's existing patterns? Read `CLAUDE.md`.
+   - Every claim in the spec must be traced end-to-end through the code — from where a value originates to where it's consumed. Don't stop at function boundaries.
+   - Setup/test environments must use realistic settings. Only override what the specific test requires and document why.
+   - File paths on target systems must be discovered dynamically. Never hardcode paths that vary by deployment.
    - Is it a major structurally complex task? (new classes, changed interfaces, coupled changes across modules, major refactor) Split across multiple rounds. If orchestrator demands in one round give feedback. Hard cap: 20+ files always splits.
 
 ## Priority
