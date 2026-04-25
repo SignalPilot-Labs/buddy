@@ -130,12 +130,10 @@ class HealthResponse(BaseModel):
     runs: list[HealthRunEntry]
 
 
-class InternalAuditRequest(BaseModel):
-    """POST /internal/audit request body (sandbox → agent)."""
+class _InternalRequestBase(BaseModel):
+    """Shared validation for internal sandbox → agent requests."""
 
     run_id: str
-    event_type: str
-    details: dict | None
 
     @field_validator("run_id")
     @classmethod
@@ -143,6 +141,13 @@ class InternalAuditRequest(BaseModel):
         if not re.fullmatch(UUID_PATTERN, v):
             raise ValueError(f"run_id must be a valid UUID, got: {v!r}")
         return v
+
+
+class InternalAuditRequest(_InternalRequestBase):
+    """POST /internal/audit request body (sandbox → agent)."""
+
+    event_type: str
+    details: dict | None
 
     @field_validator("event_type")
     @classmethod
@@ -152,10 +157,9 @@ class InternalAuditRequest(BaseModel):
         return v
 
 
-class InternalToolCallRequest(BaseModel):
+class InternalToolCallRequest(_InternalRequestBase):
     """POST /internal/tool-call request body (sandbox → agent)."""
 
-    run_id: str
     phase: str
     tool_name: str
     input_data: dict | None
@@ -167,13 +171,6 @@ class InternalToolCallRequest(BaseModel):
     tool_use_id: str | None
     session_id: str | None
     agent_id: str | None
-
-    @field_validator("run_id")
-    @classmethod
-    def run_id_valid_uuid(cls, v: str) -> str:
-        if not re.fullmatch(UUID_PATTERN, v):
-            raise ValueError(f"run_id must be a valid UUID, got: {v!r}")
-        return v
 
     @field_validator("phase")
     @classmethod

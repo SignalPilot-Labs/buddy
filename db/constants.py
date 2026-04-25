@@ -181,10 +181,8 @@ VALID_PRESET_PATTERN: str = f"^({'|'.join(STARTER_PRESET_KEYS)})$"
 TOOL_CALL_PHASES: frozenset[str] = frozenset({"pre", "post"})
 
 # ── UUID Pattern ──
-# Strict UUID v4 pattern (lowercase hex with hyphens, grouped).
-# More restrictive than the dashboard's r"^[0-9a-f\-]{36}$" which allows
-# strings like "----..." with no structure.
-UUID_PATTERN: str = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+# Strict UUID pattern (hex with hyphens, grouped, case-insensitive).
+UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across

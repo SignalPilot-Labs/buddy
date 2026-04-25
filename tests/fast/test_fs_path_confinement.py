@@ -8,11 +8,22 @@ Finding: #6 — Path Traversal in File System Handlers (High severity).
 
 import os
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from aiohttp import web
 
 from handlers.path_validation import validate_fs_path
+
+
+def _validate_no_resolve(raw_path: str) -> Path:
+    """Call validate_fs_path with Path.resolve() returning the path unchanged.
+
+    On macOS, /home resolves to /System/Volumes/Data/home due to firmlinks.
+    We mock resolve() to test the allowlist logic in isolation.
+    """
+    with patch.object(Path, "resolve", lambda self: self):
+        return validate_fs_path(raw_path)
 
 
 class TestFsPathConfinement:
@@ -29,7 +40,7 @@ class TestFsPathConfinement:
             "/opt/autofyn/config/sandbox.yml",
         ]
         for path_str in allowed:
-            result = validate_fs_path(path_str)
+            result = _validate_no_resolve(path_str)
             assert str(result) == path_str, f"Expected {path_str}, got {result}"
 
     def test_denied_paths(self) -> None:
@@ -42,7 +53,7 @@ class TestFsPathConfinement:
         ]
         for path_str in denied:
             with pytest.raises(web.HTTPForbidden):
-                validate_fs_path(path_str)
+                _validate_no_resolve(path_str)
 
     def test_traversal_attacks(self) -> None:
         """Paths using .. to escape allowed dirs must raise HTTPForbidden."""
@@ -58,7 +69,7 @@ class TestFsPathConfinement:
     def test_prefix_boundary(self) -> None:
         """/tmpevil must NOT match the /tmp prefix."""
         with pytest.raises(web.HTTPForbidden):
-            validate_fs_path("/tmpevil/data")
+            _validate_no_resolve("/tmpevil/data")
 
     def test_empty_path(self) -> None:
         """Empty string must raise HTTPBadRequest, not resolve to cwd."""
