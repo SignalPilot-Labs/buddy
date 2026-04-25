@@ -61,7 +61,7 @@ async def handle_execute(request: web.Request) -> web.Response:
             {
                 "stdout": (stdout or b"").decode().strip(),
                 "stderr": (stderr or b"").decode().strip(),
-                "exit_code": proc.returncode or 0,
+                "exit_code": proc.returncode if proc.returncode is not None else -1,
             }
         )
     except asyncio.TimeoutError:
