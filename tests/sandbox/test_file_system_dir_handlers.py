@@ -152,6 +152,27 @@ class TestWriteDir:
         assert list(target.iterdir()) == []
 
 
+# ── Partial write regression ─────────────────────────────────────────
+
+
+class TestWriteDirPartialWriteRegression:
+    """Regression: invalid filename after valid ones must not write anything."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_filename_after_valid_writes_nothing(self, tmp_path: Path) -> None:
+        target = tmp_path / "output"
+
+        resp = await handle_write_dir(_request({
+            "path": str(target),
+            "files": {"valid.txt": "data", "../escape.txt": "bad"},
+        }))
+
+        assert resp.status == 400
+        assert "invalid filename" in _parse(resp)["error"]
+        # The directory must not have been created and valid.txt must not exist.
+        assert not (target / "valid.txt").exists()
+
+
 # ── Roundtrip ────────────────────────────────────────────────────────
 
 

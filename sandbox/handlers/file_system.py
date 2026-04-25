@@ -101,13 +101,17 @@ async def handle_write_dir(request: web.Request) -> web.Response:
     body = await request.json()
     path = validate_fs_path(body["path"])
     files: dict[str, str] = body["files"]
-    path.mkdir(parents=True, exist_ok=True)
-    for name, content in files.items():
-        # Filename must be a plain basename — no traversal out of `path`.
+
+    # Phase 1: Validate ALL filenames before writing anything.
+    for name in files:
         if "/" in name or name in ("", ".", ".."):
             return web.json_response(
                 {"error": f"invalid filename: {name}"}, status=400,
             )
+
+    # Phase 2: All filenames valid — now write.
+    path.mkdir(parents=True, exist_ok=True)
+    for name, content in files.items():
         (path / name).write_text(content, encoding="utf-8")
     return web.json_response({"ok": True, "count": len(files)})
 
