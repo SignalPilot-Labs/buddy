@@ -93,7 +93,7 @@ async def _run(args: list[str], cwd: str, timeout: int) -> CmdResult:
         return CmdResult(
             stdout=(stdout or b"").decode(),
             stderr=(stderr or b"").decode(),
-            exit_code=proc.returncode or 0,
+            exit_code=proc.returncode if proc.returncode is not None else -1,
         )
     except asyncio.TimeoutError:
         if proc:
