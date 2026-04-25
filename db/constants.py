@@ -184,6 +184,11 @@ TOOL_CALL_PHASES: frozenset[str] = frozenset({"pre", "post"})
 # Strict UUID pattern (hex with hyphens, grouped, case-insensitive).
 UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 
+# ── Input Limits ──
+# Maximum characters for a user-submitted prompt.  ~25 K tokens — generous
+# for any legitimate use-case but prevents multi-MB DoS payloads.
+PROMPT_MAX_LEN: int = 100_000
+
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across
 # the agent, sandbox, and dashboard containers.  Both the Python backend

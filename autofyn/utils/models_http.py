@@ -8,7 +8,7 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
+from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, PROMPT_MAX_LEN, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
@@ -27,6 +27,13 @@ class StartRequest(BaseModel):
     github_repo: str | None = None
     env: dict[str, str] | None = None
     host_mounts: list[dict[str, str]] | None = None
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_max_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > PROMPT_MAX_LEN:
+            raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
+        return v
 
     @field_validator("model")
     @classmethod
@@ -108,6 +115,13 @@ class ResumeRequest(BaseModel):
     git_token: str | None = Field(repr=False)
     github_repo: str | None
     env: dict[str, str] | None
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_max_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > PROMPT_MAX_LEN:
+            raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
+        return v
 
 
 class HealthRunEntry(BaseModel):

@@ -1,9 +1,9 @@
 """Pydantic request models and path validators for the dashboard API."""
 
 from fastapi import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, MAX_HOST_MOUNTS, PROMPT_MAX_LEN, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -33,6 +33,13 @@ class StartRunRequest(BaseModel):
     model: str = Field(default=DEFAULT_MODEL, pattern=VALID_MODELS_PATTERN, description="Claude model to use.")
     effort: str = Field(default=DEFAULT_EFFORT, pattern=VALID_EFFORTS_PATTERN, description="Thinking effort level.")
     repo: str | None = Field(None, description="Active repo slug for per-repo env vars lookup.")
+
+    @field_validator("prompt")
+    @classmethod
+    def prompt_max_length(cls, v: str | None) -> str | None:
+        if v is not None and len(v) > PROMPT_MAX_LEN:
+            raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
+        return v
 
 
 class UpdateSettingsRequest(BaseModel):
