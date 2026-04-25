@@ -8,7 +8,7 @@ import re
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, PROMPT_MAX_LEN, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
+from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, PROMPT_MAX_LEN, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
@@ -77,6 +77,17 @@ class StartRequest(BaseModel):
             raise ValueError(f"preset must be one of {STARTER_PRESET_KEYS}")
         return v
 
+    @field_validator("github_repo")
+    @classmethod
+    def github_repo_valid(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if len(v) > GITHUB_REPO_MAX_LEN:
+            raise ValueError(f"github_repo must be under {GITHUB_REPO_MAX_LEN} characters")
+        if not re.fullmatch(GITHUB_REPO_PATTERN, v):
+            raise ValueError("github_repo must match owner/repo format")
+        return v
+
     @model_validator(mode="after")
     def prompt_or_preset_exclusive(self) -> "StartRequest":
         """Ensure prompt and preset are mutually exclusive."""
@@ -121,6 +132,17 @@ class ResumeRequest(BaseModel):
     def prompt_max_length(cls, v: str | None) -> str | None:
         if v is not None and len(v) > PROMPT_MAX_LEN:
             raise ValueError(f"prompt must be under {PROMPT_MAX_LEN} characters")
+        return v
+
+    @field_validator("github_repo")
+    @classmethod
+    def github_repo_valid(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if len(v) > GITHUB_REPO_MAX_LEN:
+            raise ValueError(f"github_repo must be under {GITHUB_REPO_MAX_LEN} characters")
+        if not re.fullmatch(GITHUB_REPO_PATTERN, v):
+            raise ValueError("github_repo must match owner/repo format")
         return v
 
 

@@ -189,6 +189,11 @@ UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 # for any legitimate use-case but prevents multi-MB DoS payloads.
 PROMPT_MAX_LEN: int = 100_000
 
+# ── GitHub Repo ──
+# Maximum length and pattern for owner/repo slugs.
+GITHUB_REPO_MAX_LEN: int = 256
+GITHUB_REPO_PATTERN: str = r"^[\w\-\.]+/[\w\-\.]+$"
+
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across
 # the agent, sandbox, and dashboard containers.  Both the Python backend
