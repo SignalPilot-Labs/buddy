@@ -83,11 +83,7 @@ async def run_rounds(
         # via send_message at the next subagent boundary. The DB is now
         # the source of truth for the full user activity timeline.
         inbox.take_pending_messages()
-        try:
-            user_activity = await db.get_user_activity(run.run_id)
-        except Exception as exc:
-            log.warning("[%s] Failed to load user activity: %s", rid, exc)
-            user_activity = []
+        user_activity = await db.get_user_activity(run.run_id)
 
         round_context = RoundContext(
             round_number=round_number,
