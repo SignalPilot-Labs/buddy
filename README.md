@@ -4,7 +4,7 @@
 
 **Runs Claude in self-improving loops that work on real codebases.**
 
-built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 26 vulnerabilities across LiteLLM and Open WebUI · improved Caveman compression from 44% to 54%
+built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 48 vulnerabilities across popular Open Source Software · improved Caveman compression from 44% to 54%
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
@@ -26,6 +26,7 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 
 - **[LiteLLM](https://github.com/BerriAI/litellm)** — 14 vulnerabilities (3 Critical, 4 High, 4 Medium, 3 Low), 2 exploit chains. Responsibly disclosed.
 - **[Open WebUI](https://github.com/open-webui/open-webui)** — 12 vulnerabilities (4 Critical, 5 High, 3 Medium), 4 exploit chains. Responsibly disclosed.
+- **[Langflow](https://github.com/langflow-ai/langflow)** — 22 vulnerabilities (3 Critical, 13 High, 6 Medium), 4 exploit chains. Responsibly disclosed.
 
 ### Software engineering
 
