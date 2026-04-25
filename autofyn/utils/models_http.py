@@ -4,9 +4,11 @@ Owns the API contract validation layer — all BaseModel subclasses that
 describe the shape of HTTP request bodies and response payloads.
 """
 
+import re
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from db.constants import DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, VALID_EFFORTS, VALID_MODELS
+from db.constants import AUDIT_EVENT_TYPES, DEFAULT_BASE_BRANCH, DEFAULT_EFFORT, DEFAULT_MODEL, STARTER_PRESET_KEYS, TOOL_CALL_PHASES, UUID_PATTERN, VALID_EFFORTS, VALID_MODELS
 from utils.constants import INJECT_PAYLOAD_MAX_LEN
 
 
@@ -128,18 +130,36 @@ class HealthResponse(BaseModel):
     runs: list[HealthRunEntry]
 
 
-class InternalAuditRequest(BaseModel):
-    """POST /internal/audit request body (sandbox → agent)."""
+class _InternalRequestBase(BaseModel):
+    """Shared validation for internal sandbox → agent requests."""
 
     run_id: str
+
+    @field_validator("run_id")
+    @classmethod
+    def run_id_valid_uuid(cls, v: str) -> str:
+        if not re.fullmatch(UUID_PATTERN, v):
+            raise ValueError(f"run_id must be a valid UUID, got: {v!r}")
+        return v
+
+
+class InternalAuditRequest(_InternalRequestBase):
+    """POST /internal/audit request body (sandbox → agent)."""
+
     event_type: str
     details: dict | None
 
+    @field_validator("event_type")
+    @classmethod
+    def event_type_valid(cls, v: str) -> str:
+        if v not in AUDIT_EVENT_TYPES:
+            raise ValueError(f"event_type must be one of {AUDIT_EVENT_TYPES}")
+        return v
 
-class InternalToolCallRequest(BaseModel):
+
+class InternalToolCallRequest(_InternalRequestBase):
     """POST /internal/tool-call request body (sandbox → agent)."""
 
-    run_id: str
     phase: str
     tool_name: str
     input_data: dict | None
@@ -151,3 +171,10 @@ class InternalToolCallRequest(BaseModel):
     tool_use_id: str | None
     session_id: str | None
     agent_id: str | None
+
+    @field_validator("phase")
+    @classmethod
+    def phase_valid(cls, v: str) -> str:
+        if v not in TOOL_CALL_PHASES:
+            raise ValueError(f"phase must be one of {TOOL_CALL_PHASES}")
+        return v

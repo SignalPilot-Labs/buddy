@@ -4,17 +4,16 @@ Exposes read/write/mkdir/exists/ls over HTTP so the agent container can
 manipulate files in the sandbox without piping shell commands through /exec.
 """
 
-from pathlib import Path
-
 from aiohttp import web
 
 from constants import FS_READ_MAX_BYTES
+from handlers.path_validation import validate_fs_path
 
 
 async def handle_write(request: web.Request) -> web.Response:
     """Write or append text content to a path. Creates parent dirs."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     content: str = body["content"]
     append: bool = bool(body.get("append", False))
 
@@ -28,7 +27,7 @@ async def handle_write(request: web.Request) -> web.Response:
 async def handle_read(request: web.Request) -> web.Response:
     """Read text content from a path. Returns exists=False if missing."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     if not path.exists():
         return web.json_response({"exists": False, "content": ""})
     if not path.is_file():
@@ -48,7 +47,7 @@ async def handle_read(request: web.Request) -> web.Response:
 async def handle_mkdir(request: web.Request) -> web.Response:
     """Create a directory with parents."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     path.mkdir(parents=True, exist_ok=True)
     return web.json_response({"ok": True})
 
@@ -56,7 +55,7 @@ async def handle_mkdir(request: web.Request) -> web.Response:
 async def handle_exists(request: web.Request) -> web.Response:
     """Check if a path exists."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     return web.json_response({
         "exists": path.exists(),
         "is_file": path.is_file() if path.exists() else False,
@@ -67,7 +66,7 @@ async def handle_exists(request: web.Request) -> web.Response:
 async def handle_ls(request: web.Request) -> web.Response:
     """List names in a directory (sorted). Empty list if missing."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     if not path.exists() or not path.is_dir():
         return web.json_response({"entries": []})
     entries = sorted(p.name for p in path.iterdir())
@@ -77,7 +76,7 @@ async def handle_ls(request: web.Request) -> web.Response:
 async def handle_read_dir(request: web.Request) -> web.Response:
     """Read every regular file directly under a dir. Non-recursive."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     if not path.exists() or not path.is_dir():
         return web.json_response({"exists": False, "files": {}})
     files: dict[str, str] = {}
@@ -100,7 +99,7 @@ async def handle_read_dir(request: web.Request) -> web.Response:
 async def handle_write_dir(request: web.Request) -> web.Response:
     """Create a dir and write a filename→content map into it."""
     body = await request.json()
-    path = Path(body["path"])
+    path = validate_fs_path(body["path"])
     files: dict[str, str] = body["files"]
     path.mkdir(parents=True, exist_ok=True)
     for name, content in files.items():

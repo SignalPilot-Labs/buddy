@@ -1,5 +1,9 @@
 """Shared helpers and constants for tests/fast test suite."""
 
+import os
+
+os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
+
 from unittest.mock import AsyncMock, MagicMock
 
 from agent_session.stream import StreamDispatcher

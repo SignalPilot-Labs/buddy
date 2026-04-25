@@ -58,6 +58,16 @@ TASK_TOOL_NAME: str = "Agent"
 # must be streamed via /exec + tail/head or split before reading.
 FS_READ_MAX_BYTES: int = 2 * 1024 * 1024
 
+# Directories the filesystem API is permitted to access.
+FS_ALLOWED_PREFIXES: tuple[str, ...] = (
+    "/home/agentuser/repo",
+    "/tmp",
+    "/home/agentuser/.claude",
+    "/opt/autofyn",
+)
+FS_PATH_DENIED_MSG: str = "Path is outside allowed directories"
+FS_PATH_EMPTY_MSG: str = "Path must not be empty"
+
 # ── Retry (transient network errors on git/gh commands) ──
 RETRY_MAX_ATTEMPTS: int = _cfg["retry_max_attempts"]
 RETRY_BASE_DELAY_SEC: float = _cfg["retry_base_delay_sec"]

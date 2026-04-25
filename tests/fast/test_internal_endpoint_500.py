@@ -29,7 +29,7 @@ class TestInternalEndpoint500:
     def test_tool_call_returns_500_on_db_error(self) -> None:
         with patch("internal_endpoints.log_tool_call_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
             resp = client.post("/internal/tool-call", json={
-                "run_id": "run-1",
+                "run_id": "00000000-0000-0000-0000-000000000001",
                 "phase": "post",
                 "tool_name": "Agent",
                 "input_data": None,
@@ -47,7 +47,7 @@ class TestInternalEndpoint500:
     def test_tool_call_returns_200_on_success(self) -> None:
         with patch("internal_endpoints.log_tool_call_raw", new_callable=AsyncMock):
             resp = client.post("/internal/tool-call", json={
-                "run_id": "run-1",
+                "run_id": "00000000-0000-0000-0000-000000000001",
                 "phase": "pre",
                 "tool_name": "Read",
                 "input_data": None,
@@ -65,7 +65,7 @@ class TestInternalEndpoint500:
     def test_audit_returns_500_on_db_error(self) -> None:
         with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock, side_effect=RuntimeError("DB down")):
             resp = client.post("/internal/audit", json={
-                "run_id": "run-1",
+                "run_id": "00000000-0000-0000-0000-000000000001",
                 "event_type": "subagent_complete",
                 "details": {"agent_id": "a1"},
             })
@@ -74,7 +74,7 @@ class TestInternalEndpoint500:
     def test_audit_returns_200_on_success(self) -> None:
         with patch("internal_endpoints.log_audit_raw", new_callable=AsyncMock):
             resp = client.post("/internal/audit", json={
-                "run_id": "run-1",
+                "run_id": "00000000-0000-0000-0000-000000000001",
                 "event_type": "run_started",
                 "details": {},
             })

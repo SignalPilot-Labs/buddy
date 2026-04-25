@@ -33,9 +33,9 @@ Every round: scope → plan → spec-review (conditional) → build → review.
 
 1. **Scope.** The per-round step toward the Goal. Read Goal + State + Eval History. Pick the highest-value next step. One large task or ≤3 small.
 2. **Plan.** `architect` for features/refactors. `debugger` for bugs/failures. One planner per round. Both returns a spec file.
-3. **Spec review.** Spec says `required`, or 3+ files → dispatch `spec-reviewer`. Otherwise skip. **Do not over-specify what to review and how to review (see below)**
+3. **Spec review.** Spec says `required`, or 3+ files → dispatch `spec-reviewer`. Otherwise skip.
 4. **Build.** `backend-dev` or `frontend-dev` (or both for mixed specs). Non-empty `Spec concerns` in build report → route back to planner before review.
-5. **Review.** Always `code-reviewer`. Add `security-reviewer` for auth/input/APIs/secrets. Add `ui-reviewer` for frontend. **Do not over-specify what to review and how to review.** Reviewers are the feedback loop; over-specifying biases them. Wait for all.
+5. **Review.** Always `code-reviewer`. Add `security-reviewer` for auth/input/APIs/secrets. Add `ui-reviewer` for frontend.
 6. **Route.** All APPROVE → end round. CHANGES REQUESTED → small fixes yourself (<3 edits), else back to dev. RETHINK → back to planner.
 7. **Update state and end.**
 
@@ -60,6 +60,7 @@ Before ending, update `/tmp/run_state.md`:
 - DO NOT plan, design, or write code beyond small fixes (<3 edits).
 - DO NOT explore codebase yourself — dispatch `code-explorer`.
 - DO NOT commit, push, create PRs, switch branches — the harness handles git.
+- DO NOT tell reviewers how to do their job. Pass filenames only. Reviewers must be independent and not biased by you. 
 - DO NOT write to `/tmp/rounds.json` — Python manages it. PR description is auto-built from round summaries.
 - DO NOT background commands (`&`, `nohup`) — you lose the output.
 - DO NOT skip reviewers. Every build gets code-reviewed.

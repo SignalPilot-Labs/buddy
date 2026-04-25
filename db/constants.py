@@ -175,6 +175,15 @@ STARTER_PRESET_KEYS: tuple[str, ...] = (
 VALID_PRESET_PATTERN: str = f"^({'|'.join(STARTER_PRESET_KEYS)})$"
 
 
+# ── Tool Call Phases ──
+# Canonical set of valid phase values for tool call events.
+# Mirrors the DB CheckConstraint in db/models.py.
+TOOL_CALL_PHASES: frozenset[str] = frozenset({"pre", "post"})
+
+# ── UUID Pattern ──
+# Strict UUID pattern (hex with hyphens, grouped, case-insensitive).
+UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across
 # the agent, sandbox, and dashboard containers.  Both the Python backend

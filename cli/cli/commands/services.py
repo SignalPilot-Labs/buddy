@@ -11,9 +11,18 @@ import sys
 import typer
 
 from pathlib import Path
+import secrets
+
 
 from cli.client import get_client
-from cli.constants import AUTOFYN_HOME, BUILD_SCRIPT, MASK_PREFIX_CLAUDE, MASK_PREFIX_GIT, SIGINT_EXIT_CODE, UP_SCRIPT
+from cli.constants import (
+    AUTOFYN_HOME,
+    BUILD_SCRIPT,
+    MASK_PREFIX_CLAUDE,
+    MASK_PREFIX_GIT,
+    SIGINT_EXIT_CODE,
+    UP_SCRIPT,
+)
 from cli.git import detect_local_repo
 from cli.output import console, mask_secret
 
@@ -22,8 +31,8 @@ def _compose(args: list[str]) -> None:
     """Run ``docker compose <args>`` in the AutoFyn home directory."""
     cmd = ["docker", "compose"] + args
     console.print(f"[dim]→ {' '.join(cmd)}[/dim]")
-    os.environ.setdefault("AGENT_INTERNAL_SECRET", "default-agent")
-    os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "default-sandbox")
+    os.environ.setdefault("AGENT_INTERNAL_SECRET", secrets.token_hex(32))
+    os.environ.setdefault("SANDBOX_INTERNAL_SECRET", secrets.token_hex(32))
     result = subprocess.run(cmd, cwd=AUTOFYN_HOME)
     if result.returncode != 0:
         console.print(f"[red]Command exited with code {result.returncode}[/red]")
@@ -100,7 +109,9 @@ def _ensure_tokens() -> None:
                 client.post("/api/tokens", json={"token": token})
                 console.print("[green]✓[/green] Saved Claude OAuth token to pool")
             except SystemExit:
-                console.print("[yellow]Failed to save Claude token — add it in settings[/yellow]")
+                console.print(
+                    "[yellow]Failed to save Claude token — add it in settings[/yellow]"
+                )
 
     if not status["has_git_token"]:
         token = _detect_git_token()
@@ -109,7 +120,9 @@ def _ensure_tokens() -> None:
                 client.put("/api/settings", json={"git_token": token})
                 console.print("[green]✓[/green] Saved git token to settings")
             except SystemExit:
-                console.print("[yellow]Failed to save git token — add it in settings[/yellow]")
+                console.print(
+                    "[yellow]Failed to save git token — add it in settings[/yellow]"
+                )
 
     if not status["has_github_repo"]:
         _detect_repo(client)
@@ -180,7 +193,9 @@ def _detect_claude_token() -> str | None:
             if result.returncode == 0 and result.stdout:
                 token = _extract_token(result.stdout)
                 if token:
-                    print(f"✓ Token received ({mask_secret(token, MASK_PREFIX_CLAUDE)})")
+                    print(
+                        f"✓ Token received ({mask_secret(token, MASK_PREFIX_CLAUDE)})"
+                    )
                     return token
         except FileNotFoundError:
             console.print(
