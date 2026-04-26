@@ -118,7 +118,7 @@ async def upsert_setting(s: AsyncSession, key: str, value: str, encrypted: bool)
     await s.execute(
         pg_insert(Setting)
         .values(key=key, value=value, encrypted=encrypted)
-        .on_conflict_do_update(index_elements=["key"], set_={"value": value, "encrypted": encrypted})
+        .on_conflict_do_update(index_elements=["key"], set_={"value": value, "encrypted": encrypted, "updated_at": func.now()})
     )
 
 

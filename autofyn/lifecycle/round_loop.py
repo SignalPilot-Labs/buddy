@@ -142,6 +142,7 @@ async def run_rounds(
                 rid,
                 round_number,
                 exc,
+                exc_info=True,
             )
         if terminal is not None:
             return terminal
