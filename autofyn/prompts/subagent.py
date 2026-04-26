@@ -164,6 +164,7 @@ def build_agent_defs(
     user_env_keys: list[str],
     user_model: str,
     tool_call_timeout_sec: int,
+    base_branch: str,
 ) -> dict[str, dict]:
     """Build subagent definitions for a single round.
 
@@ -180,6 +181,7 @@ def build_agent_defs(
         tool_call_timeout_min=tool_call_timeout_sec // 60,
         host_mounts=host_mounts,
         user_env_keys=user_env_keys,
+        base_branch=base_branch,
     )
     git_rules = load_markdown("query/git-rules")
     dispatch_rules = load_markdown("query/dispatch-rules")
@@ -196,6 +198,7 @@ def build_agent_defs(
             load_markdown(f"subagents/{path}"),
             round_number,
             prior_round_number,
+            base_branch,
         )
         prompt_parts = [agent_body, env_block, git_rules, dispatch_rules]
         if path in AGENTS_WITH_VERIFICATION:
@@ -211,8 +214,11 @@ def build_agent_defs(
     return result
 
 
-def _substitute(text: str, round_number: int, prior_round_number: int) -> str:
-    """Replace `{ROUND_NUMBER}` and `{PRIOR_ROUND_NUMBER}` in a subagent prompt."""
-    return text.replace("{ROUND_NUMBER}", str(round_number)).replace(
-        "{PRIOR_ROUND_NUMBER}", str(prior_round_number)
+def _substitute(text: str, round_number: int, prior_round_number: int, base_branch: str) -> str:
+    """Replace placeholders in a subagent prompt."""
+    return (
+        text
+        .replace("{ROUND_NUMBER}", str(round_number))
+        .replace("{PRIOR_ROUND_NUMBER}", str(prior_round_number))
+        .replace("{BASE_BRANCH}", base_branch)
     )

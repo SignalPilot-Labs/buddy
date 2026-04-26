@@ -203,6 +203,7 @@ class RoundContext:
     user_activity: list[UserAction]
     host_mounts: list[dict[str, str]] | None
     user_env_keys: list[str]
+    base_branch: str
 
 
 # ── Bootstrap ───────────────────────────────────────────────────────

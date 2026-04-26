@@ -25,6 +25,7 @@ def build_round_system_prompt(
         tool_call_timeout_min=tool_call_timeout_sec // 60,
         host_mounts=context.host_mounts,
         user_env_keys=context.user_env_keys,
+        base_branch=context.base_branch,
     )
     sections: list[str] = [body, env_block, load_markdown("query/git-rules")]
 

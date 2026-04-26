@@ -66,6 +66,7 @@ def render_environment(
     tool_call_timeout_min: int,
     host_mounts: list[dict[str, str]] | None,
     user_env_keys: list[str],
+    base_branch: str,
 ) -> str:
     """Render `query/environment.md` with runtime values and host mounts."""
     template = load_markdown("query/environment")
@@ -75,6 +76,7 @@ def render_environment(
         .replace("{TOOL_CALL_TIMEOUT_MIN}", str(tool_call_timeout_min))
         .replace("{HOST_MOUNTS_BLOCK}", _host_mounts_block(host_mounts))
         .replace("{USER_ENV_BLOCK}", _user_env_block(user_env_keys))
+        .replace("{BASE_BRANCH}", base_branch)
     )
 
 
