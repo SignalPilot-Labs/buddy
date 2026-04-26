@@ -196,6 +196,9 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
           const result = await pollEvents(runId, afterTool, afterAudit);
           if (gen !== genRef.current) return;
           if (result.events.length > 0) {
+            const hasRunEnded = result.events.some(
+              (ev) => ev._event_type === "audit" && (ev as AuditEvent & { _event_type: "audit" }).event_type === "run_ended",
+            );
             setEvents((prev) => {
               let next = prev;
               for (const ev of result.events) {
@@ -214,6 +217,11 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
               }
               return next;
             });
+            if (hasRunEnded) {
+              if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+              setConnectionState("disconnected");
+              onRunEndedRef.current?.();
+            }
           }
         } catch (err) {
           console.warn("Poll request failed:", err);
