@@ -36,6 +36,13 @@ class SessionManager:
         session.task = asyncio.create_task(session.run())
 
         def _on_task_done(task: asyncio.Task) -> None:
+            self._sessions.pop(session_id, None)
+            if not task.cancelled():
+                exc = task.exception()
+                if exc is not None:
+                    log.warning(
+                        "Session %s task raised an exception", session_id, exc_info=exc
+                    )
             log.info("Session %s task completed", session_id)
 
         session.task.add_done_callback(_on_task_done)

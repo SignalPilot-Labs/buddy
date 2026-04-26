@@ -104,7 +104,9 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     (openPr: boolean): void => {
       setShowStopDialog(false);
       setBusy(true);
-      void controlAction("Stop", (id) => stopRun(id, !openPr));
+      controlAction("Stop", (id) => stopRun(id, !openPr)).catch(() => {
+        setBusy(false);
+      });
     },
     [controlAction, setBusy],
   );
