@@ -13,6 +13,12 @@ import httpx
 
 log = logging.getLogger("sandbox_client.session")
 
+HTTP_503_SERVICE_UNAVAILABLE = 503
+
+
+class SessionNotReadyError(Exception):
+    """Raised when the sandbox session's SDK client is not yet initialized."""
+
 
 class Session:
     """Handler for sandbox `/session/*` HTTP endpoints.
@@ -54,11 +60,15 @@ class Session:
         resp = await self._http.post(
             f"/session/{session_id}/message", json={"text": text},
         )
+        if resp.status_code == HTTP_503_SERVICE_UNAVAILABLE:
+            raise SessionNotReadyError(f"Session {session_id} client not ready")
         resp.raise_for_status()
 
     async def interrupt(self, session_id: str) -> None:
         """Interrupt the current response in a sandbox session."""
         resp = await self._http.post(f"/session/{session_id}/interrupt")
+        if resp.status_code == HTTP_503_SERVICE_UNAVAILABLE:
+            raise SessionNotReadyError(f"Session {session_id} client not ready")
         resp.raise_for_status()
 
     async def stop(self, session_id: str) -> None:

@@ -149,6 +149,7 @@ class TestServerAuditRedaction:
         ):
             active = _make_active_run("run-a")
             body = StartRequest(
+                max_budget_usd=0,
                 github_repo="owner/repo",
                 prompt="fix it",
                 duration_minutes=30,
@@ -194,6 +195,7 @@ class TestServerAuditRedaction:
         ):
             active = _make_active_run("run-b")
             body = StartRequest(
+                max_budget_usd=0,
                 github_repo="owner/repo",
                 prompt="fix it",
                 duration_minutes=30,

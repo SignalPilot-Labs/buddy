@@ -3,15 +3,29 @@
 Exercises the endpoints with an in-memory aiohttp request mock — no real
 HTTP server, just the handler functions. Verifies the roundtrip and the
 traversal guard that rejects ../ / nested filenames.
+
+Path validation is bypassed (mocked) so tests can use pytest's tmp_path
+on any OS without being confined to the sandbox's allowed-prefix list.
 """
 
 import json
+from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from handlers.file_system import handle_read_dir, handle_write_dir
+
+
+@pytest.fixture(autouse=True)
+def _bypass_path_validation() -> Generator[None, None, None]:
+    """Allow any path through validate_fs_path for unit tests."""
+    with patch(
+        "handlers.file_system.validate_fs_path",
+        side_effect=lambda raw: Path(raw).resolve(),
+    ):
+        yield
 
 
 def _request(payload: dict) -> MagicMock:

@@ -16,28 +16,28 @@ class TestModelsTokenRepr:
     """repr() of request models must not contain raw token values."""
 
     def test_start_request_repr_hides_claude_token(self) -> None:
-        r = StartRequest(claude_token=SENTINEL_CLAUDE)
+        r = StartRequest(max_budget_usd=0, claude_token=SENTINEL_CLAUDE)
         assert SENTINEL_CLAUDE not in repr(r)
 
     def test_start_request_repr_hides_git_token(self) -> None:
-        r = StartRequest(git_token=SENTINEL_GIT)
+        r = StartRequest(max_budget_usd=0, git_token=SENTINEL_GIT)
         assert SENTINEL_GIT not in repr(r)
 
     def test_start_request_str_hides_tokens(self) -> None:
-        r = StartRequest(claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
+        r = StartRequest(max_budget_usd=0, claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
         s = str(r)
         assert SENTINEL_CLAUDE not in s
         assert SENTINEL_GIT not in s
 
     def test_start_request_tokens_still_accessible_on_instance(self) -> None:
         """repr=False hides from repr only; attribute access still works."""
-        r = StartRequest(claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
+        r = StartRequest(max_budget_usd=0, claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
         assert r.claude_token == SENTINEL_CLAUDE
         assert r.git_token == SENTINEL_GIT
 
     def test_start_request_model_dump_still_includes_tokens(self) -> None:
         """Serialization (for HTTP dispatch) must NOT be affected by repr=False."""
-        r = StartRequest(claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
+        r = StartRequest(max_budget_usd=0, claude_token=SENTINEL_CLAUDE, git_token=SENTINEL_GIT)
         dumped = r.model_dump()
         assert dumped["claude_token"] == SENTINEL_CLAUDE
         assert dumped["git_token"] == SENTINEL_GIT

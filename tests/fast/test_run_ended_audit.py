@@ -57,6 +57,7 @@ def _make_active_run(run_id: str) -> ActiveRun:
 
 def _make_body() -> StartRequest:
     return StartRequest(
+        max_budget_usd=0,
         github_repo="owner/repo",
         prompt="fix the bug",
         duration_minutes=30,

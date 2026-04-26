@@ -23,6 +23,7 @@ from collections.abc import AsyncGenerator
 
 from prompts.loader import render_idle_nudge
 from sandbox_client.client import SandboxClient
+from sandbox_client.handlers.session import SessionNotReadyError
 from user.control import UserControl
 from user.inbox import UserInbox
 from agent_session.pulse import PulseWatchdog
@@ -311,7 +312,12 @@ class RoundRunner:
                 "idle_seconds": idle_seconds,
             },
         )
-        await self._sandbox.session.interrupt(session_id)
+        try:
+            await self._sandbox.session.interrupt(session_id)
+        except SessionNotReadyError:
+            log.debug("[%s] Skipping idle nudge — session client not ready", self._rid)
+            idle_task = asyncio.create_task(asyncio.sleep(backoff))
+            return None, nudge_count, idle_task
         self._inbox.push("inject", render_idle_nudge(idle_seconds))
         idle_task = asyncio.create_task(asyncio.sleep(backoff))
         return None, nudge_count, idle_task

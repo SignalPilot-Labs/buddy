@@ -129,8 +129,11 @@ async def get_repo_list(s: AsyncSession) -> list[str]:
         return []
     try:
         return json.loads(setting.value)
-    except (json.JSONDecodeError, TypeError):
-        return []
+    except (json.JSONDecodeError, TypeError) as e:
+        log.error("Repo list setting contains invalid JSON: %s", e, exc_info=True)
+        raise CredentialDecryptionError(
+            "Repo list setting contains invalid JSON — data may be corrupted"
+        ) from e
 
 
 async def save_repo_list(s: AsyncSession, repos: list[str]) -> None:
@@ -226,10 +229,16 @@ async def read_token_pool(s: AsyncSession) -> list[str]:
     pool = await s.get(Setting, "claude_tokens")
     if pool:
         try:
-            return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
+            decrypted = crypto.decrypt(pool.value, MASTER_KEY_PATH)
         except InvalidToken as e:
             raise CredentialDecryptionError(
                 "Token pool exists but cannot be decrypted — master key may have changed"
+            ) from e
+        try:
+            return json.loads(decrypted)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise CredentialDecryptionError(
+                "Token pool decrypted but contains invalid JSON — data may be corrupted"
             ) from e
     return []
 
@@ -341,9 +350,9 @@ async def agent_request(
     except HTTPException:
         raise
     except Exception as e:
+        log.error("Agent request failed: %s %s — %s", method, path, e, exc_info=True)
         if fallback is not None:
             return fallback
-        log.error("Agent request failed: %s %s — %s", method, path, e, exc_info=True)
         raise HTTPException(status_code=502, detail="Agent service unavailable")
 
 
