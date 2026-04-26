@@ -81,7 +81,7 @@ async def get_settings() -> dict:
                 try:
                     settings[setting.key] = _decrypt_setting(setting)
                 except Exception as e:
-                    log.error("Failed to decrypt setting '%s': %s", setting.key, e)
+                    log.error("Failed to decrypt setting '%s': %s", setting.key, e, exc_info=True)
                     settings[setting.key] = ENV_VARS_MASK_CHAR
             else:
                 settings[setting.key] = setting.value
@@ -147,8 +147,8 @@ async def get_repo_mounts(repo: str) -> dict:
             mounts: list[dict[str, str]] = json.loads(setting.value)
             return {"repo": repo, "mounts": mounts}
         except Exception as e:
-            log.error("Failed to parse host mounts for %s: %s", repo, e)
-            return {"repo": repo, "mounts": []}
+            log.error("Failed to parse host mounts for %s: %s", repo, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to parse host mounts")
 
 
 @router.put("/repos/{repo:path}/mounts")
