@@ -380,7 +380,7 @@ class RoundRunner:
         try:
             await self._sandbox.session.stop(session_id)
         except Exception as exc:
-            log.warning("[%s] stop_session failed: %s", self._rid, exc)
+            log.warning("[%s] stop_session failed: %s", self._rid, exc, exc_info=True)
 
 
 async def _next_event(stream_iter: AsyncGenerator[dict, None]) -> dict | None:
