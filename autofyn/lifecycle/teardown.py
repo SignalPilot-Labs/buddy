@@ -98,7 +98,7 @@ async def _run_teardown(
             timeout=exec_timeout,
         )
     except Exception as exc:
-        log.error("Teardown call failed: %s", exc)
+        log.error("Teardown call failed: %s", exc, exc_info=True)
         await log_audit(run.run_id, "teardown_failed", {"error": str(exc)})
         return None
 

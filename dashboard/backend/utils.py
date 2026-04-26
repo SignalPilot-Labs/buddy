@@ -343,7 +343,7 @@ async def agent_request(
     except Exception as e:
         if fallback is not None:
             return fallback
-        log.error("Agent request failed: %s %s — %s", method, path, e)
+        log.error("Agent request failed: %s %s — %s", method, path, e, exc_info=True)
         raise HTTPException(status_code=502, detail="Agent service unavailable")
 
 

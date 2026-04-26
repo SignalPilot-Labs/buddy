@@ -116,8 +116,8 @@ async def get_repo_env(repo: str) -> dict:
             )
             return {"repo": repo, "env_vars": env_dict}
         except Exception as e:
-            log.error("Failed to decrypt env vars for %s: %s", repo, e)
-            return {"repo": repo, "env_vars": {}}
+            log.error("Failed to decrypt env vars for %s: %s", repo, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to decrypt env vars")
 
 
 @router.put("/repos/{repo:path}/env")
