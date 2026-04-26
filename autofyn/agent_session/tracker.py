@@ -77,7 +77,7 @@ class SubagentTracker:
 
         When agent_id is None the tool belongs to the orchestrator itself.
         """
-        key = agent_id if agent_id and agent_id in self._tools_in_flight else ORCHESTRATOR_ID
+        key = agent_id if agent_id and agent_id in self._started_at else ORCHESTRATOR_ID
         if key not in self._tools_in_flight:
             return
         self._tools_in_flight[key] = max(0, self._tools_in_flight[key] - 1)
