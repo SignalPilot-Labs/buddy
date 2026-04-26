@@ -188,9 +188,10 @@ export default function SettingsPage() {
         body: JSON.stringify({ repo: slug }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const [s, cfg] = await Promise.all([fetchSettingsStatus(), fetchSettings()]);
+      const [s, cfg, r] = await Promise.all([fetchSettingsStatus(), fetchSettings(), fetchRepos()]);
       setStatus(s);
       setSettings(cfg);
+      setRepos(r);
     } catch (err) {
       setRepoError(err instanceof Error ? err.message : "Failed to set active repo");
     }

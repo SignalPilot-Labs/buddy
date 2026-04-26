@@ -34,6 +34,7 @@ export function useDashboard(): DashboardState {
   const [settingsStatus, setSettingsStatus] = useState<SettingsStatus | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
+  const resumeGenRef = useRef(0);
   const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
@@ -65,9 +66,11 @@ export function useDashboard(): DashboardState {
   const handleSessionResumed = useCallback(() => {
     const runId = selectedRunIdRef.current;
     if (!runId) return;
+    const gen = ++resumeGenRef.current;
     sseRef.current.disconnect();
     setHistoryLoadingRef.current(true);
     loadRunHistory(runId).then(({ events, lastToolId, lastAuditId, truncated }) => {
+      if (gen !== resumeGenRef.current) return;
       setHistoryEventsRef.current(events);
       setHistoryTruncatedRef.current(truncated);
       cursorsRef.current = { afterTool: lastToolId, afterAudit: lastAuditId };
@@ -75,6 +78,7 @@ export function useDashboard(): DashboardState {
       sseRef.current.connect(runId, { afterTool: lastToolId, afterAudit: lastAuditId });
       setHistoryLoadingRef.current(false);
     }).catch((err) => {
+      if (gen !== resumeGenRef.current) return;
       setHistoryLoadingRef.current(false);
       addEventRef.current({ _kind: "control", text: `Session resume failed: ${err}`, ts: new Date().toISOString() });
     });
@@ -159,6 +163,7 @@ export function useDashboard(): DashboardState {
     controlAction,
     runStatus,
     busy,
+    activeRepoFilter,
   });
 
   // Health poll: only updates agentHealth state and triggers runs refresh

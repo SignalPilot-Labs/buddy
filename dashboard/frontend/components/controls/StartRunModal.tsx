@@ -159,6 +159,10 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const handleStart = async () => {
     const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
     const preset = selectedQuick !== null ? selectedQuick : undefined;
+    if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0)) {
+      setEnvError("Select a repository before configuring environment variables or host mounts");
+      return;
+    }
     if (activeRepo) {
       try {
         await saveRepoEnv(activeRepo, parseEnvText(envText));

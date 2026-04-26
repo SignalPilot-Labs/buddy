@@ -257,7 +257,10 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
     fetchRunDiff(runId)
       .then(d => { setDiffData(d); setDiffLoading(false); })
       .catch(err => {
-        console.warn("WorkTree: diff stats fetch failed:", err);
+        console.warn("WorkTree: diff stats fetch failed, enabling polling retry:", err);
+        // Set a live-source sentinel so isPollingSource becomes true and the
+        // existing polling interval retries fetchRunDiff automatically.
+        setDiffData({ source: "live", files: [], total_files: 0, total_added: 0, total_removed: 0 });
         setDiffLoading(false);
       });
     fetchDiffBodies(runId);
