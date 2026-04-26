@@ -15,6 +15,7 @@ from backend import auth
 from backend.constants import (
     POLL_LIMIT_DEFAULT,
     QUERY_MAX_LIMIT,
+    SSE_BATCH_LIMIT,
     SSE_POLL_INTERVAL_SEC,
     TYPE_PRIORITY_AUDIT,
     TYPE_PRIORITY_TOOL,
@@ -59,6 +60,7 @@ async def _fetch_new_tool_calls(
         select(ToolCall)
         .where(ToolCall.run_id == run_id, ToolCall.id > last_id)
         .order_by(ToolCall.id)
+        .limit(SSE_BATCH_LIMIT)
     )).scalars().all()
     events: list[_SortableEvent] = [
         (tc.ts, TYPE_PRIORITY_TOOL, f"event: tool_call\ndata: {json.dumps(model_to_dict(tc), default=str)}\n\n")
@@ -76,6 +78,7 @@ async def _fetch_new_audit_events(
         select(AuditLog)
         .where(AuditLog.run_id == run_id, AuditLog.id > last_id)
         .order_by(AuditLog.id)
+        .limit(SSE_BATCH_LIMIT)
     )).scalars().all()
     events: list[_SortableEvent] = [
         (al.ts, TYPE_PRIORITY_AUDIT, f"event: audit\ndata: {json.dumps(model_to_dict(al), default=str)}\n\n")

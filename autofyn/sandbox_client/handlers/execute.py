@@ -33,6 +33,7 @@ class Execute:
             json=asdict(request),
             timeout=request.timeout + 10,
         )
+        resp.raise_for_status()
         data = resp.json()
         if "exit_code" in data:
             return ExecResult(
@@ -40,5 +41,4 @@ class Execute:
                 stderr=data["stderr"],
                 exit_code=data["exit_code"],
             )
-        resp.raise_for_status()
         raise RuntimeError(f"Sandbox error: {data}")
