@@ -16,11 +16,16 @@ Run verification (see appended rules). If tests fail, report as Critical Issues.
 
 A round that makes code cleaner but regresses the goal metric is NOT APPROVE. A round that improves the metric but violates Goal constraints is NOT APPROVE.
 
-## Step 3: Get the Diff and Review Cold
+## Step 3: Get the Diffs and Review Cold
 
-Run `git diff HEAD~1` (or `git diff` if uncommitted). **You have no spec context yet** — judge the code on its own merits. Does it serve the Goal? Follow CLAUDE.md and Rules? Is it correct, clean, secure?
+You are reviewing this round's changes in the context of everything this session has changed.
 
-**Trace end-to-end.** Follow each new code path from trigger to result. If the diff adds an API call, verify the endpoint exists. If it stores data, verify consumers read it correctly.
+- `git diff HEAD~1` (or `git diff` if uncommitted) — this round's changes.
+- `git diff {BASE_BRANCH} --stat` — which files the session has touched. For files relevant to this round, read their full session diff with `git diff {BASE_BRANCH} -- <file>`.
+
+**You have no spec context yet** — judge the code on its own merits. Does it serve the Goal? Follow CLAUDE.md and Rules? Is it correct, clean, secure?
+
+**Trace end-to-end.** Follow each changed code path — both directions. Callers and callees, producers and consumers, request and response. If the diff changes behavior, find everything that depends on the old behavior. Use grep, not assumptions.
 
 ### Challenge the Premise
 - **Right problem?** Is this work solving the highest-value problem for the Goal?
@@ -65,6 +70,7 @@ Your verdict is from step 4. Step 5 may add completeness issues or soften severi
 - Were existing tests affected? Do they still pass?
 - **If anything was deleted or removed** (function, class, constant, component, file, export) — grep the codebase for references. If it is imported or used anywhere, flag as Critical. Do not trust the diff alone.
 - If a function signature changed, were all callers updated? Grep to verify.
+- **Cross-round regressions** — does this round's change conflict with or invalidate something from a prior round in this session?
 
 ### Build Artifacts
 - Check `git status` for files that should NOT be committed: `node_modules/`, `.next/`, `__pycache__/`, `*.pyc`, `dist/`, `.cache/`, `build/`, `*.log`, `.env`, `.env.local`, `*.sqlite`, `coverage/`

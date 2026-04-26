@@ -94,6 +94,7 @@ async def run_rounds(
             user_activity=user_activity,
             host_mounts=host_mounts,
             user_env_keys=user_env_keys,
+            base_branch=run.base_branch,
         )
         tool_call_timeout_sec = bootstrap.run_config.tool_call_timeout_sec
         system_prompt = build_round_system_prompt(round_context, tool_call_timeout_sec)
@@ -105,6 +106,7 @@ async def run_rounds(
             user_env_keys=user_env_keys,
             user_model=options["model"],
             tool_call_timeout_sec=tool_call_timeout_sec,
+            base_branch=run.base_branch,
         )
         options["system_prompt"] = {
             "type": system_prompt["type"],

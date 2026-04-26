@@ -64,17 +64,17 @@ class TestRenderEnvironment:
     """render_environment substitutes all placeholders."""
 
     def test_substitutes_round_number(self) -> None:
-        out = render_environment(round_number=7, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[])
+        out = render_environment(round_number=7, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[], base_branch="main")
         assert "/tmp/round-7/" in out
         assert "{ROUND_NUMBER}" not in out
 
     def test_substitutes_tool_call_timeout(self) -> None:
-        out = render_environment(round_number=1, tool_call_timeout_min=42, host_mounts=None, user_env_keys=[])
+        out = render_environment(round_number=1, tool_call_timeout_min=42, host_mounts=None, user_env_keys=[], base_branch="main")
         assert "42 min" in out
         assert "{TOOL_CALL_TIMEOUT_MIN}" not in out
 
     def test_no_host_mounts_placeholder_removed(self) -> None:
-        out = render_environment(round_number=1, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[])
+        out = render_environment(round_number=1, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[], base_branch="main")
         assert "{HOST_MOUNTS_BLOCK}" not in out
         assert "Host mounts:" not in out
 
@@ -84,6 +84,7 @@ class TestRenderEnvironment:
             tool_call_timeout_min=60,
             host_mounts=[{"container_path": "/workspace", "mode": "rw"}],
             user_env_keys=[],
+            base_branch="main",
         )
         assert "Host mounts:" in out
         assert "`/workspace` (read-write)" in out
@@ -94,11 +95,12 @@ class TestRenderEnvironment:
             tool_call_timeout_min=60,
             host_mounts=None,
             user_env_keys=["CUSTOM_TOKEN", "DB_URL"],
+            base_branch="main",
         )
         assert "`CUSTOM_TOKEN`" in out
         assert "`DB_URL`" in out
         assert "{USER_ENV_BLOCK}" not in out
 
     def test_no_user_env_placeholder_removed(self) -> None:
-        out = render_environment(round_number=1, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[])
+        out = render_environment(round_number=1, tool_call_timeout_min=60, host_mounts=None, user_env_keys=[], base_branch="main")
         assert "{USER_ENV_BLOCK}" not in out

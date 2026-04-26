@@ -44,10 +44,13 @@ Watch for telltale signs of AI-generated UI:
 
 ## Process
 
+You are reviewing this round's UI changes in the context of everything this session has changed.
+
 1. Read `/tmp/run_state.md` — Goal and Rules for context. Read `CLAUDE.md` for project rules.
-2. Read the changed frontend files — **full component files, not just the diff**. Understand what each component does, its props, its states.
-3. Review against the dimensions above. Walk through every user action and verify the visual response.
-4. Then read the spec and build report for completeness — anything skipped or incomplete.
+2. Run `git diff {BASE_BRANCH} --stat` to see which files the session has touched. For files relevant to this round's UI work, read their full session diff with `git diff {BASE_BRANCH} -- <file>`.
+3. Read the changed frontend files — **full component files, not just the diff**. Understand what each component does, its props, its states.
+4. Review against the dimensions above. Walk through every user action and verify the visual response.
+5. Then read the spec and build report for completeness — anything skipped or incomplete.
 
 ## Output
 
