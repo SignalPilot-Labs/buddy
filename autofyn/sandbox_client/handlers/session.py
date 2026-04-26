@@ -7,11 +7,17 @@ sandbox container — this class only shuttles HTTP requests.
 
 import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 import httpx
 
 log = logging.getLogger("sandbox_client.session")
+
+HTTP_503_SERVICE_UNAVAILABLE = 503
+
+
+class SessionNotReadyError(Exception):
+    """Raised when the sandbox session's SDK client is not yet initialized."""
 
 
 class Session:
@@ -34,7 +40,7 @@ class Session:
         resp.raise_for_status()
         return resp.json()["session_id"]
 
-    async def stream_events(self, session_id: str) -> AsyncIterator[dict]:
+    async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
         """Stream SSE events from a sandbox session."""
         async with self._http.stream(
             "GET", f"/session/{session_id}/events", timeout=None,
@@ -54,11 +60,15 @@ class Session:
         resp = await self._http.post(
             f"/session/{session_id}/message", json={"text": text},
         )
+        if resp.status_code == HTTP_503_SERVICE_UNAVAILABLE:
+            raise SessionNotReadyError(f"Session {session_id} client not ready")
         resp.raise_for_status()
 
     async def interrupt(self, session_id: str) -> None:
         """Interrupt the current response in a sandbox session."""
         resp = await self._http.post(f"/session/{session_id}/interrupt")
+        if resp.status_code == HTTP_503_SERVICE_UNAVAILABLE:
+            raise SessionNotReadyError(f"Session {session_id} client not ready")
         resp.raise_for_status()
 
     async def stop(self, session_id: str) -> None:

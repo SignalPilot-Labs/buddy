@@ -93,7 +93,7 @@ async def _run(args: list[str], cwd: str, timeout: int) -> CmdResult:
         return CmdResult(
             stdout=(stdout or b"").decode(),
             stderr=(stderr or b"").decode(),
-            exit_code=proc.returncode or 0,
+            exit_code=proc.returncode if proc.returncode is not None else -1,
         )
     except asyncio.TimeoutError:
         if proc:
@@ -223,10 +223,12 @@ async def _commits_ahead(base: str, timeout: int) -> int:
         ["rev-list", "--count", f"origin/{base}..HEAD"], timeout, cwd=REPO_WORK_DIR,
     )
     _fail(result, "git rev-list")
-    try:
-        return int(result.stdout.strip())
-    except ValueError:
-        return 0
+    count_str = result.stdout.strip()
+    if not count_str.isdigit():
+        raise RuntimeError(
+            f"git rev-list --count returned non-integer output: {count_str!r}"
+        )
+    return int(count_str)
 
 
 async def _branch_diff(

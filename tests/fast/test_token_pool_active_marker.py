@@ -72,6 +72,25 @@ class TestTokenPoolActiveMarker:
         )
 
     @pytest.mark.asyncio
+    async def test_no_index_row_marks_no_token_active(self) -> None:
+        """When idx_row is None (no token used yet), no token must be marked active."""
+        tokens = ["sk-ant-tokenA", "sk-ant-tokenB", "sk-ant-tokenC"]
+        s = _make_session(None, tokens)
+
+        with (
+            patch("backend.utils.read_token_pool", new=AsyncMock(return_value=tokens)),
+            patch("backend.utils.session") as mock_session,
+        ):
+            mock_session.return_value.__aenter__ = AsyncMock(return_value=s)
+            mock_session.return_value.__aexit__ = AsyncMock(return_value=None)
+            result = await list_pool_tokens()
+
+        active = [t for t in result if t["active"]]
+        assert len(active) == 0, (
+            "No token should be active when idx_row is None (no token has been used yet)"
+        )
+
+    @pytest.mark.asyncio
     async def test_empty_pool_returns_empty_list(self) -> None:
         """Empty token pool must return empty list, not raise."""
         s = _make_session(None, [])

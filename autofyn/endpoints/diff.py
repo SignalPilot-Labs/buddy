@@ -153,7 +153,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
         try:
             return await client.repo.diff()
         except Exception as exc:
-            log.warning("Sandbox diff failed for %s: %s", run_id, exc)
+            log.warning("Sandbox diff failed for %s: %s", run_id, exc, exc_info=True)
             raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
 
     @app.get("/diff/repo/stats")
@@ -170,7 +170,7 @@ def register_diff_routes(app: FastAPI, server: "AgentServer") -> None:
         try:
             files = await client.repo.diff_stats()
         except Exception as exc:
-            log.warning("Sandbox diff_stats failed for %s: %s", run_id, exc)
+            log.warning("Sandbox diff_stats failed for %s: %s", run_id, exc, exc_info=True)
             raise HTTPException(status_code=502, detail=f"Sandbox unreachable: {exc}")
         return {"files": files}
 

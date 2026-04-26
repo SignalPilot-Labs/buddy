@@ -29,25 +29,25 @@ class TestStartRequestPresetValidation:
     """StartRequest enforces preset/prompt mutual exclusivity."""
 
     def test_accepts_valid_preset(self) -> None:
-        req = StartRequest(preset="security_hardening")
+        req = StartRequest(max_budget_usd=0, preset="security_hardening")
         assert req.preset == "security_hardening"
         assert req.prompt is None
 
     def test_accepts_prompt_without_preset(self) -> None:
-        req = StartRequest(prompt="fix the bug")
+        req = StartRequest(max_budget_usd=0, prompt="fix the bug")
         assert req.prompt == "fix the bug"
         assert req.preset is None
 
     def test_rejects_both_prompt_and_preset(self) -> None:
         with pytest.raises(ValidationError, match="Cannot set both"):
-            StartRequest(prompt="fix", preset="security_hardening")
+            StartRequest(max_budget_usd=0, prompt="fix", preset="security_hardening")
 
     def test_rejects_invalid_preset_key(self) -> None:
         with pytest.raises(ValidationError, match="preset must be one of"):
-            StartRequest(preset="invalid_key")
+            StartRequest(max_budget_usd=0, preset="invalid_key")
 
     def test_accepts_neither_prompt_nor_preset(self) -> None:
-        req = StartRequest()
+        req = StartRequest(max_budget_usd=0)
         assert req.prompt is None
         assert req.preset is None
 
@@ -87,6 +87,7 @@ class TestPresetResolutionInEndpoint:
                     json={
                         "preset": "security_hardening",
                         "github_repo": "owner/repo",
+                        "max_budget_usd": 0,
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },

@@ -19,10 +19,11 @@ pulse task that pushes a synthetic stop event.
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 from prompts.loader import render_idle_nudge
 from sandbox_client.client import SandboxClient
+from sandbox_client.handlers.session import SessionNotReadyError
 from user.control import UserControl
 from user.inbox import UserInbox
 from agent_session.pulse import PulseWatchdog
@@ -146,9 +147,9 @@ class RoundRunner:
         round_number: int,
     ) -> RoundResult:
         """Race SSE stream vs user inbox vs idle timeout until the round ends."""
-        stream_iter: AsyncIterator[dict] = self._sandbox.session.stream_events(
+        stream_iter: AsyncGenerator[dict, None] = self._sandbox.session.stream_events(
             session_id,
-        ).__aiter__()
+        )
 
         sse_task = asyncio.create_task(_next_event(stream_iter))
         op_task = asyncio.create_task(self._inbox.next_event())
@@ -207,7 +208,7 @@ class RoundRunner:
                     nudge_count = 0
                     idle_since = asyncio.get_event_loop().time()
 
-                if fired_idle is not None and fired_idle in done:
+                if idle_task is not None and idle_task is fired_idle and fired_idle in done:
                     terminal, nudge_count, idle_task = await self._handle_idle_timeout(
                         round_number, nudge_count, idle_since, session_id
                     )
@@ -218,6 +219,7 @@ class RoundRunner:
             op_task.cancel()
             if idle_task is not None:
                 idle_task.cancel()
+            await stream_iter.aclose()
 
     async def _handle_user_event(
         self,
@@ -238,7 +240,7 @@ class RoundRunner:
     async def _handle_sse_event(
         self,
         sse_task: asyncio.Task,
-        stream_iter: AsyncIterator[dict],
+        stream_iter: AsyncGenerator[dict, None],
         dispatcher: StreamDispatcher,
         control: UserControl,
         session_id: str,
@@ -310,7 +312,12 @@ class RoundRunner:
                 "idle_seconds": idle_seconds,
             },
         )
-        await self._sandbox.session.interrupt(session_id)
+        try:
+            await self._sandbox.session.interrupt(session_id)
+        except SessionNotReadyError:
+            log.debug("[%s] Skipping idle nudge — session client not ready", self._rid)
+            idle_task = asyncio.create_task(asyncio.sleep(backoff))
+            return None, nudge_count, idle_task
         self._inbox.push("inject", render_idle_nudge(idle_seconds))
         idle_task = asyncio.create_task(asyncio.sleep(backoff))
         return None, nudge_count, idle_task
@@ -379,10 +386,10 @@ class RoundRunner:
         try:
             await self._sandbox.session.stop(session_id)
         except Exception as exc:
-            log.warning("[%s] stop_session failed: %s", self._rid, exc)
+            log.warning("[%s] stop_session failed: %s", self._rid, exc, exc_info=True)
 
 
-async def _next_event(stream_iter: AsyncIterator[dict]) -> dict | None:
+async def _next_event(stream_iter: AsyncGenerator[dict, None]) -> dict | None:
     """Pull one event or return None if the stream is exhausted."""
     try:
         return await stream_iter.__anext__()

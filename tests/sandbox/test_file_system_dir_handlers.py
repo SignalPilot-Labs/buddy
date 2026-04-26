@@ -3,15 +3,29 @@
 Exercises the endpoints with an in-memory aiohttp request mock — no real
 HTTP server, just the handler functions. Verifies the roundtrip and the
 traversal guard that rejects ../ / nested filenames.
+
+Path validation is bypassed (mocked) so tests can use pytest's tmp_path
+on any OS without being confined to the sandbox's allowed-prefix list.
 """
 
 import json
+from collections.abc import Generator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from handlers.file_system import handle_read_dir, handle_write_dir
+
+
+@pytest.fixture(autouse=True)
+def _bypass_path_validation() -> Generator[None, None, None]:
+    """Allow any path through validate_fs_path for unit tests."""
+    with patch(
+        "handlers.file_system.validate_fs_path",
+        side_effect=lambda raw: Path(raw).resolve(),
+    ):
+        yield
 
 
 def _request(payload: dict) -> MagicMock:
@@ -150,6 +164,27 @@ class TestWriteDir:
         assert body == {"ok": True, "count": 0}
         assert target.is_dir()
         assert list(target.iterdir()) == []
+
+
+# ── Partial write regression ─────────────────────────────────────────
+
+
+class TestWriteDirPartialWriteRegression:
+    """Regression: invalid filename after valid ones must not write anything."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_filename_after_valid_writes_nothing(self, tmp_path: Path) -> None:
+        target = tmp_path / "output"
+
+        resp = await handle_write_dir(_request({
+            "path": str(target),
+            "files": {"valid.txt": "data", "../escape.txt": "bad"},
+        }))
+
+        assert resp.status == 400
+        assert "invalid filename" in _parse(resp)["error"]
+        # The directory must not have been created and valid.txt must not exist.
+        assert not (target / "valid.txt").exists()
 
 
 # ── Roundtrip ────────────────────────────────────────────────────────

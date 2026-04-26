@@ -59,7 +59,7 @@ def _print_tool_call_event(data: dict) -> None:
     name = data.get("tool_name", "?")
     phase = data.get("phase", "")
     dur = data.get("duration_ms")
-    dur_str = f" ({dur}ms)" if dur else ""
+    dur_str = f" ({dur}ms)" if dur is not None else ""
     permitted = data.get("permitted", True)
     icon = "[green]✓[/green]" if permitted else "[red]✗[/red]"
     console.print(f"  {icon} [bold]{name}[/bold] [{phase}]{dur_str}")
@@ -85,7 +85,7 @@ def show_tools(
             "ts": relative_time(tc.get("ts")),
             "tool": tc.get("tool_name", "?"),
             "phase": tc.get("phase", ""),
-            "duration": f"{tc.get('duration_ms', '')}ms" if tc.get("duration_ms") else "—",
+            "duration": f"{tc.get('duration_ms')}ms" if tc.get("duration_ms") is not None else "—",
             "ok": "✓" if tc.get("permitted", True) else "✗",
         })
     print_table(rows, [

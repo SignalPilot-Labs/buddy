@@ -38,6 +38,7 @@ def _make_body(sentinel_token: str) -> StartRequest:
     return StartRequest(
         github_repo="owner/repo",
         prompt="fix the bug",
+        max_budget_usd=0,
         duration_minutes=30,
         env={ENV_KEY_GIT_TOKEN: sentinel_token},
     )
@@ -68,6 +69,7 @@ class TestRunStartingEvent:
                     json={
                         "github_repo": "owner/repo",
                         "prompt": "fix it",
+                        "max_budget_usd": 0,
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },
@@ -109,6 +111,7 @@ class TestRunStartingEvent:
                     json={
                         "github_repo": "owner/repo",
                         "prompt": "fix it",
+                        "max_budget_usd": 0,
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },

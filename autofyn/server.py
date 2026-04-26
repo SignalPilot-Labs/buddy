@@ -36,12 +36,10 @@ from db.constants import (
 from internal_endpoints import register_internal_routes
 from utils.constants import (
     AccessNoiseFilter,
-    DEFAULT_BUDGET_USD,
     ENV_KEY_ANTHROPIC_API,
     ENV_KEY_CLAUDE_TOKEN,
     ENV_KEY_GIT_TOKEN,
     ENV_KEY_INTERNAL_SECRET,
-    ENV_KEY_MAX_BUDGET_USD,
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
     SANDBOX_LOG_TAIL_LINES,
@@ -204,9 +202,7 @@ class AgentServer:
         if not task:
             raise RuntimeError("prompt is required — AutoFyn needs a task")
 
-        budget = body.max_budget_usd or float(
-            os.environ.get(ENV_KEY_MAX_BUDGET_USD, DEFAULT_BUDGET_USD),
-        )
+        budget = body.max_budget_usd
 
         run_env = body.env or {}
         git_token = run_env.get(ENV_KEY_GIT_TOKEN, "")

@@ -17,7 +17,7 @@ class StartRequest(BaseModel):
 
     prompt: str | None = None
     preset: str | None = None
-    max_budget_usd: float = 0
+    max_budget_usd: float
     duration_minutes: float = 0
     base_branch: str = DEFAULT_BASE_BRANCH
     model: str = DEFAULT_MODEL
@@ -44,6 +44,7 @@ class StartRequest(BaseModel):
     @field_validator("max_budget_usd")
     @classmethod
     def budget_non_negative(cls, v: float) -> float:
+        """Validate budget is non-negative. 0 means unlimited."""
         if v < 0:
             raise ValueError("max_budget_usd must be non-negative")
         return v

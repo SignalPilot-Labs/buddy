@@ -27,6 +27,13 @@ from backend.constants import (
 from db.connection import get_session_factory
 from db.models import AuditLog, ControlSignal, Run, Setting
 
+
+class CredentialDecryptionError(Exception):
+    """Raised when a stored credential cannot be decrypted.
+
+    Distinguishes 'credential set but broken' from 'credential not configured'.
+    """
+
 _AGENT_INTERNAL_SECRET = os.environ["AGENT_INTERNAL_SECRET"]
 if not _AGENT_INTERNAL_SECRET:
     raise RuntimeError("AGENT_INTERNAL_SECRET is empty — dashboard cannot start")
@@ -111,7 +118,7 @@ async def upsert_setting(s: AsyncSession, key: str, value: str, encrypted: bool)
     await s.execute(
         pg_insert(Setting)
         .values(key=key, value=value, encrypted=encrypted)
-        .on_conflict_do_update(index_elements=["key"], set_={"value": value, "encrypted": encrypted})
+        .on_conflict_do_update(index_elements=["key"], set_={"value": value, "encrypted": encrypted, "updated_at": func.now()})
     )
 
 
@@ -122,8 +129,11 @@ async def get_repo_list(s: AsyncSession) -> list[str]:
         return []
     try:
         return json.loads(setting.value)
-    except (json.JSONDecodeError, TypeError):
-        return []
+    except (json.JSONDecodeError, TypeError) as e:
+        log.error("Repo list setting contains invalid JSON: %s", e, exc_info=True)
+        raise CredentialDecryptionError(
+            "Repo list setting contains invalid JSON — data may be corrupted"
+        ) from e
 
 
 async def save_repo_list(s: AsyncSession, repos: list[str]) -> None:
@@ -150,8 +160,10 @@ async def read_credentials(repo: str | None) -> dict:
             if setting.encrypted:
                 try:
                     creds[key] = crypto.decrypt(setting.value, MASTER_KEY_PATH)
-                except Exception as e:
-                    log.error("Failed to decrypt %s: %s", key, e)
+                except InvalidToken as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{key}' exists but cannot be decrypted — master key may have changed"
+                    ) from e
             else:
                 creds[key] = setting.value
 
@@ -166,17 +178,26 @@ async def read_credentials(repo: str | None) -> dict:
             if env_setting:
                 try:
                     plain = crypto.decrypt(env_setting.value, MASTER_KEY_PATH)
+                except InvalidToken as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{env_key}' exists but cannot be decrypted — master key may have changed"
+                    ) from e
+                try:
                     creds["env"] = json.loads(plain)
-                except Exception as e:
-                    log.error("Failed to decrypt %s: %s", env_key, e)
+                except (json.JSONDecodeError, TypeError) as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{env_key}' exists but cannot be parsed — data may be corrupted"
+                    ) from e
 
             mounts_key = f"host_mounts:{repo}"
             mounts_setting = await s.get(Setting, mounts_key)
             if mounts_setting:
                 try:
                     creds["host_mounts"] = json.loads(mounts_setting.value)
-                except Exception as e:
-                    log.error("Failed to parse %s: %s", mounts_key, e)
+                except (json.JSONDecodeError, TypeError) as e:
+                    raise CredentialDecryptionError(
+                        f"Stored config '{mounts_key}' exists but cannot be parsed — data may be corrupted"
+                    ) from e
 
     return creds
 
@@ -208,10 +229,17 @@ async def read_token_pool(s: AsyncSession) -> list[str]:
     pool = await s.get(Setting, "claude_tokens")
     if pool:
         try:
-            return json.loads(crypto.decrypt(pool.value, MASTER_KEY_PATH))
-        except (json.JSONDecodeError, TypeError, InvalidToken):
-            log.warning("Failed to parse/decrypt token pool, returning empty", exc_info=True)
-            return []
+            decrypted = crypto.decrypt(pool.value, MASTER_KEY_PATH)
+        except InvalidToken as e:
+            raise CredentialDecryptionError(
+                "Token pool exists but cannot be decrypted — master key may have changed"
+            ) from e
+        try:
+            return json.loads(decrypted)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise CredentialDecryptionError(
+                "Token pool decrypted but contains invalid JSON — data may be corrupted"
+            ) from e
     return []
 
 
@@ -238,12 +266,12 @@ async def list_pool_tokens() -> list[dict]:
     async with session() as s:
         tokens = await read_token_pool(s)
         idx_row = await s.get(Setting, "claude_token_index")
-        current_idx = int(idx_row.value) if idx_row else 0
     if not tokens:
         return []
-    active_idx = (current_idx - 1) % len(tokens)
+    has_used = idx_row is not None
+    active_idx = (int(idx_row.value) - 1) % len(tokens) if has_used else -1
     return [
-        {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": i == active_idx}
+        {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": has_used and i == active_idx}
         for i, t in enumerate(tokens)
     ]
 
@@ -322,9 +350,9 @@ async def agent_request(
     except HTTPException:
         raise
     except Exception as e:
+        log.error("Agent request failed: %s %s — %s", method, path, e, exc_info=True)
         if fallback is not None:
             return fallback
-        log.error("Agent request failed: %s %s — %s", method, path, e)
         raise HTTPException(status_code=502, detail="Agent service unavailable")
 
 

@@ -49,15 +49,28 @@ class AutoFynClient:
 
         Each yielded dict has ``event`` (str) and ``data`` (parsed JSON).
         """
-        with connect_sse(
-            self._http, "GET", path, timeout=httpx.Timeout(None)
-        ) as source:
-            for event in source.iter_sse():
-                try:
-                    data = _json.loads(event.data) if event.data else {}
-                except _json.JSONDecodeError:
-                    data = {"raw": event.data}
-                yield {"event": event.event, "data": data}
+        try:
+            with connect_sse(
+                self._http, "GET", path, timeout=httpx.Timeout(None)
+            ) as source:
+                for event in source.iter_sse():
+                    try:
+                        data = _json.loads(event.data) if event.data else {}
+                    except _json.JSONDecodeError:
+                        data = {"raw": event.data}
+                    yield {"event": event.event, "data": data}
+        except httpx.ConnectError:
+            err.print(
+                f"[red]Cannot connect to AutoFyn at {self.base_url}[/red]\n"
+                "Is AutoFyn running? Try: autofyn start"
+            )
+            sys.exit(1)
+        except httpx.TimeoutException:
+            err.print(
+                f"[red]Request timed out after {HTTP_TIMEOUT_SECONDS} seconds.[/red]\n"
+                "The dashboard may be overloaded. Try again shortly."
+            )
+            sys.exit(1)
 
     # -- internals -----------------------------------------------------------
 
@@ -68,6 +81,12 @@ class AutoFynClient:
             err.print(
                 f"[red]Cannot connect to AutoFyn at {self.base_url}[/red]\n"
                 "Is AutoFyn running? Try: autofyn start"
+            )
+            sys.exit(1)
+        except httpx.TimeoutException:
+            err.print(
+                f"[red]Request timed out after {HTTP_TIMEOUT_SECONDS} seconds.[/red]\n"
+                "The dashboard may be overloaded. Try again shortly."
             )
             sys.exit(1)
 

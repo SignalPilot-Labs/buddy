@@ -85,10 +85,9 @@ async def _fetch_new_audit_events(
     return events, new_last
 
 
-async def _check_run_ended(run_id: str) -> dict | None:
+async def _check_run_ended(s: AsyncSession, run_id: str) -> dict | None:
     """Return a cost payload dict if the run has ended, else None."""
-    async with session() as s:
-        run = (await s.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
+    run = (await s.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
     if run is None or run.status not in _RUN_ENDED_STATUSES:
         return None
     return {
@@ -119,9 +118,9 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
     async with session() as s:
         tool_events, new_tool_id = await _fetch_new_tool_calls(s, run_id, last_tool_id)
         audit_events, new_audit_id = await _fetch_new_audit_events(s, run_id, last_audit_id)
+        ended_payload = await _check_run_ended(s, run_id)
 
     merged = sorted(tool_events + audit_events, key=lambda ev: (ev[0], ev[1]))
-    ended_payload = await _check_run_ended(run_id)
     return _PollResult(merged, new_tool_id, new_audit_id, ended_payload)
 
 

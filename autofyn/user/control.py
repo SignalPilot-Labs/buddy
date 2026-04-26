@@ -11,6 +11,7 @@ flushed at the next subagent boundary via `flush_pending()`.
 import logging
 
 from sandbox_client.client import SandboxClient
+from sandbox_client.handlers.session import SessionNotReadyError
 from user.inbox import UserInbox
 from utils.models import ControlOutcome, UserEvent
 
@@ -65,10 +66,14 @@ class UserControl:
         if not messages:
             return
         for msg in messages:
-            await self._sandbox.session.send_message(
-                self._session_id,
-                f"User message: {msg}",
-            )
+            try:
+                await self._sandbox.session.send_message(
+                    self._session_id,
+                    f"User message: {msg}",
+                )
+            except SessionNotReadyError:
+                log.debug("Skipping inject — session client not ready")
+                break
 
     # ── Pause blocking ─────────────────────────────────────────────────
 

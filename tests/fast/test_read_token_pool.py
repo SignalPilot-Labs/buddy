@@ -2,15 +2,17 @@
 
 Previously the except clause was `except (json.JSONDecodeError, TypeError, Exception)`
 which silently swallowed all exceptions — DB errors, missing master key,
-crypto failures — masking real problems. The fix narrows to only parse errors.
+crypto failures — masking real problems. The fix removes the swallowing entirely:
+all errors from decrypt/parse propagate so callers see the real failure.
 """
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from cryptography.fernet import InvalidToken
 
-from backend.utils import read_token_pool
+from backend.utils import CredentialDecryptionError, read_token_pool
 
 
 def _make_session(setting: MagicMock | None) -> MagicMock:
@@ -28,33 +30,37 @@ def _make_setting(value: str) -> MagicMock:
 
 
 class TestReadTokenPool:
-    """Verify read_token_pool only swallows parse errors, not infra errors."""
+    """Verify read_token_pool raises on all decryption/parse errors, not swallows them."""
 
     @pytest.mark.asyncio
-    async def test_returns_empty_on_json_decode_error(self) -> None:
-        """JSONDecodeError from decrypt result must return [] with a warning."""
+    async def test_raises_credential_decryption_error_on_invalid_token(self) -> None:
+        """InvalidToken from Fernet must raise CredentialDecryptionError, not return []."""
+        setting = _make_setting("encrypted-value")
+        s = _make_session(setting)
+
+        with patch("backend.utils.crypto.decrypt", side_effect=InvalidToken()):
+            with pytest.raises(CredentialDecryptionError, match="Token pool"):
+                await read_token_pool(s)
+
+    @pytest.mark.asyncio
+    async def test_raises_on_json_decode_error(self) -> None:
+        """JSONDecodeError from corrupt decrypted data must propagate, not return []."""
         setting = _make_setting("encrypted-value")
         s = _make_session(setting)
 
         with patch("backend.utils.crypto.decrypt", side_effect=json.JSONDecodeError("bad", "", 0)):
-            with patch("backend.utils.log") as mock_log:
-                result = await read_token_pool(s)
-
-        assert result == []
-        mock_log.warning.assert_called_once()
+            with pytest.raises(json.JSONDecodeError):
+                await read_token_pool(s)
 
     @pytest.mark.asyncio
-    async def test_returns_empty_on_type_error(self) -> None:
-        """TypeError during decrypt/parse must return [] with a warning."""
+    async def test_raises_on_type_error(self) -> None:
+        """TypeError during decrypt must propagate, not return []."""
         setting = _make_setting("encrypted-value")
         s = _make_session(setting)
 
         with patch("backend.utils.crypto.decrypt", side_effect=TypeError("not a string")):
-            with patch("backend.utils.log") as mock_log:
-                result = await read_token_pool(s)
-
-        assert result == []
-        mock_log.warning.assert_called_once()
+            with pytest.raises(TypeError):
+                await read_token_pool(s)
 
     @pytest.mark.asyncio
     async def test_propagates_runtime_error(self) -> None:
