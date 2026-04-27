@@ -15,7 +15,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from constants import SESSION_EVENT_QUEUE_SIZE, TERMINAL_EVENTS
+from constants import MAX_MCP_WARNINGS, SESSION_EVENT_QUEUE_SIZE, TERMINAL_EVENTS
 from session.gate import SessionGate
 from session.hooks import SessionHooks
 from session.security import SecurityGate
@@ -43,6 +43,7 @@ class Session:
         self.task: asyncio.Task | None = None
         self._ended = False
         self.unlocked = False
+        self._mcp_warning_count = 0
         self._hooks = SessionHooks(self._run_id, self._emit)
         self._gate = SessionGate(
             self._run_id,
@@ -181,6 +182,9 @@ class Session:
         """Forward MCP-related stderr lines as warning events in the feed."""
         lower = line.lower()
         if "mcp" not in lower:
+            return
+        self._mcp_warning_count += 1
+        if self._mcp_warning_count > MAX_MCP_WARNINGS:
             return
         log.warning("CLI stderr (MCP): %s", line)
         self._emit({"event": "mcp_warning", "data": {"message": line}})
