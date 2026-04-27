@@ -212,11 +212,6 @@ export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
   "completed_no_changes",
 ]);
 
-// MCP Servers
-export const MAX_MCP_SERVERS = 10;
-export const MCP_SERVER_TYPES = ["stdio", "sse", "http"] as const;
-export type McpServerType = (typeof MCP_SERVER_TYPES)[number];
-
 // Panel resize
 export const SIDEBAR_DEFAULT_WIDTH = 260;
 export const SIDEBAR_MIN_WIDTH = 180;

@@ -387,23 +387,9 @@ export async function fetchBranches(repo: string): Promise<string[]> {
 
 // ── MCP Servers ──────────────────────────────────────────────────────────────
 
-/**
- * MCP server configuration matching the Claude SDK types.
- * Stdio servers are identified by having `command` (no `type` field).
- * SSE/HTTP servers have `type: "sse" | "http"` and `url`.
- */
-export interface McpServerConfig {
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  type?: "sse" | "http";
-  url?: string;
-  headers?: Record<string, string>;
-}
-
 export async function fetchRepoMcpServers(
   repo: string,
-): Promise<Record<string, McpServerConfig>> {
+): Promise<Record<string, Record<string, unknown>>> {
   const res = await apiFetch(`/api/repos/${repo}/mcp-servers`);
   if (!res.ok) return {};
   const data = await res.json();
@@ -412,7 +398,7 @@ export async function fetchRepoMcpServers(
 
 export async function saveRepoMcpServers(
   repo: string,
-  servers: Record<string, McpServerConfig>,
+  servers: Record<string, Record<string, unknown>>,
 ): Promise<void> {
   const res = await apiFetch(`/api/repos/${repo}/mcp-servers`, {
     method: "PUT",
