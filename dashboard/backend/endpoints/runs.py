@@ -130,6 +130,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "git_token": creds.get("git_token"),
         "github_repo": run.github_repo,
         "env": creds.get("env"),
+        "mcp_servers": creds.get("mcp_servers"),
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
     run.status = RUN_STATUS_RUNNING
@@ -223,6 +224,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "github_repo": creds.get("github_repo"),
         "env": creds.get("env"),
         "host_mounts": creds.get("host_mounts"),
+        "mcp_servers": creds.get("mcp_servers"),
     }, None, None, extra_headers=None)
 
 

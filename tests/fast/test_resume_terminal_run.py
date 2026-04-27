@@ -183,6 +183,7 @@ class TestBootstrapResumesBranch:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
+                mcp_servers=None,
             )
 
         # Must use existing branch, not generate new
@@ -222,6 +223,7 @@ class TestBootstrapResumesBranch:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
+                mcp_servers=None,
             )
 
         # Must generate new branch and update DB
@@ -257,6 +259,7 @@ class TestBootstrapResumesBranch:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
+                mcp_servers=None,
             )
 
         # Must generate a real branch since DB had None (pre-bootstrap).
@@ -387,6 +390,7 @@ class TestBootstrapPreservesCosts:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
+                mcp_servers=None,
             )
 
         # Verify costs were seeded from DB
@@ -422,6 +426,7 @@ class TestBootstrapPreservesCosts:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=60,
+                mcp_servers=None,
             )
 
         # Verify new branch was generated

@@ -9,11 +9,11 @@ import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
 import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
-import type { StarterPresetKey, EffortLevel } from "@/lib/constants";
-import type { ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts } from "@/lib/api";
-import type { HostMount } from "@/lib/api";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT, MAX_MCP_SERVERS } from "@/lib/constants";
+import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRepoMcpServers, saveRepoMcpServers } from "@/lib/api";
+import type { HostMount, McpServerConfig } from "@/lib/api";
+import { McpServersEditor } from "@/components/controls/McpServersEditor";
 
 export interface StartRunModalProps {
   open: boolean;
@@ -102,6 +102,8 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [envError, setEnvError] = useState<string | null>(null);
   const [mounts, setMounts] = useState<HostMount[]>([]);
   const [mountError, setMountError] = useState<string | null>(null);
+  const [mcpServers, setMcpServers] = useState<Record<string, McpServerConfig>>({});
+  const [mcpError, setMcpError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustPromptHeight = useCallback((): void => {
@@ -123,6 +125,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     if (open && activeRepo) {
       setEnvError(null);
       setMountError(null);
+      setMcpError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       }).catch(() => {
@@ -130,6 +133,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       });
       fetchRepoMounts(activeRepo).then(setMounts).catch(() => {
         setMountError("Failed to load host mounts");
+      });
+      fetchRepoMcpServers(activeRepo).then(setMcpServers).catch(() => {
+        setMcpError("Failed to load MCP servers");
       });
     }
   }, [open, activeRepo]);
@@ -156,8 +162,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const handleStart = async () => {
     const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
     const preset = selectedQuick !== null ? selectedQuick : undefined;
-    if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0)) {
-      setEnvError("Select a repository before configuring environment variables or host mounts");
+    const hasMcpServers = Object.keys(mcpServers).length > 0;
+    if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0 || hasMcpServers)) {
+      setEnvError("Select a repository before configuring environment variables, host mounts, or MCP servers");
       return;
     }
     if (activeRepo) {
@@ -175,6 +182,13 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         setMountError(e instanceof Error ? e.message : "Failed to save mounts");
         return;
       }
+      try {
+        await saveRepoMcpServers(activeRepo, mcpServers);
+        setMcpError(null);
+      } catch (e) {
+        setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers");
+        return;
+      }
     }
     onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
   };
@@ -188,6 +202,8 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const envCount = countEnvVars(envText);
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
   const mountSummary = mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None";
+  const mcpCount = Object.keys(mcpServers).length;
+  const mcpSummary = mcpCount > 0 ? `${mcpCount} server${mcpCount > 1 ? "s" : ""}` : "None";
   const selectedDurationPreset = DURATION_PRESETS.find((d) => d.minutes === duration);
 
   if (typeof document === "undefined") return null;
@@ -446,6 +462,14 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                       + Add mount
                     </button>
                     {mountError && <p className="mt-1 text-content text-[#ff4444]">{mountError}</p>}
+                  </div>
+                </CollapsibleSection>
+                {/* MCP Servers (collapsible) */}
+                <CollapsibleSection label="MCP Servers" summary={mcpSummary} defaultOpen={false}>
+                  <div>
+                    <p className="text-content text-text-secondary mb-3">Configure MCP servers for Claude to use during this run.</p>
+                    <McpServersEditor servers={mcpServers} onChange={setMcpServers} maxServers={MAX_MCP_SERVERS} />
+                    {mcpError && <p className="mt-2 text-content text-[#ff4444]">{mcpError}</p>}
                   </div>
                 </CollapsibleSection>
               </div>

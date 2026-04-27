@@ -289,6 +289,7 @@ class AgentServer:
                 effort=body.effort,
                 git_token=git_token,
                 clone_timeout=self._clone_timeout,
+                mcp_servers=body.mcp_servers,
             )
             active.status = RUN_STATUS_RUNNING
             active.inbox = bootstrap.inbox

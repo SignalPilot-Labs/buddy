@@ -199,6 +199,22 @@ async def read_credentials(repo: str | None) -> dict:
                         f"Stored config '{mounts_key}' exists but cannot be parsed — data may be corrupted"
                     ) from e
 
+            mcp_key = f"mcp_servers:{repo}"
+            mcp_setting = await s.get(Setting, mcp_key)
+            if mcp_setting:
+                try:
+                    plain = crypto.decrypt(mcp_setting.value, MASTER_KEY_PATH)
+                except InvalidToken as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{mcp_key}' exists but cannot be decrypted — master key may have changed"
+                    ) from e
+                try:
+                    creds["mcp_servers"] = json.loads(plain)
+                except (json.JSONDecodeError, TypeError) as e:
+                    raise CredentialDecryptionError(
+                        f"Stored credential '{mcp_key}' exists but cannot be parsed — data may be corrupted"
+                    ) from e
+
     return creds
 
 

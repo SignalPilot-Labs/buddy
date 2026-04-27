@@ -127,6 +127,7 @@ BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
     "/home/agentuser/repo",
 })
 MAX_HOST_MOUNTS: int = 10
+MAX_MCP_SERVERS: int = 10
 
 
 def validate_host_mount(

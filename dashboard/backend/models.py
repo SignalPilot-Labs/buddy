@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field, field_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_HOST_MOUNTS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN, validate_prompt_length
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_HOST_MOUNTS, MAX_MCP_SERVERS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN, validate_prompt_length
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -77,6 +77,20 @@ class SaveMountsRequest(BaseModel):
     """Request body for saving per-repo host mounts."""
 
     mounts: list[HostMountEntry] = Field(default_factory=list, max_length=MAX_HOST_MOUNTS)
+
+
+class SaveMcpServersRequest(BaseModel):
+    """Request body for saving per-repo MCP server configurations."""
+
+    servers: dict[str, dict] = Field(default_factory=dict)
+
+    @field_validator("servers")
+    @classmethod
+    def servers_max_count(cls, v: dict[str, dict]) -> dict[str, dict]:
+        """Validate that the number of servers does not exceed MAX_MCP_SERVERS."""
+        if len(v) > MAX_MCP_SERVERS:
+            raise ValueError(f"Cannot configure more than {MAX_MCP_SERVERS} MCP servers")
+        return v
 
 
 class AddTokenRequest(BaseModel):

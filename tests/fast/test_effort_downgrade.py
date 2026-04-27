@@ -26,6 +26,7 @@ class TestEffortDowngrade:
             max_budget_usd=0,
             effort="max",
             run_start_time=0.0,
+            mcp_servers=None,
         )
         assert opts["effort"] == "max"
 
@@ -37,6 +38,7 @@ class TestEffortDowngrade:
             max_budget_usd=0,
             effort="max",
             run_start_time=0.0,
+            mcp_servers=None,
         )
         assert opts["effort"] == "max"
 
@@ -48,6 +50,7 @@ class TestEffortDowngrade:
             max_budget_usd=0,
             effort="max",
             run_start_time=0.0,
+            mcp_servers=None,
         )
         assert opts["effort"] == "high"
 
@@ -59,6 +62,7 @@ class TestEffortDowngrade:
             max_budget_usd=0,
             effort="high",
             run_start_time=0.0,
+            mcp_servers=None,
         )
         assert opts["effort"] == "high"
 
@@ -71,5 +75,6 @@ class TestEffortDowngrade:
                 max_budget_usd=0,
                 effort="medium",
                 run_start_time=0.0,
+                mcp_servers=None,
             )
             assert opts["effort"] == "medium"

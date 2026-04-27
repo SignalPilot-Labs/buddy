@@ -385,3 +385,45 @@ export async function fetchBranches(repo: string): Promise<string[]> {
   return res.json();
 }
 
+// ── MCP Servers ──────────────────────────────────────────────────────────────
+
+/**
+ * MCP server configuration matching the Claude SDK types.
+ * Stdio servers are identified by having `command` (no `type` field).
+ * SSE/HTTP servers have `type: "sse" | "http"` and `url`.
+ */
+export interface McpServerConfig {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  type?: "sse" | "http";
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+export async function fetchRepoMcpServers(
+  repo: string,
+): Promise<Record<string, McpServerConfig>> {
+  const res = await apiFetch(`/api/repos/${repo}/mcp-servers`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.servers || {};
+}
+
+export async function saveRepoMcpServers(
+  repo: string,
+  servers: Record<string, McpServerConfig>,
+): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/mcp-servers`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ servers }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(
+      err.detail || `Failed to save MCP servers (HTTP ${res.status})`,
+    );
+  }
+}
+

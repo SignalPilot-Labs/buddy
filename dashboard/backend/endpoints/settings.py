@@ -17,6 +17,7 @@ from backend.constants import (
 from db.constants import validate_host_mount
 from backend.models import (
     AddTokenRequest,
+    SaveMcpServersRequest,
     SaveMountsRequest,
     SetActiveRepoRequest,
     UpdateSettingsRequest,
@@ -68,6 +69,11 @@ def _host_mounts_key(repo: str) -> str:
     return f"host_mounts:{repo}"
 
 
+def _mcp_servers_key(repo: str) -> str:
+    """Setting table key for per-repo MCP server configurations."""
+    return f"mcp_servers:{repo}"
+
+
 @router.get("/settings")
 async def get_settings() -> dict:
     """Get all settings with secrets masked."""
@@ -75,7 +81,7 @@ async def get_settings() -> dict:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
         for setting in result.scalars().all():
-            if setting.key.startswith("env_vars:") or setting.key.startswith("host_mounts:"):
+            if setting.key.startswith("env_vars:") or setting.key.startswith("host_mounts:") or setting.key.startswith("mcp_servers:"):
                 continue
             if setting.encrypted:
                 try:
@@ -168,6 +174,38 @@ async def save_repo_mounts(repo: str, body: SaveMountsRequest) -> dict:
                 await s.delete(existing)
         await s.commit()
     return {"ok": True, "repo": repo, "mount_count": len(serialized)}
+
+
+@router.get("/repos/{repo:path}/mcp-servers")
+async def get_repo_mcp_servers(repo: str) -> dict:
+    """Get MCP server configurations for a repo. Values decrypted for settings UI."""
+    async with session() as s:
+        setting = await s.get(Setting, _mcp_servers_key(repo))
+        if not setting:
+            return {"repo": repo, "servers": {}}
+        try:
+            servers: dict[str, dict] = json.loads(
+                crypto.decrypt(setting.value, MASTER_KEY_PATH),
+            )
+            return {"repo": repo, "servers": servers}
+        except Exception as e:
+            log.error("Failed to decrypt MCP servers for %s: %s", repo, e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Failed to decrypt MCP servers")
+
+
+@router.put("/repos/{repo:path}/mcp-servers")
+async def save_repo_mcp_servers(repo: str, body: SaveMcpServersRequest) -> dict:
+    """Save MCP server configurations for a repo. Full replacement — omitted servers are deleted."""
+    async with session() as s:
+        if body.servers:
+            encrypted = crypto.encrypt(json.dumps(body.servers), MASTER_KEY_PATH)
+            await upsert_setting(s, _mcp_servers_key(repo), encrypted, True)
+        else:
+            existing = await s.get(Setting, _mcp_servers_key(repo))
+            if existing:
+                await s.delete(existing)
+        await s.commit()
+    return {"ok": True, "repo": repo, "server_count": len(body.servers)}
 
 
 @router.get("/repos")
