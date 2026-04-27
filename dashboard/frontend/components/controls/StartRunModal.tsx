@@ -467,7 +467,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 {/* MCP Servers (collapsible) */}
                 <CollapsibleSection label="MCP Servers" summary={mcpSummary} defaultOpen={false}>
                   <div>
-                    <p className="text-content text-text-secondary mb-3">Configure MCP servers for Claude to use during this run.</p>
+                    <p className="text-content text-text-secondary mb-2">Configure MCP servers for Claude to use during this run.</p>
                     <McpServersEditor servers={mcpServers} onChange={setMcpServers} maxServers={MAX_MCP_SERVERS} />
                     {mcpError && <p className="mt-2 text-content text-[#ff4444]">{mcpError}</p>}
                   </div>

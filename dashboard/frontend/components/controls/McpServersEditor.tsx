@@ -59,7 +59,9 @@ const TEXTAREA_CLASS =
   "w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all";
 
 const LABEL_CLASS =
-  "text-caption uppercase tracking-wider text-text-dim w-16 shrink-0 pt-2";
+  "text-caption uppercase tracking-wider text-text-dim w-16 shrink-0";
+
+const LABEL_TEXTAREA_CLASS = `${LABEL_CLASS} pt-2`;
 
 interface ServerRowProps {
   name: string;
@@ -101,6 +103,7 @@ function ServerRow({
           className={INPUT_CLASS}
           autoComplete="off"
           spellCheck={false}
+          aria-label="Server name"
         />
         <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5 shrink-0">
           {MCP_SERVER_TYPES.map((t) => (
@@ -143,6 +146,7 @@ function ServerRow({
               className={INPUT_CLASS}
               autoComplete="off"
               spellCheck={false}
+              aria-label="Command"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -163,10 +167,11 @@ function ServerRow({
               className={INPUT_CLASS}
               autoComplete="off"
               spellCheck={false}
+              aria-label="Arguments"
             />
           </div>
           <div className="flex items-start gap-2">
-            <span className={LABEL_CLASS}>Env</span>
+            <span className={LABEL_TEXTAREA_CLASS}>Env</span>
             <textarea
               value={kvToText(config.env ?? {})}
               onChange={(e) =>
@@ -180,6 +185,7 @@ function ServerRow({
               className={TEXTAREA_CLASS}
               autoComplete="off"
               spellCheck={false}
+              aria-label="Environment variables"
             />
           </div>
         </>
@@ -199,10 +205,11 @@ function ServerRow({
               className={INPUT_CLASS}
               autoComplete="off"
               spellCheck={false}
+              aria-label="Server URL"
             />
           </div>
           <div className="flex items-start gap-2">
-            <span className={LABEL_CLASS}>Headers</span>
+            <span className={LABEL_TEXTAREA_CLASS}>Headers</span>
             <textarea
               value={kvToText(config.headers ?? {})}
               onChange={(e) =>
@@ -216,6 +223,7 @@ function ServerRow({
               className={TEXTAREA_CLASS}
               autoComplete="off"
               spellCheck={false}
+              aria-label="HTTP headers"
             />
           </div>
         </>
@@ -291,6 +299,7 @@ export function McpServersEditor({
         type="button"
         onClick={handleAdd}
         disabled={atMax}
+        title={atMax ? `Maximum of ${maxServers} servers reached` : undefined}
         className={clsx(
           "text-content transition-colors",
           atMax
