@@ -13,6 +13,7 @@ export interface UseKeyboardShortcutsOptions {
   controlAction: (label: string, fn: (id: string) => Promise<unknown>) => Promise<void>;
   runStatus: RunStatus | null;
   busy: boolean;
+  activeRepoFilter: string | null;
 }
 
 export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions): void {
@@ -24,6 +25,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions): void
     controlAction,
     runStatus,
     busy,
+    activeRepoFilter,
   } = options;
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions): void
       if (isInput) return;
 
       if (e.key === "n" && !e.metaKey && !e.ctrlKey) {
+        if (!activeRepoFilter) return;
         e.preventDefault();
         setStartModalOpen(true);
         return;
@@ -73,5 +76,5 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions): void
 
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [handleToggleSidebar, setStartModalOpen, showShortcuts, setShowShortcuts, controlAction, runStatus, busy]);
+  }, [handleToggleSidebar, setStartModalOpen, showShortcuts, setShowShortcuts, controlAction, runStatus, busy, activeRepoFilter]);
 }

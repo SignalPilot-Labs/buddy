@@ -151,7 +151,7 @@ async def resume_run(run_id: str = RunId, body: ControlSignalRequest = Body()) -
                 await send_control_signal(run_id, "inject", set(ACTIVE_RUN_STATUSES), prompt, None)
             if run.status == RUN_STATUS_PAUSED:
                 return await send_control_signal(run_id, "resume", {RUN_STATUS_PAUSED}, None, None)
-            return {"ok": True, "signal": "inject", "run_id": run_id}
+            return {"ok": True, "signal": "noop", "run_id": run_id}
         if run.status in RESTARTABLE_STATUSES:
             return await _resume_completed_run(
                 run, run_id, (body.payload or "").strip() or None, s,

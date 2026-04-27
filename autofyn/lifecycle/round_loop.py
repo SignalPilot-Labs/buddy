@@ -133,6 +133,14 @@ async def run_rounds(
             max_rounds=bootstrap.run_config.max_rounds,
         )
 
+        # Session-error retries must not inflate round_number or create
+        # junk archive directories. Decrement and retry the same round.
+        # When terminal is set (max retries exceeded), fall through to
+        # archive so the error round is preserved for resume inspection.
+        if result.status == "session_error" and terminal is None:
+            round_number -= 1
+            continue
+
         # Archive after outcome handling so the persisted rounds.json
         # reflects record_round(N) from _commit_and_push_round — file
         # and metadata snapshots stay consistent on resume.

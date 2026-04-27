@@ -6,7 +6,7 @@ the error was swallowed completely with no log line. Now it always logs.
 
 import logging
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -25,7 +25,15 @@ class TestAgentRequestFallbackLogs:
         """Connection failure with fallback must log before returning fallback."""
         fallback_value = {"lines": [], "total": 0}
 
-        with caplog.at_level(logging.ERROR):
+        mock_client = MagicMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        mock_client.request = AsyncMock(side_effect=httpx.ConnectError("Connection refused"))
+
+        with (
+            patch("backend.utils.httpx.AsyncClient", return_value=mock_client),
+            caplog.at_level(logging.ERROR),
+        ):
             result = await agent_request(
                 "GET",
                 "/nonexistent",

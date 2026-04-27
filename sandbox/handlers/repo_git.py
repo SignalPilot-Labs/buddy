@@ -224,6 +224,10 @@ async def _commits_ahead(base: str, timeout: int) -> int:
     )
     _fail(result, "git rev-list")
     count_str = result.stdout.strip()
+    lines = count_str.splitlines()
+    if not lines:
+        raise RuntimeError("git rev-list --count returned empty output")
+    count_str = lines[-1].strip()
     if not count_str.isdigit():
         raise RuntimeError(
             f"git rev-list --count returned non-integer output: {count_str!r}"

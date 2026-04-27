@@ -21,7 +21,7 @@ Rules (and why):
 import logging
 import re
 
-from constants import CREDENTIAL_PATTERNS, SECRET_ENV_VARS
+from constants import CREDENTIAL_PATTERNS, GIT_REMOTE_WRITE_RE, SECRET_ENV_VARS
 
 log = logging.getLogger("sandbox.security")
 
@@ -126,7 +126,7 @@ class SecurityGate:
 
     def _check_remote_and_clone(self, cmd: str) -> str | None:
         """Block remote modifications and cloning other repos."""
-        if "git remote" in cmd:
+        if GIT_REMOTE_WRITE_RE.search(cmd):
             if self._github_repo and self._github_repo not in cmd:
                 return f"Cannot modify git remotes — only {self._github_repo} is allowed"
 

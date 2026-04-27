@@ -130,7 +130,7 @@ export function ReadGroupCard({
                   <div key={i}>
                     <button
                       onClick={() =>
-                        setPreviewIdx(previewIdx === i ? null : i)
+                        setPreviewIdx(previewIdx === tools[i].id ? null : tools[i].id)
                       }
                       className="w-full flex items-center gap-2 text-content py-1 hover:bg-white/[0.02] rounded px-1 transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1 focus-visible:outline-[#00ff88]"
                     >
@@ -152,9 +152,9 @@ export function ReadGroupCard({
                           {totalLines} lines
                         </span>
                       )}
-                      <Chevron open={previewIdx === i} size={8} />
+                      <Chevron open={previewIdx === tools[i].id} size={8} />
                     </button>
-                    {previewIdx === i && !!fileObj?.content && (
+                    {previewIdx === tools[i].id && !!fileObj?.content && (
                       <div className="ml-4 mt-1 mb-2">
                         <FileContentPreview
                           content={String(fileObj.content)}
@@ -254,7 +254,7 @@ export function EditGroupCard({
               <div key={i}>
                 <button
                   onClick={() =>
-                    setExpandedFile(expandedFile === i ? null : i)
+                    setExpandedFile(expandedFile === tools[i].id ? null : tools[i].id)
                   }
                   className="w-full flex items-center gap-2 px-4 py-2 text-content hover:bg-white/[0.02] transition-colors text-left focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[#00ff88]"
                 >
@@ -283,9 +283,9 @@ export function EditGroupCard({
                       -{edit.removed}
                     </span>
                   )}
-                  <Chevron open={expandedFile === i} size={8} />
+                  <Chevron open={expandedFile === tools[i].id} size={8} />
                 </button>
-                {expandedFile === i && (() => {
+                {expandedFile === tools[i].id && (() => {
                   const patch = tools[i]?.output_data?.structuredPatch;
                   const hasPatch = Array.isArray(patch) && (patch as unknown[]).length > 0;
                   const content = tools[i]?.output_data?.content ?? tools[i]?.input_data?.content;

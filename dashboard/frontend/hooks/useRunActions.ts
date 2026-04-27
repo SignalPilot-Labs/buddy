@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   startRun as apiStartRun,
   stopRun,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
-import { loadStoredModel } from "@/lib/constants";
+import { STOP_BUSY_TIMEOUT_MS } from "@/lib/constants";
 import type { RunActionsConfig, RunActions } from "@/hooks/dashboardTypes";
 
 export function useRunActions(config: RunActionsConfig): RunActions {
@@ -22,6 +22,12 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   } = config;
 
   const [showStopDialog, setShowStopDialog] = useState(false);
+  const stopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clean up stop-busy timeout on unmount.
+  useEffect(() => () => {
+    if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+  }, []);
 
   const controlAction = useCallback(
     (label: string, fn: (id: string) => Promise<unknown>): Promise<void> => {
@@ -49,15 +55,13 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       budget: number,
       durationMinutes: number,
       baseBranch: string,
-      model?: string | undefined,
-      effort?: string | undefined,
+      model: string,
+      effort: string,
     ): Promise<void> => {
-      const resolvedModel = model ?? loadStoredModel();
-      const resolvedEffort = effort ?? "high";
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, resolvedModel, resolvedEffort, activeRepoFilter);
+        const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, model, effort, activeRepoFilter);
         await refreshRunsRef.current();
         if (result.run_id) {
           await handleSelectRun(result.run_id);
@@ -104,7 +108,15 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     (openPr: boolean): void => {
       setShowStopDialog(false);
       setBusy(true);
-      void controlAction("Stop", (id) => stopRun(id, !openPr));
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = setTimeout(() => {
+        stopTimeoutRef.current = null;
+        setBusy(false);
+      }, STOP_BUSY_TIMEOUT_MS);
+      controlAction("Stop", (id) => stopRun(id, !openPr)).catch(() => {
+        if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
+        setBusy(false);
+      });
     },
     [controlAction, setBusy],
   );

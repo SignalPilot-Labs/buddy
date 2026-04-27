@@ -36,6 +36,13 @@ class SessionManager:
         session.task = asyncio.create_task(session.run())
 
         def _on_task_done(task: asyncio.Task) -> None:
+            self._sessions.pop(session_id, None)
+            if not task.cancelled():
+                exc = task.exception()
+                if exc is not None:
+                    log.warning(
+                        "Session %s task raised an exception", session_id, exc_info=exc
+                    )
             log.info("Session %s task completed", session_id)
 
         session.task.add_done_callback(_on_task_done)
@@ -71,16 +78,23 @@ class SessionManager:
             except asyncio.CancelledError:
                 pass
             except Exception:
-                log.warning("Session %s raised exception during cancellation", session_id, exc_info=True)
+                log.exception("Session %s raised exception during cancellation", session_id)
+                raise
 
     def unlock(self, session_id: str) -> None:
         """Force-unlock a session's time gate."""
         self._get(session_id).unlocked = True
 
     async def stop_all(self) -> None:
-        """Stop all active sessions."""
+        """Stop all active sessions.
+
+        Best-effort: one bad session must not prevent cleanup of the rest.
+        """
         for sid in list(self._sessions.keys()):
-            await self.stop(sid)
+            try:
+                await self.stop(sid)
+            except Exception:
+                log.exception("Failed to stop session %s during stop_all", sid)
 
     def _get(self, session_id: str) -> Session:
         """Look up a session by ID."""

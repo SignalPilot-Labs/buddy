@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent, RunStatus } from "@/lib/types";
@@ -214,6 +214,9 @@ export interface WorkTreeProps {
 export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [diffData, setDiffData] = useState<DiffStats | null>(null);
   const [diffLoading, setDiffLoading] = useState(false);
+  // Generation counter: incremented on each new runId mount so stale async
+  // fetches from a prior run are discarded when they resolve.
+  const diffGenRef = useRef(0);
   // Repo and tmp diffs are separate sources — one is git working-branch-vs-base,
   // the other is sandbox filesystem reads of `/tmp/round-*`. Keeping them as
   // distinct state avoids a combined blob that's awkward to size-cap, parse,
@@ -227,11 +230,13 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   // can call it — before this, bodies were one-shot on mount so newly
   // written round reports were visible in the tree (via liveTree from
   // the event stream) but couldn't be opened until a manual refresh.
-  const fetchDiffBodies = useCallback((id: string) => {
+  // The `gen` parameter guards against stale results from prior runs.
+  const fetchDiffBodies = useCallback((id: string, gen: number) => {
     Promise.all([
       fetchDiffRepo(id).then(d => d.diff).catch(() => ""),
       fetchDiffTmp(id).then(d => d.diff).catch(() => ""),
     ]).then(([repo, tmp]) => {
+      if (gen !== diffGenRef.current) return;
       const repoOversize = repo.length > DIFF_MAX_BYTES;
       const tmpOversize = tmp.length > DIFF_MAX_BYTES;
       const repoSafe = repoOversize ? null : (repo || null);
@@ -251,16 +256,25 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       setDiffTooLarge(false);
       return;
     }
+    const gen = ++diffGenRef.current;
     setSelectedFile(null);
     setDiffTooLarge(false);
     setDiffLoading(true);
     fetchRunDiff(runId)
-      .then(d => { setDiffData(d); setDiffLoading(false); })
+      .then(d => {
+        if (gen !== diffGenRef.current) return;
+        setDiffData(d);
+        setDiffLoading(false);
+      })
       .catch(err => {
-        console.warn("WorkTree: diff stats fetch failed:", err);
+        if (gen !== diffGenRef.current) return;
+        console.warn("WorkTree: diff stats fetch failed, enabling polling retry:", err);
+        // Set a live-source sentinel so isPollingSource becomes true and the
+        // existing polling interval retries fetchRunDiff automatically.
+        setDiffData({ source: "live", files: [], total_files: 0, total_added: 0, total_removed: 0 });
         setDiffLoading(false);
       });
-    fetchDiffBodies(runId);
+    fetchDiffBodies(runId, gen);
   }, [runId]);
 
   // Poll all three diff sources for live/agent runs so the tree, badge,
@@ -272,8 +286,11 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   useEffect(() => {
     if (!runId || !isPollingSource) return;
     const id = setInterval(() => {
-      fetchRunDiff(runId).then(setDiffData).catch(err => console.warn("WorkTree: diff poll failed:", err));
-      fetchDiffBodies(runId);
+      const gen = diffGenRef.current;
+      fetchRunDiff(runId)
+        .then(d => { if (gen !== diffGenRef.current) return; setDiffData(d); })
+        .catch(err => console.warn("WorkTree: diff poll failed:", err));
+      fetchDiffBodies(runId, gen);
     }, DIFF_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [runId, isPollingSource]);

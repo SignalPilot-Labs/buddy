@@ -113,3 +113,10 @@ AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 # ── Terminal session events ──
 # These events must never be dropped from the queue; they signal session end.
 TERMINAL_EVENTS: frozenset[str] = frozenset({"session_end", "session_error"})
+
+# ── Security: git remote write subcommands ──
+# Matches only remote-mutating subcommands. Read-only commands like
+# `git remote -v`, `git remote show`, `git remote get-url` are NOT matched.
+GIT_REMOTE_WRITE_RE: re.Pattern[str] = re.compile(
+    r"git\s+remote\s+(add|remove|rm|rename|set-url|set-head|set-branches|prune)\b"
+)

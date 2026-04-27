@@ -25,6 +25,7 @@ export function useRuns(repo?: string | null, pollInterval = 8000) {
 
   useEffect(() => {
     setLoading(true);
+    setRuns([]);
     refresh();
     const id = setInterval(refresh, pollInterval);
     return () => clearInterval(id);

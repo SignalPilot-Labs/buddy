@@ -240,7 +240,7 @@ class AgentServer:
         active: ActiveRun,
         terminal_status: str,
         bootstrap: BootstrapResult | None,
-        sandbox: SandboxClient,
+        sandbox: SandboxClient | None,
     ) -> None:
         """Emit the run_ended audit event and tear down the sandbox."""
         elapsed = (
@@ -258,23 +258,25 @@ class AgentServer:
         )
         active.inbox = None
         active.time_lock = None
-        await sandbox.close()
+        if sandbox is not None:
+            await sandbox.close()
         await self._pool.destroy(run_id)
 
     async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
         run_id, github_repo, task, budget, git_token = self._validate_run_inputs(active, body)
 
-        sandbox = await self._pool.create(
-            run_id,
-            self._health_timeout,
-            body.env,
-            body.host_mounts,
-        )
-        await log_audit(run_id, "sandbox_created", {})
+        sandbox: SandboxClient | None = None
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
+            sandbox = await self._pool.create(
+                run_id,
+                self._health_timeout,
+                body.env,
+                body.host_mounts,
+            )
+            await log_audit(run_id, "sandbox_created", {})
             bootstrap = await bootstrap_run(
                 sandbox=sandbox,
                 run_id=run_id,

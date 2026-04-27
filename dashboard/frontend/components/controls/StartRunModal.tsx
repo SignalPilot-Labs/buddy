@@ -9,8 +9,8 @@ import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
 import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS } from "@/lib/constants";
-import type { StarterPresetKey } from "@/lib/constants";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
+import type { StarterPresetKey, EffortLevel } from "@/lib/constants";
 import type { ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts } from "@/lib/api";
 import type { HostMount } from "@/lib/api";
@@ -51,9 +51,6 @@ const PROMPT_LINE_HEIGHT = 24; // matches leading-6
 const PROMPT_VERTICAL_PADDING = 20; // py-2.5 = 10px top + 10px bottom
 const PROMPT_MIN_ROWS = 3;
 const PROMPT_MAX_ROWS = 10;
-
-const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
-type EffortLevel = typeof EFFORT_LEVELS[number];
 
 const DURATION_PRESETS = [
   { label: "No lock", minutes: 0, desc: "Agent can end anytime" },
@@ -100,7 +97,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
   const [selectedQuick, setSelectedQuick] = useState<StarterPresetKey | null>(null);
   const [model, setModel] = useState<ModelId>(loadStoredModel);
-  const [effort, setEffort] = useState<EffortLevel>("high");
+  const [effort, setEffort] = useState<EffortLevel>(DEFAULT_EFFORT);
   const [envText, setEnvText] = useState("");
   const [envError, setEnvError] = useState<string | null>(null);
   const [mounts, setMounts] = useState<HostMount[]>([]);
@@ -159,6 +156,10 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const handleStart = async () => {
     const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
     const preset = selectedQuick !== null ? selectedQuick : undefined;
+    if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0)) {
+      setEnvError("Select a repository before configuring environment variables or host mounts");
+      return;
+    }
     if (activeRepo) {
       try {
         await saveRepoEnv(activeRepo, parseEnvText(envText));
