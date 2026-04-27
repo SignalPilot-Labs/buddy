@@ -113,7 +113,6 @@ AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 # ── Terminal session events ──
 # These events must never be dropped from the queue; they signal session end.
 TERMINAL_EVENTS: frozenset[str] = frozenset({"session_end", "session_error"})
-MAX_MCP_WARNINGS: int = 10
 
 # ── Security: git remote write subcommands ──
 # Matches only remote-mutating subcommands. Read-only commands like

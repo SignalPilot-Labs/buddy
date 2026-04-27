@@ -15,7 +15,7 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from constants import MAX_MCP_WARNINGS, SESSION_EVENT_QUEUE_SIZE, TERMINAL_EVENTS
+from constants import SESSION_EVENT_QUEUE_SIZE, TERMINAL_EVENTS
 from session.gate import SessionGate
 from session.hooks import SessionHooks
 from session.security import SecurityGate
@@ -43,7 +43,6 @@ class Session:
         self.task: asyncio.Task | None = None
         self._ended = False
         self.unlocked = False
-        self._mcp_warning_count = 0
         self._hooks = SessionHooks(self._run_id, self._emit)
         self._gate = SessionGate(
             self._run_id,
@@ -65,6 +64,7 @@ class Session:
             options = self._build_options()
             async with ClaudeSDKClient(options=options) as client:
                 self.client = client
+                await self._check_mcp_status(client)
                 await client.query(self.options_dict["initial_prompt"])
                 async for message in client.receive_messages():
                     event = serialize_message(message)
@@ -175,19 +175,21 @@ class Session:
             mcp_servers=mcp,
             agents=agents,
             hooks=self._hooks.build_hooks(),
-            stderr=self._stderr_callback,
         )
 
-    def _stderr_callback(self, line: str) -> None:
-        """Forward MCP-related stderr lines as warning events in the feed."""
-        lower = line.lower()
-        if "mcp" not in lower:
-            return
-        self._mcp_warning_count += 1
-        if self._mcp_warning_count > MAX_MCP_WARNINGS:
-            return
-        log.warning("CLI stderr (MCP): %s", line)
-        self._emit({"event": "mcp_warning", "data": {"message": line}})
+    async def _check_mcp_status(self, client: ClaudeSDKClient) -> None:
+        """Check MCP server status after connect and emit warnings for failures."""
+        try:
+            status = await client.get_mcp_status()
+            for server in status.get("mcpServers", []):
+                if server.get("status") == "failed":
+                    name = server.get("name", "unknown")
+                    error = server.get("error", "connection failed")
+                    msg = f"MCP server '{name}' failed: {error}"
+                    log.warning("Session %s: %s", self.session_id, msg)
+                    self._emit({"event": "mcp_warning", "data": {"message": msg}})
+        except Exception as e:
+            log.debug("Could not check MCP status: %s", e)
 
     def _permission_callback(self, gate: SecurityGate) -> Callable:
         """Create permission callback bound to a SecurityGate."""

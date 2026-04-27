@@ -1,9 +1,11 @@
-"""Tests for Session._stderr_callback MCP warning emission."""
+"""Tests for Session._check_mcp_status warning emission."""
 
 from __future__ import annotations
 
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 # Stub heavy dependencies before importing session module.
 for mod in (
@@ -22,7 +24,6 @@ for mod in (
 constants_stub = MagicMock()
 constants_stub.SESSION_EVENT_QUEUE_SIZE = 100
 constants_stub.TERMINAL_EVENTS = frozenset({"session_end", "session_error"})
-constants_stub.MAX_MCP_WARNINGS = 5
 sys.modules["constants"] = constants_stub
 
 from session.session import Session  # noqa: E402
@@ -36,66 +37,98 @@ def _make_session() -> Session:
     )
 
 
-class TestStderrCallbackFiltering:
-    """_stderr_callback must only emit events for MCP-related lines."""
+class TestCheckMcpStatusEmitsWarnings:
+    """_check_mcp_status must emit mcp_warning events for failed servers."""
 
-    def test_mcp_line_emits_event(self) -> None:
-        """Stderr line containing 'mcp' must produce an mcp_warning event."""
+    @pytest.mark.asyncio
+    async def test_failed_server_emits_warning(self) -> None:
+        """A server with status 'failed' must produce an mcp_warning event."""
         s = _make_session()
-        s._stderr_callback("Failed to connect to MCP server 'foo'")
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(return_value={
+            "mcpServers": [
+                {"name": "bad-server", "status": "failed", "error": "ENOENT"},
+            ],
+        })
+
+        await s._check_mcp_status(client)
 
         event = s.events.get_nowait()
         assert event["event"] == "mcp_warning"
-        assert "foo" in event["data"]["message"]
+        assert "bad-server" in event["data"]["message"]
+        assert "ENOENT" in event["data"]["message"]
 
-    def test_non_mcp_line_ignored(self) -> None:
-        """Stderr line without 'mcp' must not produce any event."""
+    @pytest.mark.asyncio
+    async def test_connected_server_no_warning(self) -> None:
+        """A server with status 'connected' must not produce any event."""
         s = _make_session()
-        s._stderr_callback("Some unrelated log line")
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(return_value={
+            "mcpServers": [
+                {"name": "good-server", "status": "connected"},
+            ],
+        })
+
+        await s._check_mcp_status(client)
 
         assert s.events.empty()
 
-    def test_case_insensitive(self) -> None:
-        """MCP detection must be case-insensitive."""
+    @pytest.mark.asyncio
+    async def test_multiple_failures(self) -> None:
+        """Multiple failed servers must each produce a separate warning."""
         s = _make_session()
-        s._stderr_callback("MCP connection timeout")
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(return_value={
+            "mcpServers": [
+                {"name": "a", "status": "failed", "error": "err-a"},
+                {"name": "b", "status": "connected"},
+                {"name": "c", "status": "failed", "error": "err-c"},
+            ],
+        })
+
+        await s._check_mcp_status(client)
+
+        events = []
+        while not s.events.empty():
+            events.append(s.events.get_nowait())
+        assert len(events) == 2
+        assert "a" in events[0]["data"]["message"]
+        assert "c" in events[1]["data"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_get_mcp_status_exception_swallowed(self) -> None:
+        """If get_mcp_status raises, the exception must be swallowed."""
+        s = _make_session()
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(side_effect=RuntimeError("not supported"))
+
+        await s._check_mcp_status(client)
+
+        assert s.events.empty()
+
+    @pytest.mark.asyncio
+    async def test_empty_mcp_servers_no_warning(self) -> None:
+        """No MCP servers configured must not produce any event."""
+        s = _make_session()
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(return_value={"mcpServers": []})
+
+        await s._check_mcp_status(client)
+
+        assert s.events.empty()
+
+    @pytest.mark.asyncio
+    async def test_failed_server_without_error_field(self) -> None:
+        """A failed server missing the 'error' field must use default message."""
+        s = _make_session()
+        client = AsyncMock()
+        client.get_mcp_status = AsyncMock(return_value={
+            "mcpServers": [
+                {"name": "no-err", "status": "failed"},
+            ],
+        })
+
+        await s._check_mcp_status(client)
 
         event = s.events.get_nowait()
-        assert event["event"] == "mcp_warning"
-
-
-class TestStderrCallbackRateLimit:
-    """_stderr_callback must cap emitted warnings at MAX_MCP_WARNINGS."""
-
-    def test_stops_emitting_after_max(self) -> None:
-        """Only MAX_MCP_WARNINGS events must be emitted; extras are dropped."""
-        s = _make_session()
-        max_warnings = constants_stub.MAX_MCP_WARNINGS
-
-        for i in range(max_warnings + 5):
-            s._stderr_callback(f"MCP error #{i}")
-
-        count = 0
-        while not s.events.empty():
-            s.events.get_nowait()
-            count += 1
-
-        assert count == max_warnings
-
-    def test_non_mcp_lines_dont_count(self) -> None:
-        """Non-MCP lines must not consume the rate limit budget."""
-        s = _make_session()
-        max_warnings = constants_stub.MAX_MCP_WARNINGS
-
-        for _ in range(20):
-            s._stderr_callback("unrelated noise")
-
-        for i in range(max_warnings):
-            s._stderr_callback(f"MCP error #{i}")
-
-        count = 0
-        while not s.events.empty():
-            s.events.get_nowait()
-            count += 1
-
-        assert count == max_warnings
+        assert "connection failed" in event["data"]["message"]
