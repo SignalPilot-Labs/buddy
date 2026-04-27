@@ -295,7 +295,8 @@ export type AuditEventType =
   | "agent_restarted"
   | "run_starting"
   | "sandbox_created"
-  | "repo_cloned";
+  | "repo_cloned"
+  | "mcp_warning";
 
 export interface AuditEventMeta {
   label: string;
@@ -334,6 +335,7 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   run_starting:        { label: "Run Starting",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   sandbox_created:       { label: "Sandbox Created",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   repo_cloned:         { label: "Repo Cloned",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  mcp_warning:         { label: "MCP Warning",       color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
 };
 
 /* ── WorkTree Types ── */

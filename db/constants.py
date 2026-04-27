@@ -266,6 +266,8 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "subagent_start",
     "subagent_complete",
     "agent_stop",
+    # MCP
+    "mcp_warning",
     # LLM output
     "llm_text",
     "llm_thinking",

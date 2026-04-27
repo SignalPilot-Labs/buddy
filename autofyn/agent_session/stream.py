@@ -145,6 +145,12 @@ class StreamDispatcher:
             log.error("[%s] session error: %s", self._rid, error_msg)
             return StreamSignal(kind="session_error", error=error_msg)
 
+        if kind == "mcp_warning":
+            msg = data.get("message", "")
+            log.warning("[%s] MCP warning: %s", self._rid, msg)
+            await log_audit(self._run.run_id, "mcp_warning", {"message": msg})
+            return StreamSignal(kind="continue")
+
         return StreamSignal(kind="continue")
 
     # ── Handlers ───────────────────────────────────────────────────────

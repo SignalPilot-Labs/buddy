@@ -174,7 +174,16 @@ class Session:
             mcp_servers=mcp,
             agents=agents,
             hooks=self._hooks.build_hooks(),
+            stderr=self._stderr_callback,
         )
+
+    def _stderr_callback(self, line: str) -> None:
+        """Forward MCP-related stderr lines as warning events in the feed."""
+        lower = line.lower()
+        if "mcp" not in lower:
+            return
+        log.warning("CLI stderr (MCP): %s", line)
+        self._emit({"event": "mcp_warning", "data": {"message": line}})
 
     def _permission_callback(self, gate: SecurityGate) -> Callable:
         """Create permission callback bound to a SecurityGate."""
