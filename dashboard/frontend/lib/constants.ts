@@ -71,6 +71,15 @@ export const RECONNECT_MAX_ATTEMPTS = 10;
 // Default base branch for new runs.
 export const DEFAULT_BASE_BRANCH = "main";
 
+// Effort levels for the thinking-effort picker.
+export const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
+export type EffortLevel = (typeof EFFORT_LEVELS)[number];
+export const DEFAULT_EFFORT: EffortLevel = "high";
+
+// Safety timeout for the stop-busy lock (ms). If SSE and polling both fail to
+// deliver run_ended within this window, the UI unlocks so the user isn't stuck.
+export const STOP_BUSY_TIMEOUT_MS = 60_000;
+
 // Starter presets for the "Quick Start" cards in the new-run modal.
 // Keys must match STARTER_PRESET_KEYS in db/constants.py — sync test enforces this.
 export const STARTER_PRESETS = {

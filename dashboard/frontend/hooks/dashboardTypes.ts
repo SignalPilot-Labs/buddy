@@ -23,8 +23,8 @@ export interface RunActions {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
-    model?: string | undefined,
-    effort?: string | undefined,
+    model: string,
+    effort: string,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
@@ -82,8 +82,8 @@ export interface DashboardState {
     budget: number,
     durationMinutes: number,
     baseBranch: string,
-    model?: string | undefined,
-    effort?: string | undefined,
+    model: string,
+    effort: string,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
