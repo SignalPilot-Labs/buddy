@@ -49,6 +49,7 @@ class TestBootstrapSeedsRunState:
                 effort="high",
                 git_token="ghp_test",
                 clone_timeout=120,
+                mcp_servers=None,
             )
 
         write_calls = sandbox.file_system.write.call_args_list
@@ -91,6 +92,7 @@ class TestBootstrapSeedsRunState:
                         effort="high",
                         git_token="ghp_test",
                         clone_timeout=120,
+                        mcp_servers=None,
                     )
 
         write_calls = sandbox.file_system.write.call_args_list

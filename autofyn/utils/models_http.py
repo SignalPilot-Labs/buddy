@@ -27,6 +27,7 @@ class StartRequest(BaseModel):
     github_repo: str | None = None
     env: dict[str, str] | None = None
     host_mounts: list[dict[str, str]] | None = None
+    mcp_servers: dict[str, dict] | None = None
 
     @field_validator("prompt")
     @classmethod
@@ -121,6 +122,7 @@ class ResumeRequest(BaseModel):
     git_token: str | None = Field(repr=False)
     github_repo: str | None
     env: dict[str, str] | None
+    mcp_servers: dict[str, dict] | None = None
 
     @field_validator("prompt")
     @classmethod

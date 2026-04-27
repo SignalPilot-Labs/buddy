@@ -323,6 +323,14 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         event,
       };
     }
+    case "mcp_warning":
+      return {
+        id: `ctrl-${ts}-mcp-warning`,
+        type: "control",
+        text: `MCP warning: ${String(d.message || "Unknown MCP issue")}`,
+        details: d,
+        ts,
+      };
     default:
       return null;
   }

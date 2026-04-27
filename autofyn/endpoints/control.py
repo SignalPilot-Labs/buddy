@@ -50,6 +50,7 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
         model=run_info["model_name"],
         github_repo=github_repo,
         env=merged_env,
+        mcp_servers=body.mcp_servers,
     )
 
     # Clean up stale ActiveRun if present (e.g. crashed but not cleaned up).

@@ -385,3 +385,31 @@ export async function fetchBranches(repo: string): Promise<string[]> {
   return res.json();
 }
 
+// ── MCP Servers ──────────────────────────────────────────────────────────────
+
+export async function fetchRepoMcpServers(
+  repo: string,
+): Promise<Record<string, Record<string, unknown>>> {
+  const res = await apiFetch(`/api/repos/${repo}/mcp-servers`);
+  if (!res.ok) return {};
+  const data = await res.json();
+  return data.servers || {};
+}
+
+export async function saveRepoMcpServers(
+  repo: string,
+  servers: Record<string, Record<string, unknown>>,
+): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/mcp-servers`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ servers }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(
+      err.detail || `Failed to save MCP servers (HTTP ${res.status})`,
+    );
+  }
+}
+

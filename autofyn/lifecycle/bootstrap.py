@@ -57,6 +57,7 @@ async def bootstrap_run(
     effort: str,
     git_token: str,
     clone_timeout: int,
+    mcp_servers: dict[str, dict] | None,
 ) -> BootstrapResult:
     """Prepare sandbox state and services for a fresh run."""
     if not custom_prompt:
@@ -127,6 +128,7 @@ async def bootstrap_run(
         max_budget_usd=max_budget_usd,
         effort=effort,
         run_start_time=run_start_time,
+        mcp_servers=mcp_servers,
     )
 
     await _log_run_started(
@@ -187,6 +189,7 @@ def _build_base_session_options(
     max_budget_usd: float,
     effort: str,
     run_start_time: float,
+    mcp_servers: dict[str, dict] | None,
 ) -> dict:
     """Return everything the sandbox /session/start body needs except prompts.
 
@@ -214,6 +217,7 @@ def _build_base_session_options(
             "duration_minutes": run.duration_minutes,
             "start_time": run_start_time,
         },
+        "mcp_servers": mcp_servers,
     }
 
 

@@ -226,6 +226,7 @@ class TestRepoClonedEvent:
                     effort="high",
                     git_token="ghp_test",
                     clone_timeout=120,
+                    mcp_servers=None,
                 )
 
         event_types = [call[1] for call in log_audit_calls]

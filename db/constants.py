@@ -127,6 +127,7 @@ BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
     "/home/agentuser/repo",
 })
 MAX_HOST_MOUNTS: int = 10
+MAX_MCP_SERVERS: int = 10
 
 
 def validate_host_mount(
@@ -265,6 +266,8 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "subagent_start",
     "subagent_complete",
     "agent_stop",
+    # MCP
+    "mcp_warning",
     # LLM output
     "llm_text",
     "llm_thinking",

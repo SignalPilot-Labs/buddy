@@ -64,6 +64,7 @@ class Session:
             options = self._build_options()
             async with ClaudeSDKClient(options=options) as client:
                 self.client = client
+                await self._check_mcp_status(client)
                 await client.query(self.options_dict["initial_prompt"])
                 async for message in client.receive_messages():
                     event = serialize_message(message)
@@ -175,6 +176,20 @@ class Session:
             agents=agents,
             hooks=self._hooks.build_hooks(),
         )
+
+    async def _check_mcp_status(self, client: ClaudeSDKClient) -> None:
+        """Check MCP server status after connect and emit warnings for failures."""
+        try:
+            status = await client.get_mcp_status()
+            for server in status.get("mcpServers", []):
+                if server.get("status") == "failed":
+                    name = server.get("name", "unknown")
+                    error = server.get("error", "connection failed")
+                    msg = f"MCP server '{name}' failed: {error}"
+                    log.warning("Session %s: %s", self.session_id, msg)
+                    self._emit({"event": "mcp_warning", "data": {"message": msg}})
+        except Exception as e:
+            log.debug("Could not check MCP status: %s", e)
 
     def _permission_callback(self, gate: SecurityGate) -> Callable:
         """Create permission callback bound to a SecurityGate."""
