@@ -57,9 +57,6 @@ export function McpServersEditor({
         spellCheck={false}
         aria-label="MCP servers JSON"
       />
-      <p className="mt-1 text-content text-text-secondary">
-        JSON object matching Claude SDK mcpServers format. Encrypted at rest.
-      </p>
       {parseError && <p className="mt-1 text-content text-[#ff4444]">{parseError}</p>}
     </div>
   );
