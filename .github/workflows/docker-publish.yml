@@ -55,7 +55,7 @@ jobs:
 
   # Sandbox + Dashboard: native runners per arch
   build-native:
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.arch.runner }}
     permissions:
       contents: read
       packages: write
