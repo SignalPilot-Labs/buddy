@@ -28,7 +28,7 @@ _auth_mock.verify_api_key = MagicMock(return_value=None)
 sys.modules["backend.auth"] = _auth_mock
 
 import backend.endpoints.settings as settings_mod  # noqa: E402
-from backend.models import SaveMcpServersRequest, SaveMountsRequest  # noqa: E402
+from backend.models import SaveMcpServersRequest, SaveMountsRequest, SaveRepoEnvRequest  # noqa: E402
 
 
 def _null_session_ctx() -> Any:
@@ -156,7 +156,9 @@ class TestRepoSlugValidation:
     async def test_save_repo_env_rejects_traversal(self) -> None:
         """PUT /repos/{repo}/env must reject a path traversal repo slug."""
         with pytest.raises(HTTPException) as exc_info:
-            await settings_mod.save_repo_env("owner/repo/../../../etc", {"env_vars": {}})
+            await settings_mod.save_repo_env(
+                "owner/repo/../../../etc", SaveRepoEnvRequest(env_vars={})
+            )
         assert exc_info.value.status_code == 400
 
     @pytest.mark.asyncio

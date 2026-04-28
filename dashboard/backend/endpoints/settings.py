@@ -22,6 +22,7 @@ from backend.models import (
     AddTokenRequest,
     SaveMcpServersRequest,
     SaveMountsRequest,
+    SaveRepoEnvRequest,
     SetActiveRepoRequest,
     UpdateSettingsRequest,
 )
@@ -143,10 +144,10 @@ async def get_repo_env(repo: str) -> dict:
 
 
 @router.put("/repos/{repo:path}/env")
-async def save_repo_env(repo: str, body: dict) -> dict:
+async def save_repo_env(repo: str, body: SaveRepoEnvRequest) -> dict:
     """Save env vars for a repo. Full replacement — omitted keys are deleted."""
     repo = validate_repo_slug(repo)
-    env_vars: dict[str, str] = body.get("env_vars", {})
+    env_vars: dict[str, str] = body.env_vars
     async with session() as s:
         if env_vars:
             encrypted = crypto.encrypt(json.dumps(env_vars), MASTER_KEY_PATH)

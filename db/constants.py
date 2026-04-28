@@ -192,6 +192,19 @@ UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 # for any legitimate use-case but prevents multi-MB DoS payloads.
 PROMPT_MAX_LEN: int = 100_000
 
+# ── Env Var Validation ──
+# Regex for a valid POSIX environment variable key: must start with a letter or
+# underscore, followed by letters, digits, or underscores only.  No spaces,
+# no shell metacharacters, no digits in the first position.
+ENV_VAR_KEY_RE: re.Pattern[str] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Maximum byte lengths for env var keys and values.
+ENV_VAR_MAX_KEY_LEN: int = 256
+ENV_VAR_MAX_VALUE_LEN: int = 65536
+
+# Maximum number of env vars that can be stored per repo.
+MAX_ENV_VARS: int = 100
+
 # ── GitHub Repo ──
 # Maximum length and pattern for owner/repo slugs (ASCII-only).
 GITHUB_REPO_MAX_LEN: int = 256
