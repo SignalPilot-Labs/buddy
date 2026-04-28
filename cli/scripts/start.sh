@@ -8,15 +8,15 @@ echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 
 # Read image tag persisted by `autofyn update`
 TAG_FILE="$HOME/.autofyn/.image-tag"
-if [ -z "${AUTOFYN_IMAGE_TAG:-}" ] && [ -f "$TAG_FILE" ]; then
-    AUTOFYN_IMAGE_TAG="$(cat "$TAG_FILE" | tr -d '[:space:]')"
+if [ -z "${AF_IMAGE_TAG:-}" ] && [ -f "$TAG_FILE" ]; then
+    AF_IMAGE_TAG="$(cat "$TAG_FILE" | tr -d '[:space:]')"
 fi
-if [ -z "${AUTOFYN_IMAGE_TAG:-}" ]; then
+if [ -z "${AF_IMAGE_TAG:-}" ]; then
     echo "[autofyn] ERROR: No image tag found. Run 'autofyn update' first." >&2
     exit 1
 fi
-export AUTOFYN_IMAGE_TAG
-echo "[autofyn] Image tag: ${AUTOFYN_IMAGE_TAG}"
+export AF_IMAGE_TAG
+echo "[autofyn] Image tag: ${AF_IMAGE_TAG}"
 
 # Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
@@ -34,4 +34,4 @@ if docker compose ps -q 2>/dev/null | grep -q .; then
     docker compose down --remove-orphans 2>/dev/null || true
 fi
 
-docker compose up -d "$@"
+docker compose up -d --wait "$@"

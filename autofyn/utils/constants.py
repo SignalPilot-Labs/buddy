@@ -207,7 +207,8 @@ ENV_KEY_MAX_BUDGET_USD = "MAX_BUDGET_USD"
 DEFAULT_BUDGET_USD: str = "0"
 
 # ── Sandbox Pool (per-run containers) ──
-SANDBOX_POOL_IMAGE = "autofyn-sandbox"  # built by docker compose
+SANDBOX_POOL_IMAGE_BASE: str = "ghcr.io/signalpilot-labs/autofyn-sandbox"
+ENV_KEY_IMAGE_TAG: str = "AF_IMAGE_TAG"
 SANDBOX_POOL_NETWORK = "autofyn_default"  # compose default network
 SANDBOX_POOL_PORT = 8080
 SANDBOX_POOL_HEALTH_POLL_SEC = 2

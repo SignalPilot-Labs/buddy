@@ -70,7 +70,7 @@ def _git_pull(branch: str, skip_fetch: bool) -> None:
 def build_services() -> None:
     """Run build.sh — docker compose build only."""
     tag = "local"
-    os.environ["AUTOFYN_IMAGE_TAG"] = tag
+    os.environ["AF_IMAGE_TAG"] = tag
     _run_script(BUILD_SCRIPT)
     _save_image_tag(tag)
     console.print("[green]✓[/green] AutoFyn images built")
@@ -294,7 +294,7 @@ def _save_image_tag(image_tag: str) -> None:
 
 def _pull_images(image_tag: str) -> bool:
     """Try to pull pre-built images for the given tag. Returns True on success."""
-    os.environ["AUTOFYN_IMAGE_TAG"] = image_tag
+    os.environ["AF_IMAGE_TAG"] = image_tag
     # docker-compose.yml references these secrets in service definitions, so
     # docker compose warns when they're unset — even for pull, which never
     # uses them. Placeholders silence the warning; start.sh generates real
