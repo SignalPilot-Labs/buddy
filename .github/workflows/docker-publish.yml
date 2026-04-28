@@ -53,8 +53,8 @@ jobs:
           cache-from: type=gha,scope=agent
           cache-to: type=gha,mode=max,scope=agent
 
-  # Sandbox: native runners per arch (gVisor + npm globals + Docker CLI)
-  build-sandbox:
+  # Sandbox + Dashboard: native runners per arch
+  build-native:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
@@ -62,7 +62,12 @@ jobs:
 
     strategy:
       matrix:
-        include:
+        service:
+          - name: sandbox
+            dockerfile: sandbox/Dockerfile.gvisor
+          - name: dashboard
+            dockerfile: dashboard/Dockerfile.dashboard
+        arch:
           - runner: ubuntu-latest
             platform: linux/amd64
             suffix: amd64
@@ -85,90 +90,24 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: sandbox/Dockerfile.gvisor
+          file: ${{ matrix.service.dockerfile }}
           push: true
-          tags: ${{ env.IMAGE_PREFIX }}-sandbox:${{ github.sha }}-${{ matrix.suffix }}
-          platforms: ${{ matrix.platform }}
-          cache-from: type=gha,scope=sandbox-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=sandbox-${{ matrix.suffix }}
+          tags: ${{ env.IMAGE_PREFIX }}-${{ matrix.service.name }}:${{ github.sha }}-${{ matrix.arch.suffix }}
+          platforms: ${{ matrix.arch.platform }}
+          cache-from: type=gha,scope=${{ matrix.service.name }}-${{ matrix.arch.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service.name }}-${{ matrix.arch.suffix }}
 
-  sandbox-manifest:
-    needs: build-sandbox
+  # Merge per-arch images into multi-arch manifests
+  manifest:
+    needs: build-native
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create and push multi-arch manifest
-        run: |
-          IMAGE="${{ env.IMAGE_PREFIX }}-sandbox"
-          SHA="${GITHUB_SHA}"
-          TAGS="${SHA::7}"
-          BRANCH="${GITHUB_REF_NAME}"
-          if [ "$BRANCH" = "production" ]; then
-            TAGS="${TAGS} stable"
-          elif [ "$BRANCH" = "main" ]; then
-            TAGS="${TAGS} nightly"
-          fi
-          for TAG in ${TAGS}; do
-            docker buildx imagetools create -t "${IMAGE}:${TAG}" \
-              "${IMAGE}:${SHA}-amd64" \
-              "${IMAGE}:${SHA}-arm64"
-          done
-
-  # Dashboard: native runners per arch (heavy Next.js build)
-  build-dashboard:
-    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
 
     strategy:
       matrix:
-        include:
-          - runner: ubuntu-latest
-            platform: linux/amd64
-            suffix: amd64
-          - runner: ubuntu-24.04-arm
-            platform: linux/arm64
-            suffix: arm64
-
-    steps:
-      - uses: actions/checkout@v5
-      - uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push per-arch
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: dashboard/Dockerfile.dashboard
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}-dashboard:${{ github.sha }}-${{ matrix.suffix }}
-          platforms: ${{ matrix.platform }}
-          cache-from: type=gha,scope=dashboard-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=dashboard-${{ matrix.suffix }}
-
-  dashboard-manifest:
-    needs: build-dashboard
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+        service: [sandbox, dashboard]
 
     steps:
       - name: Log in to GHCR
@@ -180,7 +119,7 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
-          IMAGE="${{ env.IMAGE_PREFIX }}-dashboard"
+          IMAGE="${{ env.IMAGE_PREFIX }}-${{ matrix.service }}"
           SHA="${GITHUB_SHA}"
           TAGS="${SHA::7}"
           BRANCH="${GITHUB_REF_NAME}"
