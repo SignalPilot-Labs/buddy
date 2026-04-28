@@ -29,9 +29,12 @@ fi
 # Install CLI
 pip install -e "$AUTOFYN_HOME/cli/" --quiet
 
-# Build Docker images
-echo "[install] Building Docker images..."
-bash "$AUTOFYN_HOME/cli/scripts/build.sh"
+# Pull pre-built Docker images (fall back to local build)
+echo "[install] Pulling Docker images..."
+if ! (cd "$AUTOFYN_HOME" && docker compose pull 2>/dev/null); then
+    echo "[install] Pre-built images not available, building locally..."
+    bash "$AUTOFYN_HOME/cli/scripts/build.sh"
+fi
 
 echo ""
 echo "[install] Done. Run 'autofyn start' to launch services."

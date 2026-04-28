@@ -21,4 +21,16 @@ fi
 if docker compose ps -q 2>/dev/null | grep -q .; then
     docker compose down --remove-orphans 2>/dev/null || true
 fi
-docker compose up -d "$@"
+
+# AF_FORCE_BUILD=1 → always build locally (autofyn start --build)
+# Otherwise try pulling pre-built images; fall back to local build
+if [ "${AF_FORCE_BUILD:-}" = "1" ]; then
+    echo "[autofyn] Building images locally (--build)"
+    docker compose up -d --build "$@"
+elif docker compose pull 2>/dev/null; then
+    echo "[autofyn] Using pre-built images"
+    docker compose up -d "$@"
+else
+    echo "[autofyn] Pre-built images not available, building locally"
+    docker compose up -d --build "$@"
+fi

@@ -53,15 +53,17 @@ def main(
 @app.command("start")
 def start(
     allow_docker: bool = typer.Option(False, "--allow-docker", help="Mount Docker socket into sandbox containers"),
+    build: bool = typer.Option(False, "--build", help="Force local image build instead of pulling pre-built images"),
 ) -> None:
     """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
 
     \b
     Example:
       autofyn start
+      autofyn start --build           # Build images locally (for dev)
       autofyn start --allow-docker    # Give agent Docker access (unsafe)
     """
-    services.start_services(allow_docker)
+    services.start_services(allow_docker, build)
 
 
 @app.command("stop")
@@ -78,7 +80,7 @@ def stop() -> None:
 
 @app.command("update")
 def update() -> None:
-    """Pull latest code and rebuild Docker images (git pull + docker compose build).
+    """Pull latest code and pre-built Docker images (git pull + docker compose pull).
 
     \b
     Example:

@@ -76,11 +76,13 @@ _DOCKER_WARNING = (
 )
 
 
-def start_services(allow_docker: bool) -> None:
+def start_services(allow_docker: bool, force_build: bool) -> None:
     """Run start.sh — tears down stale containers then docker compose up -d."""
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
+    if force_build:
+        os.environ["AF_FORCE_BUILD"] = "1"
     _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:
@@ -245,9 +247,9 @@ def _detect_repo(client) -> None:
 
 
 def update_services() -> None:
-    """Update: git pull in AUTOFYN_HOME then rebuild."""
+    """Update: git pull in AUTOFYN_HOME then pull pre-built images."""
     _git_pull()
-    build_services()
+    _compose(["pull"])
 
 
 def show_logs(tail_lines: int) -> None:
