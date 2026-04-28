@@ -2,7 +2,6 @@
 
 import json
 import logging
-import re
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
@@ -14,11 +13,16 @@ from backend.constants import (
     MASTER_KEY_PATH,
     SECRET_KEYS,
 )
-from db.constants import validate_host_mount
+from db.constants import (
+    GITHUB_REPO_MAX_LEN,
+    GITHUB_REPO_RE,
+    validate_host_mount,
+)
 from backend.models import (
     AddTokenRequest,
     SaveMcpServersRequest,
     SaveMountsRequest,
+    SaveRepoEnvRequest,
     SetActiveRepoRequest,
     UpdateSettingsRequest,
 )
@@ -38,6 +42,18 @@ from db.models import Run, Setting
 log = logging.getLogger("dashboard.settings")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
+
+
+def validate_repo_slug(repo: str) -> str:
+    """Validate that repo is a safe owner/repo slug. Raises HTTP 400 on failure."""
+    if not GITHUB_REPO_RE.fullmatch(repo):
+        raise HTTPException(status_code=400, detail="Invalid repo slug format")
+    if len(repo) > GITHUB_REPO_MAX_LEN:
+        raise HTTPException(status_code=400, detail="Invalid repo slug format")
+    owner, _, name = repo.partition("/")
+    if owner in (".", "..") or name in (".", ".."):
+        raise HTTPException(status_code=400, detail="Invalid repo slug format")
+    return repo
 
 
 @router.get("/settings/status")
@@ -112,6 +128,7 @@ async def update_settings(body: UpdateSettingsRequest) -> dict:
 @router.get("/repos/{repo:path}/env")
 async def get_repo_env(repo: str) -> dict:
     """Get decrypted env vars for a repo. Values are shown in plaintext for the settings UI."""
+    repo = validate_repo_slug(repo)
     async with session() as s:
         setting = await s.get(Setting, _env_vars_key(repo))
         if not setting:
@@ -127,9 +144,10 @@ async def get_repo_env(repo: str) -> dict:
 
 
 @router.put("/repos/{repo:path}/env")
-async def save_repo_env(repo: str, body: dict) -> dict:
+async def save_repo_env(repo: str, body: SaveRepoEnvRequest) -> dict:
     """Save env vars for a repo. Full replacement — omitted keys are deleted."""
-    env_vars: dict[str, str] = body.get("env_vars", {})
+    repo = validate_repo_slug(repo)
+    env_vars: dict[str, str] = body.env_vars
     async with session() as s:
         if env_vars:
             encrypted = crypto.encrypt(json.dumps(env_vars), MASTER_KEY_PATH)
@@ -145,6 +163,7 @@ async def save_repo_env(repo: str, body: dict) -> dict:
 @router.get("/repos/{repo:path}/mounts")
 async def get_repo_mounts(repo: str) -> dict:
     """Get host directory mounts for a repo."""
+    repo = validate_repo_slug(repo)
     async with session() as s:
         setting = await s.get(Setting, _host_mounts_key(repo))
         if not setting:
@@ -160,6 +179,7 @@ async def get_repo_mounts(repo: str) -> dict:
 @router.put("/repos/{repo:path}/mounts")
 async def save_repo_mounts(repo: str, body: SaveMountsRequest) -> dict:
     """Save host directory mounts for a repo. Full replacement."""
+    repo = validate_repo_slug(repo)
     for mount in body.mounts:
         error = validate_host_mount(mount.host_path, mount.container_path, mount.mode)
         if error:
@@ -179,6 +199,7 @@ async def save_repo_mounts(repo: str, body: SaveMountsRequest) -> dict:
 @router.get("/repos/{repo:path}/mcp-servers")
 async def get_repo_mcp_servers(repo: str) -> dict:
     """Get MCP server configurations for a repo. Values decrypted for settings UI."""
+    repo = validate_repo_slug(repo)
     async with session() as s:
         setting = await s.get(Setting, _mcp_servers_key(repo))
         if not setting:
@@ -196,6 +217,7 @@ async def get_repo_mcp_servers(repo: str) -> dict:
 @router.put("/repos/{repo:path}/mcp-servers")
 async def save_repo_mcp_servers(repo: str, body: SaveMcpServersRequest) -> dict:
     """Save MCP server configurations for a repo. Full replacement — omitted servers are deleted."""
+    repo = validate_repo_slug(repo)
     async with session() as s:
         if body.servers:
             encrypted = crypto.encrypt(json.dumps(body.servers), MASTER_KEY_PATH)
@@ -244,8 +266,7 @@ async def set_active_repo(body: SetActiveRepoRequest) -> dict:
 @router.delete("/repos/{repo_slug:path}")
 async def remove_repo(repo_slug: str) -> dict:
     """Remove a repo from the list (does not delete runs)."""
-    if not re.match(r"^[\w\-\.]+/[\w\-\.]+$", repo_slug):
-        raise HTTPException(status_code=400, detail="Invalid repo slug format")
+    repo_slug = validate_repo_slug(repo_slug)
     async with session() as s:
         repos = [r for r in await get_repo_list(s) if r != repo_slug]
         await save_repo_list(s, repos)

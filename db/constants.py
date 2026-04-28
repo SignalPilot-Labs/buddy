@@ -192,11 +192,24 @@ UUID_PATTERN: str = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
 # for any legitimate use-case but prevents multi-MB DoS payloads.
 PROMPT_MAX_LEN: int = 100_000
 
+# ── Env Var Validation ──
+# Regex for a valid POSIX environment variable key: must start with a letter or
+# underscore, followed by letters, digits, or underscores only.  No spaces,
+# no shell metacharacters, no digits in the first position.
+ENV_VAR_KEY_RE: re.Pattern[str] = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# Maximum byte lengths for env var keys and values.
+ENV_VAR_MAX_KEY_LEN: int = 256
+ENV_VAR_MAX_VALUE_LEN: int = 65536
+
+# Maximum number of env vars that can be stored per repo.
+MAX_ENV_VARS: int = 100
+
 # ── GitHub Repo ──
 # Maximum length and pattern for owner/repo slugs (ASCII-only).
 GITHUB_REPO_MAX_LEN: int = 256
 GITHUB_REPO_PATTERN: str = r"^[a-zA-Z0-9_\-\.]+/[a-zA-Z0-9_\-\.]+$"
-_GITHUB_REPO_RE: re.Pattern[str] = re.compile(GITHUB_REPO_PATTERN)
+GITHUB_REPO_RE: re.Pattern[str] = re.compile(GITHUB_REPO_PATTERN)
 
 
 def validate_prompt_length(v: str | None) -> str | None:
@@ -212,9 +225,43 @@ def validate_github_repo(v: str | None) -> str | None:
         return v
     if len(v) > GITHUB_REPO_MAX_LEN:
         raise ValueError(f"github_repo must be under {GITHUB_REPO_MAX_LEN} characters")
-    if not _GITHUB_REPO_RE.fullmatch(v):
+    if not GITHUB_REPO_RE.fullmatch(v):
         raise ValueError("github_repo must match owner/repo format")
     return v
+
+# ── SQL DDL Safety ──
+# Allowlisted values for control_signals.signal CHECK constraint and migration DDL.
+# Used by validate_sql_identifier() to prevent SQL injection via f-string DDL.
+VALID_CONTROL_SIGNALS: tuple[str, ...] = ("pause", "resume", "inject", "stop", "unlock", "kill")
+
+# Allowlisted column names for cache token migration DDL.
+MIGRATION_CACHE_TOKEN_COLUMNS: tuple[str, ...] = (
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+)
+
+# Regex for a safe SQL identifier: lowercase letters, digits, and underscores only.
+# No SQL metacharacters, no quotes, no spaces.
+SAFE_SQL_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def validate_sql_identifier(value: str, allowlist: tuple[str, ...]) -> str:
+    """Validate a SQL identifier against an allowlist and a safe-character regex.
+
+    Both checks are defense-in-depth: the allowlist is the primary gate,
+    the regex is a secondary sanity check. Raises ValueError if either fails.
+    Returns the value unchanged if both checks pass.
+    """
+    if value not in allowlist:
+        raise ValueError(
+            f"SQL identifier {value!r} is not in the allowlist {allowlist!r}"
+        )
+    if not SAFE_SQL_IDENTIFIER_RE.fullmatch(value):
+        raise ValueError(
+            f"SQL identifier {value!r} contains unsafe characters"
+        )
+    return value
+
 
 # ── Audit Event Types ──
 # Canonical set of all event_type values written by log_audit() across

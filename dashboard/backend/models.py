@@ -3,7 +3,7 @@
 from fastapi import Path
 from pydantic import BaseModel, Field, field_validator
 
-from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_HOST_MOUNTS, MAX_MCP_SERVERS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN, validate_prompt_length
+from db.constants import DEFAULT_EFFORT, DEFAULT_MODEL, ENV_VAR_KEY_RE, ENV_VAR_MAX_KEY_LEN, ENV_VAR_MAX_VALUE_LEN, GITHUB_REPO_MAX_LEN, GITHUB_REPO_PATTERN, MAX_ENV_VARS, MAX_HOST_MOUNTS, MAX_MCP_SERVERS, VALID_EFFORTS_PATTERN, VALID_MODELS_PATTERN, VALID_PRESET_PATTERN, validate_prompt_length
 
 
 RunId = Path(min_length=36, max_length=36, pattern=r"^[0-9a-f\-]{36}$")
@@ -90,6 +90,33 @@ class SaveMcpServersRequest(BaseModel):
         """Validate that the number of servers does not exceed MAX_MCP_SERVERS."""
         if len(v) > MAX_MCP_SERVERS:
             raise ValueError(f"Cannot configure more than {MAX_MCP_SERVERS} MCP servers")
+        return v
+
+
+class SaveRepoEnvRequest(BaseModel):
+    """Request body for saving per-repo environment variables."""
+
+    env_vars: dict[str, str]
+
+    @field_validator("env_vars")
+    @classmethod
+    def validate_env_vars(cls, v: dict[str, str]) -> dict[str, str]:
+        """Validate count, key format, and value length for all env vars."""
+        if len(v) > MAX_ENV_VARS:
+            raise ValueError(f"Cannot store more than {MAX_ENV_VARS} env vars per repo")
+        for key, value in v.items():
+            if len(key) > ENV_VAR_MAX_KEY_LEN:
+                raise ValueError(
+                    f"Env var key exceeds maximum length of {ENV_VAR_MAX_KEY_LEN}: {key!r}"
+                )
+            if not ENV_VAR_KEY_RE.fullmatch(key):
+                raise ValueError(
+                    f"Env var key {key!r} must match ^[A-Za-z_][A-Za-z0-9_]*$"
+                )
+            if len(value) > ENV_VAR_MAX_VALUE_LEN:
+                raise ValueError(
+                    f"Env var value for key {key!r} exceeds maximum length of {ENV_VAR_MAX_VALUE_LEN}"
+                )
         return v
 
 

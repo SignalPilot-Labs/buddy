@@ -98,9 +98,9 @@ class SecurityGate:
 
     def _check_branch_integrity(self, cmd: str) -> str | None:
         """Block branch creation/switching/clean. Orchestrator owns branching."""
-        if re.search(r"git\s+checkout\s+-b\b", cmd):
+        if re.search(r"git\s+checkout\s+-\w*[bB]", cmd):
             return "Cannot create branches — the system manages branching"
-        if re.search(r"git\s+switch\s+-c\b", cmd):
+        if re.search(r"git\s+switch\s+(-\w*[cC]|--force-create)\b", cmd):
             return "Cannot create branches — the system manages branching"
         if re.search(r"git\s+branch\s+(?!-)\S", cmd):
             return "Cannot create branches — the system manages branching"
@@ -178,15 +178,19 @@ class SecurityGate:
         return None
 
     def _check_github_api_direct(self, cmd: str) -> str | None:
-        """Block direct HTTP clients hitting api.github.com.
+        """Block commands that target api.github.com as a URL or host.
 
-        The orchestrator owns all GitHub API writes — a subagent hitting
-        api.github.com with curl/wget/httpie would be using the token we
-        inject for git auth to bypass `gh` and the `_check_gh_writes` block.
+        The orchestrator owns all GitHub API access — subagents must use
+        the `gh` CLI instead. Any interpreter (curl, wget, python, node,
+        etc.) that targets api.github.com could use the injected token to
+        bypass `_check_gh_writes`. Read-only commands like grep/cat that
+        merely mention the string are allowed.
         """
-        if re.search(r"\b(curl|wget|http|https|httpie)\b", cmd) and "api.github.com" in cmd:
-            return "Direct calls to api.github.com are blocked — the orchestrator handles GitHub API writes"
-        return None
+        if "api.github.com" not in cmd:
+            return None
+        if re.match(r"^\s*(grep|rg|cat|head|tail|less|echo|printf)\b", cmd):
+            return None
+        return "Direct calls to api.github.com are blocked — the orchestrator handles GitHub API writes"
 
     def _check_secret_var_refs(self, cmd: str) -> str | None:
         """Block commands that name our internal secret env vars.
