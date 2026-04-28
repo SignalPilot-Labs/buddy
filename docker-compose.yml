@@ -88,7 +88,7 @@ services:
     working_dir: /workspace
     depends_on:
       dashboard:
-        condition: service_started
+        condition: service_healthy
       sandbox:
         condition: service_healthy
 
