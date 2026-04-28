@@ -196,7 +196,7 @@ PROMPT_MAX_LEN: int = 100_000
 # Maximum length and pattern for owner/repo slugs (ASCII-only).
 GITHUB_REPO_MAX_LEN: int = 256
 GITHUB_REPO_PATTERN: str = r"^[a-zA-Z0-9_\-\.]+/[a-zA-Z0-9_\-\.]+$"
-_GITHUB_REPO_RE: re.Pattern[str] = re.compile(GITHUB_REPO_PATTERN)
+GITHUB_REPO_RE: re.Pattern[str] = re.compile(GITHUB_REPO_PATTERN)
 
 
 def validate_prompt_length(v: str | None) -> str | None:
@@ -212,7 +212,7 @@ def validate_github_repo(v: str | None) -> str | None:
         return v
     if len(v) > GITHUB_REPO_MAX_LEN:
         raise ValueError(f"github_repo must be under {GITHUB_REPO_MAX_LEN} characters")
-    if not _GITHUB_REPO_RE.fullmatch(v):
+    if not GITHUB_REPO_RE.fullmatch(v):
         raise ValueError("github_repo must match owner/repo format")
     return v
 
