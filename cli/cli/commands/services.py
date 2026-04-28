@@ -80,7 +80,7 @@ _DOCKER_WARNING = (
     "[bold yellow]⚠ WARNING:[/bold yellow] --allow-docker grants the agent "
     "[bold]full access to the host Docker daemon[/bold].\n"
     "  The agent can create, inspect, and remove any container on this machine.\n"
-    "  Only use this if you trust the prompts you send.\n"
+    "  Only use this if you understand the implications.\n"
 )
 
 
