@@ -54,16 +54,18 @@ def main(
 def start(
     allow_docker: bool = typer.Option(False, "--allow-docker", help="Mount Docker socket into sandbox containers"),
     build: bool = typer.Option(False, "--build", help="Force local image build instead of pulling pre-built images"),
+    image_tag: Optional[str] = typer.Option(None, "--image-tag", metavar="<tag>", help="Docker image tag to pull (e.g. main, latest, abc1234)"),
 ) -> None:
     """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
 
     \b
     Example:
       autofyn start
-      autofyn start --build           # Build images locally (for dev)
-      autofyn start --allow-docker    # Give agent Docker access (unsafe)
+      autofyn start --build                # Build images locally (for dev)
+      autofyn start --image-tag abc1234    # Pin to a specific image version
+      autofyn start --allow-docker         # Give agent Docker access (unsafe)
     """
-    services.start_services(allow_docker, build)
+    services.start_services(allow_docker, build, image_tag)
 
 
 @app.command("stop")
