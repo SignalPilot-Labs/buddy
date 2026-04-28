@@ -298,13 +298,19 @@ def _pull_images(image_tag: str) -> bool:
     return result.returncode == 0
 
 
-def update_services(branch_override: str | None, image_tag_override: str | None) -> None:
+def update_services(branch_override: str | None, image_tag_override: str | None, force_build: bool) -> None:
     """Update code and images: git pull, then pull pre-built images or build locally."""
     if branch_override is not None:
         _switch_branch(branch_override)
 
     branch = _detect_branch()
     _git_pull()
+
+    if force_build:
+        console.print("[dim]Building images locally (--build)...[/dim]")
+        build_services()
+        console.print("[green]✓[/green] Images built locally")
+        return
 
     image_tag = _resolve_image_tag(branch, image_tag_override)
 

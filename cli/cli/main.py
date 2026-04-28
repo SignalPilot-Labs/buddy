@@ -80,6 +80,7 @@ def stop() -> None:
 def update(
     branch: Optional[str] = typer.Option(None, "--branch", metavar="<branch>", help="Switch to branch before updating (e.g. main, production)"),
     image_tag: Optional[str] = typer.Option(None, "--image-tag", metavar="<tag>", help="Override image tag (e.g. stable, nightly, abc1234)"),
+    build: bool = typer.Option(False, "--build", help="Force local image build, skip pulling pre-built images"),
 ) -> None:
     """Pull latest code and Docker images. Builds locally if no pre-built image exists.
 
@@ -94,8 +95,12 @@ def update(
       autofyn update                        # Update current branch
       autofyn update --branch main          # Switch to main, pull nightly images
       autofyn update --image-tag abc1234    # Pin to specific image version
+      autofyn update --build                # Force local build
     """
-    services.update_services(branch, image_tag)
+    if build and image_tag is not None:
+        typer.echo("Error: --build and --image-tag are mutually exclusive", err=True)
+        raise typer.Exit(code=1)
+    services.update_services(branch, image_tag, build)
 
 
 @app.command("logs")
