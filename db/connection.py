@@ -10,6 +10,7 @@ from sqlalchemy import URL, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from config.loader import database_config
+from db.constants import MIGRATION_CACHE_TOKEN_COLUMNS, VALID_CONTROL_SIGNALS, validate_sql_identifier
 from db.models import Base
 
 log = logging.getLogger("db.connection")
@@ -79,7 +80,8 @@ async def run_migrations() -> None:
 
 async def _migrate_control_signals_constraint(conn) -> None:
     """Ensure control_signals check constraint includes all valid signals."""
-    expected = "('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')"
+    validated_signals = [validate_sql_identifier(s, VALID_CONTROL_SIGNALS) for s in VALID_CONTROL_SIGNALS]
+    in_clause = "(" + ", ".join("'" + s + "'" for s in validated_signals) + ")"
     result = await conn.execute(text(
         "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
         "WHERE conname = 'ck_control_signals_signal'"
@@ -90,22 +92,23 @@ async def _migrate_control_signals_constraint(conn) -> None:
     if "'kill'" not in (row[0] or ""):
         await conn.execute(text("ALTER TABLE control_signals DROP CONSTRAINT ck_control_signals_signal"))
         await conn.execute(text(
-            f"ALTER TABLE control_signals ADD CONSTRAINT ck_control_signals_signal "
-            f"CHECK (signal IN {expected})"
+            "ALTER TABLE control_signals ADD CONSTRAINT ck_control_signals_signal "
+            "CHECK (signal IN " + in_clause + ")"
         ))
         log.info("Migrated ck_control_signals_signal constraint")
 
 
 async def _migrate_cache_token_columns(conn) -> None:
     """Add cache token columns to runs table if they don't exist."""
-    for col in ("cache_creation_input_tokens", "cache_read_input_tokens"):
+    for col in MIGRATION_CACHE_TOKEN_COLUMNS:
+        safe_col = validate_sql_identifier(col, MIGRATION_CACHE_TOKEN_COLUMNS)
         result = await conn.execute(text(
             "SELECT 1 FROM information_schema.columns "
             "WHERE table_name = 'runs' AND column_name = :col"
         ), {"col": col})
         if result.first() is None:
             await conn.execute(text(
-                f"ALTER TABLE runs ADD COLUMN {col} INTEGER DEFAULT 0"
+                "ALTER TABLE runs ADD COLUMN " + safe_col + " INTEGER DEFAULT 0"
             ))
             log.info("Added column runs.%s", col)
 

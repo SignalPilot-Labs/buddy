@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from db.constants import RUN_STATUS_RUNNING
+from db.constants import RUN_STATUS_RUNNING, VALID_CONTROL_SIGNALS
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
@@ -122,7 +122,7 @@ class ControlSignal(Base):
     __tablename__ = "control_signals"
     __table_args__ = (
         CheckConstraint(
-            "signal IN ('pause', 'resume', 'inject', 'stop', 'unlock', 'kill')",
+            f"signal IN ({', '.join(repr(s) for s in VALID_CONTROL_SIGNALS)})",
             name="ck_control_signals_signal",
         ),
         Index("ix_control_signals_run_id", "run_id"),
