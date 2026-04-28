@@ -63,7 +63,7 @@ RUN curl -fsSL https://download.docker.com/linux/debian/gpg \
     | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
     > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli \
+    && apt-get update && apt-get install -y --no-install-recommends docker-ce-cli gosu \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/autofyn
@@ -90,12 +90,13 @@ COPY --chown=agentuser:agentuser autofyn/skills/ /opt/autofyn/.claude/skills/
 
 RUN chown agentuser:agentuser /opt/autofyn
 
-USER agentuser
+# Git config (run as agentuser so it writes to ~agentuser/.gitconfig)
+RUN su -c "git config --global user.name 'AutoFyn Bot' \
+    && git config --global user.email 'autofyn-bot@noreply.github.com' \
+    && git config --global --add safe.directory '*'" agentuser
 
-# Git config
-RUN git config --global user.name "AutoFyn Bot" \
-    && git config --global user.email "autofyn-bot@noreply.github.com" \
-    && git config --global --add safe.directory '*'
+COPY sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /opt/autofyn
 
@@ -104,4 +105,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["python3", "server.py"]
+ENTRYPOINT ["entrypoint.sh"]
+CMD ["python3", "server.py"]
