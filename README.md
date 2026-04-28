@@ -37,10 +37,14 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 ## Quick start
 
 ```bash
-git clone https://github.com/SignalPilot-Labs/AutoFyn.git
-cd AutoFyn && ./install.sh
-autofyn start
+git clone https://github.com/SignalPilot-Labs/AutoFyn.git ~/.autofyn
+pip install ~/.autofyn/cli
+autofyn update && autofyn start
 ```
+
+Two release channels:
+- `autofyn update --branch production` — **stable** (recommended)
+- `autofyn update --branch main` — **nightly** (latest features)
 
 Open [localhost:3400](http://localhost:3400) for the dashboard. AutoFyn auto-detects your Claude token, GitHub token, and repo from your local git remote.
 
@@ -73,7 +77,10 @@ LLM agents that run in a loop hit three failure modes: context grows until the m
 autofyn start                          # start services
 autofyn start --allow-docker           # start with Docker access for sandbox
 autofyn stop                           # stop all services
-autofyn update                         # pull latest + rebuild
+autofyn update                         # pull latest code + images
+autofyn update --branch main           # switch to nightly channel
+autofyn update --image-tag abc1234     # pin to a specific version
+autofyn update --build                 # force local build (for dev)
 autofyn logs                           # stream container logs
 autofyn kill                           # remove all containers
 autofyn uninstall                      # remove everything (containers, images, ~/.autofyn)
