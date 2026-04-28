@@ -49,6 +49,13 @@ GIT_SLUG_SEPARATOR: str = "/"
 DEFAULT_LOG_TAIL_LINES: int = 100
 SIGINT_EXIT_CODE: int = 130
 
+# Docker images
+BRANCH_TO_IMAGE_TAG: dict[str, str] = {
+    "production": "stable",
+    "main": "nightly",
+}
+IMAGE_TAG_FILE: str = str(Path(AUTOFYN_HOME) / ".image-tag")
+
 # Docker exec
 DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
 

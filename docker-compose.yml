@@ -28,11 +28,12 @@ services:
       - autofyn-db:/var/lib/postgresql/data
     healthcheck:
       test: pg_isready -U autofyn
-      interval: 5s
-      timeout: 3s
+      interval: 2s
+      timeout: 2s
       retries: 5
 
   dashboard:
+    image: ghcr.io/signalpilot-labs/autofyn-dashboard:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: dashboard/Dockerfile.dashboard
@@ -51,6 +52,7 @@ services:
         condition: service_healthy
 
   agent:
+    image: ghcr.io/signalpilot-labs/autofyn-agent:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: autofyn/Dockerfile.agent
@@ -64,10 +66,10 @@ services:
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
-      interval: 10s
-      timeout: 5s
+      interval: 3s
+      timeout: 3s
       retries: 5
-      start_period: 30s
+      start_period: 10s
     volumes:
       - .:/workspace:rw
       - /var/run/docker.sock:/var/run/docker.sock:rw
@@ -84,6 +86,7 @@ services:
         condition: service_healthy
 
   sandbox:
+    image: ghcr.io/signalpilot-labs/autofyn-sandbox:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: sandbox/Dockerfile.gvisor
@@ -94,8 +97,8 @@ services:
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
       AF_AGENT_URL: http://agent:8500
     depends_on:
-      dashboard:
-        condition: service_started
+      db:
+        condition: service_healthy
     cap_add:
       - SYS_PTRACE
       - SYS_ADMIN
@@ -106,10 +109,10 @@ services:
       - claude-agent-sessions:/home/agentuser/.claude
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
-      interval: 10s
+      interval: 3s
       timeout: 3s
       retries: 5
-      start_period: 15s
+      start_period: 5s
 
 volumes:
   autofyn-db:

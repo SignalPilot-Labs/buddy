@@ -6,6 +6,18 @@ HOST_IP="${HOST_IP:-$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/n
 export HOST_IP
 echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 
+# Read image tag persisted by `autofyn update`
+TAG_FILE="$HOME/.autofyn/.image-tag"
+if [ -z "${AUTOFYN_IMAGE_TAG:-}" ] && [ -f "$TAG_FILE" ]; then
+    AUTOFYN_IMAGE_TAG="$(cat "$TAG_FILE" | tr -d '[:space:]')"
+fi
+if [ -z "${AUTOFYN_IMAGE_TAG:-}" ]; then
+    echo "[autofyn] ERROR: No image tag found. Run 'autofyn update' first." >&2
+    exit 1
+fi
+export AUTOFYN_IMAGE_TAG
+echo "[autofyn] Image tag: ${AUTOFYN_IMAGE_TAG}"
+
 # Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
     AGENT_INTERNAL_SECRET="$(openssl rand -hex 32)"
@@ -17,5 +29,9 @@ if [ -z "${SANDBOX_INTERNAL_SECRET:-}" ]; then
     export SANDBOX_INTERNAL_SECRET
 fi
 
-docker compose down --remove-orphans 2>/dev/null || true
+# Only tear down if containers are already running
+if docker compose ps -q 2>/dev/null | grep -q .; then
+    docker compose down --remove-orphans 2>/dev/null || true
+fi
+
 docker compose up -d "$@"
