@@ -15,9 +15,12 @@ import secrets
 
 
 from cli.client import get_client
+
 from cli.constants import (
     AUTOFYN_HOME,
+    BRANCH_TO_IMAGE_TAG,
     BUILD_SCRIPT,
+    IMAGE_TAG_FILE,
     MASK_PREFIX_CLAUDE,
     MASK_PREFIX_GIT,
     SIGINT_EXIT_CODE,
@@ -64,7 +67,10 @@ def _git_pull() -> None:
 
 def build_services() -> None:
     """Run build.sh — docker compose build only."""
+    tag = "local"
+    os.environ["AUTOFYN_IMAGE_TAG"] = tag
     _run_script(BUILD_SCRIPT)
+    _save_image_tag(tag)
     console.print("[green]✓[/green] AutoFyn images built")
 
 
@@ -76,14 +82,11 @@ _DOCKER_WARNING = (
 )
 
 
-def start_services(allow_docker: bool, force_build: bool, image_tag: str) -> None:
-    """Run start.sh — tears down stale containers then docker compose up -d."""
+def start_services(allow_docker: bool) -> None:
+    """Run start.sh — docker compose up -d with whatever images are available."""
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
-    if force_build:
-        os.environ["AF_FORCE_BUILD"] = "1"
-    os.environ["AUTOFYN_IMAGE_TAG"] = image_tag
     _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:
@@ -247,10 +250,72 @@ def _detect_repo(client) -> None:
         )
 
 
-def update_services() -> None:
-    """Update: git pull in AUTOFYN_HOME then pull pre-built images."""
+def _detect_branch() -> str:
+    """Return the current git branch name in AUTOFYN_HOME."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        cwd=AUTOFYN_HOME,
+    )
+    if result.returncode != 0:
+        console.print("[red]Failed to detect git branch[/red]")
+        sys.exit(1)
+    return result.stdout.strip()
+
+
+def _switch_branch(branch: str) -> None:
+    """Switch to the given branch in AUTOFYN_HOME."""
+    console.print(f"[dim]→ git checkout {branch}[/dim]")
+    result = subprocess.run(["git", "checkout", branch], cwd=AUTOFYN_HOME)
+    if result.returncode != 0:
+        console.print(f"[red]Failed to switch to branch {branch}[/red]")
+        sys.exit(result.returncode)
+
+
+def _resolve_image_tag(branch: str, image_tag_override: str | None) -> str | None:
+    """Map branch to image tag, or use override. Returns None if no pre-built image."""
+    if image_tag_override is not None:
+        return image_tag_override
+    return BRANCH_TO_IMAGE_TAG.get(branch)
+
+
+def _save_image_tag(image_tag: str) -> None:
+    """Persist the active image tag so start.sh can read it."""
+    Path(IMAGE_TAG_FILE).write_text(image_tag + "\n")
+
+
+def _pull_images(image_tag: str) -> bool:
+    """Try to pull pre-built images for the given tag. Returns True on success."""
+    os.environ["AUTOFYN_IMAGE_TAG"] = image_tag
+    console.print(f"[dim]→ docker compose pull (tag: {image_tag})[/dim]")
+    result = subprocess.run(
+        ["docker", "compose", "pull"],
+        cwd=AUTOFYN_HOME,
+    )
+    if result.returncode == 0:
+        _save_image_tag(image_tag)
+    return result.returncode == 0
+
+
+def update_services(branch_override: str | None, image_tag_override: str | None) -> None:
+    """Update code and images: git pull, then pull pre-built images or build locally."""
+    if branch_override is not None:
+        _switch_branch(branch_override)
+
+    branch = _detect_branch()
     _git_pull()
-    _compose(["pull"])
+
+    image_tag = _resolve_image_tag(branch, image_tag_override)
+
+    if image_tag is not None and _pull_images(image_tag):
+        console.print(f"[green]✓[/green] Images updated (tag: {image_tag})")
+    else:
+        if image_tag is not None:
+            console.print(f"[yellow]Pre-built images not available for tag: {image_tag}[/yellow]")
+        console.print("[dim]Building images locally...[/dim]")
+        build_services()
+        console.print("[green]✓[/green] Images built locally")
 
 
 def show_logs(tail_lines: int) -> None:

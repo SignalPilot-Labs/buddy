@@ -8,7 +8,7 @@ import typer
 
 from cli.commands import agent, config, repos, run, services, settings
 from cli.config import state
-from cli.constants import DEFAULT_IMAGE_TAG, DEFAULT_LOG_TAIL_LINES
+from cli.constants import DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
 AutoFyn CLI — manage services, runs, settings, and repos.
@@ -53,20 +53,15 @@ def main(
 @app.command("start")
 def start(
     allow_docker: bool = typer.Option(False, "--allow-docker", help="Mount Docker socket into sandbox containers"),
-    build: bool = typer.Option(False, "--build", help="Force local image build instead of pulling pre-built images"),
-    image_tag: str = typer.Option(DEFAULT_IMAGE_TAG, "--image-tag", metavar="<tag>", help="Docker image tag to pull (e.g. main, latest, abc1234)"),
 ) -> None:
-    """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
+    """Start all AutoFyn services (docker compose up -d).
 
     \b
     Example:
       autofyn start
-      autofyn start --build                # Build images locally (for dev)
-      autofyn start --image-tag abc1234    # Pin to a specific image version
-      autofyn start --allow-docker         # Give agent Docker access (unsafe)
+      autofyn start --allow-docker    # Give agent Docker access (unsafe)
     """
-    services.start_services(allow_docker, build, image_tag)
-
+    services.start_services(allow_docker)
 
 
 @app.command("stop")
@@ -82,14 +77,25 @@ def stop() -> None:
 
 
 @app.command("update")
-def update() -> None:
-    """Pull latest code and pre-built Docker images (git pull + docker compose pull).
+def update(
+    branch: Optional[str] = typer.Option(None, "--branch", metavar="<branch>", help="Switch to branch before updating (e.g. main, production)"),
+    image_tag: Optional[str] = typer.Option(None, "--image-tag", metavar="<tag>", help="Override image tag (e.g. stable, nightly, abc1234)"),
+) -> None:
+    """Pull latest code and Docker images. Builds locally if no pre-built image exists.
 
     \b
-    Example:
-      autofyn update
+    Detects branch from git and maps to image tag:
+      production → stable
+      main       → nightly
+      other      → builds locally
+
+    \b
+    Examples:
+      autofyn update                        # Update current branch
+      autofyn update --branch main          # Switch to main, pull nightly images
+      autofyn update --image-tag abc1234    # Pin to specific image version
     """
-    services.update_services()
+    services.update_services(branch, image_tag)
 
 
 @app.command("logs")

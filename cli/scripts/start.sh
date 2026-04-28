@@ -6,8 +6,17 @@ HOST_IP="${HOST_IP:-$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/n
 export HOST_IP
 echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 
-# Image tag — CLI always sets this; default for direct docker compose usage
-export AUTOFYN_IMAGE_TAG="${AUTOFYN_IMAGE_TAG:?AUTOFYN_IMAGE_TAG must be set}"
+# Read image tag persisted by `autofyn update`
+TAG_FILE="$HOME/.autofyn/.image-tag"
+if [ -z "${AUTOFYN_IMAGE_TAG:-}" ] && [ -f "$TAG_FILE" ]; then
+    AUTOFYN_IMAGE_TAG="$(cat "$TAG_FILE" | tr -d '[:space:]')"
+fi
+if [ -z "${AUTOFYN_IMAGE_TAG:-}" ]; then
+    echo "[autofyn] ERROR: No image tag found. Run 'autofyn update' first." >&2
+    exit 1
+fi
+export AUTOFYN_IMAGE_TAG
+echo "[autofyn] Image tag: ${AUTOFYN_IMAGE_TAG}"
 
 # Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
@@ -25,15 +34,4 @@ if docker compose ps -q 2>/dev/null | grep -q .; then
     docker compose down --remove-orphans 2>/dev/null || true
 fi
 
-# AF_FORCE_BUILD=1 → always build locally (autofyn start --build)
-# Otherwise try pulling pre-built images; fall back to local build
-if [ "${AF_FORCE_BUILD:-}" = "1" ]; then
-    echo "[autofyn] Building images locally (--build)"
-    docker compose up -d --build "$@"
-elif docker compose pull 2>/dev/null; then
-    echo "[autofyn] Using pre-built images"
-    docker compose up -d "$@"
-else
-    echo "[autofyn] Pre-built images not available, building locally"
-    docker compose up -d --build "$@"
-fi
+docker compose up -d "$@"

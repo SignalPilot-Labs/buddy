@@ -42,10 +42,12 @@ jobs:
         run: |
           SHA="${GITHUB_SHA::7}"
           BRANCH="${GITHUB_REF_NAME}"
-          TAGS="${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${BRANCH},\
-          ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:${SHA}"
+          IMAGE="${{ env.IMAGE_PREFIX }}-${{ matrix.service }}"
+          TAGS="${IMAGE}:${SHA}"
           if [ "$BRANCH" = "production" ]; then
-            TAGS="${TAGS},${{ env.IMAGE_PREFIX }}-${{ matrix.service }}:latest"
+            TAGS="${TAGS},${IMAGE}:stable"
+          elif [ "$BRANCH" = "main" ]; then
+            TAGS="${TAGS},${IMAGE}:nightly"
           fi
           echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
