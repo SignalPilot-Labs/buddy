@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from typer.testing import CliRunner
+
 from cli.commands.services import _resolve_image_tag, update_services
+from cli.main import app
 
 
 class TestResolveImageTag:
@@ -51,7 +54,7 @@ class TestUpdateServices:
         """On main branch, pulls nightly images."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_switch.assert_not_called()
-        mock_git_pull.assert_called_once_with("main")
+        mock_git_pull.assert_called_once_with("main", skip_fetch=False)
         mock_pull.assert_called_once_with("nightly")
 
     @patch(f"{MODULE}._git_pull")
@@ -67,7 +70,7 @@ class TestUpdateServices:
     ) -> None:
         """On production branch, pulls stable images."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
-        mock_git_pull.assert_called_once_with("production")
+        mock_git_pull.assert_called_once_with("production", skip_fetch=False)
         mock_pull.assert_called_once_with("stable")
 
     @patch(f"{MODULE}._git_pull")
@@ -85,7 +88,7 @@ class TestUpdateServices:
     ) -> None:
         """Feature branches have no GHCR images — builds locally."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
-        mock_git_pull.assert_called_once_with("fix-bug")
+        mock_git_pull.assert_called_once_with("fix-bug", skip_fetch=False)
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -171,7 +174,7 @@ class TestUpdateServices:
         """--branch to a feature branch switches then builds locally."""
         update_services(branch_override="my-feature", image_tag_override=None, force_build=False)
         mock_switch.assert_called_once_with("my-feature")
-        mock_git_pull.assert_called_once_with("my-feature")
+        mock_git_pull.assert_called_once_with("my-feature", skip_fetch=True)
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -191,7 +194,7 @@ class TestUpdateServices:
         """--branch + --build switches branch then builds, no pull attempt."""
         update_services(branch_override="my-feature", image_tag_override=None, force_build=True)
         mock_switch.assert_called_once_with("my-feature")
-        mock_git_pull.assert_called_once_with("my-feature")
+        mock_git_pull.assert_called_once_with("my-feature", skip_fetch=True)
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -208,4 +211,45 @@ class TestUpdateServices:
     ) -> None:
         """git pull resets to the detected branch, not hardcoded main."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
-        mock_git_pull.assert_called_once_with("production")
+        mock_git_pull.assert_called_once_with("production", skip_fetch=False)
+
+    @patch(f"{MODULE}._git_pull")
+    @patch(f"{MODULE}._detect_branch", return_value="main")
+    @patch(f"{MODULE}._pull_images", return_value=True)
+    @patch(f"{MODULE}._switch_branch")
+    def test_no_branch_override_fetches_in_git_pull(
+        self,
+        _mock_switch: MagicMock,
+        _mock_pull: MagicMock,
+        _mock_detect: MagicMock,
+        mock_git_pull: MagicMock,
+    ) -> None:
+        """Without --branch, git pull does its own fetch (skip_fetch=False)."""
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
+        mock_git_pull.assert_called_once_with("main", skip_fetch=False)
+
+    @patch(f"{MODULE}._git_pull")
+    @patch(f"{MODULE}._detect_branch", return_value="production")
+    @patch(f"{MODULE}._pull_images", return_value=True)
+    @patch(f"{MODULE}._switch_branch")
+    def test_branch_override_skips_fetch_in_git_pull(
+        self,
+        _mock_switch: MagicMock,
+        _mock_pull: MagicMock,
+        _mock_detect: MagicMock,
+        mock_git_pull: MagicMock,
+    ) -> None:
+        """With --branch, git pull skips fetch (already fetched by switch)."""
+        update_services(branch_override="production", image_tag_override=None, force_build=False)
+        mock_git_pull.assert_called_once_with("production", skip_fetch=True)
+
+
+class TestUpdateCli:
+    """Tests for autofyn update CLI argument validation."""
+
+    def test_build_and_image_tag_mutually_exclusive(self) -> None:
+        """--build and --image-tag together exits with error."""
+        runner = CliRunner()
+        result = runner.invoke(app, ["update", "--build", "--image-tag", "abc1234"])
+        assert result.exit_code == 1
+        assert "mutually exclusive" in result.output

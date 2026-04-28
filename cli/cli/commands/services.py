@@ -52,13 +52,15 @@ def _run_script(script_path: str) -> None:
         sys.exit(result.returncode)
 
 
-def _git_pull(branch: str) -> None:
+def _git_pull(branch: str, skip_fetch: bool) -> None:
     """Fetch latest and reset to origin/<branch>. Safe for install directory."""
-    console.print(f"[dim]→ git fetch + reset to origin/{branch} in {AUTOFYN_HOME}[/dim]")
-    fetch = subprocess.run(["git", "fetch", "origin", branch], cwd=AUTOFYN_HOME)
-    if fetch.returncode != 0:
-        console.print(f"[red]git fetch exited with code {fetch.returncode}[/red]")
-        sys.exit(fetch.returncode)
+    if not skip_fetch:
+        console.print(f"[dim]→ git fetch origin {branch}[/dim]")
+        fetch = subprocess.run(["git", "fetch", "origin", branch], cwd=AUTOFYN_HOME)
+        if fetch.returncode != 0:
+            console.print(f"[red]git fetch exited with code {fetch.returncode}[/red]")
+            sys.exit(fetch.returncode)
+    console.print(f"[dim]→ git reset --hard origin/{branch}[/dim]")
     reset = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"], cwd=AUTOFYN_HOME)
     if reset.returncode != 0:
         console.print(f"[red]git reset exited with code {reset.returncode}[/red]")
@@ -303,13 +305,18 @@ def _pull_images(image_tag: str) -> bool:
     return result.returncode == 0
 
 
-def update_services(branch_override: str | None, image_tag_override: str | None, force_build: bool) -> None:
+def update_services(
+    branch_override: str | None,
+    image_tag_override: str | None,
+    force_build: bool,
+) -> None:
     """Update code and images: git pull, then pull pre-built images or build locally."""
-    if branch_override is not None:
+    already_fetched = branch_override is not None
+    if already_fetched:
         _switch_branch(branch_override)
 
     branch = _detect_branch()
-    _git_pull(branch)
+    _git_pull(branch, skip_fetch=already_fetched)
 
     if force_build:
         console.print("[dim]Building images locally (--build)...[/dim]")
