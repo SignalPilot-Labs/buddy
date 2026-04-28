@@ -52,14 +52,14 @@ def _run_script(script_path: str) -> None:
         sys.exit(result.returncode)
 
 
-def _git_pull() -> None:
-    """Fetch latest and reset to origin/main. Safe for install directory."""
-    console.print(f"[dim]→ git fetch + reset in {AUTOFYN_HOME}[/dim]")
-    fetch = subprocess.run(["git", "fetch", "origin", "main"], cwd=AUTOFYN_HOME)
+def _git_pull(branch: str) -> None:
+    """Fetch latest and reset to origin/<branch>. Safe for install directory."""
+    console.print(f"[dim]→ git fetch + reset to origin/{branch} in {AUTOFYN_HOME}[/dim]")
+    fetch = subprocess.run(["git", "fetch", "origin", branch], cwd=AUTOFYN_HOME)
     if fetch.returncode != 0:
         console.print(f"[red]git fetch exited with code {fetch.returncode}[/red]")
         sys.exit(fetch.returncode)
-    reset = subprocess.run(["git", "reset", "--hard", "origin/main"], cwd=AUTOFYN_HOME)
+    reset = subprocess.run(["git", "reset", "--hard", f"origin/{branch}"], cwd=AUTOFYN_HOME)
     if reset.returncode != 0:
         console.print(f"[red]git reset exited with code {reset.returncode}[/red]")
         sys.exit(reset.returncode)
@@ -265,12 +265,17 @@ def _detect_branch() -> str:
 
 
 def _switch_branch(branch: str) -> None:
-    """Switch to the given branch in AUTOFYN_HOME."""
-    console.print(f"[dim]→ git checkout {branch}[/dim]")
-    result = subprocess.run(["git", "checkout", branch], cwd=AUTOFYN_HOME)
-    if result.returncode != 0:
+    """Fetch and switch to the given branch in AUTOFYN_HOME, discarding local changes."""
+    console.print(f"[dim]→ git fetch origin {branch}[/dim]")
+    fetch = subprocess.run(["git", "fetch", "origin", branch], cwd=AUTOFYN_HOME)
+    if fetch.returncode != 0:
+        console.print(f"[red]Failed to fetch branch {branch}[/red]")
+        sys.exit(fetch.returncode)
+    console.print(f"[dim]→ git checkout -f {branch}[/dim]")
+    checkout = subprocess.run(["git", "checkout", "-f", branch], cwd=AUTOFYN_HOME)
+    if checkout.returncode != 0:
         console.print(f"[red]Failed to switch to branch {branch}[/red]")
-        sys.exit(result.returncode)
+        sys.exit(checkout.returncode)
 
 
 def _resolve_image_tag(branch: str, image_tag_override: str | None) -> str | None:
@@ -304,7 +309,7 @@ def update_services(branch_override: str | None, image_tag_override: str | None,
         _switch_branch(branch_override)
 
     branch = _detect_branch()
-    _git_pull()
+    _git_pull(branch)
 
     if force_build:
         console.print("[dim]Building images locally (--build)...[/dim]")

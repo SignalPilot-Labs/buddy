@@ -51,6 +51,7 @@ class TestUpdateServices:
         """On main branch, pulls nightly images."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_switch.assert_not_called()
+        mock_git_pull.assert_called_once_with("main")
         mock_pull.assert_called_once_with("nightly")
 
     @patch(f"{MODULE}._git_pull")
@@ -66,6 +67,7 @@ class TestUpdateServices:
     ) -> None:
         """On production branch, pulls stable images."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
+        mock_git_pull.assert_called_once_with("production")
         mock_pull.assert_called_once_with("stable")
 
     @patch(f"{MODULE}._git_pull")
@@ -83,6 +85,7 @@ class TestUpdateServices:
     ) -> None:
         """Feature branches have no GHCR images — builds locally."""
         update_services(branch_override=None, image_tag_override=None, force_build=False)
+        mock_git_pull.assert_called_once_with("fix-bug")
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -168,6 +171,7 @@ class TestUpdateServices:
         """--branch to a feature branch switches then builds locally."""
         update_services(branch_override="my-feature", image_tag_override=None, force_build=False)
         mock_switch.assert_called_once_with("my-feature")
+        mock_git_pull.assert_called_once_with("my-feature")
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -187,5 +191,21 @@ class TestUpdateServices:
         """--branch + --build switches branch then builds, no pull attempt."""
         update_services(branch_override="my-feature", image_tag_override=None, force_build=True)
         mock_switch.assert_called_once_with("my-feature")
+        mock_git_pull.assert_called_once_with("my-feature")
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
+
+    @patch(f"{MODULE}._git_pull")
+    @patch(f"{MODULE}._detect_branch", return_value="production")
+    @patch(f"{MODULE}._pull_images", return_value=True)
+    @patch(f"{MODULE}._switch_branch")
+    def test_git_pull_uses_detected_branch_not_hardcoded(
+        self,
+        _mock_switch: MagicMock,
+        _mock_pull: MagicMock,
+        _mock_detect: MagicMock,
+        mock_git_pull: MagicMock,
+    ) -> None:
+        """git pull resets to the detected branch, not hardcoded main."""
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
+        mock_git_pull.assert_called_once_with("production")
