@@ -178,13 +178,14 @@ class SecurityGate:
         return None
 
     def _check_github_api_direct(self, cmd: str) -> str | None:
-        """Block direct HTTP clients hitting api.github.com.
+        """Block any command containing api.github.com.
 
-        The orchestrator owns all GitHub API writes — a subagent hitting
-        api.github.com with curl/wget/httpie would be using the token we
-        inject for git auth to bypass `gh` and the `_check_gh_writes` block.
+        The orchestrator owns all GitHub API access — subagents must use
+        the `gh` CLI instead. Any interpreter (curl, wget, python, node,
+        etc.) that targets api.github.com could use the injected token to
+        bypass `_check_gh_writes`.
         """
-        if re.search(r"\b(curl|wget|http|https|httpie)\b", cmd) and "api.github.com" in cmd:
+        if "api.github.com" in cmd:
             return "Direct calls to api.github.com are blocked — the orchestrator handles GitHub API writes"
         return None
 
