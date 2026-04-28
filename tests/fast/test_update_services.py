@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from cli.commands.services import _resolve_image_tag, update_services
 
@@ -51,7 +49,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """On main branch, pulls nightly images."""
-        update_services(None, None, False)
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_switch.assert_not_called()
         mock_pull.assert_called_once_with("nightly")
 
@@ -67,7 +65,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """On production branch, pulls stable images."""
-        update_services(None, None, False)
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_pull.assert_called_once_with("stable")
 
     @patch(f"{MODULE}._git_pull")
@@ -84,7 +82,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """Feature branches have no GHCR images — builds locally."""
-        update_services(None, None, False)
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -100,7 +98,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """--image-tag overrides branch-based tag."""
-        update_services(None, "abc1234", False)
+        update_services(branch_override=None, image_tag_override="abc1234", force_build=False)
         mock_pull.assert_called_once_with("abc1234")
 
     @patch(f"{MODULE}._git_pull")
@@ -117,7 +115,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """--build forces local build, never attempts pull."""
-        update_services(None, None, True)
+        update_services(branch_override=None, image_tag_override=None, force_build=True)
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
 
@@ -135,7 +133,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """When pull fails, falls back to local build."""
-        update_services(None, None, False)
+        update_services(branch_override=None, image_tag_override=None, force_build=False)
         mock_pull.assert_called_once_with("nightly")
         mock_build.assert_called_once()
 
@@ -151,7 +149,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """--branch switches branch before detecting and pulling."""
-        update_services("production", None, False)
+        update_services(branch_override="production", image_tag_override=None, force_build=False)
         mock_switch.assert_called_once_with("production")
 
     @patch(f"{MODULE}._git_pull")
@@ -168,7 +166,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """--branch to a feature branch switches then builds locally."""
-        update_services("my-feature", None, False)
+        update_services(branch_override="my-feature", image_tag_override=None, force_build=False)
         mock_switch.assert_called_once_with("my-feature")
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
@@ -187,7 +185,7 @@ class TestUpdateServices:
         mock_git_pull: MagicMock,
     ) -> None:
         """--branch + --build switches branch then builds, no pull attempt."""
-        update_services("my-feature", None, True)
+        update_services(branch_override="my-feature", image_tag_override=None, force_build=True)
         mock_switch.assert_called_once_with("my-feature")
         mock_pull.assert_not_called()
         mock_build.assert_called_once()
