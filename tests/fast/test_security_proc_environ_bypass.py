@@ -135,6 +135,24 @@ class TestSecurityInterpreterBypasses:
         )
         assert result is None
 
+    def test_allows_grep_api_github(self) -> None:
+        """grep for api.github.com in source code must be allowed."""
+        gate = _make_gate()
+        result = gate.check_permission(
+            "Bash",
+            {"command": "grep api.github.com README.md"},
+        )
+        assert result is None
+
+    def test_allows_echo_api_github(self) -> None:
+        """echo mentioning api.github.com must be allowed."""
+        gate = _make_gate()
+        result = gate.check_permission(
+            "Bash",
+            {"command": "echo 'Do not use api.github.com directly'"},
+        )
+        assert result is None
+
     def test_allows_python_non_secret_proc(self) -> None:
         """python3 reading /proc/cpuinfo must be allowed."""
         gate = _make_gate()

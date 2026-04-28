@@ -178,16 +178,19 @@ class SecurityGate:
         return None
 
     def _check_github_api_direct(self, cmd: str) -> str | None:
-        """Block any command containing api.github.com.
+        """Block commands that target api.github.com as a URL or host.
 
         The orchestrator owns all GitHub API access — subagents must use
         the `gh` CLI instead. Any interpreter (curl, wget, python, node,
         etc.) that targets api.github.com could use the injected token to
-        bypass `_check_gh_writes`.
+        bypass `_check_gh_writes`. Read-only commands like grep/cat that
+        merely mention the string are allowed.
         """
-        if "api.github.com" in cmd:
-            return "Direct calls to api.github.com are blocked — the orchestrator handles GitHub API writes"
-        return None
+        if "api.github.com" not in cmd:
+            return None
+        if re.match(r"^\s*(grep|rg|cat|head|tail|less|echo|printf)\b", cmd):
+            return None
+        return "Direct calls to api.github.com are blocked — the orchestrator handles GitHub API writes"
 
     def _check_secret_var_refs(self, cmd: str) -> str | None:
         """Block commands that name our internal secret env vars.

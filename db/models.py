@@ -122,7 +122,7 @@ class ControlSignal(Base):
     __tablename__ = "control_signals"
     __table_args__ = (
         CheckConstraint(
-            f"signal IN ({', '.join(repr(s) for s in VALID_CONTROL_SIGNALS)})",
+            "signal IN (" + ", ".join(f"'{s}'" for s in VALID_CONTROL_SIGNALS) + ")",
             name="ck_control_signals_signal",
         ),
         Index("ix_control_signals_run_id", "run_id"),
