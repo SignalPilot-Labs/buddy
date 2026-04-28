@@ -4,9 +4,14 @@ set -e
 # Agent container entrypoint — orchestrator with Docker socket access
 # for spawning per-run sandbox containers.
 
-# Grant agentuser access to Docker socket if mounted
+# Grant agentuser access to Docker socket via group membership (no world-writable chmod)
 if [ -S /var/run/docker.sock ]; then
-    chmod 666 /var/run/docker.sock
+    SOCK_GID=$(stat -c '%g' /var/run/docker.sock)
+    if ! getent group "$SOCK_GID" > /dev/null 2>&1; then
+        groupadd -g "$SOCK_GID" docker
+    fi
+    DOCKER_GROUP=$(getent group "$SOCK_GID" | cut -d: -f1)
+    usermod -aG "$DOCKER_GROUP" agentuser
 fi
 
 # Ensure shared data volume is writable by agentuser
