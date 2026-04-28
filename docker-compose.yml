@@ -33,7 +33,7 @@ services:
       retries: 5
 
   dashboard:
-    image: ghcr.io/signalpilot-labs/autofyn-dashboard:${AUTOFYN_IMAGE_TAG}
+    image: ghcr.io/signalpilot-labs/autofyn-dashboard:${AF_IMAGE_TAG}
     build:
       context: .
       dockerfile: dashboard/Dockerfile.dashboard
@@ -52,7 +52,7 @@ services:
         condition: service_healthy
 
   agent:
-    image: ghcr.io/signalpilot-labs/autofyn-agent:${AUTOFYN_IMAGE_TAG}
+    image: ghcr.io/signalpilot-labs/autofyn-agent:${AF_IMAGE_TAG}
     build:
       context: .
       dockerfile: autofyn/Dockerfile.agent
@@ -64,6 +64,7 @@ services:
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET}
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
+      AF_IMAGE_TAG: ${AF_IMAGE_TAG}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]
       interval: 3s
@@ -86,7 +87,7 @@ services:
         condition: service_healthy
 
   sandbox:
-    image: ghcr.io/signalpilot-labs/autofyn-sandbox:${AUTOFYN_IMAGE_TAG}
+    image: ghcr.io/signalpilot-labs/autofyn-sandbox:${AF_IMAGE_TAG}
     build:
       context: .
       dockerfile: sandbox/Dockerfile.gvisor

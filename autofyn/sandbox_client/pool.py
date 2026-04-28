@@ -20,10 +20,11 @@ from utils.constants import (
     DOCKER_SOCKET_PATH,
     ENV_KEY_AGENT_URL,
     ENV_KEY_ALLOW_DOCKER,
+    ENV_KEY_IMAGE_TAG,
     SANDBOX_POOL_AGENT_URL,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
-    SANDBOX_POOL_IMAGE,
+    SANDBOX_POOL_IMAGE_BASE,
     SANDBOX_POOL_NETWORK,
     SANDBOX_POOL_PORT,
 )
@@ -43,6 +44,8 @@ class SandboxPool:
         self._clients: dict[str, SandboxClient] = {}
         self._allow_docker = os.environ.get(ENV_KEY_ALLOW_DOCKER, "").lower() in ("1", "true", "yes")
         self._client_timeout: int = sandbox_config()["vm_timeout_sec"]
+        self._image = f"{SANDBOX_POOL_IMAGE_BASE}:{os.environ[ENV_KEY_IMAGE_TAG]}"
+        log.info("Pool sandbox image: %s", self._image)
 
     def _container_env(self) -> dict[str, str]:
         """Build env vars for pool-created sandbox containers.
@@ -97,7 +100,7 @@ class SandboxPool:
 
         container: Container = await asyncio.to_thread(
             self._docker.containers.run,
-            image=SANDBOX_POOL_IMAGE,
+            image=self._image,
             name=container_name,
             hostname=container_name,
             detach=True,
