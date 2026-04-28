@@ -33,7 +33,7 @@ services:
       retries: 5
 
   dashboard:
-    image: ghcr.io/signalpilot-labs/autofyn-dashboard:${AUTOFYN_IMAGE_TAG:-main}
+    image: ghcr.io/signalpilot-labs/autofyn-dashboard:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: dashboard/Dockerfile.dashboard
@@ -52,7 +52,7 @@ services:
         condition: service_healthy
 
   agent:
-    image: ghcr.io/signalpilot-labs/autofyn-agent:${AUTOFYN_IMAGE_TAG:-main}
+    image: ghcr.io/signalpilot-labs/autofyn-agent:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: autofyn/Dockerfile.agent
@@ -86,7 +86,7 @@ services:
         condition: service_healthy
 
   sandbox:
-    image: ghcr.io/signalpilot-labs/autofyn-sandbox:${AUTOFYN_IMAGE_TAG:-main}
+    image: ghcr.io/signalpilot-labs/autofyn-sandbox:${AUTOFYN_IMAGE_TAG}
     build:
       context: .
       dockerfile: sandbox/Dockerfile.gvisor

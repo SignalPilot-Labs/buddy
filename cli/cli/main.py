@@ -8,7 +8,7 @@ import typer
 
 from cli.commands import agent, config, repos, run, services, settings
 from cli.config import state
-from cli.constants import DEFAULT_LOG_TAIL_LINES
+from cli.constants import DEFAULT_IMAGE_TAG, DEFAULT_LOG_TAIL_LINES
 
 _HELP = """\
 AutoFyn CLI — manage services, runs, settings, and repos.
@@ -54,7 +54,7 @@ def main(
 def start(
     allow_docker: bool = typer.Option(False, "--allow-docker", help="Mount Docker socket into sandbox containers"),
     build: bool = typer.Option(False, "--build", help="Force local image build instead of pulling pre-built images"),
-    image_tag: Optional[str] = typer.Option(None, "--image-tag", metavar="<tag>", help="Docker image tag to pull (e.g. main, latest, abc1234)"),
+    image_tag: str = typer.Option(DEFAULT_IMAGE_TAG, "--image-tag", metavar="<tag>", help="Docker image tag to pull (e.g. main, latest, abc1234)"),
 ) -> None:
     """Start all AutoFyn services (docker compose up -d). Use 'autofyn install' for first-time setup.
 
@@ -66,6 +66,7 @@ def start(
       autofyn start --allow-docker         # Give agent Docker access (unsafe)
     """
     services.start_services(allow_docker, build, image_tag)
+
 
 
 @app.command("stop")

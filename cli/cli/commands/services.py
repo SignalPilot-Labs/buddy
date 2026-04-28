@@ -76,15 +76,14 @@ _DOCKER_WARNING = (
 )
 
 
-def start_services(allow_docker: bool, force_build: bool, image_tag: str | None) -> None:
+def start_services(allow_docker: bool, force_build: bool, image_tag: str) -> None:
     """Run start.sh — tears down stale containers then docker compose up -d."""
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
     if force_build:
         os.environ["AF_FORCE_BUILD"] = "1"
-    if image_tag is not None:
-        os.environ["AUTOFYN_IMAGE_TAG"] = image_tag
+    os.environ["AUTOFYN_IMAGE_TAG"] = image_tag
     _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:

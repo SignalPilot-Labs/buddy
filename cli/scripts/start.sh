@@ -6,6 +6,9 @@ HOST_IP="${HOST_IP:-$(ipconfig getifaddr en0 2>/dev/null || hostname -I 2>/dev/n
 export HOST_IP
 echo "[autofyn] Host IP: ${HOST_IP:-not detected}"
 
+# Image tag — CLI always sets this; default for direct docker compose usage
+export AUTOFYN_IMAGE_TAG="${AUTOFYN_IMAGE_TAG:?AUTOFYN_IMAGE_TAG must be set}"
+
 # Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
     AGENT_INTERNAL_SECRET="$(openssl rand -hex 32)"

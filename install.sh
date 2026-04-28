@@ -30,6 +30,7 @@ fi
 pip install -e "$AUTOFYN_HOME/cli/" --quiet
 
 # Pull pre-built Docker images (fall back to local build)
+export AUTOFYN_IMAGE_TAG="main"
 echo "[install] Pulling Docker images..."
 if ! (cd "$AUTOFYN_HOME" && docker compose pull 2>/dev/null); then
     echo "[install] Pre-built images not available, building locally..."

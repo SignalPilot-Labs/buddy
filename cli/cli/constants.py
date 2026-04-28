@@ -49,6 +49,9 @@ GIT_SLUG_SEPARATOR: str = "/"
 DEFAULT_LOG_TAIL_LINES: int = 100
 SIGINT_EXIT_CODE: int = 130
 
+# Docker images
+DEFAULT_IMAGE_TAG: str = "main"
+
 # Docker exec
 DOCKER_EXEC_TIMEOUT_SECONDS: int = 5
 
