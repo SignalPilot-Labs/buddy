@@ -98,9 +98,9 @@ class SecurityGate:
 
     def _check_branch_integrity(self, cmd: str) -> str | None:
         """Block branch creation/switching/clean. Orchestrator owns branching."""
-        if re.search(r"git\s+checkout\s+-b\b", cmd):
+        if re.search(r"git\s+checkout\s+-\w*[bB]", cmd):
             return "Cannot create branches — the system manages branching"
-        if re.search(r"git\s+switch\s+-c\b", cmd):
+        if re.search(r"git\s+switch\s+(-\w*[cC]|--force-create)\b", cmd):
             return "Cannot create branches — the system manages branching"
         if re.search(r"git\s+branch\s+(?!-)\S", cmd):
             return "Cannot create branches — the system manages branching"
