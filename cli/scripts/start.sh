@@ -17,5 +17,8 @@ if [ -z "${SANDBOX_INTERNAL_SECRET:-}" ]; then
     export SANDBOX_INTERNAL_SECRET
 fi
 
-docker compose down --remove-orphans 2>/dev/null || true
+# Only tear down if containers are already running
+if docker compose ps -q 2>/dev/null | grep -q .; then
+    docker compose down --remove-orphans 2>/dev/null || true
+fi
 docker compose up -d "$@"
