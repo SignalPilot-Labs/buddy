@@ -34,4 +34,4 @@ if docker compose ps -q 2>/dev/null | grep -q .; then
     docker compose down --remove-orphans 2>/dev/null || true
 fi
 
-docker compose up -d "$@"
+docker compose up -d --wait "$@"

@@ -47,6 +47,12 @@ services:
       - "3401:3401"
     volumes:
       - autofyn-keys:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3401/health || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy
