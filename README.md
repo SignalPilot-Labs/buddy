@@ -2,7 +2,7 @@
 
 <h1>autofyn</h1>
 
-**Runs Claude in self-improving loops that work on real codebases.**
+**Run Claude in self-improving loops to optimize measurable goals.**
 
 built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 101 vulnerabilities across popular Open Source Software · improved Caveman compression from 44% to 54%
 
