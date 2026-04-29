@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Run, RunStatus, RepoInfo } from "@/lib/types";
 import type { AgentHealth, HealthRunEntry } from "@/lib/api";
-import { ACTIVE_STATUSES, RUN_ID_DISPLAY_LENGTH, COPY_FEEDBACK_MS } from "@/lib/constants";
+import { ACTIVE_STATUSES, RUN_ID_DISPLAY_LENGTH, COPY_FEEDBACK_MS, REPO_DROPDOWN_MAX_HEIGHT } from "@/lib/constants";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
@@ -133,6 +133,7 @@ export function DashboardHeader({
         repos={repos}
         activeRepo={activeRepo}
         onSelect={onRepoSwitch}
+        dropdownMaxHeight={REPO_DROPDOWN_MAX_HEIGHT}
       />
 
       {/* Selected run status + run ID */}
