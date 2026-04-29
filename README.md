@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>autofyn</h1>
+<h1>AutoFyn</h1>
 
 **Run Claude in self-improving loops to optimize measurable goals.**
 
