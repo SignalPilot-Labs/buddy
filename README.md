@@ -4,7 +4,7 @@
 
 **Runs Claude in self-improving loops that work on real codebases.**
 
-built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 65 vulnerabilities across popular Open Source Software · improved Caveman compression from 44% to 54%
+built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 101 vulnerabilities across popular Open Source Software · improved Caveman compression from 44% to 54%
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
@@ -28,6 +28,7 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 - **[Open WebUI](https://github.com/open-webui/open-webui)** — 12 vulnerabilities (4 Critical, 5 High, 3 Medium), 4 exploit chains. Responsibly disclosed.
 - **[Langflow](https://github.com/langflow-ai/langflow)** — 22 vulnerabilities (3 Critical, 13 High, 6 Medium), 4 exploit chains. Responsibly disclosed.
 - **[RAGFlow](https://github.com/infiniflow/ragflow)** — 17 vulnerabilities (5 Critical, 11 High, 1 Medium), 5 exploit chains. Responsibly disclosed.
+- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** — 36 vulnerabilities (13 Critical, 22 High, 1 Medium), 18 exploit chains. Responsibly disclosed.
 
 ### Software engineering
 
@@ -40,6 +41,12 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 git clone https://github.com/SignalPilot-Labs/AutoFyn.git ~/.autofyn
 pip install ~/.autofyn/cli
 autofyn update && autofyn start
+```
+
+If your agent needs docker access, run
+
+```
+autofyn start --allow-docker
 ```
 
 Two release channels:
