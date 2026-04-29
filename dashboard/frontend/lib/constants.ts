@@ -212,6 +212,10 @@ export const TERMINAL_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>([
   "completed_no_changes",
 ]);
 
+// Repo dropdown
+export const REPO_DROPDOWN_MAX_HEIGHT = "max-h-[200px]";
+export const REPO_DROPDOWN_MOBILE_MAX_HEIGHT = "max-h-[calc(100vh-280px)]";
+
 // Panel resize
 export const SIDEBAR_DEFAULT_WIDTH = 260;
 export const SIDEBAR_MIN_WIDTH = 180;

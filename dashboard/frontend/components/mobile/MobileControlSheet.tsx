@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
-import { ACTIVE_STATUSES } from "@/lib/constants";
+import { ACTIVE_STATUSES, REPO_DROPDOWN_MOBILE_MAX_HEIGHT } from "@/lib/constants";
 
 interface MobileControlSheetProps {
   open: boolean;
@@ -96,9 +96,7 @@ export function MobileControlSheet({
                   repos={repos}
                   activeRepo={activeRepo}
                   onSelect={(repo) => { onRepoSelect(repo); onClose(); }}
-                  // 280px accounts for: drag handle (~20px), label (~28px), new run button (~44px),
-                  // run controls section (~100px), padding (~60px), safe area
-                  dropdownMaxHeight="max-h-[calc(100vh-280px)]"
+                  dropdownMaxHeight={REPO_DROPDOWN_MOBILE_MAX_HEIGHT}
                 />
               </div>
 
