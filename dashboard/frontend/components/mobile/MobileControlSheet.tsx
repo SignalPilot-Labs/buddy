@@ -5,18 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { RunStatus, RepoInfo } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
-import { ACTIVE_STATUSES, RESUMABLE_STATUSES, INJECTABLE_STATUSES } from "@/lib/constants";
+import { ACTIVE_STATUSES } from "@/lib/constants";
 
 interface MobileControlSheetProps {
   open: boolean;
   onClose: () => void;
   // Run controls
   status: RunStatus | null;
-  onPause: () => void;
-  onResume: () => void;
   onStop: () => void;
   onUnlock: () => void;
-  onToggleInject: () => void;
   busy: boolean;
   // Repo
   repos: RepoInfo[];
@@ -31,11 +28,8 @@ export function MobileControlSheet({
   open,
   onClose,
   status,
-  onPause,
-  onResume,
   onStop,
   onUnlock,
-  onToggleInject,
   busy,
   repos,
   activeRepo,
@@ -45,10 +39,6 @@ export function MobileControlSheet({
 }: MobileControlSheetProps) {
   const s = status ?? ("" as never);
   const isActive = ACTIVE_STATUSES.includes(s);
-  const canPause = status === "running";
-  const canResume = RESUMABLE_STATUSES.includes(s);
-  const canInject = INJECTABLE_STATUSES.includes(s);
-  const resumeLabel = status === "paused" ? "Resume" : "Restart";
 
   // Lock body scroll when open — save and restore original value
   useEffect(() => {
@@ -106,6 +96,9 @@ export function MobileControlSheet({
                   repos={repos}
                   activeRepo={activeRepo}
                   onSelect={(repo) => { onRepoSelect(repo); onClose(); }}
+                  // 280px accounts for: drag handle (~20px), label (~28px), new run button (~44px),
+                  // run controls section (~100px), padding (~60px), safe area
+                  dropdownMaxHeight="max-h-[calc(100vh-280px)]"
                 />
               </div>
 
@@ -125,57 +118,13 @@ export function MobileControlSheet({
                 {isConfigured ? "New Run" : "Setup Required"}
               </Button>
 
-              {/* Run controls grid */}
-              {status && (
+              {/* Run controls */}
+              {status && isActive && (
                 <>
                   <label className="text-content uppercase tracking-[0.15em] text-text-secondary font-semibold block">
                     Run Controls
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button
-                      variant="warning"
-                      size="md"
-                      disabled={!canPause || busy}
-                      onClick={() => { onPause(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <rect x="2" y="2" width="2" height="6" rx="0.5" />
-                          <rect x="6" y="2" width="2" height="6" rx="0.5" />
-                        </svg>
-                      }
-                    >
-                      Pause
-                    </Button>
-                    <Button
-                      variant="success"
-                      size="md"
-                      disabled={!canResume || busy}
-                      onClick={() => { onResume(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <polygon points="3 2 8 5 3 8" />
-                        </svg>
-                      }
-                    >
-                      {resumeLabel}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      size="md"
-                      disabled={!canInject || busy}
-                      onClick={() => { onToggleInject(); onClose(); }}
-                      className="justify-center"
-                      icon={
-                        <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                          <path d="M1 7c0-1.5 1-2 3-2s3 .5 3 2" />
-                          <path d="M7.5 1.5l1.5 3-3 3" />
-                        </svg>
-                      }
-                    >
-                      Inject
-                    </Button>
+                  <div className="grid grid-cols-2 gap-2">
                     <Button
                       variant="danger"
                       size="md"

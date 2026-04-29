@@ -8,9 +8,10 @@ interface RepoSelectorProps {
   repos: RepoInfo[];
   activeRepo: string | null;
   onSelect: (repo: string) => void;
+  dropdownMaxHeight?: string;
 }
 
-export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps) {
+export function RepoSelector({ repos, activeRepo, onSelect, dropdownMaxHeight }: RepoSelectorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -77,7 +78,7 @@ export function RepoSelector({ repos, activeRepo, onSelect }: RepoSelectorProps)
               </span>
             </div>
 
-            <div className="max-h-[200px] overflow-y-auto">
+            <div className={`${dropdownMaxHeight ?? "max-h-[200px]"} overflow-y-auto`}>
               {repos.length === 0 && (
                 <div className="px-3 py-3 text-meta text-text-secondary">
                   No repos configured

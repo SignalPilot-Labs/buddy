@@ -331,11 +331,8 @@ function MonitorPageInner() {
         open={controlsOpen}
         onClose={() => setControlsOpen(false)}
         status={runStatus}
-        onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-        onResume={() => handleRestart()}
         onStop={handleStopClick}
         onUnlock={() => { void toastControlAction("Unlock", unlockAgent); }}
-        onToggleInject={() => setMobilePanel("feed")}
         busy={busy}
         repos={repos}
         activeRepo={activeRepoFilter}
