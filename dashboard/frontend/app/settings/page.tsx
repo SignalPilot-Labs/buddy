@@ -12,6 +12,7 @@ import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
+import { RemoteSandboxes } from "@/components/settings/RemoteSandboxes";
 import { RepoListSection } from "@/components/settings/RepoListSection";
 import { SecurityBanner } from "@/components/settings/SecurityBanner";
 import { CredentialField } from "@/components/settings/CredentialField";
@@ -322,6 +323,8 @@ export default function SettingsPage() {
               onAddToken={handleAddToken}
               onRemoveToken={handleRemoveToken}
             />
+
+            <RemoteSandboxes />
 
             <DefaultModelSetting />
 

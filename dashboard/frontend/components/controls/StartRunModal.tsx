@@ -11,14 +11,14 @@ import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRepoMcpServers, saveRepoMcpServers } from "@/lib/api";
-import type { HostMount } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes } from "@/lib/api";
+import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 import { McpServersEditor } from "@/components/controls/McpServersEditor";
 
 export interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string) => void;
+  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: number | null, startCmd: string | null) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -104,6 +104,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [mountError, setMountError] = useState<string | null>(null);
   const [mcpText, setMcpText] = useState("");
   const [mcpError, setMcpError] = useState<string | null>(null);
+  const [remoteSandboxes, setRemoteSandboxes] = useState<RemoteSandboxConfig[]>([]);
+  const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null);
+  const [startCmd, setStartCmd] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustPromptHeight = useCallback((): void => {
@@ -120,6 +123,14 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   useEffect(() => {
     adjustPromptHeight();
   }, [customPrompt, adjustPromptHeight]);
+
+  useEffect(() => {
+    if (open) {
+      fetchRemoteSandboxes()
+        .then(setRemoteSandboxes)
+        .catch(() => setRemoteSandboxes([]));
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open && activeRepo) {
@@ -197,7 +208,8 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         return;
       }
     }
-    onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort);
+    const cmdToSend = selectedSandboxId !== null && startCmd.trim() ? startCmd.trim() : null;
+    onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -251,6 +263,56 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
 
               <div className="p-5 space-y-4">
                 <BranchPicker branches={branches} selected={baseBranch} onSelect={setBaseBranch} />
+
+                {/* Sandbox picker */}
+                {remoteSandboxes.length > 0 && (
+                  <div>
+                    <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Sandbox</label>
+                    <div className="flex gap-1.5 flex-wrap mt-2">
+                      <button
+                        onClick={() => { setSelectedSandboxId(null); setStartCmd(""); }}
+                        className={clsx(
+                          "text-content px-3 py-2 rounded border transition-all",
+                          selectedSandboxId === null
+                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
+                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                        )}
+                      >
+                        Docker (local)
+                      </button>
+                      {remoteSandboxes.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => {
+                            setSelectedSandboxId(s.id);
+                            setStartCmd(s.default_start_cmd);
+                          }}
+                          className={clsx(
+                            "text-content px-3 py-2 rounded border transition-all",
+                            selectedSandboxId === s.id
+                              ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
+                              : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                          )}
+                        >
+                          {s.name}
+                          <span className="ml-1.5 text-caption uppercase opacity-60">{s.type}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedSandboxId !== null && (
+                      <div className="mt-2">
+                        <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
+                        <textarea
+                          value={startCmd}
+                          onChange={(e) => setStartCmd(e.target.value)}
+                          placeholder="Command to start the remote sandbox..."
+                          rows={2}
+                          className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Quick prompts */}
                 <div>
@@ -392,7 +454,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 </CollapsibleSection>
 
                 {/* Host Mounts (collapsible) */}
-                <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
+                <CollapsibleSection label={selectedSandboxId !== null ? "Remote Host Mounts" : "Host Mounts"} summary={mountSummary} defaultOpen={false}>
                   <div className="space-y-2">
                     <p className="text-content text-text-secondary mb-2">Repo is at /home/agentuser/repo inside the sandbox.</p>
                     {mounts.map((m, i) => (

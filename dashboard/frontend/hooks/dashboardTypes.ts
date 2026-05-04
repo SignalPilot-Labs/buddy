@@ -25,6 +25,8 @@ export interface RunActions {
     baseBranch: string,
     model: string,
     effort: string,
+    sandboxId: string | null,
+    startCmd: string | null,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
@@ -84,6 +86,8 @@ export interface DashboardState {
     baseBranch: string,
     model: string,
     effort: string,
+    sandboxId: string | null,
+    startCmd: string | null,
   ) => Promise<void>;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;

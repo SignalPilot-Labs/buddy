@@ -331,6 +331,24 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         details: d,
         ts,
       };
+    case "sandbox_queued":
+      return {
+        id: `ms-${ts}-Sandbox Queued`,
+        type: "milestone",
+        label: "Sandbox Queued",
+        detail: d.backend_id ? `Job ${String(d.backend_id)}` : "",
+        color: "#88ccff",
+        ts,
+        event,
+      };
+    case "sandbox_start_failed":
+      return {
+        id: `ctrl-${ts}-sandbox-start-failed`,
+        type: "control",
+        text: `Sandbox start failed: ${String(d.error || "Unknown error")}`,
+        details: d,
+        ts,
+      };
     default:
       return null;
   }

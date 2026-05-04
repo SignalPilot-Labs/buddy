@@ -5,9 +5,11 @@ from __future__ import annotations
 import getpass
 import os
 import re
+import signal
 import subprocess
 import sys
 
+import httpx
 import typer
 
 from pathlib import Path
@@ -90,6 +92,7 @@ def start_services(allow_docker: bool) -> None:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
     _run_script(START_SCRIPT)
+    _start_connector()
     console.print("[green]✓[/green] AutoFyn services started")
     try:
         _ensure_tokens()
@@ -358,6 +361,7 @@ def show_logs(tail_lines: int) -> None:
 
 def stop_services() -> None:
     """Stop all AutoFyn services."""
+    _stop_connector()
     _compose(["down"])
     console.print("[green]✓[/green] AutoFyn services stopped")
 
@@ -379,3 +383,77 @@ def uninstall_services() -> None:
         abort=True,
     )
     _run_script(UNINSTALL_SCRIPT)
+
+
+def _connector_pid_file() -> Path:
+    """Path to the connector wrapper PID file."""
+    return Path(AUTOFYN_HOME) / ".connector.pid"
+
+
+def _start_connector() -> None:
+    """Spawn the connector with a restart loop wrapper."""
+    connector_secret = os.environ.get("CONNECTOR_SECRET", "")
+    if not connector_secret:
+        connector_secret = secrets.token_hex(32)
+        os.environ["CONNECTOR_SECRET"] = connector_secret
+
+    connector_port = os.environ.get("CONNECTOR_PORT", "9400")
+
+    pid_file = _connector_pid_file()
+
+    # Kill existing connector if running
+    if pid_file.exists():
+        try:
+            old_pid = int(pid_file.read_text().strip())
+            os.kill(old_pid, 0)  # Check if alive
+            os.kill(old_pid, signal.SIGTERM)
+            console.print("[dim]Stopped existing connector[/dim]")
+        except (ProcessLookupError, ValueError, PermissionError):
+            pass
+        pid_file.unlink(missing_ok=True)
+
+    # Spawn connector wrapper in background
+    wrapper_cmd = (
+        f'trap "kill 0" EXIT; '
+        f'while true; do '
+        f'autofyn-connector --secret "{connector_secret}" --port {connector_port}; '
+        f'sleep 1; '
+        f'done'
+    )
+    proc = subprocess.Popen(
+        ["bash", "-c", wrapper_cmd],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    pid_file.write_text(str(proc.pid))
+    console.print(f"[green]✓[/green] Connector started (pid {proc.pid}, port {connector_port})")
+
+
+def _stop_connector() -> None:
+    """Gracefully stop the connector."""
+    connector_port = os.environ.get("CONNECTOR_PORT", "9400")
+    connector_secret = os.environ.get("CONNECTOR_SECRET", "")
+
+    # Try graceful shutdown via /shutdown endpoint
+    if connector_secret:
+        try:
+            httpx.post(
+                f"http://127.0.0.1:{connector_port}/shutdown",
+                headers={"X-Connector-Secret": connector_secret},
+                timeout=60,
+            )
+            console.print("[dim]Connector shutdown complete[/dim]")
+        except Exception:
+            pass
+
+    # Kill the wrapper process
+    pid_file = _connector_pid_file()
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text().strip())
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except (ProcessLookupError, ValueError, PermissionError):
+            pass
+        pid_file.unlink(missing_ok=True)
+    console.print("[green]✓[/green] Connector stopped")

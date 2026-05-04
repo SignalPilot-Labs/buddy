@@ -225,6 +225,8 @@ async def start_agent_run(body: StartRunRequest) -> dict:
         "env": creds.get("env"),
         "host_mounts": creds.get("host_mounts"),
         "mcp_servers": creds.get("mcp_servers"),
+        "sandbox_id": body.sandbox_id,
+        "start_cmd": body.start_cmd,
     }, None, None, extra_headers=None)
 
 

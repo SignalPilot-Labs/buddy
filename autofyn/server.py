@@ -270,6 +270,8 @@ class AgentServer:
                 self._health_timeout,
                 body.env,
                 body.host_mounts,
+                self._sandbox_secret,
+                None,
             )
             await log_audit(run_id, "sandbox_created", {})
             bootstrap = await bootstrap_run(

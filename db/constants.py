@@ -23,6 +23,7 @@ RUN_STATUS_STOPPED: str = "stopped"
 RUN_STATUS_ERROR: str = "error"
 RUN_STATUS_CRASHED: str = "crashed"
 RUN_STATUS_KILLED: str = "killed"
+RUN_STATUS_CONNECTOR_LOST: str = "connector_lost"
 
 # Canonical set of all run status values.
 # Cross-language sync test (test_run_status_sync.py) verifies this matches
@@ -38,6 +39,7 @@ RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_ERROR,
     RUN_STATUS_CRASHED,
     RUN_STATUS_KILLED,
+    RUN_STATUS_CONNECTOR_LOST,
 })
 
 # Statuses where the run is still alive (not terminal).
@@ -46,6 +48,7 @@ ACTIVE_RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_RUNNING,
     RUN_STATUS_PAUSED,
     RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_CONNECTOR_LOST,
 })
 
 # Truly terminal statuses — run's background task has stopped.
@@ -163,6 +166,40 @@ def validate_host_mount(
     for prefix in BLOCKED_MOUNT_PREFIXES:
         if resolved_host == prefix or resolved_host.startswith(prefix + "/"):
             return f"host_path under blocked prefix {prefix}: {host_path!r}"
+    return None
+
+
+# ── Remote Sandbox Timeouts ──
+SSH_CONNECT_TIMEOUT_SEC: int = 30
+SANDBOX_QUEUE_TIMEOUT_SEC: int = 1800
+SANDBOX_BOOT_TIMEOUT_SEC: int = 120
+SANDBOX_STOP_TIMEOUT_SEC: int = 60
+CONNECTOR_RECONNECT_TIMEOUT_SEC: int = 300
+SANDBOX_HEARTBEAT_TIMEOUT_SEC: int = 1800
+
+# ── Remote Sandbox Types ──
+SANDBOX_TYPE_SLURM: str = "slurm"
+SANDBOX_TYPE_DOCKER: str = "docker"
+VALID_SANDBOX_TYPES: frozenset[str] = frozenset({SANDBOX_TYPE_SLURM, SANDBOX_TYPE_DOCKER})
+
+# ── Sandbox Protocol ──
+SANDBOX_PROTOCOL_VERSION: int = 1
+
+# Regex for safe remote mount paths: absolute POSIX, no spaces or shell metacharacters.
+REMOTE_MOUNT_PATH_RE: re.Pattern[str] = re.compile(r"^/[a-zA-Z0-9._/\-]+$")
+
+_BLOCKED_REMOTE_MOUNT_PREFIXES: tuple[str, ...] = ("/proc", "/sys", "/dev")
+
+
+def validate_remote_mount_path(path: str) -> str | None:
+    """Validate a remote mount path. Returns error string or None if valid."""
+    if not path or not path.startswith("/"):
+        return f"Path must be absolute, got: {path!r}"
+    if not REMOTE_MOUNT_PATH_RE.fullmatch(path):
+        return f"Path contains invalid characters (spaces, shell metacharacters not allowed): {path!r}"
+    for prefix in _BLOCKED_REMOTE_MOUNT_PREFIXES:
+        if path == prefix or path.startswith(prefix + "/"):
+            return f"Path under blocked prefix {prefix}: {path!r}"
     return None
 
 
@@ -318,6 +355,10 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "agent_stop",
     # MCP
     "mcp_warning",
+    # Remote sandbox
+    "sandbox_queued",
+    "startup_log",
+    "sandbox_start_failed",
     # LLM output
     "llm_text",
     "llm_thinking",

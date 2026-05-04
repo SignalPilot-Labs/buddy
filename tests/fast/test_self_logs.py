@@ -4,24 +4,23 @@ from unittest.mock import MagicMock
 
 import pytest
 from docker.errors import NotFound
-from sandbox_client.pool import SandboxPool
+from sandbox_client.docker_local import DockerLocalBackend
 
 
 class TestGetSelfLogs:
-    """SandboxPool.get_self_logs reads the agent container."""
+    """DockerLocalBackend.get_self_logs reads the agent container."""
 
     @pytest.mark.asyncio
     async def test_returns_agent_container_lines(self) -> None:
-
-        pool = SandboxPool.__new__(SandboxPool)
+        backend = DockerLocalBackend.__new__(DockerLocalBackend)
         mock_container = MagicMock()
         mock_container.logs.return_value = b"2026-04-15T19:52:19Z line1\n2026-04-15T19:52:20Z line2\n"
 
         mock_docker = MagicMock()
         mock_docker.containers.get.return_value = mock_container
-        pool._docker = mock_docker
+        backend._docker = mock_docker
 
-        lines = await pool.get_self_logs(10)
+        lines = await backend.get_self_logs(10)
 
         mock_docker.containers.get.assert_called_once_with("autofyn-agent")
         assert len(lines) == 2
@@ -30,10 +29,10 @@ class TestGetSelfLogs:
 
     @pytest.mark.asyncio
     async def test_returns_empty_on_not_found(self) -> None:
-        pool = SandboxPool.__new__(SandboxPool)
+        backend = DockerLocalBackend.__new__(DockerLocalBackend)
         mock_docker = MagicMock()
         mock_docker.containers.get.side_effect = NotFound("gone")
-        pool._docker = mock_docker
+        backend._docker = mock_docker
 
-        lines = await pool.get_self_logs(10)
+        lines = await backend.get_self_logs(10)
         assert lines == []

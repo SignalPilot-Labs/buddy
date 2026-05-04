@@ -21,6 +21,11 @@ export interface Run {
   duration_minutes: number;
   context_tokens: number;
   model_name?: string | null;
+  sandbox_id?: string | null;
+  sandbox_type?: string | null;
+  sandbox_backend_id?: string | null;
+  sandbox_remote_host?: string | null;
+  sandbox_remote_port?: number | null;
 }
 
 export interface RepoInfo {
@@ -38,7 +43,8 @@ export type RunStatus =
   | "error"
   | "crashed"
   | "killed"
-  | "rate_limited";
+  | "rate_limited"
+  | "connector_lost";
 
 export interface ToolCall {
   id: number;
@@ -169,6 +175,14 @@ export const STATUS_META: Record<
     pulse: true,
     flashColor: "#ffaa00",
   },
+  connector_lost: {
+    label: "Connector Lost",
+    color: "text-[#ff8844]",
+    bg: "bg-[#ff8844]/10",
+    dot: "bg-[#ff8844]",
+    pulse: true,
+    flashColor: "#ff8844",
+  },
 };
 
 /* ── Tool Categories ── */
@@ -296,7 +310,10 @@ export type AuditEventType =
   | "run_starting"
   | "sandbox_created"
   | "repo_cloned"
-  | "mcp_warning";
+  | "mcp_warning"
+  | "sandbox_queued"
+  | "startup_log"
+  | "sandbox_start_failed";
 
 export interface AuditEventMeta {
   label: string;
@@ -336,6 +353,9 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   sandbox_created:       { label: "Sandbox Created",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   repo_cloned:         { label: "Repo Cloned",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   mcp_warning:         { label: "MCP Warning",       color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
+  sandbox_queued:        { label: "Sandbox Queued",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  startup_log:           { label: "Startup Log",          color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
+  sandbox_start_failed:  { label: "Start Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
 };
 
 /* ── WorkTree Types ── */
