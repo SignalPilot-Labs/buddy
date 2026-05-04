@@ -10,7 +10,6 @@ import os
 
 from db.constants import (
     REMOTE_SANDBOX_KEY_PREFIX,
-    SANDBOX_HEARTBEAT_TIMEOUT_SEC,
     SANDBOX_TYPE_SLURM,
 )
 from sandbox_client.backend import SandboxBackend
@@ -32,6 +31,7 @@ class SandboxPool:
         """Initialize the pool with a local Docker backend and connector env vars."""
         self._docker_local = DockerLocalBackend()
         self._handles: dict[str, SandboxInstance] = {}
+        self._remote_backends: dict[str, SandboxBackend] = {}
         self._connector_url: str = os.environ.get(ENV_KEY_CONNECTOR_URL, "")
         self._connector_secret: str = os.environ.get(ENV_KEY_CONNECTOR_SECRET, "")
 
@@ -113,9 +113,14 @@ class SandboxPool:
 
         Returns local Docker backend for None. For a remote UUID, reads the
         config from DB settings and instantiates the appropriate backend.
+        Caches remote backends by sandbox_id to avoid repeated DB reads.
         """
         if sandbox_id is None:
             return self._docker_local
+
+        cached = self._remote_backends.get(sandbox_id)
+        if cached is not None:
+            return cached
 
         if not self._connector_url:
             raise RuntimeError(
@@ -130,14 +135,22 @@ class SandboxPool:
         if config_str is None:
             raise ValueError(f"No remote sandbox config found for sandbox_id={sandbox_id}")
 
-        config: dict = json.loads(config_str)
-        sandbox_type: str = config["type"]
-        ssh_target: str = config["ssh_target"]
-        # Backward compat: configs created before heartbeat_timeout was added
-        heartbeat_timeout: int = config.get("heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC)
+        config: dict[str, str | int] = json.loads(config_str)
+        sandbox_type: str = str(config["type"])
+        ssh_target: str = str(config["ssh_target"])
+        heartbeat_timeout: int = int(config["heartbeat_timeout"])
 
+        backend: SandboxBackend
         if sandbox_type == SANDBOX_TYPE_SLURM:
-            return SlurmBackend(
+            backend = SlurmBackend(
+                connector_url=self._connector_url,
+                connector_secret=self._connector_secret,
+                sandbox_id=sandbox_id,
+                ssh_target=ssh_target,
+                heartbeat_timeout=heartbeat_timeout,
+            )
+        else:
+            backend = DockerRemoteBackend(
                 connector_url=self._connector_url,
                 connector_secret=self._connector_secret,
                 sandbox_id=sandbox_id,
@@ -145,10 +158,5 @@ class SandboxPool:
                 heartbeat_timeout=heartbeat_timeout,
             )
 
-        return DockerRemoteBackend(
-            connector_url=self._connector_url,
-            connector_secret=self._connector_secret,
-            sandbox_id=sandbox_id,
-            ssh_target=ssh_target,
-            heartbeat_timeout=heartbeat_timeout,
-        )
+        self._remote_backends[sandbox_id] = backend
+        return backend

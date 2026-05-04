@@ -152,10 +152,8 @@ class TestResolveBackendRemote:
                 await pool._resolve_backend("unknown-sandbox-uuid")
 
     @pytest.mark.asyncio
-    async def test_resolve_uses_default_heartbeat_timeout_when_missing(self) -> None:
-        """If heartbeat_timeout not in config, fall back to SANDBOX_HEARTBEAT_TIMEOUT_SEC."""
-        from db.constants import SANDBOX_HEARTBEAT_TIMEOUT_SEC
-
+    async def test_resolve_missing_heartbeat_timeout_raises(self) -> None:
+        """If heartbeat_timeout is missing from config, KeyError is raised (fail-fast)."""
         pool = _make_pool()
         pool._connector_url = "http://connector:9400"
         pool._connector_secret = "secret"
@@ -166,12 +164,8 @@ class TestResolveBackendRemote:
             "sandbox_client.pool.get_setting_value",
             new=AsyncMock(return_value=json.dumps(config)),
         ):
-            with patch("sandbox_client.pool.SlurmBackend") as MockSlurm:
-                MockSlurm.return_value = MagicMock()
+            with pytest.raises(KeyError, match="heartbeat_timeout"):
                 await pool._resolve_backend("sandbox-uuid-5")
-
-        _, kwargs = MockSlurm.call_args
-        assert kwargs["heartbeat_timeout"] == SANDBOX_HEARTBEAT_TIMEOUT_SEC
 
 
 class TestDestroyAllRemote:

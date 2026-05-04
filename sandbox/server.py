@@ -145,16 +145,25 @@ def main() -> None:
     register_env(app)
 
     log.info("Sandbox server starting on :%d", SANDBOX_PORT)
-    _run_with_port(app, SANDBOX_HOST, SANDBOX_PORT)
+    if SANDBOX_PORT == 0:
+        _run_with_dynamic_port(app)
+    else:
+        _print_static_bound(SANDBOX_PORT)
+        web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
 
 
-def _run_with_port(app: web.Application, host: str, port: int) -> None:
-    """Run server and print AF_BOUND after socket is actually bound."""
+def _print_static_bound(port: int) -> None:
+    """Print AF_BOUND marker for a known port before run_app blocks."""
+    print(f'AF_BOUND {{"port":{port}}}', flush=True)
+
+
+def _run_with_dynamic_port(app: web.Application) -> None:
+    """Run with OS-assigned port and print AF_BOUND after binding."""
 
     async def _start() -> None:
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, host, port)
+        site = web.TCPSite(runner, SANDBOX_HOST, 0)
         await site.start()
         _print_bound_port(site)
         try:

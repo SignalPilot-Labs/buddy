@@ -350,13 +350,9 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         ts,
       };
     case "startup_log":
-      return {
-        id: `log-${ts}-startup`,
-        type: "control",
-        text: `[startup] ${String(d.line || "")}`,
-        details: d,
-        ts,
-      };
+      // High-frequency log lines — don't render individually in the feed.
+      // They are available in the sandbox_start_failed audit details if startup fails.
+      return null;
     default:
       return null;
   }
