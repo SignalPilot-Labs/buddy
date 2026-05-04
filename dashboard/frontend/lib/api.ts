@@ -227,6 +227,32 @@ export async function saveRepoMounts(
   }
 }
 
+export async function fetchRemoteMounts(
+  repo: string,
+  sandboxId: string,
+): Promise<HostMount[]> {
+  const res = await apiFetch(`/api/repos/${repo}/remote-mounts/${sandboxId}`);
+  if (!res.ok) throw new Error(`Failed to fetch remote mounts (HTTP ${res.status})`);
+  const data = await res.json();
+  return data.mounts;
+}
+
+export async function saveRemoteMounts(
+  repo: string,
+  sandboxId: string,
+  mounts: HostMount[],
+): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/remote-mounts/${sandboxId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mounts }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Failed to save remote mounts (HTTP ${res.status})`);
+  }
+}
+
 export async function stopRun(
   runId: string,
   skipPr: boolean,
