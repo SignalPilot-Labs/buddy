@@ -37,7 +37,7 @@ class TestConnectorHealth:
         assert resp.status == 200
         data = await resp.json()
         assert data["status"] == "ok"
-        assert data["tunnels"] == []
+        assert data["tunnel_count"] == 0
 
 
 class TestConnectorAuth:

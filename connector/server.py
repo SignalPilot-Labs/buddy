@@ -10,6 +10,7 @@ import collections
 import hmac
 import json
 import logging
+import os
 from collections.abc import AsyncGenerator
 from typing import Any, Callable, Awaitable
 
@@ -19,6 +20,7 @@ from aiohttp import web
 from connector.constants import (
     CONNECTOR_BIND_HOST,
     CONNECTOR_DEFAULT_PORT,
+    CONNECTOR_SECRET_ENV,
     CONNECTOR_SECRET_HEADER,
     DEFAULT_LOG_TAIL,
     DEFAULT_SECRET_DIR,
@@ -87,16 +89,8 @@ class ConnectorServer:
         )
 
     async def _handle_health(self, request: web.Request) -> web.Response:
-        """Return connector health with active tunnel info."""
-        tunnels = [
-            {
-                "run_key": s.run_key,
-                "ssh_target": s.ssh_target,
-                "sandbox_type": s.sandbox_type,
-            }
-            for s in self._states.values()
-        ]
-        return web.json_response({"status": "ok", "tunnels": tunnels})
+        """Return connector health — non-sensitive info only."""
+        return web.json_response({"status": "ok", "tunnel_count": len(self._states)})
 
     async def _handle_start(self, request: web.Request) -> web.StreamResponse:
         """Start a remote sandbox — NDJSON streaming response."""
@@ -385,16 +379,16 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="[connector] %(message)s")
     parser = argparse.ArgumentParser(description="AutoFyn Connector")
     parser.add_argument(
-        "--secret", required=True, help="Shared secret for auth",
-    )
-    parser.add_argument(
         "--port",
         type=int,
         default=CONNECTOR_DEFAULT_PORT,
         help="Listen port",
     )
     args = parser.parse_args()
-    server = ConnectorServer(args.secret, args.port)
+    secret = os.environ.get(CONNECTOR_SECRET_ENV, "")
+    if not secret:
+        raise RuntimeError(f"Missing required env var: {CONNECTOR_SECRET_ENV}")
+    server = ConnectorServer(secret, args.port)
     server.run()
 
 

@@ -416,7 +416,7 @@ def _start_connector() -> None:
     wrapper_cmd = (
         f'trap "kill 0" EXIT; '
         f'while true; do '
-        f'autofyn-connector --secret "{connector_secret}" --port {connector_port}; '
+        f'autofyn-connector --port {connector_port}; '
         f'sleep 1; '
         f'done'
     )
