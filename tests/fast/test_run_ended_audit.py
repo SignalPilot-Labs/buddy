@@ -106,7 +106,7 @@ class TestRunEndedAudit:
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
 
             srv = AgentServer.__new__(AgentServer)
@@ -114,6 +114,7 @@ class TestRunEndedAudit:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-1")
             await srv.execute_run(active, _make_body())
@@ -133,7 +134,7 @@ class TestRunEndedAudit:
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
             pool.get_sandbox_logs = AsyncMock(return_value=[])
 
@@ -142,6 +143,7 @@ class TestRunEndedAudit:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-2")
             with pytest.raises(RuntimeError, match="clone failed"):
@@ -164,7 +166,7 @@ class TestRunEndedAudit:
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
             pool.get_sandbox_logs = AsyncMock(return_value=["error: OOM killed"])
 
@@ -173,6 +175,7 @@ class TestRunEndedAudit:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-3")
             with pytest.raises(RuntimeError, match="sandbox died"):
@@ -205,7 +208,7 @@ class TestRunEndedAudit:
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
 
             srv = AgentServer.__new__(AgentServer)
@@ -213,6 +216,7 @@ class TestRunEndedAudit:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-4")
             await srv.execute_run(active, _make_body())

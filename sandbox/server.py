@@ -5,10 +5,10 @@ endpoint groups (execute, session, file_system, repo, health, env). All request
 handling lives under sandbox/handlers/.
 """
 
+import asyncio
 import hmac
 import logging
 import os
-import sys
 
 from aiohttp import web
 
@@ -64,6 +64,11 @@ def _load_sandbox_secret() -> str:
             secret = f.read().strip()
         if not secret:
             raise RuntimeError(f"Secret file {file_path} is empty")
+        try:
+            os.remove(file_path)
+            log.info("Deleted secret file %s after read", file_path)
+        except OSError as exc:
+            log.warning("Could not delete secret file %s: %s", file_path, exc)
         return secret
     raise RuntimeError(
         f"Neither {INTERNAL_SECRET_ENV_VAR} nor {SANDBOX_SECRET_FILE_ENV_VAR} is set — sandbox cannot start"
@@ -95,9 +100,10 @@ async def heartbeat_middleware(
     request: web.Request,
     handler,
 ) -> web.StreamResponse:
-    """Touch the heartbeat tracker on every incoming request."""
-    tracker: HeartbeatTracker = request.app["heartbeat"]
-    tracker.touch()
+    """Touch the heartbeat tracker on authenticated requests only."""
+    if request.path != "/health":
+        tracker: HeartbeatTracker = request.app["heartbeat"]
+        tracker.touch()
     return await handler(request)
 
 
@@ -109,11 +115,14 @@ async def on_startup(app: web.Application) -> None:
     tracker.start()
 
 
-async def on_bind_ready(app: web.Application) -> None:
-    """Print AF_BOUND marker for start command wrappers."""
-    port = SANDBOX_PORT
-    print(f'AF_BOUND {{"port":{port}}}', flush=True)
-    sys.stdout.flush()
+async def on_bind_ready(_app: web.Application) -> None:
+    """Print AF_BOUND marker for start command wrappers.
+
+    Uses the configured port. When AF_SANDBOX_PORT=0 (OS-assigned),
+    the actual port is printed by the custom runner in main().
+    """
+    if SANDBOX_PORT != 0:
+        print(f'AF_BOUND {{"port":{SANDBOX_PORT}}}', flush=True)
 
 
 async def on_shutdown(app: web.Application) -> None:
@@ -122,6 +131,14 @@ async def on_shutdown(app: web.Application) -> None:
     await sessions.stop_all()
     tracker: HeartbeatTracker = app["heartbeat"]
     tracker.stop()
+
+
+def _print_bound_port(site: web.TCPSite) -> None:
+    """Print the actual bound port for AF_SANDBOX_PORT=0 (OS-assigned)."""
+    name = site.name
+    # site.name is "http://host:port" — extract the port
+    port_str = name.rsplit(":", maxsplit=1)[-1]
+    print(f'AF_BOUND {{"port":{port_str}}}', flush=True)
 
 
 def main() -> None:
@@ -139,7 +156,27 @@ def main() -> None:
     register_env(app)
 
     log.info("Sandbox server starting on :%d", SANDBOX_PORT)
-    web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
+    if SANDBOX_PORT == 0:
+        _run_with_dynamic_port(app)
+    else:
+        web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
+
+
+def _run_with_dynamic_port(app: web.Application) -> None:
+    """Run with OS-assigned port and print AF_BOUND after binding."""
+
+    async def _start() -> None:
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, SANDBOX_HOST, 0)
+        await site.start()
+        _print_bound_port(site)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await runner.cleanup()
+
+    asyncio.run(_start())
 
 
 if __name__ == "__main__":

@@ -5,13 +5,10 @@ import logging
 import httpx
 from aiohttp import web
 
-from connector.constants import SANDBOX_SECRET_HEADER
+from connector.constants import PROXY_TIMEOUT_SEC, SANDBOX_SECRET_HEADER
 from connector.forward_state import ForwardState
 
 log = logging.getLogger("connector.proxy")
-
-_PROXY_TIMEOUT_SEC: int = 300
-_PROXY_KEEPALIVE_TIMEOUT_SEC: int = 10
 
 
 async def handle_proxy(
@@ -31,7 +28,7 @@ async def handle_proxy(
     body = await request.read() if request.can_read_body else None
 
     async with httpx.AsyncClient(
-        timeout=httpx.Timeout(_PROXY_TIMEOUT_SEC),
+        timeout=httpx.Timeout(PROXY_TIMEOUT_SEC),
     ) as client:
         resp = await client.request(
             method=request.method,

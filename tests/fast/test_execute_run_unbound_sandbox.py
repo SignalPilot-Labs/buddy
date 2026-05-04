@@ -51,6 +51,7 @@ class TestExecuteRunUnboundSandbox:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-timeout")
             with pytest.raises(TimeoutError, match="container start timed out"):
@@ -75,6 +76,7 @@ class TestExecuteRunUnboundSandbox:
             srv._exec_timeout = 300
             srv._health_timeout = 30
             srv._clone_timeout = 120
+            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-timeout-2")
             exc_type = None

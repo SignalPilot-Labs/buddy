@@ -42,3 +42,15 @@ class TestRemoteMountValidation:
     def test_rejects_dev(self) -> None:
         result = validate_remote_mount_path("/dev/null")
         assert result is not None
+
+    def test_rejects_path_traversal_to_proc(self) -> None:
+        """Path traversal via .. must be caught after normalization."""
+        result = validate_remote_mount_path("/data/../proc/self")
+        assert result is not None
+        assert "blocked" in result
+
+    def test_rejects_path_traversal_to_sys(self) -> None:
+        """Path traversal via .. to /sys must be caught."""
+        result = validate_remote_mount_path("/data/../sys/class")
+        assert result is not None
+        assert "blocked" in result

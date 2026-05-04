@@ -47,10 +47,11 @@ class TestDockerLocalBackendLifecycle:
 
         with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "secret-xyz"}):
             with patch.object(backend, "_wait_healthy", new=AsyncMock()):
-                handle = await backend.create(
-                    "run-1", 10, None, None, "secret-xyz",
+                handle, events = await backend.create(
+                    "run-1", 10, None, None, "secret-xyz", None,
                 )
 
+        assert events == []
         assert handle.run_key == "run-1"
         assert handle.sandbox_id is None
         assert handle.sandbox_type is None

@@ -37,7 +37,7 @@ from utils.constants import (
 log = logging.getLogger("sandbox_client.docker_local")
 
 _RING_BUFFER_SIZE: int = 100
-_PASSTHROUGH_ENV_VARS = SANDBOX_POOL_ENV_PASSTHROUGH
+_FALLBACK_HEALTH_TIMEOUT: int = 5
 
 
 class _LogDrainer(threading.Thread):
@@ -55,8 +55,8 @@ class _LogDrainer(threading.Thread):
             for line in self._container.logs(stream=True, follow=True):
                 decoded = line.decode("utf-8", errors="replace").rstrip("\n")
                 self._buffer.append(decoded)
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("Log drainer ended: %s", exc)
 
 
 class DockerLocalBackend(SandboxBackend):
@@ -81,7 +81,7 @@ class DockerLocalBackend(SandboxBackend):
     def _container_env(self) -> dict[str, str]:
         """Build env vars for pool-created sandbox containers."""
         env: dict[str, str] = {"GIT_TERMINAL_PROMPT": "0"}
-        for key in _PASSTHROUGH_ENV_VARS:
+        for key in SANDBOX_POOL_ENV_PASSTHROUGH:
             val = os.environ.get(key, "")
             if val:
                 env[key] = val
@@ -94,8 +94,9 @@ class DockerLocalBackend(SandboxBackend):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxInstance:
-        """Spin up a sandbox container for a run."""
+        start_cmd: str | None,
+    ) -> tuple[SandboxInstance, list[dict]]:
+        """Spin up a sandbox container for a run. Returns (handle, [])."""
         container_name = f"autofyn-sandbox-{run_key}"
         volume_name = f"autofyn-repo-{run_key}"
 
@@ -123,9 +124,18 @@ class DockerLocalBackend(SandboxBackend):
         log.info("Started sandbox %s (%s)", container_name, container.short_id)
 
         self._start_log_drainer(run_key, container)
-        await self._replace_client(run_key, container_name, health_timeout)
+        try:
+            await self._replace_client(run_key, container_name, health_timeout)
+        except Exception:
+            self._containers.pop(run_key, None)
+            self._log_buffers.pop(run_key, None)
+            self._log_drainers.pop(run_key, None)
+            self._clients.pop(run_key, None)
+            await self._remove_container(container_id, container_name)
+            await self._remove_volume(volume_name)
+            raise
 
-        return SandboxInstance(
+        handle = SandboxInstance(
             run_key=run_key,
             url=f"http://{container_name}:{SANDBOX_POOL_PORT}",
             backend_id=container_id,
@@ -135,6 +145,7 @@ class DockerLocalBackend(SandboxBackend):
             remote_host=None,
             remote_port=None,
         )
+        return handle, []
 
     def _start_log_drainer(self, run_key: str, container: Container) -> None:
         """Start a background log drainer for a container."""
@@ -194,21 +205,7 @@ class DockerLocalBackend(SandboxBackend):
 
     async def destroy(self, handle: SandboxInstance) -> None:
         """Stop and remove a sandbox container + its volume."""
-        run_key = handle.run_key
-        container_id = self._containers.pop(run_key, None)
-        if not container_id:
-            return
-        container_name = f"autofyn-sandbox-{run_key}"
-        volume_name = f"autofyn-repo-{run_key}"
-
-        client = self._clients.pop(run_key, None)
-        if client:
-            await client.close()
-        self._log_buffers.pop(run_key, None)
-        self._log_drainers.pop(run_key, None)
-
-        await self._remove_container(container_id, container_name)
-        await self._remove_volume(volume_name)
+        await self._destroy_by_key(handle.run_key)
 
     def get_client(self, run_key: str) -> SandboxClient | None:
         """Return a cached SandboxClient for a live sandbox, or None."""
@@ -218,7 +215,7 @@ class DockerLocalBackend(SandboxBackend):
             return self._clients[run_key]
         container_name = f"autofyn-sandbox-{run_key}"
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(url, 5, self._client_timeout)
+        client = SandboxClient(url, _FALLBACK_HEALTH_TIMEOUT, self._client_timeout)
         self._clients[run_key] = client
         return client
 
@@ -266,17 +263,24 @@ class DockerLocalBackend(SandboxBackend):
         """Tear down all managed sandbox containers."""
         keys = list(self._containers.keys())
         for key in keys:
-            handle = SandboxInstance(
-                run_key=key,
-                url="",
-                backend_id=self._containers.get(key),
-                sandbox_secret="",
-                sandbox_id=None,
-                sandbox_type=None,
-                remote_host=None,
-                remote_port=None,
-            )
-            await self.destroy(handle)
+            await self._destroy_by_key(key)
+
+    async def _destroy_by_key(self, run_key: str) -> None:
+        """Internal destroy using run_key directly (no SandboxInstance needed)."""
+        container_id = self._containers.pop(run_key, None)
+        if not container_id:
+            return
+        container_name = f"autofyn-sandbox-{run_key}"
+        volume_name = f"autofyn-repo-{run_key}"
+
+        client = self._clients.pop(run_key, None)
+        if client:
+            await client.close()
+        self._log_buffers.pop(run_key, None)
+        self._log_drainers.pop(run_key, None)
+
+        await self._remove_container(container_id, container_name)
+        await self._remove_volume(volume_name)
 
     async def _wait_healthy(
         self,

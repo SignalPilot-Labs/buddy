@@ -3,16 +3,40 @@
 import asyncio
 import logging
 import os
+import shlex
 import signal
 import socket
-import sys
 
-from connector.constants import SSH_CONNECT_TIMEOUT_SEC, SSH_KEEPALIVE_INTERVAL_SEC
+from connector.constants import (
+    KILL_WAIT_TIMEOUT_SEC,
+    SAFE_PATH_RE,
+    SSH_CONNECT_TIMEOUT_SEC,
+    SSH_KEEPALIVE_INTERVAL_SEC,
+    SSH_KEEPALIVE_COUNT_MAX,
+)
 
 log = logging.getLogger("connector.ssh")
 
-_SSH_KEEPALIVE_COUNT_MAX: int = 3
-_KILL_WAIT_TIMEOUT_SEC: int = 5
+
+def _validate_safe_path(path: str, label: str) -> None:
+    """Validate a path contains no shell metacharacters."""
+    if not SAFE_PATH_RE.fullmatch(path):
+        raise ValueError(f"{label} contains unsafe characters: {path!r}")
+
+
+def _ssh_base_opts() -> list[str]:
+    """Common SSH options for all connections."""
+    return [
+        "-o", f"ConnectTimeout={SSH_CONNECT_TIMEOUT_SEC}",
+        "-o", "BatchMode=yes",
+        "-o", f"ServerAliveInterval={SSH_KEEPALIVE_INTERVAL_SEC}",
+        "-o", f"ServerAliveCountMax={SSH_KEEPALIVE_COUNT_MAX}",
+    ]
+
+
+def _preexec_fn() -> None:
+    """Put SSH child processes into their own process group."""
+    os.setsid()
 
 
 async def open_ssh_tunnel(
@@ -23,21 +47,16 @@ async def open_ssh_tunnel(
 ) -> asyncio.subprocess.Process:
     """Open an SSH tunnel: local_port -> remote_host:remote_port."""
     cmd = [
-        "ssh",
-        "-N",
+        "ssh", "-N",
         "-L", f"127.0.0.1:{local_port}:{remote_host}:{remote_port}",
-        "-o", f"ConnectTimeout={SSH_CONNECT_TIMEOUT_SEC}",
-        "-o", f"ServerAliveInterval={SSH_KEEPALIVE_INTERVAL_SEC}",
-        "-o", f"ServerAliveCountMax={_SSH_KEEPALIVE_COUNT_MAX}",
-        "-o", "StrictHostKeyChecking=accept-new",
-        "-o", "BatchMode=yes",
+        *_ssh_base_opts(),
         ssh_target,
     ]
     process = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.DEVNULL,
         stderr=asyncio.subprocess.PIPE,
-        preexec_fn=os.setsid if sys.platform != "darwin" else None,
+        preexec_fn=_preexec_fn,
     )
     log.info(
         "SSH tunnel %s -> %s:%d (pid %d)",
@@ -51,14 +70,17 @@ async def run_ssh_command(
     command: str,
     env: dict[str, str],
 ) -> asyncio.subprocess.Process:
-    """Run a command over SSH with environment variables."""
-    env_exports = " ".join(f"{k}={v}" for k, v in env.items())
+    """Run a command over SSH with environment variables.
+
+    All env values are shell-quoted to prevent injection.
+    """
+    env_exports = " ".join(
+        f"{k}={shlex.quote(v)}" for k, v in env.items()
+    )
     full_cmd = f"{env_exports} {command}" if env_exports else command
     cmd = [
         "ssh",
-        "-o", f"ConnectTimeout={SSH_CONNECT_TIMEOUT_SEC}",
-        "-o", "BatchMode=yes",
-        "-o", "StrictHostKeyChecking=accept-new",
+        *_ssh_base_opts(),
         ssh_target,
         full_cmd,
     ]
@@ -66,7 +88,7 @@ async def run_ssh_command(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
-        preexec_fn=os.setsid if sys.platform != "darwin" else None,
+        preexec_fn=_preexec_fn,
     )
     return process
 
@@ -77,15 +99,26 @@ async def write_remote_secret(
     run_key: str,
     secret: str,
 ) -> str:
-    """Write a secret file on the remote host. Returns the file path."""
+    """Write a secret file on the remote host via stdin pipe. Returns the file path."""
+    _validate_safe_path(secret_dir, "secret_dir")
+    _validate_safe_path(run_key, "run_key")
     remote_path = f"{secret_dir}/{run_key}"
-    cmd = (
-        f"mkdir -p {secret_dir} && "
-        f"printf '%s' '{secret}' > {remote_path} && "
-        f"chmod 600 {remote_path}"
+    shell_cmd = (
+        f"mkdir -p {shlex.quote(secret_dir)} && "
+        f"cat > {shlex.quote(remote_path)} && "
+        f"chmod 600 {shlex.quote(remote_path)}"
     )
-    proc = await run_ssh_command(ssh_target, cmd, {})
-    await proc.wait()
+    proc = await asyncio.create_subprocess_exec(
+        "ssh",
+        *_ssh_base_opts(),
+        ssh_target,
+        shell_cmd,
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
+        preexec_fn=_preexec_fn,
+    )
+    await proc.communicate(input=secret.encode())
     if proc.returncode != 0:
         raise RuntimeError(
             f"Failed to write secret file on {ssh_target}:{remote_path}"
@@ -98,7 +131,8 @@ async def delete_remote_secret(
     secret_file_path: str,
 ) -> None:
     """Delete a secret file on the remote host."""
-    cmd = f"rm -f {secret_file_path}"
+    _validate_safe_path(secret_file_path, "secret_file_path")
+    cmd = f"rm -f {shlex.quote(secret_file_path)}"
     proc = await run_ssh_command(ssh_target, cmd, {})
     await proc.wait()
 
@@ -109,14 +143,22 @@ async def kill_process_group(process: asyncio.subprocess.Process) -> None:
         return
     pid = process.pid
     try:
-        os.killpg(os.getpgid(pid), signal.SIGTERM)
+        pgid = os.getpgid(pid)
+        if pgid == os.getpgrp():
+            process.terminate()
+        else:
+            os.killpg(pgid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError):
         pass
     try:
-        await asyncio.wait_for(process.wait(), timeout=_KILL_WAIT_TIMEOUT_SEC)
+        await asyncio.wait_for(process.wait(), timeout=KILL_WAIT_TIMEOUT_SEC)
     except asyncio.TimeoutError:
         try:
-            os.killpg(os.getpgid(pid), signal.SIGKILL)
+            pgid = os.getpgid(pid)
+            if pgid == os.getpgrp():
+                process.kill()
+            else:
+                os.killpg(pgid, signal.SIGKILL)
         except (ProcessLookupError, PermissionError):
             pass
 

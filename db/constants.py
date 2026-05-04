@@ -188,6 +188,27 @@ SANDBOX_PROTOCOL_VERSION: int = 1
 # Regex for safe remote mount paths: absolute POSIX, no spaces or shell metacharacters.
 REMOTE_MOUNT_PATH_RE: re.Pattern[str] = re.compile(r"^/[a-zA-Z0-9._/\-]+$")
 
+# SSH target validation: user@host, host, host:port — no shell metacharacters.
+SSH_TARGET_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9@._:/\-]+$")
+
+# ── Remote Sandbox Config CRUD Limits ──
+REMOTE_SANDBOX_KEY_PREFIX: str = "remote_sandbox:"
+LAST_START_CMD_KEY_PREFIX: str = "last_start_cmd:"
+REMOTE_MOUNTS_KEY_PREFIX: str = "remote_mounts:"
+DEFAULT_SECRET_DIR: str = "~/.autofyn/secrets"
+SANDBOX_NAME_MIN_LEN: int = 1
+SANDBOX_NAME_MAX_LEN: int = 256
+SSH_TARGET_MIN_LEN: int = 1
+SSH_TARGET_MAX_LEN: int = 512
+START_CMD_MIN_LEN: int = 1
+START_CMD_MAX_LEN: int = 65536
+SECRET_DIR_MAX_LEN: int = 4096
+QUEUE_TIMEOUT_MIN: int = 60
+QUEUE_TIMEOUT_MAX: int = 86400
+HEARTBEAT_TIMEOUT_MIN: int = 60
+HEARTBEAT_TIMEOUT_MAX: int = 86400
+MAX_REMOTE_MOUNTS: int = 50
+
 _BLOCKED_REMOTE_MOUNT_PREFIXES: tuple[str, ...] = ("/proc", "/sys", "/dev")
 
 
@@ -197,8 +218,9 @@ def validate_remote_mount_path(path: str) -> str | None:
         return f"Path must be absolute, got: {path!r}"
     if not REMOTE_MOUNT_PATH_RE.fullmatch(path):
         return f"Path contains invalid characters (spaces, shell metacharacters not allowed): {path!r}"
+    normalized = posixpath.normpath(path)
     for prefix in _BLOCKED_REMOTE_MOUNT_PREFIXES:
-        if path == prefix or path.startswith(prefix + "/"):
+        if normalized == prefix or normalized.startswith(prefix + "/"):
             return f"Path under blocked prefix {prefix}: {path!r}"
     return None
 

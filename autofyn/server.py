@@ -265,12 +265,13 @@ class AgentServer:
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
-            sandbox = await self._pool.create(
+            sandbox, _events = await self._pool.create(
                 run_id,
                 self._health_timeout,
                 body.env,
                 body.host_mounts,
                 self._sandbox_secret,
+                None,
                 None,
             )
             await log_audit(run_id, "sandbox_created", {})

@@ -20,8 +20,13 @@ class SandboxBackend(ABC):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxInstance:
-        """Spin up a sandbox and return a handle to it."""
+        start_cmd: str | None,
+    ) -> tuple[SandboxInstance, list[dict]]:
+        """Spin up a sandbox and return (handle, startup_events).
+
+        Local backends ignore start_cmd and return empty events.
+        Remote backends require start_cmd and return NDJSON events.
+        """
         ...
 
     @abstractmethod

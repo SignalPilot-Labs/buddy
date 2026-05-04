@@ -30,6 +30,7 @@ def _make_server() -> AgentServer:
     srv._exec_timeout = 300
     srv._health_timeout = 30
     srv._clone_timeout = 120
+    srv._sandbox_secret = "test-secret"
     return srv
 
 
@@ -130,7 +131,7 @@ class TestSandboxReadyEvent:
     async def test_sandbox_created_emitted_after_pool_create(self) -> None:
         srv = _make_server()
         pool = srv._pool
-        pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+        pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
         pool.destroy = AsyncMock()
         pool.get_sandbox_logs = AsyncMock(return_value=[])
 
@@ -162,7 +163,7 @@ class TestSandboxReadyEvent:
         async def mock_create(*args, **kwargs):
             call_order.append("pool.create")
             sandbox = MagicMock(close=AsyncMock())
-            return sandbox
+            return sandbox, []
 
         async def mock_bootstrap(*args, **kwargs):
             call_order.append("bootstrap_run")

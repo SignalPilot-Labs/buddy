@@ -32,7 +32,7 @@ class TestEnvEndpoint:
     """POST /env merges env vars into os.environ."""
 
     @pytest.mark.asyncio
-    async def test_injects_env_vars(self, client: TestClient) -> None:
+    async def test_injects_env_vars(self, client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
         """Env vars from request body appear in os.environ."""
         test_key = "_AUTOFYN_TEST_ENV_INJECT_12345"
         resp = await client.post("/env", json={"env_vars": {test_key: "secret_value"}})
@@ -41,8 +41,7 @@ class TestEnvEndpoint:
         assert data["ok"] is True
         assert data["count"] == 1
         assert os.environ.get(test_key) == "secret_value"
-        # Cleanup
-        os.environ.pop(test_key, None)
+        monkeypatch.delenv(test_key, raising=False)
 
     @pytest.mark.asyncio
     async def test_empty_env_vars(self, client: TestClient) -> None:
@@ -51,3 +50,17 @@ class TestEnvEndpoint:
         assert resp.status == 200
         data = await resp.json()
         assert data["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_missing_env_vars_field(self, client: TestClient) -> None:
+        """Missing env_vars field returns 400."""
+        resp = await client.post("/env", json={})
+        assert resp.status == 400
+
+    @pytest.mark.asyncio
+    async def test_denied_env_key_rejected(self, client: TestClient) -> None:
+        """Dangerous env vars like PATH are rejected."""
+        resp = await client.post("/env", json={"env_vars": {"PATH": "/evil"}})
+        assert resp.status == 400
+        data = await resp.json()
+        assert "Denied" in data["error"]

@@ -18,7 +18,7 @@ import { McpServersEditor } from "@/components/controls/McpServersEditor";
 export interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: number | null, startCmd: string | null) => void;
+  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: string | null, startCmd: string | null) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;

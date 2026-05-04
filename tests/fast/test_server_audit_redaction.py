@@ -64,6 +64,7 @@ def _make_server() -> AgentServer:
     srv._exec_timeout = 300
     srv._health_timeout = 30
     srv._clone_timeout = 120
+    srv._sandbox_secret = "test-secret"
     return srv
 
 
@@ -138,7 +139,7 @@ class TestServerAuditRedaction:
                 "line2",
             ]
         )
-        pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+        pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
         pool.destroy = AsyncMock()
 
         log_audit_mock = AsyncMock()
@@ -185,7 +186,7 @@ class TestServerAuditRedaction:
                 "line2",
             ]
         )
-        pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+        pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
         pool.destroy = AsyncMock()
 
         with (

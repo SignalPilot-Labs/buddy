@@ -30,17 +30,24 @@ class SandboxPool:
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
         sandbox_id: str | None,
-    ) -> SandboxClient:
-        """Spin up a sandbox for a run. Returns a connected SandboxClient."""
+        start_cmd: str | None,
+    ) -> tuple[SandboxClient, list[dict]]:
+        """Spin up a sandbox for a run. Returns (client, startup_events)."""
         backend = self._resolve_backend(sandbox_id)
-        handle = await backend.create(
-            run_key, health_timeout, extra_env, host_mounts, sandbox_secret
+        handle, events = await backend.create(
+            run_key, health_timeout, extra_env, host_mounts,
+            sandbox_secret, start_cmd,
         )
         self._handles[run_key] = handle
-        client = self._docker_local.get_client(run_key)
-        if client is None:
-            raise RuntimeError(f"No client available for run {run_key}")
-        return client
+
+        if sandbox_id is None:
+            client = self._docker_local.get_client(run_key)
+            if client is None:
+                raise RuntimeError(f"No client available for run {run_key}")
+            return client, events
+
+        # Remote backends: client is constructed by the caller using the proxy URL
+        raise NotImplementedError("Remote client construction not yet wired")
 
     async def destroy(self, run_key: str) -> None:
         """Stop and remove a sandbox. Closes cached client."""

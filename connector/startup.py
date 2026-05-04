@@ -8,13 +8,14 @@ import asyncio
 import json
 import logging
 import re
+import shlex
 
 from connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
 from connector.ssh import run_ssh_command, write_remote_secret
 
 log = logging.getLogger("connector.startup")
 
-_MARKER_RE = re.compile(r"(AF_QUEUED|AF_READY)\s+(\{.*\})")
+MARKER_RE: re.Pattern[str] = re.compile(r"(AF_QUEUED|AF_READY)\s+(\{.*\})")
 
 
 async def stream_start_events(
@@ -68,7 +69,7 @@ async def _collect_events(
 
     async for line_bytes in process.stdout:
         line = line_bytes.decode("utf-8", errors="replace").rstrip("\n")
-        marker_match = _MARKER_RE.search(line)
+        marker_match = MARKER_RE.search(line)
 
         if marker_match:
             event = _parse_marker(marker_match)
@@ -106,8 +107,10 @@ def _compute_apptainer_binds(mounts: list[dict[str, str]]) -> str:
     """Compute -B flags for Apptainer from mount list."""
     parts: list[str] = []
     for m in mounts:
-        mode = m.get("mode", "ro")
-        parts.append(f"-B {m['host_path']}:{m['container_path']}:{mode}")
+        mode = m["mode"]
+        host = shlex.quote(m["host_path"])
+        container = shlex.quote(m["container_path"])
+        parts.append(f"-B {host}:{container}:{mode}")
     return " ".join(parts)
 
 
@@ -115,6 +118,8 @@ def _compute_docker_volumes(mounts: list[dict[str, str]]) -> str:
     """Compute -v flags for Docker from mount list."""
     parts: list[str] = []
     for m in mounts:
-        mode = m.get("mode", "ro")
-        parts.append(f"-v {m['host_path']}:{m['container_path']}:{mode}")
+        mode = m["mode"]
+        host = shlex.quote(m["host_path"])
+        container = shlex.quote(m["container_path"])
+        parts.append(f"-v {host}:{container}:{mode}")
     return " ".join(parts)
