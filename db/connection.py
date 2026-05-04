@@ -180,7 +180,7 @@ async def _migrate_idempotency_key_columns(conn) -> None:
         ), {"table": table})
         if result.first() is None:
             await conn.execute(text(
-                "ALTER TABLE " + safe_table + " ADD COLUMN idempotency_key INTEGER"
+                "ALTER TABLE " + safe_table + " ADD COLUMN idempotency_key VARCHAR"
             ))
             log.info("Added column %s.idempotency_key", table)
 

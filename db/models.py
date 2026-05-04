@@ -101,7 +101,7 @@ class ToolCall(Base):
     tool_use_id: Mapped[str | None] = mapped_column(String)
     session_id: Mapped[str | None] = mapped_column(String)
     agent_id: Mapped[str | None] = mapped_column(String)
-    idempotency_key: Mapped[int | None] = mapped_column(Integer)
+    idempotency_key: Mapped[str | None] = mapped_column(String)
 
     run: Mapped["Run"] = relationship(back_populates="tool_calls")
 
@@ -127,7 +127,7 @@ class AuditLog(Base):
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     event_type: Mapped[str] = mapped_column(String, nullable=False)
     details: Mapped[dict] = mapped_column(JSONB, server_default="{}")
-    idempotency_key: Mapped[int | None] = mapped_column(Integer)
+    idempotency_key: Mapped[str | None] = mapped_column(String)
 
     run: Mapped["Run"] = relationship(back_populates="audit_logs")
 

@@ -4,7 +4,9 @@ All raw variants raise on failure (use for HTTP endpoints).
 All wrapped variants swallow errors (use for agent-internal code).
 
 Idempotent variants use ON CONFLICT DO NOTHING with the idempotency_key
-column for safe re-delivery on SSE reconnect.
+column for safe re-delivery on SSE reconnect. They intentionally DO NOT
+swallow errors — a failed DB write must propagate so the event is retried,
+not silently lost.
 """
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -36,16 +38,19 @@ async def log_audit(run_id: str, event_type: str, details: dict | None) -> None:
     await log_audit_raw(run_id, event_type, details)
 
 
-@swallow_errors
 async def log_audit_idempotent(
     run_id: str,
     event_type: str,
     details: dict | None,
-    idempotency_key: int | None,
+    idempotency_key: str | None,
 ) -> None:
-    """Log an audit event with idempotency key. Duplicate keys are skipped."""
+    """Log an audit event with idempotency key. Duplicate keys are skipped.
+
+    Raises on DB failure — caller must handle retry. This replaced the
+    old sandbox POST path and must not silently lose events.
+    """
     if event_type not in AUDIT_EVENT_TYPES:
-        return
+        raise ValueError(f"Unknown audit event type: {event_type}")
     async with get_session_factory()() as s:
         stmt = pg_insert(AuditLog).values(
             run_id=run_id,
@@ -120,7 +125,6 @@ async def log_tool_call(
     )
 
 
-@swallow_errors
 async def log_tool_call_idempotent(
     run_id: str,
     phase: str,
@@ -134,9 +138,13 @@ async def log_tool_call_idempotent(
     tool_use_id: str | None,
     session_id: str | None,
     agent_id: str | None,
-    idempotency_key: int | None,
+    idempotency_key: str | None,
 ) -> None:
-    """Log a tool call with idempotency key. Duplicate keys are skipped."""
+    """Log a tool call with idempotency key. Duplicate keys are skipped.
+
+    Raises on DB failure — caller must handle retry. This replaced the
+    old sandbox POST path and must not silently lose events.
+    """
     async with get_session_factory()() as s:
         stmt = pg_insert(ToolCall).values(
             run_id=run_id,

@@ -81,6 +81,7 @@ class RoundRunner:
         try:
             options["initial_prompt"] = initial_prompt
             session_id = await self._sandbox.session.start(options)
+            dispatcher.set_sandbox_session_id(session_id)
             log.info(
                 "[%s] Round %d started (session %s)",
                 self._rid,

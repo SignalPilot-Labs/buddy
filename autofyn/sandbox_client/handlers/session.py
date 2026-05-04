@@ -8,6 +8,7 @@ After SSE consolidation, events include seq numbers for reconnection.
 The agent calls ack to trim processed events and delete to release the log.
 """
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -17,6 +18,8 @@ import httpx
 log = logging.getLogger("sandbox_client.session")
 
 HTTP_503_SERVICE_UNAVAILABLE = 503
+SSE_RECONNECT_MAX_ATTEMPTS = 5
+SSE_RECONNECT_BACKOFF_SEC = 1.0
 
 
 class SessionNotReadyError(Exception):
@@ -50,22 +53,51 @@ class Session:
         session_id: str,
         after_seq: int,
     ) -> AsyncGenerator[dict, None]:
-        """Stream SSE events from a sandbox session, resuming from after_seq."""
-        async with self._http.stream(
-            "GET",
-            f"/session/{session_id}/events",
-            params={"after_seq": str(after_seq)},
-            timeout=None,
-        ) as resp:
-            resp.raise_for_status()
-            buffer = ""
-            async for chunk in resp.aiter_text():
-                buffer += chunk
-                while "\n\n" in buffer:
-                    event_str, buffer = buffer.split("\n\n", 1)
-                    event = _parse_sse_event(event_str)
-                    if event:
-                        yield event
+        """Stream SSE events from a sandbox session, resuming from after_seq.
+
+        Automatically reconnects on transient connection errors (network blip,
+        tunnel restart) using the last successfully yielded seq. The caller
+        sees a seamless stream. Gives up after SSE_RECONNECT_MAX_ATTEMPTS
+        consecutive failures.
+        """
+        current_seq = after_seq
+        consecutive_failures = 0
+
+        while consecutive_failures < SSE_RECONNECT_MAX_ATTEMPTS:
+            try:
+                async with self._http.stream(
+                    "GET",
+                    f"/session/{session_id}/events",
+                    params={"after_seq": str(current_seq)},
+                    timeout=None,
+                ) as resp:
+                    resp.raise_for_status()
+                    consecutive_failures = 0
+                    buffer = ""
+                    async for chunk in resp.aiter_text():
+                        buffer += chunk
+                        while "\n\n" in buffer:
+                            event_str, buffer = buffer.split("\n\n", 1)
+                            event = _parse_sse_event(event_str)
+                            if event:
+                                seq = event.get("data", {}).get("seq")
+                                if seq is not None:
+                                    current_seq = seq
+                                yield event
+                    # Stream ended cleanly (sandbox closed it) — don't reconnect.
+                    return
+            except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError) as exc:
+                consecutive_failures += 1
+                if consecutive_failures >= SSE_RECONNECT_MAX_ATTEMPTS:
+                    raise
+                log.warning(
+                    "SSE stream dropped (attempt %d/%d), reconnecting from seq %d: %s",
+                    consecutive_failures,
+                    SSE_RECONNECT_MAX_ATTEMPTS,
+                    current_seq,
+                    exc,
+                )
+                await asyncio.sleep(SSE_RECONNECT_BACKOFF_SEC)
 
     async def send_message(self, session_id: str, text: str) -> None:
         """Send a follow-up message to a running sandbox session."""

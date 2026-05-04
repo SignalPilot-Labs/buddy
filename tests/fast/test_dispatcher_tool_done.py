@@ -1,8 +1,18 @@
 """Tests for StreamDispatcher: tool_done event handling."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
 from tests.fast.conftest import _make_dispatcher
+
+
+@pytest.fixture(autouse=True)
+def _mock_db_writes():
+    """Mock idempotent DB writes so dispatcher tests don't need a real DB."""
+    with patch("agent_session.stream.log_tool_call_idempotent", new_callable=AsyncMock), \
+         patch("agent_session.stream.log_audit_idempotent", new_callable=AsyncMock):
+        yield
 
 
 class TestDispatcherToolDone:

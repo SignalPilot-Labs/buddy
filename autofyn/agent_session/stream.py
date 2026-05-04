@@ -55,6 +55,11 @@ class StreamDispatcher:
         self._message_count: int = 0
         self._latest_context_tokens: int = 0
         self._tools_in_flight: int = 0
+        self._sandbox_session_id: str | None = None
+
+    def set_sandbox_session_id(self, session_id: str) -> None:
+        """Set the sandbox session ID for idempotency key construction."""
+        self._sandbox_session_id = session_id
 
     def has_tools_in_flight(self) -> bool:
         """True if any tool call is currently executing."""
@@ -217,13 +222,28 @@ class StreamDispatcher:
         if agent_id:
             self._tracker.record_stop(agent_id)
 
+    def _make_idempotency_key(self, seq: int | None) -> str | None:
+        """Build a run-unique idempotency key from sandbox session ID + event seq.
+
+        Returns None only if seq is missing (non-enriched events like
+        assistant_message don't need idempotency). If sandbox_session_id
+        is not set, that's a bug — fail fast.
+        """
+        if seq is None:
+            return None
+        if self._sandbox_session_id is None:
+            raise RuntimeError(
+                "sandbox_session_id not set — set_sandbox_session_id() must be "
+                "called before dispatching events"
+            )
+        return f"{self._sandbox_session_id}:{seq}"
+
     async def _handle_tool_use(self, data: dict) -> None:
         """Track tool start and write pre-phase record to DB."""
         self._tools_in_flight += 1
         agent_id: str | None = data.get("agent_id")
         self._tracker.record_tool_use(agent_id)
 
-        seq = data.get("seq")
         await log_tool_call_idempotent(
             run_id=self._run.run_id,
             phase="pre",
@@ -237,7 +257,7 @@ class StreamDispatcher:
             tool_use_id=data.get("tool_use_id"),
             session_id=data.get("session_id"),
             agent_id=agent_id,
-            idempotency_key=seq,
+            idempotency_key=self._make_idempotency_key(data.get("seq")),
         )
 
     async def _handle_tool_done(self, data: dict) -> None:
@@ -246,7 +266,6 @@ class StreamDispatcher:
         agent_id: str | None = data.get("agent_id")
         self._tracker.record_tool_done(agent_id)
 
-        seq = data.get("seq")
         await log_tool_call_idempotent(
             run_id=self._run.run_id,
             phase="post",
@@ -260,17 +279,16 @@ class StreamDispatcher:
             tool_use_id=data.get("tool_use_id"),
             session_id=data.get("session_id"),
             agent_id=agent_id,
-            idempotency_key=seq,
+            idempotency_key=self._make_idempotency_key(data.get("seq")),
         )
 
     async def _handle_audit(self, data: dict) -> None:
         """Write a sandbox-originated audit event to DB with idempotency key."""
-        seq = data.get("seq")
         await log_audit_idempotent(
             self._run.run_id,
             data.get("event_type", ""),
             data.get("details"),
-            seq,
+            self._make_idempotency_key(data.get("seq")),
         )
 
     async def _handle_result(self, data: dict) -> None:
