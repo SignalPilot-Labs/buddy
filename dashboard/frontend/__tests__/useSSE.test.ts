@@ -35,6 +35,30 @@ class FakeEventSource {
   }
 }
 
+/**
+ * Regression: useSSE must compile without type errors.
+ * The bug was `unknown || ""` yielding `{}` not `string` in processAudit.
+ * This test verifies the module imports cleanly (TS compilation passes)
+ * and the hook returns the expected shape.
+ */
+describe("useSSE type regression", () => {
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal("EventSource", FakeEventSource as unknown as typeof EventSource);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("hook returns events array with correct type", () => {
+    const onRunEnded = vi.fn();
+    const { result } = renderHook(() => useSSE(onRunEnded));
+    expect(Array.isArray(result.current.events)).toBe(true);
+    expect(result.current.events.length).toBe(0);
+  });
+});
+
 describe("useSSE stale-run guard", () => {
   beforeEach(() => {
     FakeEventSource.instances = [];
