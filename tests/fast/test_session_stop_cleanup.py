@@ -2,7 +2,8 @@
 
 After task.cancel(), stop() must await the task so that the CancelledError
 handler in Session.run() executes (emitting session_end) before the session
-is garbage collected.
+is garbage collected. After SSE consolidation, stop() does NOT remove the
+session — it stays readable for event draining. Use delete() to remove.
 """
 
 import asyncio
@@ -30,11 +31,11 @@ class TestSessionStopCleanup:
                 raise
 
         task = asyncio.create_task(_cancellable_coro())
-        # Yield to the event loop so the coroutine starts and reaches its first await.
         await asyncio.sleep(0)
 
         mock_session = MagicMock()
         mock_session.task = task
+        mock_session.finished = False
 
         manager = SessionManager()
         manager._sessions["test-session"] = mock_session
@@ -43,7 +44,8 @@ class TestSessionStopCleanup:
 
         assert task.cancelled()
         assert cancelled_error_raised
-        assert "test-session" not in manager._sessions
+        # Session stays in registry (readable for event draining)
+        assert "test-session" in manager._sessions
 
     @pytest.mark.asyncio
     async def test_stop_session_end_event_emitted_on_cancel(self) -> None:
@@ -58,11 +60,11 @@ class TestSessionStopCleanup:
                 raise
 
         task = asyncio.create_task(_run_with_cancel_handler())
-        # Yield to the event loop so the coroutine starts and reaches its first await.
         await asyncio.sleep(0)
 
         mock_session = MagicMock()
         mock_session.task = task
+        mock_session.finished = False
 
         manager = SessionManager()
         manager._sessions["test-session"] = mock_session
@@ -72,8 +74,8 @@ class TestSessionStopCleanup:
         assert any(e.get("event") == "session_end" for e in events)
 
     @pytest.mark.asyncio
-    async def test_stop_logs_warning_on_unexpected_exception(self) -> None:
-        """stop() must log a warning (not swallow silently) if task raises Exception."""
+    async def test_stop_reraises_unexpected_exception(self) -> None:
+        """stop() must re-raise if task raises a non-CancelledError exception."""
         async def _error_coro() -> None:
             try:
                 await asyncio.sleep(9999)
@@ -81,37 +83,38 @@ class TestSessionStopCleanup:
                 raise RuntimeError("unexpected error during cancellation")
 
         task = asyncio.create_task(_error_coro())
-        # Yield to the event loop so the coroutine starts and reaches its first await.
         await asyncio.sleep(0)
 
         mock_session = MagicMock()
         mock_session.task = task
+        mock_session.finished = False
 
         manager = SessionManager()
         manager._sessions["test-session"] = mock_session
 
-        with patch("session.manager.log") as mock_log:
+        with pytest.raises(RuntimeError, match="unexpected error"):
             await manager.stop("test-session")
 
-        mock_log.warning.assert_called_once()
-        assert "test-session" not in manager._sessions
-
     @pytest.mark.asyncio
-    async def test_stop_removes_session_from_registry(self) -> None:
-        """stop() must remove the session from _sessions regardless of outcome."""
+    async def test_delete_removes_session_from_registry(self) -> None:
+        """delete() must remove the session from _sessions."""
         async def _simple_coro() -> None:
             await asyncio.sleep(9999)
 
         task = asyncio.create_task(_simple_coro())
-        # Yield to the event loop so the coroutine starts and reaches its first await.
         await asyncio.sleep(0)
 
         mock_session = MagicMock()
         mock_session.task = task
+        mock_session.finished = False
 
         manager = SessionManager()
         manager._sessions["test-session"] = mock_session
 
         assert "test-session" in manager._sessions
         await manager.stop("test-session")
+        # Still there after stop
+        assert "test-session" in manager._sessions
+        # Gone after delete
+        manager.delete("test-session")
         assert "test-session" not in manager._sessions

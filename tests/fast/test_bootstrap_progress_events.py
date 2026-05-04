@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 # server.py reads secrets at import time — set before import.
-os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
-os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
+os.environ.setdefault("AGENT_INTERNAL_SECRET", "test")
+os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test")
 
 with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer, app
@@ -73,7 +73,7 @@ class TestRunStartingEvent:
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },
-                    headers={INTERNAL_SECRET_HEADER: "test-secret"},
+                    headers={INTERNAL_SECRET_HEADER: os.environ["AGENT_INTERNAL_SECRET"]},
                 )
 
         assert resp.status_code == 200
@@ -115,7 +115,7 @@ class TestRunStartingEvent:
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },
-                    headers={INTERNAL_SECRET_HEADER: "test-secret"},
+                    headers={INTERNAL_SECRET_HEADER: os.environ["AGENT_INTERNAL_SECRET"]},
                 )
 
         assert "audit:run_starting" in call_order

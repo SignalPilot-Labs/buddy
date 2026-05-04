@@ -74,7 +74,7 @@ class TestControlSignals:
 
     def test_stop_with_run_id(self, client, mock_server) -> None:
         _, inbox = self._make_running(mock_server)
-        resp = client.post("/stop?run_id=run-1")
+        resp = client.post("/stop?run_id=run-1", json={"skip_pr": False})
         assert resp.status_code == 200
         inbox.push.assert_called_once_with("stop", "User stop via API")
 
@@ -108,7 +108,7 @@ class TestControlSignals:
         mock_server.get_run_or_first = MagicMock(
             side_effect=HTTPException(status_code=409, detail="No run in progress"),
         )
-        resp = client.post("/stop")
+        resp = client.post("/stop", json={"skip_pr": False})
         assert resp.status_code == 409
 
 

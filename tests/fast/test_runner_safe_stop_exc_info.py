@@ -1,10 +1,7 @@
 """Regression test for missing exc_info=True in RoundRunner._safe_stop.
 
-When _safe_stop fails to stop the sandbox session, log.warning must include
-exc_info=True so the full stack trace is captured. Without it, only the
-exception message is logged, making diagnosis of network failures impossible.
-
-Fix: add exc_info=True to log.warning in the except block of _safe_stop.
+When _safe_stop fails to stop or delete the sandbox session, log.warning
+must include exc_info=True so the full stack trace is captured.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -50,13 +47,14 @@ def _make_runner() -> RoundRunner:
 
 
 class TestRunnerSafeStopExcInfo:
-    """_safe_stop must call log.warning with exc_info=True when stop fails."""
+    """_safe_stop must call log.warning with exc_info=True when stop/delete fails."""
 
     @pytest.mark.asyncio
     async def test_safe_stop_logs_exc_info_on_failure(self) -> None:
         """When session stop raises, log.warning is called with exc_info=True."""
         runner = _make_runner()
         runner._sandbox.session.stop = AsyncMock(side_effect=RuntimeError("connection refused"))
+        runner._sandbox.session.delete = AsyncMock()
 
         with patch("agent_session.runner.log") as mock_log:
             await runner._safe_stop("session-abc")
@@ -66,3 +64,29 @@ class TestRunnerSafeStopExcInfo:
         assert call_kwargs.get("exc_info") is True, (
             "log.warning must be called with exc_info=True to preserve the stack trace"
         )
+
+    @pytest.mark.asyncio
+    async def test_safe_stop_calls_delete_after_stop(self) -> None:
+        """_safe_stop calls both stop and delete."""
+        runner = _make_runner()
+        runner._sandbox.session.stop = AsyncMock()
+        runner._sandbox.session.delete = AsyncMock()
+
+        await runner._safe_stop("session-abc")
+
+        runner._sandbox.session.stop.assert_called_once_with("session-abc")
+        runner._sandbox.session.delete.assert_called_once_with("session-abc")
+
+    @pytest.mark.asyncio
+    async def test_safe_stop_delete_failure_also_logs_exc_info(self) -> None:
+        """When session delete raises, log.warning is called with exc_info=True."""
+        runner = _make_runner()
+        runner._sandbox.session.stop = AsyncMock()
+        runner._sandbox.session.delete = AsyncMock(side_effect=RuntimeError("gone"))
+
+        with patch("agent_session.runner.log") as mock_log:
+            await runner._safe_stop("session-abc")
+
+        mock_log.warning.assert_called_once()
+        call_kwargs = mock_log.warning.call_args[1]
+        assert call_kwargs.get("exc_info") is True

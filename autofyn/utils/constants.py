@@ -131,6 +131,9 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 # ── Usage Tracking ──
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
+# ── SSE Event Processing ──
+SSE_TRIM_INTERVAL = 100  # Trim processed events from sandbox memory every N events
+
 
 # ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
 def cost_per_input() -> float:
@@ -216,9 +219,3 @@ SANDBOX_POOL_ENV_PASSTHROUGH = [
     "SANDBOX_INTERNAL_SECRET",
 ]
 
-# URL pool sandboxes use to reach the agent container on the compose network.
-# Static sandbox gets its URL from docker-compose.yml AF_AGENT_URL env var.
-SANDBOX_POOL_AGENT_URL = "http://autofyn-agent:8500"
-
-# Env var name for the agent URL passed into sandbox containers.
-ENV_KEY_AGENT_URL = "AF_AGENT_URL"

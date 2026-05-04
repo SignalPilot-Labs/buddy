@@ -10,7 +10,6 @@ import sandbox.constants as constants_module
 _FULL_SANDBOX_CFG: dict = {
     "exec_timeout_sec": 120,
     "max_concurrent_sessions": 5,
-    "session_event_queue_size": 1000,
     "log_level": "info",
     "retry_max_attempts": 3,
     "retry_base_delay_sec": 2.0,
@@ -44,11 +43,6 @@ class TestSandboxConstantsFailFast:
 
     def test_missing_max_concurrent_sessions_raises(self) -> None:
         incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "max_concurrent_sessions"}
-        with pytest.raises(KeyError):
-            _reload_constants(incomplete, _FULL_SECURITY_CFG)
-
-    def test_missing_session_event_queue_size_raises(self) -> None:
-        incomplete: dict = {k: v for k, v in _FULL_SANDBOX_CFG.items() if k != "session_event_queue_size"}
         with pytest.raises(KeyError):
             _reload_constants(incomplete, _FULL_SECURITY_CFG)
 

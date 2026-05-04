@@ -13,7 +13,6 @@ from typing import Any, Callable
 from claude_agent_sdk import tool, create_sdk_mcp_server
 
 from constants import EARLY_EXIT_THRESHOLD_MIN, SECONDS_PER_MINUTE
-from session.utils import log_audit
 
 log = logging.getLogger("sandbox.session.gate")
 
@@ -101,11 +100,13 @@ class SessionGate:
                 )
                 return {"content": [{"type": "text", "text": "Session ended."}]}
 
-            await log_audit(
-                run_id,
-                "end_session_denied",
-                {"remaining_minutes": round(remaining_min, 1)},
-            )
+            emit({
+                "event": "audit",
+                "data": {
+                    "event_type": "end_session_denied",
+                    "details": {"remaining_minutes": round(remaining_min, 1)},
+                },
+            })
             emit(
                 {
                     "event": "end_session_denied",

@@ -105,6 +105,7 @@ These rules are mandatory. All AI agents must follow them. No exceptions.
 
 - One test class per file. Test files share fixtures, mocks, and conftest helpers — but each class lives in its own file.
 - Every bug fix must include a regression test that would have caught the bug. No exceptions.
+- If a test modifies the testing environment (`os.environ`, `sys.modules`, global state), it MUST revert to the original state in teardown. No exceptions. Use `setup_method`/`teardown_method` to capture and restore, or `monkeypatch` which auto-reverts. Never use `setdefault` with a value different from the test env — it causes order-dependent failures.
 
 ## Verification
 

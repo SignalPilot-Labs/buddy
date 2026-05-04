@@ -78,6 +78,13 @@ class ToolCall(Base):
         CheckConstraint("phase IN ('pre', 'post')", name="ck_tool_calls_phase"),
         Index("ix_tool_calls_run_id", "run_id"),
         Index("ix_tool_calls_ts", "ts"),
+        Index(
+            "uq_tool_calls_idempotency",
+            "run_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where="idempotency_key IS NOT NULL",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -94,6 +101,7 @@ class ToolCall(Base):
     tool_use_id: Mapped[str | None] = mapped_column(String)
     session_id: Mapped[str | None] = mapped_column(String)
     agent_id: Mapped[str | None] = mapped_column(String)
+    idempotency_key: Mapped[str | None] = mapped_column(String)
 
     run: Mapped["Run"] = relationship(back_populates="tool_calls")
 
@@ -105,6 +113,13 @@ class AuditLog(Base):
     __table_args__ = (
         Index("ix_audit_log_run_id", "run_id"),
         Index("ix_audit_log_event_type", "event_type"),
+        Index(
+            "uq_audit_log_idempotency",
+            "run_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where="idempotency_key IS NOT NULL",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -112,6 +127,7 @@ class AuditLog(Base):
     ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     event_type: Mapped[str] = mapped_column(String, nullable=False)
     details: Mapped[dict] = mapped_column(JSONB, server_default="{}")
+    idempotency_key: Mapped[str | None] = mapped_column(String)
 
     run: Mapped["Run"] = relationship(back_populates="audit_logs")
 

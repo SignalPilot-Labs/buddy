@@ -33,7 +33,6 @@ from db.constants import (
     RUN_STATUS_KILLED,
     RUN_STATUS_RUNNING,
 )
-from internal_endpoints import register_internal_routes
 from utils.constants import (
     AccessNoiseFilter,
     ENV_KEY_ANTHROPIC_API,
@@ -93,26 +92,22 @@ class AgentServer:
             raise RuntimeError(f"{ENV_KEY_SANDBOX_SECRET} is empty")
         self._install_internal_auth()
         register_routes(self.app, self)
-        register_internal_routes(self.app)
 
     def _install_internal_auth(self) -> None:
         """Require the internal secret header on every endpoint except /health.
 
-        Accepts either AGENT_INTERNAL_SECRET (from dashboard) or
-        SANDBOX_INTERNAL_SECRET (from sandbox containers). Both are always
-        compared using constant-time comparison to prevent timing attacks.
+        Only checks AGENT_INTERNAL_SECRET (from dashboard). The sandbox no
+        longer calls the agent — after SSE consolidation, all data flows
+        forward (agent→sandbox) and back via SSE (sandbox→agent stream).
         """
         agent_secret = self._internal_secret
-        sandbox_secret = self._sandbox_secret
 
         @self.app.middleware("http")
         async def check_internal_secret(request, call_next):
             if request.url.path == "/health":
                 return await call_next(request)
             provided = request.headers.get(INTERNAL_SECRET_HEADER, "")
-            match_agent = hmac.compare_digest(provided, agent_secret)
-            match_sandbox = hmac.compare_digest(provided, sandbox_secret)
-            if not (match_agent or match_sandbox):
+            if not hmac.compare_digest(provided, agent_secret):
                 return JSONResponse(
                     status_code=401,
                     content={"detail": "Unauthorized"},
