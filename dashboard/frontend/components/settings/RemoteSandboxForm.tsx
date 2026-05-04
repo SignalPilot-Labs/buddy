@@ -117,21 +117,23 @@ export function RemoteSandboxForm({
       </FormField>
 
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Max Start Wait (s)">
+        <FormField label="Startup Timeout (s)">
           <input
             type="number"
             value={data.queue_timeout}
             onChange={(e) => update({ queue_timeout: Number(e.target.value) })}
             className={INPUT_CLASS}
           />
+          <p className="text-caption text-text-dim mt-0.5">Give up if sandbox isn&apos;t ready in this time. Includes queue wait + boot.</p>
         </FormField>
-        <FormField label="Idle Timeout (s)">
+        <FormField label="Inactivity Timeout (s)">
           <input
             type="number"
             value={data.heartbeat_timeout}
             onChange={(e) => update({ heartbeat_timeout: Number(e.target.value) })}
             className={INPUT_CLASS}
           />
+          <p className="text-caption text-text-dim mt-0.5">Sandbox shuts itself down after this long with no activity.</p>
         </FormField>
       </div>
 
