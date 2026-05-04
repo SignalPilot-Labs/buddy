@@ -1,13 +1,13 @@
-"""Verify SandboxHandle dataclass."""
+"""Verify SandboxInstance dataclass."""
 
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 
 
-class TestSandboxHandle:
-    """SandboxHandle is frozen and holds expected fields."""
+class TestSandboxInstance:
+    """SandboxInstance is frozen and holds expected fields."""
 
     def test_local_handle(self) -> None:
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key="test-123",
             url="http://sandbox:8080",
             backend_id="container-abc",
@@ -22,7 +22,7 @@ class TestSandboxHandle:
         assert handle.sandbox_type is None
 
     def test_remote_handle(self) -> None:
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key="test-456",
             url="http://connector:9400/sandboxes/test-456",
             backend_id="12345",
@@ -37,7 +37,7 @@ class TestSandboxHandle:
         assert handle.remote_port == 9123
 
     def test_handle_is_frozen(self) -> None:
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key="test",
             url="http://x",
             backend_id=None,

@@ -9,7 +9,7 @@ import logging
 from sandbox_client.backend import SandboxBackend
 from sandbox_client.client import SandboxClient
 from sandbox_client.docker_local import DockerLocalBackend
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 
 log = logging.getLogger("sandbox_client.pool")
 
@@ -20,7 +20,7 @@ class SandboxPool:
     def __init__(self) -> None:
         """Initialize the pool with a local Docker backend."""
         self._docker_local = DockerLocalBackend()
-        self._handles: dict[str, SandboxHandle] = {}
+        self._handles: dict[str, SandboxInstance] = {}
 
     async def create(
         self,

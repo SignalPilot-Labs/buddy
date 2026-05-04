@@ -13,13 +13,13 @@ import httpx
 
 from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 
-log = logging.getLogger("sandbox_client.remote_mixin")
+log = logging.getLogger("sandbox_client.base_remote")
 
 CONNECTOR_SECRET_HEADER: str = "X-Connector-Secret"
 NDJSON_CONTENT_TYPE: str = "application/x-ndjson"
 
 
-class RemoteBackendMixin:
+class BaseRemoteBackend:
     """Shared connector transport for remote backends."""
 
     def __init__(

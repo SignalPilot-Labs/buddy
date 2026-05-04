@@ -7,13 +7,13 @@ srun = kill the start SSH process, sbatch = scancel <backend_id>.
 import logging
 
 from sandbox_client.backend import SandboxBackend
-from sandbox_client.handle import SandboxHandle
-from sandbox_client.remote_mixin import RemoteBackendMixin
+from sandbox_client.instance import SandboxInstance
+from sandbox_client.base_remote import BaseRemoteBackend
 
 log = logging.getLogger("sandbox_client.slurm_backend")
 
 
-class SlurmBackend(RemoteBackendMixin, SandboxBackend):
+class SlurmBackend(BaseRemoteBackend, SandboxBackend):
     """Remote Slurm via connector."""
 
     def __init__(
@@ -24,7 +24,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
         ssh_target: str,
         heartbeat_timeout: int,
     ) -> None:
-        RemoteBackendMixin.__init__(
+        BaseRemoteBackend.__init__(
             self,
             connector_url=connector_url,
             connector_secret=connector_secret,
@@ -33,7 +33,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
             sandbox_type="slurm",
             heartbeat_timeout=heartbeat_timeout,
         )
-        self._handles: dict[str, SandboxHandle] = {}
+        self._handles: dict[str, SandboxInstance] = {}
 
     async def create(
         self,
@@ -42,7 +42,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxHandle:
+    ) -> SandboxInstance:
         """Start a Slurm sandbox via the connector."""
         raise NotImplementedError(
             "SlurmBackend.create requires start_cmd — use SandboxPool.create_remote()"
@@ -55,7 +55,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> tuple[SandboxHandle, list[dict]]:
+    ) -> tuple[SandboxInstance, list[dict]]:
         """Start a Slurm sandbox with an explicit start command.
 
         Returns (handle, events) where events is the list of NDJSON events
@@ -87,7 +87,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
             raise RuntimeError("Sandbox start did not emit AF_READY marker")
 
         url = self._build_proxy_url(run_key)
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key=run_key,
             url=url,
             backend_id=backend_id,
@@ -100,7 +100,7 @@ class SlurmBackend(RemoteBackendMixin, SandboxBackend):
         self._handles[run_key] = handle
         return handle, events
 
-    async def destroy(self, handle: SandboxHandle) -> None:
+    async def destroy(self, handle: SandboxInstance) -> None:
         """Stop a Slurm sandbox via the connector."""
         self._handles.pop(handle.run_key, None)
         await self._stop_remote_sandbox(handle.run_key)

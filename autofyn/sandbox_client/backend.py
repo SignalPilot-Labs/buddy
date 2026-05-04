@@ -6,7 +6,7 @@ whether the sandbox is a local Docker container or a remote Slurm job.
 
 from abc import ABC, abstractmethod
 
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 
 
 class SandboxBackend(ABC):
@@ -20,12 +20,12 @@ class SandboxBackend(ABC):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxHandle:
+    ) -> SandboxInstance:
         """Spin up a sandbox and return a handle to it."""
         ...
 
     @abstractmethod
-    async def destroy(self, handle: SandboxHandle) -> None:
+    async def destroy(self, handle: SandboxInstance) -> None:
         """Stop and remove a sandbox."""
         ...
 

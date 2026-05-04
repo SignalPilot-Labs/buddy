@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sandbox_client.docker_local import DockerLocalBackend
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 
 
 def _make_backend() -> DockerLocalBackend:
@@ -22,9 +22,9 @@ def _make_backend() -> DockerLocalBackend:
                 return DockerLocalBackend()
 
 
-def _make_handle(run_key: str, backend_id: str) -> SandboxHandle:
-    """Build a minimal SandboxHandle for testing."""
-    return SandboxHandle(
+def _make_handle(run_key: str, backend_id: str) -> SandboxInstance:
+    """Build a minimal SandboxInstance for testing."""
+    return SandboxInstance(
         run_key=run_key,
         url="",
         backend_id=backend_id,

@@ -21,7 +21,7 @@ from config.loader import sandbox_config
 from db.constants import validate_host_mount
 from sandbox_client.backend import SandboxBackend
 from sandbox_client.client import SandboxClient
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 from utils.constants import (
     AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
@@ -94,7 +94,7 @@ class DockerLocalBackend(SandboxBackend):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxHandle:
+    ) -> SandboxInstance:
         """Spin up a sandbox container for a run."""
         container_name = f"autofyn-sandbox-{run_key}"
         volume_name = f"autofyn-repo-{run_key}"
@@ -125,7 +125,7 @@ class DockerLocalBackend(SandboxBackend):
         self._start_log_drainer(run_key, container)
         await self._replace_client(run_key, container_name, health_timeout)
 
-        return SandboxHandle(
+        return SandboxInstance(
             run_key=run_key,
             url=f"http://{container_name}:{SANDBOX_POOL_PORT}",
             backend_id=container_id,
@@ -192,7 +192,7 @@ class DockerLocalBackend(SandboxBackend):
         volumes[host_path] = {"bind": container_path, "mode": mode}
         log.info("Host mount: %s -> %s (%s)", host_path, container_path, mode)
 
-    async def destroy(self, handle: SandboxHandle) -> None:
+    async def destroy(self, handle: SandboxInstance) -> None:
         """Stop and remove a sandbox container + its volume."""
         run_key = handle.run_key
         container_id = self._containers.pop(run_key, None)
@@ -266,7 +266,7 @@ class DockerLocalBackend(SandboxBackend):
         """Tear down all managed sandbox containers."""
         keys = list(self._containers.keys())
         for key in keys:
-            handle = SandboxHandle(
+            handle = SandboxInstance(
                 run_key=key,
                 url="",
                 backend_id=self._containers.get(key),

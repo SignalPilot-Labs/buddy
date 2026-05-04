@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class SandboxHandle:
+class SandboxInstance:
     """Opaque reference to a running sandbox."""
 
     run_key: str

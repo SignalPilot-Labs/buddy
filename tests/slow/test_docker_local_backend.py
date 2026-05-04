@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sandbox_client.docker_local import DockerLocalBackend, _LogDrainer
-from sandbox_client.handle import SandboxHandle
+from sandbox_client.instance import SandboxInstance
 
 
 def _mock_container(container_id: str, short_id: str) -> MagicMock:
@@ -39,7 +39,7 @@ class TestDockerLocalBackendLifecycle:
 
     @pytest.mark.asyncio
     async def test_create_returns_handle_with_local_fields(self) -> None:
-        """create() must return a SandboxHandle with sandbox_id=None (local)."""
+        """create() must return a SandboxInstance with sandbox_id=None (local)."""
         backend = _make_backend()
         mock_container = _mock_container("abc123", "abc1")
 
@@ -82,7 +82,7 @@ class TestDockerLocalBackendLifecycle:
         mock_client.close = AsyncMock()
         backend._clients["run-1"] = mock_client
 
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key="run-1", url="", backend_id="abc123",
             sandbox_secret="", sandbox_id=None, sandbox_type=None,
             remote_host=None, remote_port=None,

@@ -7,13 +7,13 @@ Logs use `docker logs` over SSH (container survives crashes).
 import logging
 
 from sandbox_client.backend import SandboxBackend
-from sandbox_client.handle import SandboxHandle
-from sandbox_client.remote_mixin import RemoteBackendMixin
+from sandbox_client.instance import SandboxInstance
+from sandbox_client.base_remote import BaseRemoteBackend
 
 log = logging.getLogger("sandbox_client.docker_remote")
 
 
-class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
+class DockerRemoteBackend(BaseRemoteBackend, SandboxBackend):
     """Remote Docker via connector."""
 
     def __init__(
@@ -24,7 +24,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
         ssh_target: str,
         heartbeat_timeout: int,
     ) -> None:
-        RemoteBackendMixin.__init__(
+        BaseRemoteBackend.__init__(
             self,
             connector_url=connector_url,
             connector_secret=connector_secret,
@@ -33,7 +33,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
             sandbox_type="docker",
             heartbeat_timeout=heartbeat_timeout,
         )
-        self._handles: dict[str, SandboxHandle] = {}
+        self._handles: dict[str, SandboxInstance] = {}
 
     async def create(
         self,
@@ -42,7 +42,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
         extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> SandboxHandle:
+    ) -> SandboxInstance:
         """Start a remote Docker sandbox via the connector."""
         raise NotImplementedError(
             "DockerRemoteBackend.create requires start_cmd"
@@ -56,7 +56,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
-    ) -> tuple[SandboxHandle, list[dict]]:
+    ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote Docker sandbox with an explicit start command.
 
         Returns (handle, events) for caller persistence.
@@ -87,7 +87,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
             raise RuntimeError("Sandbox start did not emit AF_READY marker")
 
         url = self._build_proxy_url(run_key)
-        handle = SandboxHandle(
+        handle = SandboxInstance(
             run_key=run_key,
             url=url,
             backend_id=backend_id,
@@ -100,7 +100,7 @@ class DockerRemoteBackend(RemoteBackendMixin, SandboxBackend):
         self._handles[run_key] = handle
         return handle, events
 
-    async def destroy(self, handle: SandboxHandle) -> None:
+    async def destroy(self, handle: SandboxInstance) -> None:
         """Stop a remote Docker sandbox via the connector."""
         self._handles.pop(handle.run_key, None)
         await self._stop_remote_sandbox(handle.run_key)
