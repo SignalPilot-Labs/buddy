@@ -19,7 +19,6 @@ from constants import (
     INTERNAL_SECRET_HEADER,
     SANDBOX_HOST,
     SANDBOX_PORT,
-    SANDBOX_SECRET_FILE_ENV_VAR,
 )
 from handlers.env import register as register_env
 from handlers.execute import register as register_execute
@@ -44,35 +43,17 @@ for _logger_name in ("aiohttp.access", "aiohttp.server", "aiohttp.web", ""):
 
 
 def _load_sandbox_secret() -> str:
-    """Load the sandbox authentication secret.
+    """Load the sandbox authentication secret from SANDBOX_INTERNAL_SECRET env var.
 
-    Local Docker: reads from SANDBOX_INTERNAL_SECRET env var.
-    Remote: reads from file path in AF_SANDBOX_SECRET_FILE env var.
-    Exactly one source must be set.
+    Works for both local Docker (set by docker-compose) and remote
+    (passed as env var over SSH by the connector).
     """
-    env_secret = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
-    file_path = os.environ.get(SANDBOX_SECRET_FILE_ENV_VAR, "")
-
-    if env_secret and file_path:
+    secret = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
+    if not secret:
         raise RuntimeError(
-            f"Both {INTERNAL_SECRET_ENV_VAR} and {SANDBOX_SECRET_FILE_ENV_VAR} are set — exactly one required"
+            f"{INTERNAL_SECRET_ENV_VAR} is not set — sandbox cannot start"
         )
-    if env_secret:
-        return env_secret
-    if file_path:
-        with open(file_path) as f:
-            secret = f.read().strip()
-        if not secret:
-            raise RuntimeError(f"Secret file {file_path} is empty")
-        try:
-            os.remove(file_path)
-            log.info("Deleted secret file %s after read", file_path)
-        except OSError as exc:
-            log.warning("Could not delete secret file %s: %s", file_path, exc)
-        return secret
-    raise RuntimeError(
-        f"Neither {INTERNAL_SECRET_ENV_VAR} nor {SANDBOX_SECRET_FILE_ENV_VAR} is set — sandbox cannot start"
-    )
+    return secret
 
 
 _INTERNAL_SECRET = _load_sandbox_secret()

@@ -23,7 +23,6 @@ _DENIED_ENV_KEYS: frozenset[str] = frozenset({
     "SHELL",
     "USER",
     "PYTHONPATH",
-    "AF_SANDBOX_SECRET_FILE",
     "AF_SANDBOX_PORT",
     "AF_HEARTBEAT_TIMEOUT",
     "SANDBOX_INTERNAL_SECRET",

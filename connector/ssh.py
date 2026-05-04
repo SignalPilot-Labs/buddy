@@ -9,7 +9,6 @@ import socket
 
 from connector.constants import (
     KILL_WAIT_TIMEOUT_SEC,
-    SAFE_PATH_RE,
     SSH_CONNECT_TIMEOUT_SEC,
     SSH_KEEPALIVE_COUNT_MAX,
     SSH_KEEPALIVE_INTERVAL_SEC,
@@ -17,12 +16,6 @@ from connector.constants import (
 )
 
 log = logging.getLogger("connector.ssh")
-
-
-def _validate_safe_path(path: str, label: str) -> None:
-    """Validate a path contains no shell metacharacters."""
-    if not SAFE_PATH_RE.fullmatch(path):
-        raise ValueError(f"{label} contains unsafe characters: {path!r}")
 
 
 def _ssh_base_opts() -> list[str]:
@@ -115,56 +108,6 @@ async def run_ssh_command(
     )
     return process
 
-
-async def write_remote_secret(
-    ssh_target: str,
-    secret_dir: str,
-    run_key: str,
-    secret: str,
-) -> str:
-    """Write a secret file on the remote host via stdin pipe. Returns the file path."""
-    _validate_safe_path(secret_dir, "secret_dir")
-    _validate_safe_path(run_key, "run_key")
-    remote_path = f"{secret_dir}/{run_key}"
-    shell_cmd = (
-        f"mkdir -p {shlex.quote(secret_dir)} && "
-        f"cat > {shlex.quote(remote_path)} && "
-        f"chmod 600 {shlex.quote(remote_path)}"
-    )
-    proc = await asyncio.create_subprocess_exec(
-        "ssh",
-        *_ssh_base_opts(),
-        ssh_target,
-        shell_cmd,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.PIPE,
-        preexec_fn=_preexec_fn,
-    )
-    await proc.communicate(input=secret.encode())
-    if proc.returncode != 0:
-        raise RuntimeError(
-            f"Failed to write secret file on {ssh_target}:{remote_path}"
-        )
-    return remote_path
-
-
-async def delete_remote_secret(
-    ssh_target: str,
-    secret_file_path: str,
-) -> None:
-    """Delete a secret file on the remote host."""
-    _validate_safe_path(secret_file_path, "secret_file_path")
-    cmd = f"rm -f {shlex.quote(secret_file_path)}"
-    proc = await run_ssh_command(ssh_target, cmd, {})
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=SSH_CONNECT_TIMEOUT_SEC)
-    except asyncio.TimeoutError:
-        log.warning(
-            "delete_remote_secret timed out for %s, killing process",
-            secret_file_path,
-        )
-        await kill_process_group(proc)
 
 
 async def kill_process_group(process: asyncio.subprocess.Process) -> None:

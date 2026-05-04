@@ -23,7 +23,6 @@ from connector.constants import (
     CONNECTOR_SECRET_ENV,
     CONNECTOR_SECRET_HEADER,
     DEFAULT_LOG_TAIL,
-    DEFAULT_SECRET_DIR,
     HEARTBEAT_CLIENT_TIMEOUT_SEC,
     HEARTBEAT_INTERVAL_SEC,
     HEARTBEAT_MAX_FAILURES,
@@ -34,7 +33,6 @@ from connector.constants import (
 from connector.forward_state import ForwardState
 from connector.proxy import handle_proxy
 from connector.ssh import (
-    delete_remote_secret,
     find_free_port,
     kill_process_group,
     open_ssh_tunnel,
@@ -127,13 +125,12 @@ class ConnectorServer:
         heartbeat_timeout: int = body.get(
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
-        secret_dir: str = body.get("secret_dir", DEFAULT_SECRET_DIR)
         extra_env: dict[str, str] = body.get("extra_env", {})
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
 
-        process, secret_file_path, event_gen = await asyncio.wait_for(
+        process, event_gen = await asyncio.wait_for(
             stream_start_events(
                 ssh_target=ssh_target,
                 start_cmd=start_cmd,
@@ -142,7 +139,6 @@ class ConnectorServer:
                 sandbox_type=sandbox_type,
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
-                secret_dir=secret_dir,
                 extra_env=extra_env,
             ),
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
@@ -156,12 +152,10 @@ class ConnectorServer:
         except asyncio.TimeoutError:
             await event_gen.aclose()
             await kill_process_group(process)
-            await delete_remote_secret(ssh_target, secret_file_path)
             raise
 
         if not ready_event:
             await kill_process_group(process)
-            await delete_remote_secret(ssh_target, secret_file_path)
             fail = {"event": "failed", "error": "Start command exited without AF_READY"}
             await response.write((json.dumps(fail) + "\n").encode())
             return
@@ -169,11 +163,10 @@ class ConnectorServer:
         try:
             state = await self._create_forward_state(
                 run_key, ssh_target, sandbox_type, sandbox_secret,
-                ready_event, events, process, secret_file_path,
+                ready_event, events, process,
             )
         except Exception:
             await kill_process_group(process)
-            await delete_remote_secret(ssh_target, secret_file_path)
             raise
         self._states[run_key] = state
 
@@ -213,7 +206,6 @@ class ConnectorServer:
         ready_event: dict[str, Any],
         events: list[dict[str, Any]],
         process: asyncio.subprocess.Process,
-        secret_file_path: str,
     ) -> ForwardState:
         """Open SSH tunnel and build ForwardState."""
         remote_host: str = ready_event["host"]
@@ -244,7 +236,6 @@ class ConnectorServer:
             sandbox_secret=sandbox_secret,
             backend_id=backend_id,
             log_buffer=collections.deque(maxlen=RING_BUFFER_MAX_LINES),
-            secret_file_path=secret_file_path,
         )
 
     async def _handle_stop(self, request: web.Request) -> web.Response:
@@ -314,14 +305,6 @@ class ConnectorServer:
             await kill_process_group(state.start_process)
 
         await kill_process_group(state.tunnel_process)
-
-        if state.secret_file_path:
-            try:
-                await delete_remote_secret(state.ssh_target, state.secret_file_path)
-            except Exception as exc:
-                log.warning(
-                    "Failed to delete secret for %s: %s", run_key, exc,
-                )
 
         log.info("Destroyed sandbox %s", run_key)
 

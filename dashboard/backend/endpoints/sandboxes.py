@@ -23,7 +23,6 @@ from db.constants import (
     REMOTE_SANDBOX_KEY_PREFIX,
     SANDBOX_NAME_MAX_LEN,
     SANDBOX_NAME_MIN_LEN,
-    SECRET_DIR_MAX_LEN,
     SSH_TARGET_MAX_LEN,
     SSH_TARGET_MIN_LEN,
     SSH_TARGET_RE,
@@ -48,7 +47,6 @@ class RemoteSandboxConfig(BaseModel):
     ssh_target: str = Field(min_length=SSH_TARGET_MIN_LEN, max_length=SSH_TARGET_MAX_LEN)
     type: str = Field(pattern=SANDBOX_TYPE_PATTERN)
     default_start_cmd: str = Field(min_length=START_CMD_MIN_LEN, max_length=START_CMD_MAX_LEN)
-    secret_dir: str = Field(min_length=1, max_length=SECRET_DIR_MAX_LEN)
     queue_timeout: int = Field(ge=QUEUE_TIMEOUT_MIN, le=QUEUE_TIMEOUT_MAX)
     heartbeat_timeout: int = Field(ge=HEARTBEAT_TIMEOUT_MIN, le=HEARTBEAT_TIMEOUT_MAX)
 
@@ -72,7 +70,6 @@ class RemoteSandboxResponse(BaseModel):
     ssh_target: str
     type: str
     default_start_cmd: str
-    secret_dir: str
     queue_timeout: int
     heartbeat_timeout: int
 
@@ -115,7 +112,6 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
         ssh_target=str(raw["ssh_target"]),
         type=str(raw["type"]),
         default_start_cmd=str(raw["default_start_cmd"]),
-        secret_dir=str(raw["secret_dir"]),
         queue_timeout=int(raw["queue_timeout"]),
         heartbeat_timeout=int(raw["heartbeat_timeout"]),
     )
@@ -128,7 +124,6 @@ def _config_to_dict(body: RemoteSandboxConfig) -> dict[str, str | int]:
         "ssh_target": body.ssh_target,
         "type": body.type,
         "default_start_cmd": body.default_start_cmd,
-        "secret_dir": body.secret_dir,
         "queue_timeout": body.queue_timeout,
         "heartbeat_timeout": body.heartbeat_timeout,
     }

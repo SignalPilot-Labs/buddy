@@ -13,7 +13,7 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
-from connector.ssh import run_ssh_command, write_remote_secret
+from connector.ssh import run_ssh_command
 
 log = logging.getLogger("connector.startup")
 
@@ -28,18 +28,14 @@ async def stream_start_events(
     sandbox_type: str,
     host_mounts: list[dict[str, str]],
     heartbeat_timeout: int,
-    secret_dir: str,
     extra_env: dict[str, str],
-) -> tuple[asyncio.subprocess.Process, str, AsyncGenerator[dict[str, Any], None]]:
-    """Execute start command over SSH. Returns (process, secret_file_path, event_gen).
+) -> tuple[asyncio.subprocess.Process, AsyncGenerator[dict[str, Any], None]]:
+    """Execute start command over SSH. Returns (process, event_gen).
 
-    The returned async generator yields NDJSON events as they arrive from the
-    start command stdout. Callers must fully consume or close the generator.
+    The sandbox secret is passed as SANDBOX_INTERNAL_SECRET env var.
+    The returned async generator yields NDJSON events as they arrive.
+    Callers must fully consume or close the generator.
     """
-    secret_file_path = await write_remote_secret(
-        ssh_target, secret_dir, run_key, sandbox_secret,
-    )
-
     mounts_json = json.dumps(host_mounts)
     apptainer_binds = (
         _compute_apptainer_binds(host_mounts) if sandbox_type == "slurm" else ""
@@ -50,16 +46,16 @@ async def stream_start_events(
 
     env = {
         "AF_RUN_KEY": run_key,
+        "SANDBOX_INTERNAL_SECRET": sandbox_secret,
         "AF_HOST_MOUNTS_JSON": mounts_json,
         "AF_APPTAINER_BINDS": apptainer_binds if apptainer_binds else "",
         "AF_DOCKER_VOLUMES": docker_volumes if docker_volumes else "",
-        "AF_SANDBOX_SECRET_FILE": secret_file_path,
         "AF_HEARTBEAT_TIMEOUT": str(heartbeat_timeout),
     }
     env.update(extra_env)
 
     process = await run_ssh_command(ssh_target, start_cmd, env)
-    return process, secret_file_path, _stream_events(process)
+    return process, _stream_events(process)
 
 
 async def _stream_events(

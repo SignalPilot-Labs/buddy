@@ -14,7 +14,6 @@ export interface SandboxFormData {
   ssh_target: string;
   type: "slurm" | "docker";
   default_start_cmd: string;
-  secret_dir: string;
   queue_timeout: number;
   heartbeat_timeout: number;
 }
@@ -24,7 +23,6 @@ const EMPTY_FORM: SandboxFormData = {
   ssh_target: "",
   type: "docker",
   default_start_cmd: "",
-  secret_dir: "~/.autofyn/secrets",
   queue_timeout: 1800,
   heartbeat_timeout: 1800,
 };
@@ -35,7 +33,6 @@ function formFromConfig(s: RemoteSandboxConfig): SandboxFormData {
     ssh_target: s.ssh_target,
     type: s.type,
     default_start_cmd: s.default_start_cmd,
-    secret_dir: s.secret_dir,
     queue_timeout: s.queue_timeout,
     heartbeat_timeout: s.heartbeat_timeout,
   };

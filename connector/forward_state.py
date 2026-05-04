@@ -24,4 +24,3 @@ class ForwardState:
     log_buffer: collections.deque[str] = field(
         default_factory=lambda: collections.deque(maxlen=RING_BUFFER_MAX_LINES)
     )
-    secret_file_path: str = ""

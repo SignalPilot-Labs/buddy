@@ -451,7 +451,6 @@ export interface RemoteSandboxConfig {
   ssh_target: string;
   type: "slurm" | "docker";
   default_start_cmd: string;
-  secret_dir: string;
   queue_timeout: number;
   heartbeat_timeout: number;
 }
