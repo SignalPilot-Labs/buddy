@@ -110,6 +110,21 @@ autofyn repos set-active owner/repo    # set active repo
 
 Use `--json` on any command for machine-readable output.
 
+## Remote sandboxes
+
+Runs can execute on remote machines (HPC clusters, GPU servers) instead of local Docker. AutoFyn SSH-tunnels to the remote, streams logs back, and manages the lifecycle automatically.
+
+**Setup:**
+1. Pull the sandbox image on the remote:
+   ```bash
+   # Slurm / Apptainer
+   apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+   # Docker remote
+   docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+   ```
+2. In the dashboard, go to **Settings → Remote Sandboxes → Add Sandbox**. Enter the SSH target (`user@host`), type (Slurm or Docker), and start command.
+3. When starting a run, select the remote sandbox instead of "Docker (local)."
+
 ## Responsible disclosure
 
 All vulnerabilities were privately disclosed to maintainers before any public mention. Full reports are withheld until patches are available.

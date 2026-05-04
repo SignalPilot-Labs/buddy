@@ -187,8 +187,23 @@ export function RemoteSandboxes(): React.ReactElement {
       )}
 
       <p className="mt-2 text-body text-text-muted leading-relaxed">
-        Remote sandboxes let runs execute on external machines via SSH. Configure the connection details here, then select a sandbox when starting a new run.
+        Remote sandboxes run on external machines via SSH. Add a config, then select it when starting a run.
       </p>
+      {sandboxes.length > 0 && !showForm && (
+        <details className="mt-2">
+          <summary className="text-caption text-text-secondary cursor-pointer hover:text-text-muted">
+            Setup instructions
+          </summary>
+          <div className="mt-1.5 text-caption text-text-muted font-mono bg-black/20 rounded p-2.5 space-y-1">
+            <p className="text-text-secondary font-sans text-body mb-1">On your remote machine, pull the sandbox image once:</p>
+            <p># Slurm / Apptainer</p>
+            <p>apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</p>
+            <p className="mt-1.5"># Docker remote</p>
+            <p>docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</p>
+            <p className="text-text-secondary font-sans text-body mt-1.5">Ensure SSH access works from this machine to the configured target. The start command in your config handles the rest.</p>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
