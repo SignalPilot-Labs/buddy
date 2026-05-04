@@ -10,6 +10,8 @@ import collections
 import hmac
 import json
 import logging
+import os
+from collections.abc import AsyncGenerator
 from typing import Any, Callable, Awaitable
 
 import httpx
@@ -18,6 +20,7 @@ from aiohttp import web
 from connector.constants import (
     CONNECTOR_BIND_HOST,
     CONNECTOR_DEFAULT_PORT,
+    CONNECTOR_SECRET_ENV,
     CONNECTOR_SECRET_HEADER,
     DEFAULT_LOG_TAIL,
     DEFAULT_SECRET_DIR,
@@ -25,6 +28,7 @@ from connector.constants import (
     HEARTBEAT_INTERVAL_SEC,
     HEARTBEAT_MAX_FAILURES,
     RING_BUFFER_MAX_LINES,
+    SANDBOX_SECRET_HEADER,
     SHUTDOWN_TIMEOUT_SEC,
 )
 from connector.forward_state import ForwardState
@@ -34,6 +38,7 @@ from connector.ssh import (
     find_free_port,
     kill_process_group,
     open_ssh_tunnel,
+    run_derived_stop,
 )
 from connector.startup import stream_start_events
 from db.constants import SANDBOX_HEARTBEAT_TIMEOUT_SEC, SANDBOX_QUEUE_TIMEOUT_SEC
@@ -84,16 +89,8 @@ class ConnectorServer:
         )
 
     async def _handle_health(self, request: web.Request) -> web.Response:
-        """Return connector health with active tunnel info."""
-        tunnels = [
-            {
-                "run_key": s.run_key,
-                "ssh_target": s.ssh_target,
-                "sandbox_type": s.sandbox_type,
-            }
-            for s in self._states.values()
-        ]
-        return web.json_response({"status": "ok", "tunnels": tunnels})
+        """Return connector health — non-sensitive info only."""
+        return web.json_response({"status": "ok", "tunnel_count": len(self._states)})
 
     async def _handle_start(self, request: web.Request) -> web.StreamResponse:
         """Start a remote sandbox — NDJSON streaming response."""
@@ -131,11 +128,12 @@ class ConnectorServer:
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
         secret_dir: str = body.get("secret_dir", DEFAULT_SECRET_DIR)
+        extra_env: dict[str, str] = body.get("extra_env", {})
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
 
-        process, secret_file_path, events = await asyncio.wait_for(
+        process, secret_file_path, event_gen = await asyncio.wait_for(
             stream_start_events(
                 ssh_target=ssh_target,
                 start_cmd=start_cmd,
@@ -145,16 +143,22 @@ class ConnectorServer:
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
                 secret_dir=secret_dir,
+                extra_env=extra_env,
             ),
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
         )
 
-        for event in events:
-            await response.write((json.dumps(event) + "\n").encode())
+        try:
+            events, ready_event = await asyncio.wait_for(
+                self._stream_and_collect(event_gen, response),
+                timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            await event_gen.aclose()
+            await kill_process_group(process)
+            await delete_remote_secret(ssh_target, secret_file_path)
+            raise
 
-        ready_event = next(
-            (e for e in events if e.get("event") == "ready"), None,
-        )
         if not ready_event:
             await kill_process_group(process)
             await delete_remote_secret(ssh_target, secret_file_path)
@@ -180,6 +184,25 @@ class ConnectorServer:
         self._heartbeat_tasks[run_key] = asyncio.create_task(
             self._heartbeat_loop(run_key),
         )
+
+    async def _stream_and_collect(
+        self,
+        event_gen: AsyncGenerator[dict[str, Any], None],
+        response: web.StreamResponse,
+    ) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+        """Stream events from generator to response, collecting them.
+
+        Returns (all_events, ready_event_or_None).
+        """
+        events: list[dict[str, Any]] = []
+        ready_event: dict[str, Any] | None = None
+        async for event in event_gen:
+            await response.write((json.dumps(event) + "\n").encode())
+            events.append(event)
+            if event.get("event") == "ready":
+                ready_event = event
+                break
+        return events, ready_event
 
     async def _create_forward_state(
         self,
@@ -232,16 +255,21 @@ class ConnectorServer:
         return web.json_response({"ok": True})
 
     async def _handle_shutdown(self, request: web.Request) -> web.Response:
-        """Gracefully stop all active remote sandboxes."""
+        """Gracefully stop all active remote sandboxes with a single total timeout."""
         keys = list(self._states.keys())
-        for key in keys:
-            try:
-                await asyncio.wait_for(
-                    self._destroy(key), timeout=SHUTDOWN_TIMEOUT_SEC,
-                )
-            except (asyncio.TimeoutError, Exception) as exc:
-                log.error("Shutdown cleanup failed for %s: %s", key, exc)
-        return web.json_response({"ok": True, "stopped": len(keys)})
+
+        async def _destroy_all() -> None:
+            for key in keys:
+                await self._destroy(key)
+
+        try:
+            await asyncio.wait_for(_destroy_all(), timeout=SHUTDOWN_TIMEOUT_SEC)
+        except asyncio.TimeoutError:
+            log.warning(
+                "Shutdown timed out after %ds, %d sandboxes remaining",
+                SHUTDOWN_TIMEOUT_SEC, len(self._states),
+            )
+        return web.json_response({"ok": True, "remaining": len(self._states)})
 
     async def _handle_logs(self, request: web.Request) -> web.Response:
         """Return ring buffer logs for a run."""
@@ -259,7 +287,7 @@ class ConnectorServer:
         return await handle_proxy(request, self._states)
 
     async def _destroy(self, run_key: str) -> None:
-        """Tear down a remote sandbox: kill processes, tunnel, clean up."""
+        """Tear down a remote sandbox: derived stop, kill processes, tunnel, clean up."""
         state = self._states.pop(run_key, None)
         if not state:
             return
@@ -271,6 +299,16 @@ class ConnectorServer:
         drain_task = self._drain_tasks.pop(run_key, None)
         if drain_task:
             drain_task.cancel()
+
+        if state.backend_id:
+            try:
+                await run_derived_stop(
+                    state.ssh_target, state.sandbox_type, state.backend_id,
+                )
+            except Exception as exc:
+                log.warning(
+                    "Derived stop failed for %s: %s", run_key, exc,
+                )
 
         if state.start_process:
             await kill_process_group(state.start_process)
@@ -319,7 +357,8 @@ class ConnectorServer:
                     timeout=httpx.Timeout(HEARTBEAT_CLIENT_TIMEOUT_SEC),
                 ) as client:
                     await client.get(
-                        f"http://127.0.0.1:{state.local_port}/health",
+                        f"http://127.0.0.1:{state.local_port}/heartbeat",
+                        headers={SANDBOX_SECRET_HEADER: state.sandbox_secret},
                     )
                 consecutive_failures = 0
             except Exception:
@@ -346,16 +385,16 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="[connector] %(message)s")
     parser = argparse.ArgumentParser(description="AutoFyn Connector")
     parser.add_argument(
-        "--secret", required=True, help="Shared secret for auth",
-    )
-    parser.add_argument(
         "--port",
         type=int,
         default=CONNECTOR_DEFAULT_PORT,
         help="Listen port",
     )
     args = parser.parse_args()
-    server = ConnectorServer(args.secret, args.port)
+    secret = os.environ.get(CONNECTOR_SECRET_ENV, "")
+    if not secret:
+        raise RuntimeError(f"Missing required env var: {CONNECTOR_SECRET_ENV}")
+    server = ConnectorServer(secret, args.port)
     server.run()
 
 

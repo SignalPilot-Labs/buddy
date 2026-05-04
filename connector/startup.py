@@ -9,6 +9,8 @@ import json
 import logging
 import re
 import shlex
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
 from connector.ssh import run_ssh_command, write_remote_secret
@@ -27,10 +29,12 @@ async def stream_start_events(
     host_mounts: list[dict[str, str]],
     heartbeat_timeout: int,
     secret_dir: str,
-) -> tuple[asyncio.subprocess.Process, str, list[dict[str, object]]]:
-    """Execute start command over SSH and collect NDJSON events.
+    extra_env: dict[str, str],
+) -> tuple[asyncio.subprocess.Process, str, AsyncGenerator[dict[str, Any], None]]:
+    """Execute start command over SSH. Returns (process, secret_file_path, event_gen).
 
-    Returns (process, secret_file_path, events).
+    The returned async generator yields NDJSON events as they arrive from the
+    start command stdout. Callers must fully consume or close the generator.
     """
     secret_file_path = await write_remote_secret(
         ssh_target, secret_dir, run_key, sandbox_secret,
@@ -46,26 +50,24 @@ async def stream_start_events(
 
     env = {
         "AF_RUN_KEY": run_key,
-        "AF_HOST_MOUNTS_JSON": f"'{mounts_json}'",
-        "AF_APPTAINER_BINDS": f"'{apptainer_binds}'" if apptainer_binds else "''",
-        "AF_DOCKER_VOLUMES": f"'{docker_volumes}'" if docker_volumes else "''",
+        "AF_HOST_MOUNTS_JSON": mounts_json,
+        "AF_APPTAINER_BINDS": apptainer_binds if apptainer_binds else "",
+        "AF_DOCKER_VOLUMES": docker_volumes if docker_volumes else "",
         "AF_SANDBOX_SECRET_FILE": secret_file_path,
         "AF_HEARTBEAT_TIMEOUT": str(heartbeat_timeout),
     }
+    env.update(extra_env)
 
     process = await run_ssh_command(ssh_target, start_cmd, env)
-    events = await _collect_events(process)
-
-    return process, secret_file_path, events
+    return process, secret_file_path, _stream_events(process)
 
 
-async def _collect_events(
+async def _stream_events(
     process: asyncio.subprocess.Process,
-) -> list[dict[str, object]]:
-    """Read stdout lines from process and parse marker/log events."""
-    events: list[dict[str, object]] = []
+) -> AsyncGenerator[dict[str, Any], None]:
+    """Yield NDJSON events from process stdout as they arrive."""
     if not process.stdout:
-        return events
+        return
 
     async for line_bytes in process.stdout:
         line = line_bytes.decode("utf-8", errors="replace").rstrip("\n")
@@ -73,19 +75,17 @@ async def _collect_events(
 
         if marker_match:
             event = _parse_marker(marker_match)
-            events.append(event)
+            yield event
             if event.get("event") == "ready":
-                break
+                return
         else:
-            events.append({"event": "log", "line": line})
-
-    return events
+            yield {"event": "log", "line": line}
 
 
-def _parse_marker(match: re.Match[str]) -> dict[str, object]:
+def _parse_marker(match: re.Match[str]) -> dict[str, Any]:
     """Parse a marker regex match into an event dict."""
     marker_name = match.group(1)
-    marker_data: dict[str, object] = json.loads(match.group(2))
+    marker_data: dict[str, Any] = json.loads(match.group(2))
 
     if marker_name == AF_QUEUED_MARKER:
         return {"event": "queued", "backend_id": marker_data.get("backend_id")}
@@ -93,7 +93,7 @@ def _parse_marker(match: re.Match[str]) -> dict[str, object]:
     if marker_name != AF_READY_MARKER:
         raise ValueError(f"Unknown marker: {marker_name}")
 
-    event: dict[str, object] = {
+    event: dict[str, Any] = {
         "event": "ready",
         "host": marker_data["host"],
         "port": marker_data["port"],

@@ -136,7 +136,7 @@ class TestRunEndedAudit:
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=[])
+            pool.get_logs = AsyncMock(return_value=[])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
@@ -168,7 +168,7 @@ class TestRunEndedAudit:
             pool = MockPool.return_value
             pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=["error: OOM killed"])
+            pool.get_logs = AsyncMock(return_value=["error: OOM killed"])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool

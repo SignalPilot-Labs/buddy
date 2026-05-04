@@ -5,7 +5,6 @@ Docker API. Verifies ring buffer captures logs, client caching works across
 the full lifecycle, and destroy cleans up all resources.
 """
 
-import asyncio
 import os
 from collections import deque
 from unittest.mock import AsyncMock, MagicMock, patch

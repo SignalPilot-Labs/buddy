@@ -167,7 +167,7 @@ class DockerLocalBackend(SandboxBackend):
             await stale_client.close()
 
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(url, health_timeout, self._client_timeout)
+        client = SandboxClient(url, health_timeout, self._client_timeout, sandbox_secret=None)
         self._clients[run_key] = client
         await self._wait_healthy(client, container_name, health_timeout)
 
@@ -215,7 +215,7 @@ class DockerLocalBackend(SandboxBackend):
             return self._clients[run_key]
         container_name = f"autofyn-sandbox-{run_key}"
         url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(url, _FALLBACK_HEALTH_TIMEOUT, self._client_timeout)
+        client = SandboxClient(url, _FALLBACK_HEALTH_TIMEOUT, self._client_timeout, sandbox_secret=None)
         self._clients[run_key] = client
         return client
 

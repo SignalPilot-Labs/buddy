@@ -5,11 +5,9 @@ operations are mocked — these tests verify HTTP routing, auth, NDJSON
 streaming, and state management.
 """
 
-import json
-
 import pytest
 from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
+from aiohttp.test_utils import TestClient
 
 from connector.server import ConnectorServer
 
@@ -39,7 +37,7 @@ class TestConnectorHealth:
         assert resp.status == 200
         data = await resp.json()
         assert data["status"] == "ok"
-        assert data["tunnels"] == []
+        assert data["tunnel_count"] == 0
 
 
 class TestConnectorAuth:
@@ -96,4 +94,4 @@ class TestConnectorShutdown:
         assert resp.status == 200
         data = await resp.json()
         assert data["ok"] is True
-        assert data["stopped"] == 0
+        assert data["remaining"] == 0

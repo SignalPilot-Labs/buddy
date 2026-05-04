@@ -26,6 +26,8 @@ export interface Run {
   sandbox_backend_id?: string | null;
   sandbox_remote_host?: string | null;
   sandbox_remote_port?: number | null;
+  sandbox_ssh_target?: string | null;
+  sandbox_start_cmd?: string | null;
 }
 
 export interface RepoInfo {

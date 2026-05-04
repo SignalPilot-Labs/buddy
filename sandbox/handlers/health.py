@@ -17,6 +17,12 @@ async def handle_health(request: web.Request) -> web.Response:
     })
 
 
+async def handle_heartbeat(request: web.Request) -> web.Response:
+    """Acknowledge a heartbeat ping from the connector."""
+    return web.json_response({"ok": True})
+
+
 def register(app: web.Application) -> None:
-    """Attach /health route to the aiohttp app."""
+    """Attach /health and /heartbeat routes to the aiohttp app."""
     app.router.add_get("/health", handle_health)
+    app.router.add_get("/heartbeat", handle_heartbeat)

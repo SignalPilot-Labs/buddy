@@ -15,7 +15,7 @@ async def handle_proxy(
     request: web.Request,
     states: dict[str, ForwardState],
 ) -> web.StreamResponse:
-    """Reverse-proxy a request to the sandbox via SSH tunnel."""
+    """Reverse-proxy a request to the sandbox via SSH tunnel, streaming the response."""
     run_key = request.match_info["run_key"]
     state = states.get(run_key)
     if not state:
@@ -30,19 +30,25 @@ async def handle_proxy(
     async with httpx.AsyncClient(
         timeout=httpx.Timeout(PROXY_TIMEOUT_SEC),
     ) as client:
-        resp = await client.request(
+        async with client.stream(
             method=request.method,
             url=target_url,
             headers=headers,
             content=body,
-        )
-
-    response = web.Response(
-        status=resp.status_code,
-        body=resp.content,
-        content_type=resp.headers.get("content-type", "application/json"),
-    )
-    return response
+        ) as resp:
+            response = web.StreamResponse(
+                status=resp.status_code,
+                headers={
+                    "Content-Type": resp.headers.get(
+                        "content-type", "application/json",
+                    ),
+                },
+            )
+            await response.prepare(request)
+            async for chunk in resp.aiter_bytes():
+                await response.write(chunk)
+            await response.write_eof()
+            return response
 
 
 def _build_target_url(request: web.Request, local_port: int) -> str:

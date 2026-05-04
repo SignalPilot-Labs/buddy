@@ -19,10 +19,17 @@ export interface SSECursor {
 }
 
 function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
-  const details =
-    typeof raw.details === "string"
-      ? JSON.parse(raw.details)
-      : raw.details || {};
+  let details: Record<string, unknown>;
+  if (typeof raw.details === "string") {
+    try {
+      details = JSON.parse(raw.details) as Record<string, unknown>;
+    } catch {
+      console.warn("processAudit: invalid JSON in details, skipping event", raw.event_type);
+      return prev;
+    }
+  } else {
+    details = raw.details || {};
+  }
 
   if (raw.event_type === "usage") {
     return [

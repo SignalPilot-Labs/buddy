@@ -44,7 +44,7 @@ class TestExecuteRunUnboundSandbox:
             pool = MockPool.return_value
             pool.create = AsyncMock(side_effect=TimeoutError("container start timed out"))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=[])
+            pool.get_logs = AsyncMock(return_value=[])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
@@ -69,7 +69,7 @@ class TestExecuteRunUnboundSandbox:
             pool = MockPool.return_value
             pool.create = AsyncMock(side_effect=TimeoutError("timed out"))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=[])
+            pool.get_logs = AsyncMock(return_value=[])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool

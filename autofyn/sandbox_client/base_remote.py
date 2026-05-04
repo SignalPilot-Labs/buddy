@@ -14,6 +14,7 @@ import httpx
 
 from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 from sandbox_client.backend import SandboxBackend
+from sandbox_client.errors import SandboxStartError
 from sandbox_client.instance import SandboxInstance
 
 log = logging.getLogger("sandbox_client.base_remote")
@@ -52,6 +53,7 @@ class BaseRemoteBackend(SandboxBackend):
         start_cmd: str,
         sandbox_secret: str,
         host_mounts: list[dict[str, str]] | None,
+        extra_env: dict[str, str] | None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """POST /sandboxes/start to connector, yield NDJSON events."""
         body: dict[str, Any] = {
@@ -62,6 +64,7 @@ class BaseRemoteBackend(SandboxBackend):
             "sandbox_secret": sandbox_secret,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
+            "extra_env": extra_env or {},
         }
         timeout = httpx.Timeout(SANDBOX_QUEUE_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -132,7 +135,7 @@ class BaseRemoteBackend(SandboxBackend):
         backend_id: str | None = None
 
         async for event in self._start_remote_sandbox(
-            run_key, start_cmd, sandbox_secret, host_mounts,
+            run_key, start_cmd, sandbox_secret, host_mounts, extra_env,
         ):
             events.append(event)
             etype = event.get("event")
@@ -144,12 +147,13 @@ class BaseRemoteBackend(SandboxBackend):
                 if "backend_id" in event and backend_id is None:
                     backend_id = event["backend_id"]
             elif etype == "failed":
-                raise RuntimeError(
-                    f"Sandbox start failed: {event.get('error', 'unknown')}"
+                raise SandboxStartError(
+                    f"Sandbox start failed: {event.get('error', 'unknown')}",
+                    events,
                 )
 
         if host is None or port is None:
-            raise RuntimeError("Sandbox start did not emit AF_READY marker")
+            raise SandboxStartError("Sandbox start did not emit AF_READY marker", events)
 
         url = self._build_proxy_url(run_key)
         handle = SandboxInstance(

@@ -8,6 +8,7 @@ round starts a fresh Claude SDK session in the sandbox.
 
 import asyncio
 import hmac
+import json
 import logging
 import os
 import traceback
@@ -23,11 +24,19 @@ from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
 from sandbox_client.client import SandboxClient
+from sandbox_client.errors import SandboxStartError
 from sandbox_client.pool import SandboxPool
 from utils import db
+from utils.db import (
+    get_setting_value,
+    update_run_sandbox_backend_id,
+    update_run_sandbox_remote_host,
+    update_run_sandbox_snapshot,
+)
 from utils.db_logging import log_audit
 from db.constants import (
     ACTIVE_RUN_STATUSES,
+    REMOTE_SANDBOX_KEY_PREFIX,
     RUN_STATUS_CRASHED,
     RUN_STATUS_ERROR,
     RUN_STATUS_KILLED,
@@ -206,13 +215,37 @@ class AgentServer:
 
         return run_id, github_repo, task, budget, git_token
 
+    async def _emit_start_failed(
+        self, run_id: str, exc: SandboxStartError, run_env: dict[str, str] | None
+    ) -> None:
+        """Emit sandbox_start_failed audit event with startup logs from the exception."""
+        log_lines: list[str] = [
+            event.get("line", "")
+            for event in exc.startup_logs
+            if event.get("event") == "log"
+        ]
+        startup_output = _scrub_secrets("\n".join(log_lines))
+        error_text = _scrub_secrets(str(exc))
+        if run_env:
+            run_secrets = [run_env.get(k) for k in _SECRET_ENV_KEYS]
+            startup_output = scrub_secrets(startup_output, run_secrets)
+            error_text = scrub_secrets(error_text, run_secrets)
+        await log_audit(
+            run_id,
+            "sandbox_start_failed",
+            {
+                "error": error_text,
+                "startup_logs": startup_output,
+            },
+        )
+
     async def _capture_crash_logs(self, run_id: str, exc: Exception) -> None:
         """Capture sandbox logs on exception and persist them as a sandbox_crash audit event.
 
         Scrubs secrets before logging and storing, so tokens never appear
         in audit history or the server log.
         """
-        tail_lines = await self._pool.get_sandbox_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
+        tail_lines = await self._pool.get_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
         sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
         await log_audit(
             run_id,
@@ -257,6 +290,59 @@ class AgentServer:
             await sandbox.close()
         await self._pool.destroy(run_id)
 
+    async def _snapshot_sandbox_config(
+        self,
+        run_id: str,
+        body: "StartRequest",
+    ) -> None:
+        """Snapshot the remote sandbox config to the run record before start.
+
+        Only called when body.sandbox_id is set. Reads config from DB settings
+        so the cleanup path knows which sandbox to tear down even if the agent
+        restarts mid-run.
+        """
+        if not body.sandbox_id:
+            return
+        config_str = await get_setting_value(
+            f"{REMOTE_SANDBOX_KEY_PREFIX}{body.sandbox_id}"
+        )
+        if config_str is None:
+            raise ValueError(
+                f"No remote sandbox config found for sandbox_id={body.sandbox_id}"
+            )
+        config: dict = json.loads(config_str)
+        await update_run_sandbox_snapshot(
+            run_id,
+            sandbox_id=body.sandbox_id,
+            sandbox_type=config["type"],
+            sandbox_ssh_target=config["ssh_target"],
+            sandbox_start_cmd=body.start_cmd,
+        )
+
+    async def _process_sandbox_events(
+        self,
+        run_id: str,
+        events: list[dict],
+    ) -> None:
+        """Process NDJSON events from pool.create() and write DB columns.
+
+        Handles: queued (sandbox_backend_id), ready (remote_host/port), log (audit).
+        """
+        for event in events:
+            etype = event.get("event")
+            if etype == "queued":
+                backend_id = event.get("backend_id")
+                if backend_id:
+                    await update_run_sandbox_backend_id(run_id, backend_id)
+                    await log_audit(run_id, "sandbox_queued", {"backend_id": backend_id})
+            elif etype == "ready":
+                host: str = event["host"]
+                port: int = event["port"]
+                await update_run_sandbox_remote_host(run_id, host, port)
+            elif etype == "log":
+                line: str = event.get("line", "")
+                await log_audit(run_id, "startup_log", {"line": line})
+
     async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
         run_id, github_repo, task, budget, git_token = self._validate_run_inputs(active, body)
@@ -265,15 +351,17 @@ class AgentServer:
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
-            sandbox, _events = await self._pool.create(
+            await self._snapshot_sandbox_config(run_id, body)
+            sandbox, events = await self._pool.create(
                 run_id,
                 self._health_timeout,
                 body.env,
                 body.host_mounts,
                 self._sandbox_secret,
-                None,
-                None,
+                body.sandbox_id,
+                body.start_cmd,
             )
+            await self._process_sandbox_events(run_id, events)
             await log_audit(run_id, "sandbox_created", {})
             bootstrap = await bootstrap_run(
                 sandbox=sandbox,
@@ -313,6 +401,9 @@ class AgentServer:
                 exec_timeout=self._exec_timeout,
             )
             active.status = terminal_status
+        except SandboxStartError as exc:
+            await self._emit_start_failed(run_id, exc, body.env)
+            raise
         except Exception as exc:
             # Capture sandbox logs before the finally-block destroys the
             # container. Otherwise failures lose their root cause. Persist

@@ -6,6 +6,7 @@ CONNECTOR_DEFAULT_PORT: int = 9400
 CONNECTOR_BIND_HOST: str = "127.0.0.1"
 
 CONNECTOR_SECRET_HEADER: str = "X-Connector-Secret"
+CONNECTOR_SECRET_ENV: str = "CONNECTOR_SECRET"
 SANDBOX_SECRET_HEADER: str = "X-Internal-Secret"
 
 TUNNEL_HEALTH_PROBE_INTERVAL_SEC: int = 30
@@ -30,6 +31,8 @@ DEFAULT_SECRET_DIR: str = "~/.autofyn/secrets"
 
 PROXY_TIMEOUT_SEC: int = 300
 PROXY_KEEPALIVE_TIMEOUT_SEC: int = 10
+
+SSH_TUNNEL_READY_TIMEOUT_SEC: int = 5
 
 # Allowlist regex for paths passed to SSH commands (secret_dir, run_key, etc.)
 SAFE_PATH_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9._/~\-]+$")

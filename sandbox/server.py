@@ -115,16 +115,6 @@ async def on_startup(app: web.Application) -> None:
     tracker.start()
 
 
-async def on_bind_ready(_app: web.Application) -> None:
-    """Print AF_BOUND marker for start command wrappers.
-
-    Uses the configured port. When AF_SANDBOX_PORT=0 (OS-assigned),
-    the actual port is printed by the custom runner in main().
-    """
-    if SANDBOX_PORT != 0:
-        print(f'AF_BOUND {{"port":{SANDBOX_PORT}}}', flush=True)
-
-
 async def on_shutdown(app: web.Application) -> None:
     """Stop all sessions and heartbeat tracker."""
     sessions: SessionManager = app["sessions"]
@@ -145,7 +135,6 @@ def main() -> None:
     """Start the sandbox HTTP server."""
     app = web.Application(middlewares=[auth_middleware, heartbeat_middleware])
     app.on_startup.append(on_startup)
-    app.on_startup.append(on_bind_ready)
     app.on_shutdown.append(on_shutdown)
 
     register_execute(app)
@@ -159,7 +148,13 @@ def main() -> None:
     if SANDBOX_PORT == 0:
         _run_with_dynamic_port(app)
     else:
+        _print_static_bound(SANDBOX_PORT)
         web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
+
+
+def _print_static_bound(port: int) -> None:
+    """Print AF_BOUND marker for a known port before run_app blocks."""
+    print(f'AF_BOUND {{"port":{port}}}', flush=True)
 
 
 def _run_with_dynamic_port(app: web.Application) -> None:

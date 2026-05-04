@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select, func
 
 from backend import auth
+from backend.endpoints.settings import validate_repo_slug
 from backend.utils import session, upsert_setting
 from db.constants import (
     ACTIVE_RUN_STATUSES,
@@ -210,6 +211,7 @@ async def get_last_start_cmd(
     repo: str = Query(...),
 ) -> dict[str, str | None]:
     """Get the last-used start command for a repo+sandbox combination."""
+    repo = validate_repo_slug(repo)
     key = f"{LAST_START_CMD_KEY_PREFIX}{repo}:{sandbox_id}"
     async with session() as s:
         setting = await s.get(Setting, key)
@@ -221,6 +223,7 @@ async def get_last_start_cmd(
 @router.get("/repos/{repo:path}/remote-mounts/{sandbox_id}")
 async def get_remote_mounts(repo: str, sandbox_id: str) -> dict[str, list[dict[str, str]]]:
     """Get host mounts for a remote sandbox + repo combination."""
+    repo = validate_repo_slug(repo)
     key = f"{REMOTE_MOUNTS_KEY_PREFIX}{repo}:{sandbox_id}"
     async with session() as s:
         setting = await s.get(Setting, key)
@@ -236,6 +239,7 @@ async def save_remote_mounts(
     body: SaveRemoteMountsRequest,
 ) -> dict[str, bool]:
     """Save host mounts for a remote sandbox + repo combination."""
+    repo = validate_repo_slug(repo)
     key = f"{REMOTE_MOUNTS_KEY_PREFIX}{repo}:{sandbox_id}"
     async with session() as s:
         if body.mounts:

@@ -38,10 +38,19 @@ class SandboxClient:
         close()  -> None
     """
 
-    def __init__(self, base_url: str, health_timeout: int, timeout: int) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        health_timeout: int,
+        timeout: int,
+        sandbox_secret: str | None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._health_timeout = health_timeout
-        secret = os.environ[ENV_KEY_SANDBOX_SECRET]
+        if sandbox_secret is not None:
+            secret = sandbox_secret
+        else:
+            secret = os.environ[ENV_KEY_SANDBOX_SECRET]
         if not secret:
             raise RuntimeError(
                 f"{ENV_KEY_SANDBOX_SECRET} is empty — refusing to talk to sandbox",

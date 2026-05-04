@@ -40,7 +40,6 @@ class SessionGate:
         """Build MCP server with end_round + end_session tools."""
         duration_min: float = config["duration_minutes"]
         start: float = config["start_time"]
-        run_id = self._run_id
         emit = self._emit
         mark_ended = self._mark_ended
         is_unlocked = self._is_unlocked

@@ -11,7 +11,7 @@ import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, fetchLastStartCmd } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 import { McpServersEditor } from "@/components/controls/McpServersEditor";
 
@@ -102,6 +102,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [envError, setEnvError] = useState<string | null>(null);
   const [mounts, setMounts] = useState<HostMount[]>([]);
   const [mountError, setMountError] = useState<string | null>(null);
+  const [mountsLoading, setMountsLoading] = useState(false);
   const [mcpText, setMcpText] = useState("");
   const [mcpError, setMcpError] = useState<string | null>(null);
   const [remoteSandboxes, setRemoteSandboxes] = useState<RemoteSandboxConfig[]>([]);
@@ -120,6 +121,29 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   }, []);
 
+  const loadMountsForSandbox = useCallback(async (sandboxId: string | null): Promise<void> => {
+    if (!activeRepo) {
+      setMounts([]);
+      return;
+    }
+    setMountsLoading(true);
+    setMountError(null);
+    try {
+      if (sandboxId === null) {
+        const loaded = await fetchRepoMounts(activeRepo);
+        setMounts(loaded);
+      } else {
+        const loaded = await fetchRemoteMounts(activeRepo, sandboxId);
+        setMounts(loaded);
+      }
+    } catch (e) {
+      setMountError(e instanceof Error ? e.message : "Failed to load mounts");
+      setMounts([]);
+    } finally {
+      setMountsLoading(false);
+    }
+  }, [activeRepo]);
+
   useEffect(() => {
     adjustPromptHeight();
   }, [customPrompt, adjustPromptHeight]);
@@ -135,23 +159,20 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   useEffect(() => {
     if (open && activeRepo) {
       setEnvError(null);
-      setMountError(null);
       setMcpError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       }).catch(() => {
         setEnvError("Failed to load environment variables");
       });
-      fetchRepoMounts(activeRepo).then(setMounts).catch(() => {
-        setMountError("Failed to load host mounts");
-      });
+      loadMountsForSandbox(selectedSandboxId);
       fetchRepoMcpServers(activeRepo).then((servers) => {
         setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
       }).catch(() => {
         setMcpError("Failed to load MCP servers");
       });
     }
-  }, [open, activeRepo]);
+  }, [open, activeRepo, loadMountsForSandbox]);
 
   useEffect(() => {
     if (open) setTimeout(() => textareaRef.current?.focus(), 150);
@@ -189,7 +210,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         return;
       }
       try {
-        await saveRepoMounts(activeRepo, mounts);
+        if (selectedSandboxId === null) {
+          await saveRepoMounts(activeRepo, mounts);
+        } else {
+          await saveRemoteMounts(activeRepo, selectedSandboxId, mounts);
+        }
         setMountError(null);
       } catch (e) {
         setMountError(e instanceof Error ? e.message : "Failed to save mounts");
@@ -220,7 +245,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const budgetSummary = budgetEnabled ? `$${budget}` : "Unlimited";
   const envCount = countEnvVars(envText);
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
-  const mountSummary = mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None";
+  const mountSummary = mountsLoading ? "Loading..." : (mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None");
   const mcpSummary = mcpText.trim() ? "Configured" : "None";
   const selectedDurationPreset = DURATION_PRESETS.find((d) => d.minutes === duration);
 
@@ -270,7 +295,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Sandbox</label>
                     <div className="flex gap-1.5 flex-wrap mt-2">
                       <button
-                        onClick={() => { setSelectedSandboxId(null); setStartCmd(""); }}
+                        onClick={() => {
+                          setSelectedSandboxId(null);
+                          setStartCmd("");
+                          loadMountsForSandbox(null);
+                        }}
                         className={clsx(
                           "text-content px-3 py-2 rounded border transition-all",
                           selectedSandboxId === null
@@ -283,9 +312,18 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                       {remoteSandboxes.map((s) => (
                         <button
                           key={s.id}
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedSandboxId(s.id);
-                            setStartCmd(s.default_start_cmd);
+                            loadMountsForSandbox(s.id);
+                            if (activeRepo) {
+                              const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch((err) => {
+                                console.warn("Failed to fetch last start cmd:", err);
+                                return null;
+                              });
+                              setStartCmd(lastCmd ?? s.default_start_cmd);
+                            } else {
+                              setStartCmd(s.default_start_cmd);
+                            }
                           }}
                           className={clsx(
                             "text-content px-3 py-2 rounded border transition-all",
