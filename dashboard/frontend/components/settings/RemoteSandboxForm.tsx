@@ -74,12 +74,12 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="SSH Target">
+        <FormField label="SSH">
           <input
             type="text"
             value={data.ssh_target}
             onChange={(e) => update({ ssh_target: e.target.value })}
-            placeholder="user@hostname"
+            placeholder="ssh user@hostname"
             className={INPUT_CLASS}
           />
         </FormField>
