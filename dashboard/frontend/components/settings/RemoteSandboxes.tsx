@@ -116,10 +116,15 @@ export function RemoteSandboxes(): React.ReactElement {
       </div>
 
       <p className="text-body text-text-muted mb-3">
-        Pull the sandbox image on your remote machine first:{" "}
-        <code className="text-caption text-text-secondary">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>{" "}
-        or <code className="text-caption text-text-secondary">apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>.{" "}
-        Then add a config below — the start command is how you run that image.
+        Run on remote machines via SSH.{" "}
+        <a
+          href="https://github.com/SignalPilot-Labs/AutoFyn#remote-sandboxes"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#88ccff] hover:underline"
+        >
+          Setup guide
+        </a>
       </p>
 
       <div className="space-y-1.5 mb-3">
@@ -167,7 +172,7 @@ export function RemoteSandboxes(): React.ReactElement {
 
         {sandboxes.length === 0 && !showForm && (
           <div className="px-2.5 py-3 text-content text-text-secondary text-center">
-            No remote sandboxes configured. Runs use the local Docker sandbox by default.
+            No remote sandboxes configured.
           </div>
         )}
       </div>

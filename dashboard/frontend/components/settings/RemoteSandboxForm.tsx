@@ -11,6 +11,11 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
   { value: "slurm", label: "Slurm" },
 ];
 
+const START_CMD_PLACEHOLDERS: Record<string, string> = {
+  docker: "docker run --rm --gpus all ghcr.io/signalpilot-labs/autofyn-sandbox:stable",
+  slurm: "srun --gpus=1 apptainer run --nv ~/.autofyn/sandbox.sif python3 -m sandbox.server",
+};
+
 interface RemoteSandboxFormProps {
   data: SandboxFormData;
   onChange: (data: SandboxFormData) => void;
@@ -22,14 +27,18 @@ interface RemoteSandboxFormProps {
 
 function FormField(props: {
   label: string;
+  hint?: string;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
     <div>
-      <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">
+      <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
         {props.label}
       </label>
       {props.children}
+      {props.hint && (
+        <p className="text-body text-text-dim mt-0.5">{props.hint}</p>
+      )}
     </div>
   );
 }
@@ -65,12 +74,12 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="Command">
+        <FormField label="SSH Target">
           <input
             type="text"
             value={data.ssh_target}
             onChange={(e) => update({ ssh_target: e.target.value })}
-            placeholder="ssh user@host"
+            placeholder="user@hostname"
             className={INPUT_CLASS}
           />
         </FormField>
@@ -96,44 +105,32 @@ export function RemoteSandboxForm({
         </div>
       </FormField>
 
-      <FormField label="Default Start Command">
+      <FormField label="Start Command">
         <textarea
           value={data.default_start_cmd}
           onChange={(e) => update({ default_start_cmd: e.target.value })}
-          placeholder="docker run --rm -it my-sandbox:latest"
+          placeholder={START_CMD_PLACEHOLDERS[data.type]}
           rows={2}
           className={`${INPUT_CLASS} resize-y`}
         />
       </FormField>
 
-      <FormField label="Secret Dir">
-        <input
-          type="text"
-          value={data.secret_dir}
-          onChange={(e) => update({ secret_dir: e.target.value })}
-          placeholder="~/.autofyn/secrets"
-          className={INPUT_CLASS}
-        />
-      </FormField>
-
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Startup Timeout (s)">
+        <FormField label="Startup Timeout (s)" hint="Max wait for sandbox to be ready.">
           <input
             type="number"
             value={data.queue_timeout}
             onChange={(e) => update({ queue_timeout: Number(e.target.value) })}
             className={INPUT_CLASS}
           />
-          <p className="text-caption text-text-dim mt-0.5">Give up if sandbox isn&apos;t ready in this time. Includes queue wait + boot.</p>
         </FormField>
-        <FormField label="Inactivity Timeout (s)">
+        <FormField label="Inactivity Timeout (s)" hint="Sandbox exits after this long idle.">
           <input
             type="number"
             value={data.heartbeat_timeout}
             onChange={(e) => update({ heartbeat_timeout: Number(e.target.value) })}
             className={INPUT_CLASS}
           />
-          <p className="text-caption text-text-dim mt-0.5">Sandbox shuts itself down after this long with no activity.</p>
         </FormField>
       </div>
 
