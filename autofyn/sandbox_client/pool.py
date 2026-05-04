@@ -18,10 +18,8 @@ from db.constants import validate_host_mount
 from utils.constants import (
     AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
-    ENV_KEY_AGENT_URL,
     ENV_KEY_ALLOW_DOCKER,
     ENV_KEY_IMAGE_TAG,
-    SANDBOX_POOL_AGENT_URL,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE_BASE,
@@ -52,12 +50,9 @@ class SandboxPool:
 
         Passes auth tokens so the Claude SDK and git operations work inside
         the sandbox. These are stripped from subprocess env by _safe_env().
-        AF_AGENT_URL is hardcoded to the agent container name on the compose
-        network — pool sandboxes always reach the agent at that address.
         """
         env: dict[str, str] = {
             "GIT_TERMINAL_PROMPT": "0",
-            ENV_KEY_AGENT_URL: SANDBOX_POOL_AGENT_URL,
         }
         for key in _PASSTHROUGH_ENV_VARS:
             val = os.environ.get(key, "")

@@ -15,11 +15,11 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from constants import SESSION_EVENT_QUEUE_SIZE, TERMINAL_EVENTS
+from session.event_log import SessionEventLog, SessionEventLogOverflow, SESSION_EVENT_LOG_MAX_BYTES
 from session.gate import SessionGate
 from session.hooks import SessionHooks
 from session.security import SecurityGate
-from session.utils import log_audit, parse_agents, serialize_message
+from session.utils import parse_agents, serialize_message
 
 log = logging.getLogger("sandbox.session")
 
@@ -29,20 +29,22 @@ class Session:
 
     Public API (used by SessionManager):
         run()           — start the SDK loop
-        events          — asyncio.Queue of SSE events
+        event_log       — SessionEventLog for SSE streaming
         client          — ClaudeSDKClient (set after run starts)
         task            — asyncio.Task wrapping run()
         unlocked        — force-unlock flag for time gate
+        finished        — True when the SDK task has completed
     """
 
     def __init__(self, session_id: str, options_dict: dict) -> None:
         self.session_id = session_id
         self.options_dict = options_dict
-        self.events: asyncio.Queue = asyncio.Queue(maxsize=SESSION_EVENT_QUEUE_SIZE)
+        self.event_log: SessionEventLog = SessionEventLog(SESSION_EVENT_LOG_MAX_BYTES)
         self.client: ClaudeSDKClient | None = None
         self.task: asyncio.Task | None = None
         self._ended = False
         self.unlocked = False
+        self.finished = False
         self._hooks = SessionHooks(self._run_id, self._emit)
         self._gate = SessionGate(
             self._run_id,
@@ -84,66 +86,14 @@ class Session:
         self._ended = True
 
     def _emit(self, event: dict) -> None:
-        """Put event on queue. Terminal events are never dropped."""
+        """Append event to the sequenced event log. Fails loudly on overflow."""
         try:
-            self.events.put_nowait(event)
-        except asyncio.QueueFull:
-            is_terminal = event.get("event") in TERMINAL_EVENTS
-            if is_terminal:
-                self._force_enqueue_terminal(event)
-            else:
-                self._drop_oldest_and_enqueue(event)
-
-    def _force_enqueue_terminal(self, event: dict) -> None:
-        """Drain the queue, drop one non-terminal item, re-enqueue all plus terminal."""
-        drained: list[dict] = []
-        while True:
-            try:
-                drained.append(self.events.get_nowait())
-            except asyncio.QueueEmpty:
-                break
-
-        dropped = False
-        kept: list[dict] = []
-        for item in drained:
-            if not dropped and item.get("event") not in TERMINAL_EVENTS:
-                log.warning(
-                    "Session %s queue full, dropping non-terminal event to make room for terminal",
-                    self.session_id,
-                )
-                dropped = True
-            else:
-                kept.append(item)
-
-        if not dropped:
-            log.error(
-                "Session %s queue full of terminal events — dropping oldest terminal to fit new one",
-                self.session_id,
+            self.event_log.append(
+                event.get("event", "message"),
+                event.get("data", {}),
             )
-            if kept:
-                kept.pop(0)
-
-        for item in kept:
-            try:
-                self.events.put_nowait(item)
-            except asyncio.QueueFull:
-                break
-        try:
-            self.events.put_nowait(event)
-        except asyncio.QueueFull:
-            log.error("Session %s failed to enqueue terminal event after drain", self.session_id)
-
-    def _drop_oldest_and_enqueue(self, event: dict) -> None:
-        """Drop oldest item and attempt to insert a non-terminal event."""
-        log.warning("Session %s queue full, dropping oldest", self.session_id)
-        try:
-            self.events.get_nowait()
-        except asyncio.QueueEmpty:
-            pass
-        try:
-            self.events.put_nowait(event)
-        except asyncio.QueueFull:
-            log.warning("Session %s queue still full after drop, non-terminal event lost", self.session_id)
+        except SessionEventLogOverflow:
+            log.error("Session %s event log overflow — session will fail", self.session_id)
 
     # ── Options building ──────────────────────────────────────────────
 
@@ -201,11 +151,13 @@ class Session:
         ) -> PermissionResultAllow | PermissionResultDeny:
             deny = gate.check_permission(tool_name, input_data)
             if deny:
-                await log_audit(
-                    self._run_id,
-                    "permission_denied",
-                    {"tool_name": tool_name, "reason": deny},
-                )
+                self._emit({
+                    "event": "audit",
+                    "data": {
+                        "event_type": "permission_denied",
+                        "details": {"tool_name": tool_name, "reason": deny},
+                    },
+                })
                 return PermissionResultDeny(message=deny)
             return PermissionResultAllow(updated_input=input_data)
 

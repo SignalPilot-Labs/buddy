@@ -149,6 +149,7 @@ class RoundRunner:
         """Race SSE stream vs user inbox vs idle timeout until the round ends."""
         stream_iter: AsyncGenerator[dict, None] = self._sandbox.session.stream_events(
             session_id,
+            after_seq=0,
         )
 
         sse_task = asyncio.create_task(_next_event(stream_iter))
@@ -389,11 +390,15 @@ class RoundRunner:
     # ── Teardown ───────────────────────────────────────────────────────
 
     async def _safe_stop(self, session_id: str) -> None:
-        """Best-effort stop; sandbox may already have torn down."""
+        """Best-effort stop + delete; sandbox may already have torn down."""
         try:
             await self._sandbox.session.stop(session_id)
         except Exception as exc:
             log.warning("[%s] stop_session failed: %s", self._rid, exc, exc_info=True)
+        try:
+            await self._sandbox.session.delete(session_id)
+        except Exception as exc:
+            log.warning("[%s] delete_session failed: %s", self._rid, exc, exc_info=True)
 
 
 async def _next_event(stream_iter: AsyncGenerator[dict, None]) -> dict | None:

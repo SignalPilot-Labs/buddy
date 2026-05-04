@@ -27,10 +27,6 @@ SANDBOX_HOST: str = "0.0.0.0"
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"
 INTERNAL_SECRET_ENV_VAR: str = "SANDBOX_INTERNAL_SECRET"
 
-# ── Agent HTTP client ──
-# Env var name for the agent URL. Set by docker-compose.yml for the static
-# sandbox; injected directly by pool.py for pool-created sandboxes.
-AGENT_URL_ENV_VAR: str = "AF_AGENT_URL"
 
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg["credential_patterns"]
@@ -38,7 +34,6 @@ SECRET_ENV_VARS: str = _security_cfg["secret_env_vars"]
 
 # ── Session ──
 MAX_CONCURRENT_SESSIONS: int = _cfg["max_concurrent_sessions"]
-SESSION_EVENT_QUEUE_SIZE: int = _cfg["session_event_queue_size"]
 
 # ── Time Lock ──
 EARLY_EXIT_THRESHOLD_MIN: float = _cfg["early_exit_threshold_min"]
@@ -72,10 +67,6 @@ FS_PATH_EMPTY_MSG: str = "Path must not be empty"
 RETRY_MAX_ATTEMPTS: int = _cfg["retry_max_attempts"]
 RETRY_BASE_DELAY_SEC: float = _cfg["retry_base_delay_sec"]
 
-# ── Agent HTTP client (event logging POSTs to agent container) ──
-AGENT_HTTP_TIMEOUT_SEC: int = 10
-AGENT_LOG_RETRY_ATTEMPTS: int = 3
-AGENT_LOG_RETRY_BASE_SEC: float = 0.5
 RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
     "error connecting",
     "connection refused",
@@ -110,9 +101,6 @@ STDERR_BRIEF_LIMIT: int = 200
 # ── Auto-commit message ──
 AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 
-# ── Terminal session events ──
-# These events must never be dropped from the queue; they signal session end.
-TERMINAL_EVENTS: frozenset[str] = frozenset({"session_end", "session_error"})
 
 # ── Security: git remote write subcommands ──
 # Matches only remote-mutating subcommands. Read-only commands like

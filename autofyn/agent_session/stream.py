@@ -4,13 +4,16 @@ Pure logic: consumes one event, mutates the RunContext, returns a
 StreamSignal telling the session runner what action to take. No
 asyncio.wait, no inbox, no sandbox interaction — those belong to the
 runner. The StreamSignal dataclass lives in utils.models.
+
+After SSE consolidation, the dispatcher also writes tool call and
+audit event records to the DB (previously done by sandbox POSTs).
 """
 
 import logging
 
 from agent_session.tracker import SubagentTracker
 from utils import db
-from utils.db_logging import log_audit
+from utils.db_logging import log_audit, log_audit_idempotent, log_tool_call_idempotent
 from utils.constants import (
     LOG_PREVIEW_LIMIT,
     USAGE_EMIT_INTERVAL,
@@ -71,11 +74,11 @@ class StreamDispatcher:
             return StreamSignal(kind="continue")
 
         if kind == "tool_use":
-            self._handle_tool_use(data)
+            await self._handle_tool_use(data)
             return StreamSignal(kind="continue")
 
         if kind == "tool_done":
-            self._handle_tool_done(data)
+            await self._handle_tool_done(data)
             return StreamSignal(kind="continue")
 
         if kind == "subagent_start":
@@ -85,6 +88,10 @@ class StreamDispatcher:
         if kind == "subagent_stop":
             self._handle_subagent_stop(data)
             return StreamSignal(kind="subagent_boundary")
+
+        if kind == "audit":
+            await self._handle_audit(data)
+            return StreamSignal(kind="continue")
 
         if kind == "rate_limit":
             # The SDK emits `rate_limit` events for THREE statuses:
@@ -203,17 +210,61 @@ class StreamDispatcher:
         if agent_id:
             self._tracker.record_stop(agent_id)
 
-    def _handle_tool_use(self, data: dict) -> None:
-        """Track tool start for both subagents and orchestrator."""
+    async def _handle_tool_use(self, data: dict) -> None:
+        """Track tool start and write pre-phase record to DB."""
         self._tools_in_flight += 1
         agent_id: str | None = data.get("agent_id")
         self._tracker.record_tool_use(agent_id)
 
-    def _handle_tool_done(self, data: dict) -> None:
-        """Track tool completion for both subagents and orchestrator."""
+        seq = data.get("seq")
+        await log_tool_call_idempotent(
+            run_id=self._run.run_id,
+            phase="pre",
+            tool_name=data.get("tool_name", ""),
+            input_data=data.get("input_data"),
+            output_data=None,
+            duration_ms=None,
+            permitted=True,
+            deny_reason=None,
+            agent_role=data.get("agent_role", ""),
+            tool_use_id=data.get("tool_use_id"),
+            session_id=data.get("session_id"),
+            agent_id=agent_id,
+            idempotency_key=seq,
+        )
+
+    async def _handle_tool_done(self, data: dict) -> None:
+        """Track tool completion and write post-phase record to DB."""
         self._tools_in_flight = max(0, self._tools_in_flight - 1)
         agent_id: str | None = data.get("agent_id")
         self._tracker.record_tool_done(agent_id)
+
+        seq = data.get("seq")
+        await log_tool_call_idempotent(
+            run_id=self._run.run_id,
+            phase="post",
+            tool_name=data.get("tool_name", ""),
+            input_data=data.get("input_data"),
+            output_data=data.get("output_data"),
+            duration_ms=data.get("duration_ms"),
+            permitted=data.get("permitted", True),
+            deny_reason=data.get("deny_reason"),
+            agent_role=data.get("agent_role", ""),
+            tool_use_id=data.get("tool_use_id"),
+            session_id=data.get("session_id"),
+            agent_id=agent_id,
+            idempotency_key=seq,
+        )
+
+    async def _handle_audit(self, data: dict) -> None:
+        """Write a sandbox-originated audit event to DB with idempotency key."""
+        seq = data.get("seq")
+        await log_audit_idempotent(
+            self._run.run_id,
+            data.get("event_type", ""),
+            data.get("details"),
+            seq,
+        )
 
     async def _handle_result(self, data: dict) -> None:
         """Persist the SDK session id and settle cost.

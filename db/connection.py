@@ -76,6 +76,7 @@ async def run_migrations() -> None:
         await _migrate_context_tokens_column(conn)
         await _migrate_model_name_column(conn)
         await _migrate_branch_name_nullable(conn)
+        await _migrate_idempotency_key_columns(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -163,6 +164,35 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     if _session_factory is None:
         raise RuntimeError("Not connected. Call connect() first.")
     return _session_factory
+
+
+async def _migrate_idempotency_key_columns(conn) -> None:
+    """Add idempotency_key columns and partial unique indexes for SSE consolidation.
+
+    Enables idempotent upserts on reconnect — duplicate event delivery
+    from the sandbox event log is silently skipped via ON CONFLICT DO NOTHING.
+    """
+    for table in ("tool_calls", "audit_log"):
+        result = await conn.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :table AND column_name = 'idempotency_key'"
+        ), {"table": table})
+        if result.first() is None:
+            await conn.execute(text(
+                f"ALTER TABLE {table} ADD COLUMN idempotency_key INTEGER"
+            ))
+            log.info("Added column %s.idempotency_key", table)
+
+        idx_name = f"uq_{table}_idempotency"
+        result = await conn.execute(text(
+            "SELECT 1 FROM pg_indexes WHERE indexname = :idx"
+        ), {"idx": idx_name})
+        if result.first() is None:
+            await conn.execute(text(
+                f"CREATE UNIQUE INDEX {idx_name} ON {table} (run_id, idempotency_key) "
+                f"WHERE idempotency_key IS NOT NULL"
+            ))
+            log.info("Created partial unique index %s", idx_name)
 
 
 async def close() -> None:

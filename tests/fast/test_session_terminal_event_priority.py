@@ -1,143 +1,156 @@
-"""Regression tests for terminal event priority in Session._emit().
+"""Tests for SessionEventLog — the sequenced event log that replaced asyncio.Queue.
 
-Terminal events (session_end, session_error) must never be dropped from the
-queue even when the queue is full — they signal session completion and must
-reach the SSE consumer. Non-terminal events may be dropped when the queue is
-saturated.
+Verifies: append, overflow, read_after, trim_through, gap detection.
 """
 
 import asyncio
-from unittest.mock import patch
 
 import pytest
 
-from session.session import Session
+from session.event_log import (
+    SessionEventLog,
+    SessionEventLogOverflow,
+    SessionEventGap,
+)
 
 
-def _make_session(queue_size: int) -> Session:
-    """Build a minimal Session with a given queue size."""
-    options: dict = {
-        "run_id": "test-run",
-        "github_repo": "org/repo",
-        "branch_name": "main",
-        "model": "claude-opus-4-5",
-        "effort": "normal",
-        "system_prompt": "test",
-        "cwd": "/tmp",
-        "add_dirs": [],
-        "setting_sources": [],
-        "max_budget_usd": 1.0,
-        "fallback_model": None,
-        "resume": None,
-        "mcp_servers": {},
-        "session_gate": None,
-        "agents": None,
-        "initial_prompt": "hi",
-    }
-    with patch("session.session.SESSION_EVENT_QUEUE_SIZE", queue_size):
-        s = Session("test-session", options)
-    # Replace queue with a small one to force full conditions
-    s.events = asyncio.Queue(maxsize=queue_size)
-    return s
+class TestSessionEventLog:
+    """Verify SessionEventLog correctness."""
 
+    def test_append_and_read(self) -> None:
+        """Events are appended with monotonic seq numbers."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("tool_use", {"tool": "Edit"})
+        log.append("tool_done", {"tool": "Edit"})
 
-def _fill_queue(session: Session, count: int, event_type: str) -> None:
-    """Fill the session queue with non-terminal events."""
-    for i in range(count):
-        session.events.put_nowait({"event": event_type, "data": {"i": i}})
-
-
-class TestSessionTerminalEventPriority:
-    """Verify terminal events survive queue-full conditions."""
+        assert log.latest_seq == 2
 
     @pytest.mark.asyncio
-    async def test_terminal_event_enqueued_when_queue_full_of_non_terminal(self) -> None:
-        """Terminal event must displace a non-terminal event when queue is full."""
-        session = _make_session(queue_size=2)
-        _fill_queue(session, 2, "message")
+    async def test_read_after_returns_events(self) -> None:
+        """read_after returns events with seq > after_seq."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {"i": 1})
+        log.append("b", {"i": 2})
+        log.append("c", {"i": 3})
 
-        assert session.events.full()
-        session._emit({"event": "session_end", "data": {}})
-
-        events = []
-        while not session.events.empty():
-            events.append(session.events.get_nowait())
-
-        event_types = [e["event"] for e in events]
-        assert "session_end" in event_types
-
-    @pytest.mark.asyncio
-    async def test_session_error_enqueued_when_queue_full(self) -> None:
-        """session_error must also displace a non-terminal event."""
-        session = _make_session(queue_size=2)
-        _fill_queue(session, 2, "message")
-
-        session._emit({"event": "session_error", "data": {"error": "boom"}})
-
-        events = []
-        while not session.events.empty():
-            events.append(session.events.get_nowait())
-
-        event_types = [e["event"] for e in events]
-        assert "session_error" in event_types
-
-    @pytest.mark.asyncio
-    async def test_terminal_event_enqueued_when_queue_full_of_terminal_events(self) -> None:
-        """Even when all queued items are terminal, a new terminal event must get in.
-
-        The oldest terminal is dropped with an error log.
-        """
-        session = _make_session(queue_size=2)
-        session.events.put_nowait({"event": "session_end", "data": {"first": True}})
-        session.events.put_nowait({"event": "session_error", "data": {"x": 1}})
-
-        with patch("session.session.log") as mock_log:
-            session._emit({"event": "session_end", "data": {"last": True}})
-            mock_log.error.assert_called()
-
-        events = []
-        while not session.events.empty():
-            events.append(session.events.get_nowait())
-
+        events = await log.read_after(1)
         assert len(events) == 2
-        # New terminal event must be present
-        assert any(e.get("data", {}).get("last") for e in events)
+        assert events[0].seq == 2
+        assert events[1].seq == 3
 
     @pytest.mark.asyncio
-    async def test_non_terminal_event_dropped_when_queue_full(self) -> None:
-        """Non-terminal events are dropped (oldest) when queue is full."""
-        session = _make_session(queue_size=2)
-        session.events.put_nowait({"event": "message", "data": {"seq": 0}})
-        session.events.put_nowait({"event": "message", "data": {"seq": 1}})
+    async def test_read_after_zero_returns_all(self) -> None:
+        """read_after(0) returns all events."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {})
+        log.append("b", {})
 
-        with patch("session.session.log") as mock_log:
-            session._emit({"event": "message", "data": {"seq": 2}})
-            mock_log.warning.assert_called()
+        events = await log.read_after(0)
+        assert len(events) == 2
 
-        events = []
-        while not session.events.empty():
-            events.append(session.events.get_nowait())
+    def test_overflow_fails_loudly(self) -> None:
+        """Exceeding max_bytes raises SessionEventLogOverflow."""
+        log = SessionEventLog(max_bytes=50)
+        log.append("small", {"x": 1})
 
-        seqs = [e["data"]["seq"] for e in events]
-        # Oldest (seq=0) dropped, seq=1 and seq=2 remain
-        assert 0 not in seqs
-        assert 2 in seqs
+        with pytest.raises(SessionEventLogOverflow):
+            log.append("big", {"data": "x" * 100})
+
+    def test_overflow_marks_failed(self) -> None:
+        """After overflow, further appends also raise."""
+        log = SessionEventLog(max_bytes=50)
+        log.append("small", {"x": 1})
+
+        with pytest.raises(SessionEventLogOverflow):
+            log.append("big", {"data": "x" * 100})
+
+        with pytest.raises(SessionEventLogOverflow):
+            log.append("another", {})
 
     @pytest.mark.asyncio
-    async def test_second_queue_full_on_non_terminal_logs_warning(self) -> None:
-        """If the second put_nowait fails (extremely unlikely), it must log, not pass silently."""
-        session = _make_session(queue_size=1)
-        session.events.put_nowait({"event": "message", "data": {}})
+    async def test_overflow_event_is_readable(self) -> None:
+        """The overflow event itself is appended with a seq and readable."""
+        log = SessionEventLog(max_bytes=50)
+        log.append("small", {"x": 1})
 
-        # Patch get_nowait to not actually remove anything, so queue stays full
-        original_get = session.events.get_nowait
+        with pytest.raises(SessionEventLogOverflow):
+            log.append("big", {"data": "x" * 100})
 
-        def _no_op_get() -> dict:
-            # Consume it to allow second put, but we want to test the log path.
-            # Instead just remove the item normally — the second put succeeds.
-            return original_get()
+        events = await log.read_after(1)
+        assert len(events) == 1
+        assert events[0].event == "session_event_log_overflow"
+        assert events[0].seq == 2
 
-        with patch("session.session.log") as mock_log:
-            session._emit({"event": "message", "data": {"new": True}})
-            # Warning was called for the first drop
-            mock_log.warning.assert_called()
+    def test_trim_through_removes_events(self) -> None:
+        """trim_through discards events and frees bytes."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {"i": 1})
+        log.append("b", {"i": 2})
+        log.append("c", {"i": 3})
+
+        log.trim_through(2)
+        assert len(log._events) == 1
+        assert log._events[0].seq == 3
+        assert log._low_water_mark == 2
+
+    def test_trim_through_frees_bytes(self) -> None:
+        """Total bytes decrease after trimming."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {"data": "x" * 100})
+        bytes_before = log._total_bytes
+
+        log.trim_through(1)
+        assert log._total_bytes < bytes_before
+
+    @pytest.mark.asyncio
+    async def test_gap_detection(self) -> None:
+        """read_after raises SessionEventGap if after_seq < low_water_mark."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {})
+        log.append("b", {})
+        log.append("c", {})
+
+        log.trim_through(2)
+
+        with pytest.raises(SessionEventGap):
+            await log.read_after(0)
+
+    @pytest.mark.asyncio
+    async def test_read_after_at_low_water_mark_works(self) -> None:
+        """read_after(low_water_mark) is valid — returns events after the mark."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {})
+        log.append("b", {})
+        log.append("c", {})
+
+        log.trim_through(2)
+
+        events = await log.read_after(2)
+        assert len(events) == 1
+        assert events[0].seq == 3
+
+    @pytest.mark.asyncio
+    async def test_read_after_waits_for_new_events(self) -> None:
+        """read_after blocks until a new event is appended."""
+        log = SessionEventLog(max_bytes=10_000)
+        log.append("a", {})
+
+        async def _delayed_append() -> None:
+            await asyncio.sleep(0.01)
+            log.append("b", {"delayed": True})
+
+        task = asyncio.create_task(_delayed_append())
+        events = await log.read_after(1)
+        await task
+
+        assert len(events) == 1
+        assert events[0].data["delayed"] is True
+
+    def test_seq_included_in_append_return(self) -> None:
+        """append returns the assigned seq."""
+        log = SessionEventLog(max_bytes=10_000)
+        seq1 = log.append("a", {})
+        seq2 = log.append("b", {})
+
+        assert seq1 == 1
+        assert seq2 == 2

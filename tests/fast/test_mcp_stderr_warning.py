@@ -22,8 +22,6 @@ for mod in (
 
 # Stub constants that session.py imports.
 constants_stub = MagicMock()
-constants_stub.SESSION_EVENT_QUEUE_SIZE = 100
-constants_stub.TERMINAL_EVENTS = frozenset({"session_end", "session_error"})
 sys.modules["constants"] = constants_stub
 
 from session.session import Session  # noqa: E402
@@ -35,6 +33,11 @@ def _make_session() -> Session:
         session_id="test-session",
         options_dict={"run_id": "test-run"},
     )
+
+
+def _drain_events(s: Session) -> list:
+    """Read all events from the session's event log."""
+    return list(s.event_log._events)
 
 
 class TestCheckMcpStatusEmitsWarnings:
@@ -53,10 +56,11 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        event = s.events.get_nowait()
-        assert event["event"] == "mcp_warning"
-        assert "bad-server" in event["data"]["message"]
-        assert "ENOENT" in event["data"]["message"]
+        events = _drain_events(s)
+        assert len(events) == 1
+        assert events[0].event == "mcp_warning"
+        assert "bad-server" in events[0].data["message"]
+        assert "ENOENT" in events[0].data["message"]
 
     @pytest.mark.asyncio
     async def test_connected_server_no_warning(self) -> None:
@@ -71,7 +75,7 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        assert s.events.empty()
+        assert len(_drain_events(s)) == 0
 
     @pytest.mark.asyncio
     async def test_multiple_failures(self) -> None:
@@ -88,12 +92,10 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        events = []
-        while not s.events.empty():
-            events.append(s.events.get_nowait())
+        events = _drain_events(s)
         assert len(events) == 2
-        assert "a" in events[0]["data"]["message"]
-        assert "c" in events[1]["data"]["message"]
+        assert "a" in events[0].data["message"]
+        assert "c" in events[1].data["message"]
 
     @pytest.mark.asyncio
     async def test_get_mcp_status_exception_swallowed(self) -> None:
@@ -104,7 +106,7 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        assert s.events.empty()
+        assert len(_drain_events(s)) == 0
 
     @pytest.mark.asyncio
     async def test_empty_mcp_servers_no_warning(self) -> None:
@@ -115,7 +117,7 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        assert s.events.empty()
+        assert len(_drain_events(s)) == 0
 
     @pytest.mark.asyncio
     async def test_failed_server_without_error_field(self) -> None:
@@ -130,5 +132,6 @@ class TestCheckMcpStatusEmitsWarnings:
 
         await s._check_mcp_status(client)
 
-        event = s.events.get_nowait()
-        assert "connection failed" in event["data"]["message"]
+        events = _drain_events(s)
+        assert len(events) == 1
+        assert "connection failed" in events[0].data["message"]

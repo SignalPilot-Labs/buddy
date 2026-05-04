@@ -3,6 +3,9 @@
 Start a session, stream its SSE events back to the agent, send follow-up
 messages, interrupt, stop. The actual ClaudeSDKClient lives inside the
 sandbox container — this class only shuttles HTTP requests.
+
+After SSE consolidation, events include seq numbers for reconnection.
+The agent calls ack to trim processed events and delete to release the log.
 """
 
 import json
@@ -29,6 +32,8 @@ class Session:
         send_message(session_id, t) -> None
         interrupt(session_id)       -> None
         stop(session_id)            -> None
+        ack(session_id, seq)        -> None
+        delete(session_id)          -> None
     """
 
     def __init__(self, http: httpx.AsyncClient) -> None:
@@ -40,10 +45,17 @@ class Session:
         resp.raise_for_status()
         return resp.json()["session_id"]
 
-    async def stream_events(self, session_id: str) -> AsyncGenerator[dict, None]:
-        """Stream SSE events from a sandbox session."""
+    async def stream_events(
+        self,
+        session_id: str,
+        after_seq: int,
+    ) -> AsyncGenerator[dict, None]:
+        """Stream SSE events from a sandbox session, resuming from after_seq."""
         async with self._http.stream(
-            "GET", f"/session/{session_id}/events", timeout=None,
+            "GET",
+            f"/session/{session_id}/events",
+            params={"after_seq": str(after_seq)},
+            timeout=None,
         ) as resp:
             resp.raise_for_status()
             buffer = ""
@@ -79,6 +91,19 @@ class Session:
     async def unlock(self, session_id: str) -> None:
         """Force-unlock the session time gate in the sandbox."""
         resp = await self._http.post(f"/session/{session_id}/unlock")
+        resp.raise_for_status()
+
+    async def ack(self, session_id: str, seq: int) -> None:
+        """Acknowledge processed events, allowing the sandbox to trim them."""
+        resp = await self._http.post(
+            f"/session/{session_id}/ack",
+            params={"seq": str(seq)},
+        )
+        resp.raise_for_status()
+
+    async def delete(self, session_id: str) -> None:
+        """Delete a session and release its event log after draining."""
+        resp = await self._http.request("DELETE", f"/session/{session_id}")
         resp.raise_for_status()
 
 

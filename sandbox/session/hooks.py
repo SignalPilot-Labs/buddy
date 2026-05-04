@@ -3,6 +3,9 @@
 All six SDK hooks (PreToolUse, PostToolUse, PostToolUseFailure,
 SubagentStart, SubagentStop, Stop) live here. The Session class
 delegates hook registration to this module via build_hooks().
+
+After SSE consolidation, all data flows through the event log (via _emit).
+No HTTP POSTs to the agent — the sandbox is a pure server.
 """
 
 import logging
@@ -19,7 +22,7 @@ from claude_agent_sdk.types import (
 
 from constants import TASK_TOOL_NAME
 from models import ToolContext
-from session.utils import log_audit, log_tool_call, summarize
+from session.utils import summarize
 
 log = logging.getLogger("sandbox.session.hooks")
 
@@ -60,7 +63,7 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Log pre-tool to DB. Emit tool_use event for agent stuck tracking."""
+        """Emit enriched tool_use event with full input data."""
         tool_context = self._resolve_tool_context(hook_input, tool_use_id, False)
 
         if tool_context.agent_id:
@@ -68,13 +71,7 @@ class SessionHooks:
 
         self._pre_tool_times[tool_context.tool_use_id] = time.time()
         tool_input = hook_input.get("tool_input", {})
-        await log_tool_call(
-            self._run_id,
-            "pre",
-            tool_context,
-            summarize(tool_input),
-            None,
-        )
+
         # Queue parent Task tool_use_id for the SubagentStart that will
         # fire next. The SDK has no direct payload link between Agent
         # PreToolUse and SubagentStart, but it serializes them 1:1 even
@@ -85,7 +82,18 @@ class SessionHooks:
                     f"PreToolUse for {TASK_TOOL_NAME} fired without tool_use_id"
                 )
             self._pending_task_tool_use_ids.append(tool_use_id)
-        self._emit({"event": "tool_use", "data": {"agent_id": tool_context.agent_id}})
+
+        self._emit({
+            "event": "tool_use",
+            "data": {
+                "agent_id": tool_context.agent_id,
+                "tool_name": tool_context.tool_name,
+                "tool_use_id": tool_context.tool_use_id,
+                "session_id": tool_context.session_id,
+                "agent_role": tool_context.role,
+                "input_data": summarize(tool_input),
+            },
+        })
         return SyncHookJSONOutput()
 
     async def _hook_post_tool(
@@ -94,12 +102,25 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Log post-tool to DB with duration."""
+        """Emit enriched tool_done event with output data and duration."""
         tool_context = self._resolve_tool_context(hook_input, tool_use_id, True)
         response = hook_input.get("tool_response")
         out = summarize(response) if response is not None else None
-        await log_tool_call(self._run_id, "post", tool_context, None, out)
-        self._emit({"event": "tool_done", "data": {"agent_id": tool_context.agent_id}})
+
+        self._emit({
+            "event": "tool_done",
+            "data": {
+                "agent_id": tool_context.agent_id,
+                "tool_name": tool_context.tool_name,
+                "tool_use_id": tool_context.tool_use_id,
+                "session_id": tool_context.session_id,
+                "agent_role": tool_context.role,
+                "output_data": out,
+                "duration_ms": tool_context.duration_ms,
+                "permitted": True,
+                "deny_reason": None,
+            },
+        })
         return SyncHookJSONOutput()
 
     async def _hook_post_tool_failure(
@@ -108,11 +129,24 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Log failed tool to DB with error. Fires instead of PostToolUse on failure."""
+        """Emit enriched tool_done event with error on failure."""
         tool_context = self._resolve_tool_context(hook_input, tool_use_id, True)
         error = hook_input.get("error", "unknown error")
-        await log_tool_call(self._run_id, "post", tool_context, None, {"error": error})
-        self._emit({"event": "tool_done", "data": {"agent_id": tool_context.agent_id}})
+
+        self._emit({
+            "event": "tool_done",
+            "data": {
+                "agent_id": tool_context.agent_id,
+                "tool_name": tool_context.tool_name,
+                "tool_use_id": tool_context.tool_use_id,
+                "session_id": tool_context.session_id,
+                "agent_role": tool_context.role,
+                "output_data": {"error": error},
+                "duration_ms": tool_context.duration_ms,
+                "permitted": True,
+                "deny_reason": None,
+            },
+        })
         return SyncHookJSONOutput()
 
     def _resolve_tool_context(
@@ -147,7 +181,7 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Track subagent, log to DB, emit event for agent stuck detection."""
+        """Track subagent, emit audit + subagent_start events."""
         agent_id = hook_input.get("agent_id", "")
         agent_type = hook_input.get("agent_type", "")
         if not agent_id or not agent_type:
@@ -164,15 +198,18 @@ class SessionHooks:
         self._subagent_parent_tuids[agent_id] = parent_tuid
         self._subagent_start_times[agent_id] = time.time()
         self._subagent_types[agent_id] = agent_type
-        await log_audit(
-            self._run_id,
-            "subagent_start",
-            {
-                "agent_id": agent_id,
-                "agent_type": agent_type,
-                "parent_tool_use_id": parent_tuid,
+
+        self._emit({
+            "event": "audit",
+            "data": {
+                "event_type": "subagent_start",
+                "details": {
+                    "agent_id": agent_id,
+                    "agent_type": agent_type,
+                    "parent_tool_use_id": parent_tuid,
+                },
             },
-        )
+        })
         self._emit(
             {
                 "event": "subagent_start",
@@ -191,7 +228,7 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Clean up tracking, log final text + parent link to DB, emit event."""
+        """Clean up tracking, emit audit + subagent_stop events."""
         agent_id = hook_input.get("agent_id", "")
         if not agent_id:
             raise RuntimeError("SubagentStop missing agent_id")
@@ -205,15 +242,18 @@ class SessionHooks:
         self._subagent_start_times.pop(agent_id, None)
         self._subagent_last_tool.pop(agent_id, None)
         self._subagent_types.pop(agent_id, None)
-        await log_audit(
-            self._run_id,
-            "subagent_complete",
-            {
-                "agent_id": agent_id,
-                "parent_tool_use_id": parent_tuid,
-                "final_text": final_text,
+
+        self._emit({
+            "event": "audit",
+            "data": {
+                "event_type": "subagent_complete",
+                "details": {
+                    "agent_id": agent_id,
+                    "parent_tool_use_id": parent_tuid,
+                    "final_text": final_text,
+                },
             },
-        )
+        })
         self._emit(
             {
                 "event": "subagent_stop",
@@ -233,10 +273,12 @@ class SessionHooks:
         tool_use_id: str | None,
         context: HookContext,
     ) -> SyncHookJSONOutput:
-        """Log agent stop to DB."""
-        await log_audit(
-            self._run_id,
-            "agent_stop",
-            {"reason": hook_input.get("stop_reason", "unknown")},
-        )
+        """Emit agent stop as audit event."""
+        self._emit({
+            "event": "audit",
+            "data": {
+                "event_type": "agent_stop",
+                "details": {"reason": hook_input.get("stop_reason", "unknown")},
+            },
+        })
         return SyncHookJSONOutput()

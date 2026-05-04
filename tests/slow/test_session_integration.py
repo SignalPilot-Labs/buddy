@@ -1,12 +1,11 @@
 """Integration tests for Session → SessionHooks → SessionGate wiring.
 
 Verifies that the refactored Session correctly delegates to hooks and
-gate, and that the event queue receives the right SSE events through
+gate, and that the event log receives the right SSE events through
 the full call chain.
 """
 
 from typing import cast
-from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -38,20 +37,20 @@ def _context() -> HookContext:
     return cast(HookContext, {"cwd": "/tmp", "session_id": "s", "transcript_path": ""})
 
 
-def _drain_queue(session: Session) -> list[dict]:
-    """Drain all events from the session queue."""
-    events = []
-    while not session.events.empty():
-        events.append(session.events.get_nowait())
-    return events
+def _drain_events(session: Session) -> list[dict]:
+    """Read all events from the session's event log as dicts."""
+    return [
+        {"event": e.event, "data": e.data}
+        for e in session.event_log._events
+    ]
 
 
 class TestSessionDelegation:
     """Session must wire hooks and gate through _emit correctly."""
 
     @pytest.mark.asyncio
-    async def test_hook_events_reach_session_queue(self) -> None:
-        """Tool hooks called through session._hooks must emit to session.events."""
+    async def test_hook_events_reach_event_log(self) -> None:
+        """Tool hooks called through session._hooks must emit to event_log."""
         session = Session("sess-1", dict(BASE_OPTS))
         hooks = session._hooks
 
@@ -64,15 +63,14 @@ class TestSessionDelegation:
                 "session_id": "s",
             },
         )
-        with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(hook_input, "tu-1", _context())
+        await hooks._hook_pre_tool(hook_input, "tu-1", _context())
 
-        events = _drain_queue(session)
+        events = _drain_events(session)
         assert any(e["event"] == "tool_use" for e in events)
 
     @pytest.mark.asyncio
-    async def test_post_tool_done_reaches_queue(self) -> None:
-        """PostToolUse tool_done event must reach the session queue."""
+    async def test_post_tool_done_reaches_event_log(self) -> None:
+        """PostToolUse tool_done event must reach the event log."""
         session = Session("sess-1", dict(BASE_OPTS))
         hooks = session._hooks
 
@@ -85,10 +83,9 @@ class TestSessionDelegation:
                 "session_id": "s",
             },
         )
-        with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_post_tool(hook_input, "tu-1", _context())
+        await hooks._hook_post_tool(hook_input, "tu-1", _context())
 
-        events = _drain_queue(session)
+        events = _drain_events(session)
         assert any(e["event"] == "tool_done" for e in events)
 
     @pytest.mark.asyncio
@@ -109,7 +106,7 @@ class TestSessionDelegation:
 
 
 class TestFullToolLifecycle:
-    """End-to-end: pre_tool → post_tool produces tool_use + tool_done in queue."""
+    """End-to-end: pre_tool → post_tool produces tool_use + tool_done in log."""
 
     @pytest.mark.asyncio
     async def test_pre_then_post_produces_both_events(self) -> None:
@@ -135,11 +132,10 @@ class TestFullToolLifecycle:
             },
         )
 
-        with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(pre_input, "tu-1", _context())
-            await hooks._hook_post_tool(post_input, "tu-1", _context())
+        await hooks._hook_pre_tool(pre_input, "tu-1", _context())
+        await hooks._hook_post_tool(post_input, "tu-1", _context())
 
-        events = _drain_queue(session)
+        events = _drain_events(session)
         event_types = [e["event"] for e in events]
         assert event_types == ["tool_use", "tool_done"]
 
@@ -162,8 +158,7 @@ class TestFullSubagentLifecycle:
                 "session_id": "s",
             },
         )
-        with patch("session.hooks.log_tool_call", new_callable=AsyncMock):
-            await hooks._hook_pre_tool(pre_input, "toolu_parent", _context())
+        await hooks._hook_pre_tool(pre_input, "toolu_parent", _context())
 
         # 2. SubagentStart
         start_input = cast(
@@ -177,8 +172,7 @@ class TestFullSubagentLifecycle:
                 "hook_event_name": "SubagentStart",
             },
         )
-        with patch("session.hooks.log_audit", new_callable=AsyncMock):
-            await hooks._hook_subagent_start(start_input, "uuid", _context())
+        await hooks._hook_subagent_start(start_input, "uuid", _context())
 
         # 3. SubagentStop
         stop_input = cast(
@@ -195,12 +189,14 @@ class TestFullSubagentLifecycle:
                 "last_assistant_message": "all done",
             },
         )
-        with patch("session.hooks.log_audit", new_callable=AsyncMock):
-            await hooks._hook_subagent_stop(stop_input, "uuid", _context())
+        await hooks._hook_subagent_stop(stop_input, "uuid", _context())
 
-        events = _drain_queue(session)
+        events = _drain_events(session)
         event_types = [e["event"] for e in events]
-        assert event_types == ["tool_use", "subagent_start", "subagent_stop"]
+        # Hooks now emit audit events too (subagent_start/stop → audit + flow event)
+        assert "tool_use" in event_types
+        assert "subagent_start" in event_types
+        assert "subagent_stop" in event_types
         # State should be fully cleaned up
         assert len(hooks._subagent_parent_tuids) == 0
         assert len(hooks._subagent_start_times) == 0

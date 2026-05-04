@@ -1,8 +1,8 @@
 """Claude SDK session HTTP handlers for the sandbox.
 
-Thin wrappers around SessionManager: start, stream events, send follow-up
-messages, interrupt, stop. Each session is owned by the manager instance
-stored on the aiohttp app under the "sessions" key.
+Thin wrappers around SessionManager: start, stream events (with sequenced
+reads), send follow-up messages, interrupt, stop, ack, delete. Each session
+is owned by the manager instance stored on the aiohttp app under "sessions".
 """
 
 import asyncio
@@ -13,6 +13,7 @@ from aiohttp import web
 
 from session.errors import ClientNotReadyError
 from session.errors import SessionNotFoundError
+from session.event_log import SessionEventGap
 from session.manager import SessionManager
 
 log = logging.getLogger("sandbox.endpoints.session")
@@ -39,10 +40,12 @@ async def handle_start(request: web.Request) -> web.Response:
 
 @_require_session
 async def handle_events(request: web.Request) -> web.StreamResponse:
-    """Stream SSE events from a session."""
+    """Stream SSE events from a session, supporting sequenced reads."""
     session_id = request.match_info["session_id"]
     sessions: SessionManager = request.app["sessions"]
-    queue = sessions.get_event_queue(session_id)
+    event_log = sessions.get_event_log(session_id)
+
+    after_seq = int(request.query.get("after_seq", "0"))
 
     response = web.StreamResponse()
     response.content_type = "text/event-stream"
@@ -52,14 +55,22 @@ async def handle_events(request: web.Request) -> web.StreamResponse:
 
     try:
         while True:
-            event = await queue.get()
-            event_type = event.get("event", "message")
-            data = json.dumps(event.get("data", {}))
-            payload = f"event: {event_type}\ndata: {data}\n\n"
-            await response.write(payload.encode("utf-8"))
-
-            if event_type in ("session_end", "session_error"):
+            try:
+                events = await event_log.read_after(after_seq)
+            except SessionEventGap:
+                error_payload = json.dumps({"error": "session_event_gap"})
+                payload = f"event: session_error\ndata: {error_payload}\n\n"
+                await response.write(payload.encode("utf-8"))
                 break
+
+            for event in events:
+                data = json.dumps({**event.data, "seq": event.seq})
+                payload = f"id: {event.seq}\nevent: {event.event}\ndata: {data}\n\n"
+                await response.write(payload.encode("utf-8"))
+                after_seq = event.seq
+
+                if event.event in ("session_end", "session_error", "session_event_log_overflow"):
+                    return response
     except (asyncio.CancelledError, ConnectionResetError):
         pass
 
@@ -109,6 +120,26 @@ async def handle_unlock(request: web.Request) -> web.Response:
     return web.json_response({"status": "unlocked"})
 
 
+@_require_session
+async def handle_ack(request: web.Request) -> web.Response:
+    """Acknowledge processed events, allowing the log to trim them."""
+    session_id = request.match_info["session_id"]
+    sessions: SessionManager = request.app["sessions"]
+    seq = int(request.query.get("seq", "0"))
+    event_log = sessions.get_event_log(session_id)
+    event_log.trim_through(seq)
+    return web.json_response({"status": "acked", "trimmed_through": seq})
+
+
+@_require_session
+async def handle_delete(request: web.Request) -> web.Response:
+    """Delete a session and release its event log. Called after draining."""
+    session_id = request.match_info["session_id"]
+    sessions: SessionManager = request.app["sessions"]
+    sessions.delete(session_id)
+    return web.json_response({"status": "deleted"})
+
+
 def register(app: web.Application) -> None:
     """Attach all /session/* routes to the aiohttp app."""
     app.router.add_post("/session/start", handle_start)
@@ -117,3 +148,5 @@ def register(app: web.Application) -> None:
     app.router.add_post("/session/{session_id}/interrupt", handle_interrupt)
     app.router.add_post("/session/{session_id}/stop", handle_stop)
     app.router.add_post("/session/{session_id}/unlock", handle_unlock)
+    app.router.add_post("/session/{session_id}/ack", handle_ack)
+    app.router.add_delete("/session/{session_id}", handle_delete)
