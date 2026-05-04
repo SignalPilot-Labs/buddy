@@ -116,9 +116,10 @@ export function RemoteSandboxes(): React.ReactElement {
       </div>
 
       <p className="text-body text-text-muted mb-3">
-        Run sandboxes on remote machines via SSH. Pull the image first:{" "}
+        Pull the sandbox image on your remote machine first:{" "}
         <code className="text-caption text-text-secondary">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>{" "}
-        or <code className="text-caption text-text-secondary">apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>
+        or <code className="text-caption text-text-secondary">apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>.{" "}
+        Then add a config below — the start command is how you run that image.
       </p>
 
       <div className="space-y-1.5 mb-3">
