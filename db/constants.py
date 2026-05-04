@@ -302,6 +302,23 @@ MIGRATION_CACHE_TOKEN_COLUMNS: tuple[str, ...] = (
 # Allowlisted table names for idempotency_key migration DDL.
 MIGRATION_IDEMPOTENCY_TABLES: tuple[str, ...] = ("tool_calls", "audit_log")
 
+# Sandbox snapshot columns for migration DDL: (column_name, sql_type) pairs.
+# All column names are safe SQL identifiers (lowercase letters and underscores only).
+MIGRATION_SANDBOX_SNAPSHOT_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("sandbox_id", "VARCHAR"),
+    ("sandbox_type", "VARCHAR"),
+    ("sandbox_backend_id", "VARCHAR"),
+    ("sandbox_ssh_target", "VARCHAR"),
+    ("sandbox_start_cmd", "TEXT"),
+    ("sandbox_remote_host", "VARCHAR"),
+    ("sandbox_remote_port", "INTEGER"),
+)
+
+# Allowlist of column names from MIGRATION_SANDBOX_SNAPSHOT_COLUMNS for DDL safety.
+MIGRATION_SANDBOX_SNAPSHOT_COL_NAMES: tuple[str, ...] = tuple(
+    col for col, _ in MIGRATION_SANDBOX_SNAPSHOT_COLUMNS
+)
+
 # Regex for a safe SQL identifier: lowercase letters, digits, and underscores only.
 # No SQL metacharacters, no quotes, no spaces.
 SAFE_SQL_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"^[a-z_][a-z0-9_]*$")

@@ -349,6 +349,14 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         details: d,
         ts,
       };
+    case "startup_log":
+      return {
+        id: `log-${ts}-startup`,
+        type: "control",
+        text: `[startup] ${String(d.line || "")}`,
+        details: d,
+        ts,
+      };
     default:
       return null;
   }

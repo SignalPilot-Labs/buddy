@@ -5,11 +5,9 @@ operations are mocked — these tests verify HTTP routing, auth, NDJSON
 streaming, and state management.
 """
 
-import json
-
 import pytest
 from aiohttp import web
-from aiohttp.test_utils import AioHTTPTestCase, TestClient, TestServer
+from aiohttp.test_utils import TestClient
 
 from connector.server import ConnectorServer
 

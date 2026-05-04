@@ -5,7 +5,6 @@ test client against the real handler.
 """
 
 import os
-from unittest.mock import patch
 
 import pytest
 from aiohttp import web

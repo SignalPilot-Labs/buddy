@@ -31,5 +31,7 @@ DEFAULT_SECRET_DIR: str = "~/.autofyn/secrets"
 PROXY_TIMEOUT_SEC: int = 300
 PROXY_KEEPALIVE_TIMEOUT_SEC: int = 10
 
+SSH_TUNNEL_READY_TIMEOUT_SEC: int = 5
+
 # Allowlist regex for paths passed to SSH commands (secret_dir, run_key, etc.)
 SAFE_PATH_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9._/~\-]+$")

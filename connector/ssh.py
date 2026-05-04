@@ -11,8 +11,9 @@ from connector.constants import (
     KILL_WAIT_TIMEOUT_SEC,
     SAFE_PATH_RE,
     SSH_CONNECT_TIMEOUT_SEC,
-    SSH_KEEPALIVE_INTERVAL_SEC,
     SSH_KEEPALIVE_COUNT_MAX,
+    SSH_KEEPALIVE_INTERVAL_SEC,
+    SSH_TUNNEL_READY_TIMEOUT_SEC,
 )
 
 log = logging.getLogger("connector.ssh")
@@ -45,7 +46,10 @@ async def open_ssh_tunnel(
     remote_port: int,
     local_port: int,
 ) -> asyncio.subprocess.Process:
-    """Open an SSH tunnel: local_port -> remote_host:remote_port."""
+    """Open an SSH tunnel: local_port -> remote_host:remote_port.
+
+    Waits until the local port accepts connections before returning.
+    """
     cmd = [
         "ssh", "-N",
         "-L", f"127.0.0.1:{local_port}:{remote_host}:{remote_port}",
@@ -62,7 +66,26 @@ async def open_ssh_tunnel(
         "SSH tunnel %s -> %s:%d (pid %d)",
         ssh_target, remote_host, remote_port, process.pid,
     )
+    await _wait_for_port_ready(local_port, SSH_TUNNEL_READY_TIMEOUT_SEC)
     return process
+
+
+async def _wait_for_port_ready(port: int, timeout: float) -> None:
+    """Wait until a TCP port accepts connections."""
+    loop = asyncio.get_event_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection("127.0.0.1", port),
+                timeout=0.5,
+            )
+            writer.close()
+            await writer.wait_closed()
+            return
+        except (ConnectionRefusedError, asyncio.TimeoutError, OSError):
+            await asyncio.sleep(0.1)
+    raise RuntimeError(f"SSH tunnel port {port} not ready after {timeout}s")
 
 
 async def run_ssh_command(
@@ -164,7 +187,27 @@ async def kill_process_group(process: asyncio.subprocess.Process) -> None:
 
 
 async def find_free_port() -> int:
-    """Find a free TCP port on localhost."""
+    """Find a free TCP port on localhost. Uses SO_REUSEADDR to reduce TOCTOU window."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+async def run_derived_stop(
+    ssh_target: str,
+    sandbox_type: str,
+    backend_id: str,
+) -> None:
+    """Run the derived stop command for a remote sandbox over SSH.
+
+    For Slurm sandboxes, runs scancel. For Docker, runs docker rm -f.
+    """
+    if sandbox_type == "slurm":
+        cmd = f"scancel {shlex.quote(backend_id)}"
+    elif sandbox_type == "docker":
+        cmd = f"docker rm -f {shlex.quote(backend_id)}"
+    else:
+        raise ValueError(f"Unknown sandbox_type: {sandbox_type!r}")
+    proc = await run_ssh_command(ssh_target, cmd, {})
+    await proc.wait()

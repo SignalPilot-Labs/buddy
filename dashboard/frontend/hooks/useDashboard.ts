@@ -10,7 +10,7 @@ import {
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import type { AgentHealth } from "@/lib/api";
 import type { DashboardState } from "@/hooks/dashboardTypes";
-import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES } from "@/lib/constants";
+import { AGENT_HEALTH_POLL_MS, TERMINAL_STATUSES, ACTIVE_STATUSES } from "@/lib/constants";
 import { fetchSettingsStatus } from "@/lib/settings-api";
 import { isAtCapacity } from "@/lib/capacity";
 import { loadRunHistory } from "@/lib/loadRunHistory";
@@ -249,7 +249,7 @@ export function useDashboard(): DashboardState {
     if (selectedRunId || runs.length === 0) return;
     if (activeRepoFilter && !runs.some((r) => r.github_repo === activeRepoFilter)) return;
 
-    const active = runs.find((r) => ["running", "paused", "rate_limited", "starting"].includes(r.status));
+    const active = runs.find((r) => (ACTIVE_STATUSES as ReadonlyArray<string>).includes(r.status));
     if (active) {
       handleSelectRun(active.id);
       return;

@@ -11,8 +11,6 @@ import subprocess
 import sys
 import textwrap
 
-import pytest
-
 
 def _run_mcp_test(test_code: str) -> None:
     """Run a test snippet in a subprocess to avoid module pollution."""

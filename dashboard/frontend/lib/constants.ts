@@ -185,6 +185,7 @@ export const ACTIVE_STATUSES: ReadonlyArray<RunStatus> = [
   "running",
   "paused",
   "rate_limited",
+  "connector_lost",
 ];
 
 export const RESUMABLE_STATUSES: ReadonlyArray<RunStatus> = [

@@ -52,6 +52,7 @@ class BaseRemoteBackend(SandboxBackend):
         start_cmd: str,
         sandbox_secret: str,
         host_mounts: list[dict[str, str]] | None,
+        extra_env: dict[str, str] | None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """POST /sandboxes/start to connector, yield NDJSON events."""
         body: dict[str, Any] = {
@@ -62,6 +63,7 @@ class BaseRemoteBackend(SandboxBackend):
             "sandbox_secret": sandbox_secret,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
+            "extra_env": extra_env or {},
         }
         timeout = httpx.Timeout(SANDBOX_QUEUE_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -132,7 +134,7 @@ class BaseRemoteBackend(SandboxBackend):
         backend_id: str | None = None
 
         async for event in self._start_remote_sandbox(
-            run_key, start_cmd, sandbox_secret, host_mounts,
+            run_key, start_cmd, sandbox_secret, host_mounts, extra_env,
         ):
             events.append(event)
             etype = event.get("event")
