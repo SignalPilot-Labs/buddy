@@ -24,6 +24,7 @@ from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
 from sandbox_client.client import SandboxClient
+from sandbox_client.errors import SandboxStartError
 from sandbox_client.pool import SandboxPool
 from utils import db
 from utils.db import (
@@ -214,6 +215,30 @@ class AgentServer:
 
         return run_id, github_repo, task, budget, git_token
 
+    async def _emit_start_failed(
+        self, run_id: str, exc: SandboxStartError, run_env: dict[str, str] | None
+    ) -> None:
+        """Emit sandbox_start_failed audit event with startup logs from the exception."""
+        log_lines: list[str] = [
+            event.get("line", "")
+            for event in exc.startup_logs
+            if event.get("event") == "log"
+        ]
+        startup_output = _scrub_secrets("\n".join(log_lines))
+        error_text = _scrub_secrets(str(exc))
+        if run_env:
+            run_secrets = [run_env.get(k) for k in _SECRET_ENV_KEYS]
+            startup_output = scrub_secrets(startup_output, run_secrets)
+            error_text = scrub_secrets(error_text, run_secrets)
+        await log_audit(
+            run_id,
+            "sandbox_start_failed",
+            {
+                "error": error_text,
+                "startup_logs": startup_output,
+            },
+        )
+
     async def _capture_crash_logs(self, run_id: str, exc: Exception) -> None:
         """Capture sandbox logs on exception and persist them as a sandbox_crash audit event.
 
@@ -376,6 +401,9 @@ class AgentServer:
                 exec_timeout=self._exec_timeout,
             )
             active.status = terminal_status
+        except SandboxStartError as exc:
+            await self._emit_start_failed(run_id, exc, body.env)
+            raise
         except Exception as exc:
             # Capture sandbox logs before the finally-block destroys the
             # container. Otherwise failures lose their root cause. Persist

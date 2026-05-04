@@ -14,6 +14,7 @@ import httpx
 
 from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 from sandbox_client.backend import SandboxBackend
+from sandbox_client.errors import SandboxStartError
 from sandbox_client.instance import SandboxInstance
 
 log = logging.getLogger("sandbox_client.base_remote")
@@ -146,12 +147,13 @@ class BaseRemoteBackend(SandboxBackend):
                 if "backend_id" in event and backend_id is None:
                     backend_id = event["backend_id"]
             elif etype == "failed":
-                raise RuntimeError(
-                    f"Sandbox start failed: {event.get('error', 'unknown')}"
+                raise SandboxStartError(
+                    f"Sandbox start failed: {event.get('error', 'unknown')}",
+                    events,
                 )
 
         if host is None or port is None:
-            raise RuntimeError("Sandbox start did not emit AF_READY marker")
+            raise SandboxStartError("Sandbox start did not emit AF_READY marker", events)
 
         url = self._build_proxy_url(run_key)
         handle = SandboxInstance(
