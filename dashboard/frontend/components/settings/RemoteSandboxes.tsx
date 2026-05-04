@@ -112,11 +112,6 @@ export function RemoteSandboxes(): React.ReactElement {
         </span>
       </div>
 
-      <div className="mb-3 flex items-center gap-2 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
-        <span className="text-text-dim select-none shrink-0">$</span>
-        <span className="truncate">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
-      </div>
-
       <div className="space-y-1.5 mb-3">
         <AnimatePresence>
           {sandboxes.map((s) => (
@@ -187,6 +182,14 @@ export function RemoteSandboxes(): React.ReactElement {
       {error && (
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
       )}
+
+      <p className="mt-2 text-body text-text-muted">
+        Pull the image on your remote first. The start command is how you run it.
+      </p>
+      <div className="mt-1.5 flex items-center gap-2 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
+        <span className="text-text-dim select-none shrink-0">$</span>
+        <span className="truncate">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
+      </div>
     </div>
   );
 }
