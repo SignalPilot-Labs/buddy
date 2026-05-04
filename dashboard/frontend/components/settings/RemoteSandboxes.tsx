@@ -106,7 +106,7 @@ export function RemoteSandboxes(): React.ReactElement {
 
   return (
     <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-1">
         <label className="text-content font-semibold text-accent-hover">
           Remote Sandboxes
         </label>
@@ -114,6 +114,12 @@ export function RemoteSandboxes(): React.ReactElement {
           {sandboxes.length} configured
         </span>
       </div>
+
+      <p className="text-body text-text-muted mb-3">
+        Run sandboxes on remote machines via SSH. Pull the image first:{" "}
+        <code className="text-caption text-text-secondary">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>{" "}
+        or <code className="text-caption text-text-secondary">apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</code>
+      </p>
 
       <div className="space-y-1.5 mb-3">
         <AnimatePresence>
@@ -184,25 +190,6 @@ export function RemoteSandboxes(): React.ReactElement {
 
       {error && (
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
-      )}
-
-      <p className="mt-2 text-body text-text-muted leading-relaxed">
-        Remote sandboxes run on external machines via SSH. Add a config, then select it when starting a run.
-      </p>
-      {sandboxes.length > 0 && !showForm && (
-        <details className="mt-2">
-          <summary className="text-caption text-text-secondary cursor-pointer hover:text-text-muted">
-            Setup instructions
-          </summary>
-          <div className="mt-1.5 text-caption text-text-muted font-mono bg-black/20 rounded p-2.5 space-y-1">
-            <p className="text-text-secondary font-sans text-body mb-1">On your remote machine, pull the sandbox image once:</p>
-            <p># Slurm / Apptainer</p>
-            <p>apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</p>
-            <p className="mt-1.5"># Docker remote</p>
-            <p>docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</p>
-            <p className="text-text-secondary font-sans text-body mt-1.5">Ensure SSH access works from this machine to the configured target. The start command in your config handles the rest.</p>
-          </div>
-        </details>
       )}
     </div>
   );

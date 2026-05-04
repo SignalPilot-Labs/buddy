@@ -6,7 +6,10 @@ import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 
-const SANDBOX_TYPES: readonly ("docker" | "slurm")[] = ["docker", "slurm"];
+const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
+  { value: "docker", label: "Docker" },
+  { value: "slurm", label: "Slurm" },
+];
 
 interface RemoteSandboxFormProps {
   data: SandboxFormData;
@@ -62,32 +65,32 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="SSH Target">
+        <FormField label="Command">
           <input
             type="text"
             value={data.ssh_target}
             onChange={(e) => update({ ssh_target: e.target.value })}
-            placeholder="user@host"
+            placeholder="ssh user@host"
             className={INPUT_CLASS}
           />
         </FormField>
       </div>
 
-      <FormField label="Type">
+      <FormField label="Runtime">
         <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5 w-fit">
-          {SANDBOX_TYPES.map((t) => (
+          {RUNTIME_TYPES.map((t) => (
             <button
-              key={t}
+              key={t.value}
               type="button"
-              onClick={() => update({ type: t })}
+              onClick={() => update({ type: t.value })}
               className={clsx(
-                "px-3 py-1 rounded-full text-content capitalize transition-all",
-                data.type === t
+                "px-3 py-1 rounded-full text-content transition-all",
+                data.type === t.value
                   ? "bg-[#00ff88]/[0.12] text-[#00ff88] font-medium"
                   : "text-text-dim hover:text-text-secondary",
               )}
             >
-              {t}
+              {t.label}
             </button>
           ))}
         </div>
@@ -114,7 +117,7 @@ export function RemoteSandboxForm({
       </FormField>
 
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Queue Timeout (s)">
+        <FormField label="Max Start Wait (s)">
           <input
             type="number"
             value={data.queue_timeout}
@@ -122,7 +125,7 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="Heartbeat Timeout (s)">
+        <FormField label="Idle Timeout (s)">
           <input
             type="number"
             value={data.heartbeat_timeout}
