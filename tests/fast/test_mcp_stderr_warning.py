@@ -1,137 +1,130 @@
-"""Tests for Session._check_mcp_status warning emission."""
+"""Tests for Session._check_mcp_status warning emission.
+
+Uses subprocess isolation to avoid polluting sys.modules for other tests.
+The Claude SDK requires native deps not available in the test env, so we
+stub it before importing Session.
+"""
 
 from __future__ import annotations
 
+import subprocess
 import sys
-from unittest.mock import AsyncMock, MagicMock
+import textwrap
 
 import pytest
 
-# Stub heavy dependencies before importing session module.
-for mod in (
-    "claude_agent_sdk",
-    "claude_agent_sdk.types",
-    "config.loader",
-    "session.gate",
-    "session.hooks",
-    "session.security",
-    "session.utils",
-):
-    if mod not in sys.modules:
-        sys.modules[mod] = MagicMock()
 
-# Stub constants that session.py imports.
-constants_stub = MagicMock()
-sys.modules["constants"] = constants_stub
+def _run_mcp_test(test_code: str) -> None:
+    """Run a test snippet in a subprocess to avoid module pollution."""
+    script = textwrap.dedent("""
+    import sys, asyncio
+    from unittest.mock import AsyncMock, MagicMock
 
-from session.session import Session  # noqa: E402
+    # Stub only the Claude SDK
+    sys.modules["claude_agent_sdk"] = MagicMock()
+    sys.modules["claude_agent_sdk.types"] = MagicMock()
 
+    from session.session import Session
 
-def _make_session() -> Session:
-    """Create a Session with minimal options."""
-    return Session(
-        session_id="test-session",
-        options_dict={"run_id": "test-run"},
+    def _make_session():
+        return Session(session_id="test-session", options_dict={"run_id": "test-run"})
+
+    def _drain_events(s):
+        return list(s.event_log._events)
+
+    async def _test():
+    """) + textwrap.indent(test_code, "        ") + textwrap.dedent("""
+
+    asyncio.run(_test())
+    print("PASS")
+    """)
+    repo_root = str(__import__("pathlib").Path(__file__).parent.parent.parent)
+    sandbox_dir = repo_root + "/sandbox"
+    env = {**__import__("os").environ, "PYTHONPATH": sandbox_dir + ":" + repo_root}
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True, text=True, timeout=10,
+        cwd=sandbox_dir, env=env,
     )
-
-
-def _drain_events(s: Session) -> list:
-    """Read all events from the session's event log."""
-    return list(s.event_log._events)
+    if result.returncode != 0:
+        raise AssertionError(f"Test failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
+    assert "PASS" in result.stdout
 
 
 class TestCheckMcpStatusEmitsWarnings:
     """_check_mcp_status must emit mcp_warning events for failed servers."""
 
-    @pytest.mark.asyncio
-    async def test_failed_server_emits_warning(self) -> None:
-        """A server with status 'failed' must produce an mcp_warning event."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(return_value={
-            "mcpServers": [
-                {"name": "bad-server", "status": "failed", "error": "ENOENT"},
-            ],
-        })
+    def test_failed_server_emits_warning(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(return_value={
+    "mcpServers": [{"name": "bad-server", "status": "failed", "error": "ENOENT"}],
+})
+await s._check_mcp_status(client)
+events = _drain_events(s)
+assert len(events) == 1
+assert events[0].event == "mcp_warning"
+assert "bad-server" in events[0].data["message"]
+assert "ENOENT" in events[0].data["message"]
+""")
 
-        await s._check_mcp_status(client)
+    def test_connected_server_no_warning(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(return_value={
+    "mcpServers": [{"name": "good-server", "status": "connected"}],
+})
+await s._check_mcp_status(client)
+assert len(_drain_events(s)) == 0
+""")
 
-        events = _drain_events(s)
-        assert len(events) == 1
-        assert events[0].event == "mcp_warning"
-        assert "bad-server" in events[0].data["message"]
-        assert "ENOENT" in events[0].data["message"]
+    def test_multiple_failures(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(return_value={
+    "mcpServers": [
+        {"name": "a", "status": "failed", "error": "err-a"},
+        {"name": "b", "status": "connected"},
+        {"name": "c", "status": "failed", "error": "err-c"},
+    ],
+})
+await s._check_mcp_status(client)
+events = _drain_events(s)
+assert len(events) == 2
+assert "a" in events[0].data["message"]
+assert "c" in events[1].data["message"]
+""")
 
-    @pytest.mark.asyncio
-    async def test_connected_server_no_warning(self) -> None:
-        """A server with status 'connected' must not produce any event."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(return_value={
-            "mcpServers": [
-                {"name": "good-server", "status": "connected"},
-            ],
-        })
+    def test_get_mcp_status_exception_swallowed(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(side_effect=RuntimeError("not supported"))
+await s._check_mcp_status(client)
+assert len(_drain_events(s)) == 0
+""")
 
-        await s._check_mcp_status(client)
+    def test_empty_mcp_servers_no_warning(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(return_value={"mcpServers": []})
+await s._check_mcp_status(client)
+assert len(_drain_events(s)) == 0
+""")
 
-        assert len(_drain_events(s)) == 0
-
-    @pytest.mark.asyncio
-    async def test_multiple_failures(self) -> None:
-        """Multiple failed servers must each produce a separate warning."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(return_value={
-            "mcpServers": [
-                {"name": "a", "status": "failed", "error": "err-a"},
-                {"name": "b", "status": "connected"},
-                {"name": "c", "status": "failed", "error": "err-c"},
-            ],
-        })
-
-        await s._check_mcp_status(client)
-
-        events = _drain_events(s)
-        assert len(events) == 2
-        assert "a" in events[0].data["message"]
-        assert "c" in events[1].data["message"]
-
-    @pytest.mark.asyncio
-    async def test_get_mcp_status_exception_swallowed(self) -> None:
-        """If get_mcp_status raises, the exception must be swallowed."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(side_effect=RuntimeError("not supported"))
-
-        await s._check_mcp_status(client)
-
-        assert len(_drain_events(s)) == 0
-
-    @pytest.mark.asyncio
-    async def test_empty_mcp_servers_no_warning(self) -> None:
-        """No MCP servers configured must not produce any event."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(return_value={"mcpServers": []})
-
-        await s._check_mcp_status(client)
-
-        assert len(_drain_events(s)) == 0
-
-    @pytest.mark.asyncio
-    async def test_failed_server_without_error_field(self) -> None:
-        """A failed server missing the 'error' field must use default message."""
-        s = _make_session()
-        client = AsyncMock()
-        client.get_mcp_status = AsyncMock(return_value={
-            "mcpServers": [
-                {"name": "no-err", "status": "failed"},
-            ],
-        })
-
-        await s._check_mcp_status(client)
-
-        events = _drain_events(s)
-        assert len(events) == 1
-        assert "connection failed" in events[0].data["message"]
+    def test_failed_server_without_error_field(self) -> None:
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(return_value={
+    "mcpServers": [{"name": "no-err", "status": "failed"}],
+})
+await s._check_mcp_status(client)
+events = _drain_events(s)
+assert len(events) == 1
+assert "connection failed" in events[0].data["message"]
+""")

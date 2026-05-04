@@ -10,7 +10,7 @@ from sqlalchemy import URL, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from config.loader import database_config
-from db.constants import MIGRATION_CACHE_TOKEN_COLUMNS, VALID_CONTROL_SIGNALS, validate_sql_identifier
+from db.constants import MIGRATION_CACHE_TOKEN_COLUMNS, MIGRATION_IDEMPOTENCY_TABLES, VALID_CONTROL_SIGNALS, validate_sql_identifier
 from db.models import Base
 
 log = logging.getLogger("db.connection")
@@ -172,25 +172,26 @@ async def _migrate_idempotency_key_columns(conn) -> None:
     Enables idempotent upserts on reconnect — duplicate event delivery
     from the sandbox event log is silently skipped via ON CONFLICT DO NOTHING.
     """
-    for table in ("tool_calls", "audit_log"):
+    for table in MIGRATION_IDEMPOTENCY_TABLES:
+        safe_table = validate_sql_identifier(table, MIGRATION_IDEMPOTENCY_TABLES)
         result = await conn.execute(text(
             "SELECT 1 FROM information_schema.columns "
             "WHERE table_name = :table AND column_name = 'idempotency_key'"
         ), {"table": table})
         if result.first() is None:
             await conn.execute(text(
-                f"ALTER TABLE {table} ADD COLUMN idempotency_key INTEGER"
+                "ALTER TABLE " + safe_table + " ADD COLUMN idempotency_key INTEGER"
             ))
             log.info("Added column %s.idempotency_key", table)
 
-        idx_name = f"uq_{table}_idempotency"
+        idx_name = "uq_" + safe_table + "_idempotency"
         result = await conn.execute(text(
             "SELECT 1 FROM pg_indexes WHERE indexname = :idx"
         ), {"idx": idx_name})
         if result.first() is None:
             await conn.execute(text(
-                f"CREATE UNIQUE INDEX {idx_name} ON {table} (run_id, idempotency_key) "
-                f"WHERE idempotency_key IS NOT NULL"
+                "CREATE UNIQUE INDEX " + idx_name + " ON " + safe_table
+                + " (run_id, idempotency_key) WHERE idempotency_key IS NOT NULL"
             ))
             log.info("Created partial unique index %s", idx_name)
 

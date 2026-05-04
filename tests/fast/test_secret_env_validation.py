@@ -24,8 +24,12 @@ class TestSecretEnvValidation:
 
     def teardown_method(self) -> None:
         """Restore utils module to a valid state after each test."""
-        os.environ["AGENT_INTERNAL_SECRET"] = "test-secret-restore"
+        os.environ["AGENT_INTERNAL_SECRET"] = self._original_secret
         importlib.reload(utils_module)
+
+    def setup_method(self) -> None:
+        """Capture original secret before each test."""
+        self._original_secret = os.environ.get("AGENT_INTERNAL_SECRET", "test")
 
     def test_dashboard_missing_agent_secret_raises(self) -> None:
         """KeyError when AGENT_INTERNAL_SECRET is absent from env."""

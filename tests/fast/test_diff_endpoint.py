@@ -14,7 +14,14 @@ SAMPLE_DIFF_STATS = [
 
 
 def _import_runs_module():
-    """Import backend.endpoints.runs with auth + db stubbed out."""
+    """Import backend.endpoints.runs with auth + db stubbed out.
+
+    Saves and restores original sys.modules entries to avoid poisoning
+    other tests that depend on real db.models, db.connection, etc.
+    """
+    stubs = ("backend.auth", "backend.db", "db.connection", "db.models")
+    originals = {mod: sys.modules.get(mod) for mod in stubs}
+
     auth_mock = MagicMock()
     auth_mock._api_key = "test"
     auth_mock.require_api_key = MagicMock()
@@ -26,6 +33,14 @@ def _import_runs_module():
     sys.modules["db.models"] = MagicMock()
 
     import backend.endpoints.runs as runs_mod
+
+    # Restore originals so other tests see real modules
+    for mod, original in originals.items():
+        if original is not None:
+            sys.modules[mod] = original
+        else:
+            sys.modules.pop(mod, None)
+
     return runs_mod
 
 

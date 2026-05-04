@@ -240,6 +240,9 @@ MIGRATION_CACHE_TOKEN_COLUMNS: tuple[str, ...] = (
     "cache_read_input_tokens",
 )
 
+# Allowlisted table names for idempotency_key migration DDL.
+MIGRATION_IDEMPOTENCY_TABLES: tuple[str, ...] = ("tool_calls", "audit_log")
+
 # Regex for a safe SQL identifier: lowercase letters, digits, and underscores only.
 # No SQL metacharacters, no quotes, no spaces.
 SAFE_SQL_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"^[a-z_][a-z0-9_]*$")

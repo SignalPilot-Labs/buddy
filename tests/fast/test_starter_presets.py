@@ -61,8 +61,8 @@ class TestPresetResolutionInEndpoint:
         import os
         from unittest.mock import AsyncMock, MagicMock, patch
 
-        os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
-        os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
+        os.environ.setdefault("AGENT_INTERNAL_SECRET", "test")
+        os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test")
 
         with patch("docker.from_env", return_value=MagicMock()):
             from server import app
@@ -91,7 +91,7 @@ class TestPresetResolutionInEndpoint:
                         "duration_minutes": 30,
                         "git_token": "ghp_test",
                     },
-                    headers={INTERNAL_SECRET_HEADER: "test-secret"},
+                    headers={INTERNAL_SECRET_HEADER: os.environ["AGENT_INTERNAL_SECRET"]},
                 )
 
         assert resp.status_code == 200
@@ -108,8 +108,8 @@ class TestPresetResolutionInEndpoint:
         import os
         from unittest.mock import MagicMock, patch
 
-        os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
-        os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
+        os.environ.setdefault("AGENT_INTERNAL_SECRET", "test")
+        os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test")
 
         with patch("docker.from_env", return_value=MagicMock()):
             from server import app
@@ -126,7 +126,7 @@ class TestPresetResolutionInEndpoint:
                     "duration_minutes": 30,
                     "git_token": "ghp_test",
                 },
-                headers={INTERNAL_SECRET_HEADER: "test-secret"},
+                headers={INTERNAL_SECRET_HEADER: os.environ["AGENT_INTERNAL_SECRET"]},
             )
 
         assert resp.status_code == 422
