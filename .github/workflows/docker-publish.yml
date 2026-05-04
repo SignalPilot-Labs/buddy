@@ -133,37 +133,3 @@ jobs:
               "${IMAGE}:${SHA}-amd64" \
               "${IMAGE}:${SHA}-arm64"
           done
-
-  build-sif:
-    needs: manifest
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Install Apptainer
-        uses: eWaterCycle/setup-apptainer@v2
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build SIF from Docker image
-        run: |
-          SHA="${GITHUB_SHA::7}"
-          BRANCH="${GITHUB_REF_NAME}"
-          IMAGE="ghcr.io/signalpilot-labs/autofyn-sandbox"
-          SIF_IMAGE="ghcr.io/signalpilot-labs/autofyn-sandbox-sif"
-
-          apptainer build sandbox.sif "docker://${IMAGE}:${SHA}"
-
-          apptainer push sandbox.sif "oras://${SIF_IMAGE}:${SHA}"
-          if [ "$BRANCH" = "production" ]; then
-            apptainer push sandbox.sif "oras://${SIF_IMAGE}:stable"
-          elif [ "$BRANCH" = "main" ]; then
-            apptainer push sandbox.sif "oras://${SIF_IMAGE}:nightly"
-          fi
