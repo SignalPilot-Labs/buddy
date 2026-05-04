@@ -148,10 +148,16 @@ class ConnectorServer:
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
         )
 
-        events, ready_event = await asyncio.wait_for(
-            self._stream_and_collect(event_gen, response),
-            timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
-        )
+        try:
+            events, ready_event = await asyncio.wait_for(
+                self._stream_and_collect(event_gen, response),
+                timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            await event_gen.aclose()
+            await kill_process_group(process)
+            await delete_remote_secret(ssh_target, secret_file_path)
+            raise
 
         if not ready_event:
             await kill_process_group(process)

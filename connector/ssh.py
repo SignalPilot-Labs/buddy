@@ -59,7 +59,7 @@ async def open_ssh_tunnel(
     process = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.DEVNULL,
-        stderr=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL,
         preexec_fn=_preexec_fn,
     )
     log.info(
