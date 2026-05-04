@@ -112,17 +112,10 @@ export function RemoteSandboxes(): React.ReactElement {
         </span>
       </div>
 
-      <p className="text-body text-text-muted mb-3">
-        Run on remote machines via SSH.{" "}
-        <a
-          href="https://github.com/SignalPilot-Labs/AutoFyn#remote-sandboxes"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[#88ccff] hover:underline"
-        >
-          Setup guide
-        </a>
-      </p>
+      <div className="mb-3 flex items-center gap-2 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
+        <span className="text-text-dim select-none shrink-0">$</span>
+        <span className="truncate">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
+      </div>
 
       <div className="space-y-1.5 mb-3">
         <AnimatePresence>
