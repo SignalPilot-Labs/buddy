@@ -72,7 +72,7 @@ async def open_ssh_tunnel(
 
 async def _wait_for_port_ready(port: int, timeout: float) -> None:
     """Wait until a TCP port accepts connections."""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while loop.time() < deadline:
         try:
@@ -157,7 +157,14 @@ async def delete_remote_secret(
     _validate_safe_path(secret_file_path, "secret_file_path")
     cmd = f"rm -f {shlex.quote(secret_file_path)}"
     proc = await run_ssh_command(ssh_target, cmd, {})
-    await proc.wait()
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        log.warning(
+            "delete_remote_secret timed out for %s, killing process",
+            secret_file_path,
+        )
+        await kill_process_group(proc)
 
 
 async def kill_process_group(process: asyncio.subprocess.Process) -> None:
@@ -210,4 +217,19 @@ async def run_derived_stop(
     else:
         raise ValueError(f"Unknown sandbox_type: {sandbox_type!r}")
     proc = await run_ssh_command(ssh_target, cmd, {})
-    await proc.wait()
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+    except asyncio.TimeoutError:
+        log.warning(
+            "Derived stop timed out for %s:%s, killing process",
+            sandbox_type,
+            backend_id,
+        )
+        await kill_process_group(proc)
+    if proc.returncode is not None and proc.returncode != 0:
+        log.warning(
+            "Derived stop failed for %s:%s (exit %d)",
+            sandbox_type,
+            backend_id,
+            proc.returncode,
+        )

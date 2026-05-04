@@ -133,7 +133,7 @@ class TestServerAuditRedaction:
 
         srv = _make_server()
         pool = srv._pool
-        pool.get_sandbox_logs = AsyncMock(
+        pool.get_logs = AsyncMock(
             return_value=[
                 f"line1 https://x-access-token:{sentinel}@github.com/o/r.git fatal",
                 "line2",
@@ -180,7 +180,7 @@ class TestServerAuditRedaction:
 
         srv = _make_server()
         pool = srv._pool
-        pool.get_sandbox_logs = AsyncMock(
+        pool.get_logs = AsyncMock(
             return_value=[
                 f"line1 https://x-access-token:{sentinel}@github.com/o/r.git fatal",
                 "line2",

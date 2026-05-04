@@ -220,7 +220,7 @@ class AgentServer:
         Scrubs secrets before logging and storing, so tokens never appear
         in audit history or the server log.
         """
-        tail_lines = await self._pool.get_sandbox_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
+        tail_lines = await self._pool.get_logs(run_id, tail=SANDBOX_LOG_TAIL_LINES)
         sandbox_logs = _scrub_secrets("\n".join(tail_lines)) if tail_lines else ""
         await log_audit(
             run_id,

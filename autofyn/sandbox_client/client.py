@@ -43,7 +43,7 @@ class SandboxClient:
         base_url: str,
         health_timeout: int,
         timeout: int,
-        sandbox_secret: str | None = None,
+        sandbox_secret: str | None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._health_timeout = health_timeout

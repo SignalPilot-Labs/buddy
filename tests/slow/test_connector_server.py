@@ -94,4 +94,4 @@ class TestConnectorShutdown:
         assert resp.status == 200
         data = await resp.json()
         assert data["ok"] is True
-        assert data["stopped"] == 0
+        assert data["remaining"] == 0

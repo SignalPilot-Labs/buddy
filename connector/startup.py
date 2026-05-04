@@ -29,6 +29,7 @@ async def stream_start_events(
     host_mounts: list[dict[str, str]],
     heartbeat_timeout: int,
     secret_dir: str,
+    extra_env: dict[str, str],
 ) -> tuple[asyncio.subprocess.Process, str, AsyncGenerator[dict[str, Any], None]]:
     """Execute start command over SSH. Returns (process, secret_file_path, event_gen).
 
@@ -55,6 +56,7 @@ async def stream_start_events(
         "AF_SANDBOX_SECRET_FILE": secret_file_path,
         "AF_HEARTBEAT_TIMEOUT": str(heartbeat_timeout),
     }
+    env.update(extra_env)
 
     process = await run_ssh_command(ssh_target, start_cmd, env)
     return process, secret_file_path, _stream_events(process)

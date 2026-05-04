@@ -134,6 +134,7 @@ class ConnectorServer:
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
         secret_dir: str = body.get("secret_dir", DEFAULT_SECRET_DIR)
+        extra_env: dict[str, str] = body.get("extra_env", {})
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
@@ -148,6 +149,7 @@ class ConnectorServer:
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
                 secret_dir=secret_dir,
+                extra_env=extra_env,
             ),
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
         )

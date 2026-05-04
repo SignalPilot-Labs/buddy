@@ -133,6 +133,7 @@ class SandboxPool:
         config: dict = json.loads(config_str)
         sandbox_type: str = config["type"]
         ssh_target: str = config["ssh_target"]
+        # Backward compat: configs created before heartbeat_timeout was added
         heartbeat_timeout: int = config.get("heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC)
 
         if sandbox_type == SANDBOX_TYPE_SLURM:

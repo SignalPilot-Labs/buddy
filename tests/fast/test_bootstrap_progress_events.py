@@ -133,7 +133,7 @@ class TestSandboxReadyEvent:
         pool = srv._pool
         pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
         pool.destroy = AsyncMock()
-        pool.get_sandbox_logs = AsyncMock(return_value=[])
+        pool.get_logs = AsyncMock(return_value=[])
 
         log_audit_calls: list[tuple[str, str, dict]] = []
 
@@ -175,7 +175,7 @@ class TestSandboxReadyEvent:
         srv = _make_server()
         srv._pool.create = mock_create
         srv._pool.destroy = AsyncMock()
-        srv._pool.get_sandbox_logs = AsyncMock(return_value=[])
+        srv._pool.get_logs = AsyncMock(return_value=[])
 
         with (
             patch("server.bootstrap_run", side_effect=mock_bootstrap),
