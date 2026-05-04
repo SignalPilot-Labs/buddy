@@ -27,13 +27,13 @@ class Session:
     """Handler for sandbox `/session/*` HTTP endpoints.
 
     Public API:
-        start(options)              -> session_id
-        stream_events(session_id)   -> AsyncIterator[dict]
-        send_message(session_id, t) -> None
-        interrupt(session_id)       -> None
-        stop(session_id)            -> None
-        ack(session_id, seq)        -> None
-        delete(session_id)          -> None
+        start(options)                     -> session_id
+        stream_events(session_id, after_seq) -> AsyncIterator[dict]
+        send_message(session_id, text)     -> None
+        interrupt(session_id)              -> None
+        stop(session_id)                   -> None
+        trim_events(session_id, seq)       -> None
+        delete(session_id)                 -> None
     """
 
     def __init__(self, http: httpx.AsyncClient) -> None:
@@ -93,10 +93,10 @@ class Session:
         resp = await self._http.post(f"/session/{session_id}/unlock")
         resp.raise_for_status()
 
-    async def ack(self, session_id: str, seq: int) -> None:
-        """Acknowledge processed events, allowing the sandbox to trim them."""
+    async def trim_events(self, session_id: str, seq: int) -> None:
+        """Tell sandbox to discard processed events up through seq, freeing memory."""
         resp = await self._http.post(
-            f"/session/{session_id}/ack",
+            f"/session/{session_id}/trim",
             params={"seq": str(seq)},
         )
         resp.raise_for_status()

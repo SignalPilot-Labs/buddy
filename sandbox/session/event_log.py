@@ -41,6 +41,7 @@ class SessionEvent:
     seq: int
     event: str
     data: dict
+    payload_bytes: int
 
 
 SESSION_EVENT_LOG_MAX_BYTES: int = 50 * 1024 * 1024  # 50MB
@@ -74,20 +75,25 @@ class SessionEventLog:
         """Append an event. Returns the assigned seq. Fails loudly if log is full."""
         if self._failed:
             raise SessionEventLogOverflow(self._total_bytes, self._max_bytes)
-        payload_size = len(json.dumps(data))
-        if self._total_bytes + payload_size > self._max_bytes:
+        payload_bytes = len(json.dumps(data))
+        if self._total_bytes + payload_bytes > self._max_bytes:
             self._seq += 1
+            overflow_data = {"total_bytes": self._total_bytes, "max_bytes": self._max_bytes}
+            overflow_bytes = len(json.dumps(overflow_data))
             self._events.append(SessionEvent(
                 seq=self._seq,
                 event="session_event_log_overflow",
-                data={"total_bytes": self._total_bytes, "max_bytes": self._max_bytes},
+                data=overflow_data,
+                payload_bytes=overflow_bytes,
             ))
             self._failed = True
             self._notify.set()
             raise SessionEventLogOverflow(self._total_bytes, self._max_bytes)
         self._seq += 1
-        self._events.append(SessionEvent(seq=self._seq, event=event, data=data))
-        self._total_bytes += payload_size
+        self._events.append(SessionEvent(
+            seq=self._seq, event=event, data=data, payload_bytes=payload_bytes,
+        ))
+        self._total_bytes += payload_bytes
         self._notify.set()
         return self._seq
 
@@ -107,9 +113,7 @@ class SessionEventLog:
 
     def trim_through(self, seq: int) -> None:
         """Discard events with seq <= N, free their bytes, advance low-water mark."""
-        trimmed_bytes = sum(
-            len(json.dumps(e.data)) for e in self._events if e.seq <= seq
-        )
+        trimmed_bytes = sum(e.payload_bytes for e in self._events if e.seq <= seq)
         self._events = [e for e in self._events if e.seq > seq]
         self._total_bytes = max(0, self._total_bytes - trimmed_bytes)
         self._low_water_mark = max(self._low_water_mark, seq)

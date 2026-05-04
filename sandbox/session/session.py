@@ -86,14 +86,23 @@ class Session:
         self._ended = True
 
     def _emit(self, event: dict) -> None:
-        """Append event to the sequenced event log. Fails loudly on overflow."""
+        """Append event to the sequenced event log.
+
+        On overflow, logs the error and marks the session as ended so the
+        SDK loop exits. The overflow event is already appended to the log
+        by the event log itself before raising — the agent will see it.
+        """
         try:
             self.event_log.append(
                 event.get("event", "message"),
                 event.get("data", {}),
             )
         except SessionEventLogOverflow:
-            log.error("Session %s event log overflow — session will fail", self.session_id)
+            log.error(
+                "Session %s event log overflow — marking session ended",
+                self.session_id,
+            )
+            self._ended = True
 
     # ── Options building ──────────────────────────────────────────────
 

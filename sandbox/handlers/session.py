@@ -121,14 +121,14 @@ async def handle_unlock(request: web.Request) -> web.Response:
 
 
 @_require_session
-async def handle_ack(request: web.Request) -> web.Response:
-    """Acknowledge processed events, allowing the log to trim them."""
+async def handle_trim(request: web.Request) -> web.Response:
+    """Discard processed events up through seq, freeing sandbox memory."""
     session_id = request.match_info["session_id"]
     sessions: SessionManager = request.app["sessions"]
     seq = int(request.query.get("seq", "0"))
     event_log = sessions.get_event_log(session_id)
     event_log.trim_through(seq)
-    return web.json_response({"status": "acked", "trimmed_through": seq})
+    return web.json_response({"status": "trimmed", "through_seq": seq})
 
 
 @_require_session
@@ -148,5 +148,5 @@ def register(app: web.Application) -> None:
     app.router.add_post("/session/{session_id}/interrupt", handle_interrupt)
     app.router.add_post("/session/{session_id}/stop", handle_stop)
     app.router.add_post("/session/{session_id}/unlock", handle_unlock)
-    app.router.add_post("/session/{session_id}/ack", handle_ack)
+    app.router.add_post("/session/{session_id}/trim", handle_trim)
     app.router.add_delete("/session/{session_id}", handle_delete)

@@ -36,7 +36,7 @@ from db.constants import (
 )
 from utils import db
 from utils.db_logging import log_audit
-from utils.constants import idle_nudge_max_attempts
+from utils.constants import SSE_TRIM_INTERVAL, idle_nudge_max_attempts
 from utils.models import RoundResult, RunContext
 from utils.run_config import RunAgentConfig
 
@@ -64,6 +64,8 @@ class RoundRunner:
         self._time_lock = time_lock
         self._run_config = run_config
         self._rid = run.run_id[:8]
+        self._events_since_trim: int = 0
+        self._last_trimmed_seq: int = 0
 
     async def run(
         self,
@@ -272,6 +274,13 @@ class RoundRunner:
             is_rate_limited = False
             await db.update_run_status(self._run.run_id, RUN_STATUS_RUNNING)
 
+        # Periodically ack processed events so the sandbox can trim memory.
+        seq = sse_event.get("data", {}).get("seq")
+        if seq is not None:
+            self._events_since_trim += 1
+            if self._events_since_trim % SSE_TRIM_INTERVAL == 0:
+                await self._safe_trim_events(session_id, seq)
+
         return sse_task, None, is_rate_limited
 
     async def _handle_idle_timeout(
@@ -388,6 +397,14 @@ class RoundRunner:
         return None
 
     # ── Teardown ───────────────────────────────────────────────────────
+
+    async def _safe_trim_events(self, session_id: str, seq: int) -> None:
+        """Best-effort trim of processed events from sandbox memory."""
+        try:
+            await self._sandbox.session.trim_events(session_id, seq)
+            self._last_trimmed_seq = seq
+        except Exception as exc:
+            log.debug("[%s] trim_events failed (non-fatal): %s", self._rid, exc)
 
     async def _safe_stop(self, session_id: str) -> None:
         """Best-effort stop + delete; sandbox may already have torn down."""

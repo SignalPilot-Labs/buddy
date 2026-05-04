@@ -147,6 +147,13 @@ class StreamDispatcher:
         if kind == "session_end":
             return StreamSignal(kind="round_complete")
 
+        if kind == "session_event_log_overflow":
+            total = data.get("total_bytes", 0)
+            limit = data.get("max_bytes", 0)
+            error_msg = f"Sandbox event log overflow: {total}/{limit} bytes"
+            log.error("[%s] %s", self._rid, error_msg)
+            return StreamSignal(kind="session_error", error=error_msg)
+
         if kind == "session_error":
             error_msg = data.get("error", "unknown")
             log.error("[%s] session error: %s", self._rid, error_msg)

@@ -131,6 +131,9 @@ INJECT_PAYLOAD_MAX_LEN = 50000
 # ── Usage Tracking ──
 USAGE_EMIT_INTERVAL = 10  # Emit usage audit event every N assistant messages
 
+# ── SSE Event Processing ──
+SSE_TRIM_INTERVAL = 100  # Trim processed events from sandbox memory every N events
+
 
 # ── Cost Estimation (per-token, USD · Opus rates as upper bound) ──
 def cost_per_input() -> float:
