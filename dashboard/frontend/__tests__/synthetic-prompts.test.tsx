@@ -202,6 +202,44 @@ describe("EventFeed user_prompt interruption boundary", () => {
     // Should render — the second agent card (t3) is after the last interruption (t1)
     expect(container).toBeInTheDocument();
   });
+
+  it("agent_run card does not show 'done' or 'failed' when prompt_submitted precedes it", () => {
+    // Bug: prompt_submitted (non-injected) has ts before the agent card,
+    // so the interruption filter set runActive=false. agent_run cards must
+    // bypass this filter and use output_data as source of truth.
+    const t0 = "2026-01-01T10:00:00.000Z";
+    const t1 = "2026-01-01T10:00:05.000Z";
+
+    const events: FeedEvent[] = [
+      makeAuditEvent(1, "prompt_submitted", { prompt: "find bugs" }, t0),
+      makeAgentToolEvent(t1),
+    ];
+
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
+    // Agent card must NOT show "done" or "failed" — it's still pending
+    expect(screen.queryAllByText("done")).toHaveLength(0);
+    expect(screen.queryAllByText("failed")).toHaveLength(0);
+  });
+});
+
+/* ── EventFeed: thinking indicator on silence ── */
+
+describe("EventFeed thinking indicator", () => {
+  it("does not show thinking indicator immediately", () => {
+    const events: FeedEvent[] = [
+      makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
+    ];
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
+    expect(screen.queryByText("Agent is thinking...")).not.toBeInTheDocument();
+  });
+
+  it("does not show thinking indicator when run is not active", () => {
+    const events: FeedEvent[] = [
+      makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
+    ];
+    render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={false} hasSelectedRun={true} />);
+    expect(screen.queryByText("Agent is thinking...")).not.toBeInTheDocument();
+  });
 });
 
 /* ── Pause Requested milestone label ── */

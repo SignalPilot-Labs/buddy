@@ -7,7 +7,6 @@ import { getButtonState } from "@/lib/commandState";
 import { SmartButton } from "@/components/controls/SmartButton";
 import { StatsRow } from "@/components/stats/StatsBar";
 
-
 const PLACEHOLDER_BY_STATUS: Record<string, string> = {
   running: "Message the agent...",
   paused: "Send a message to resume...",
