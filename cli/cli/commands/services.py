@@ -26,6 +26,7 @@ from cli.constants import (
     IMAGE_TAG_FILE,
     MASK_PREFIX_CLAUDE,
     MASK_PREFIX_GIT,
+    SECURE_FILE_MODE,
     SIGINT_EXIT_CODE,
     START_SCRIPT,
     UNINSTALL_SCRIPT,
@@ -464,7 +465,9 @@ def _start_connector() -> None:
         sys.exit(1)
 
     # 4. Spawn connector with logs (not DEVNULL)
-    log_handle = open(log_file, "a")
+    log_fd = os.open(str(log_file), os.O_WRONLY | os.O_CREAT | os.O_APPEND, SECURE_FILE_MODE)
+    os.fchmod(log_fd, SECURE_FILE_MODE)  # Fix permissions on existing files
+    log_handle = os.fdopen(log_fd, "a")
     proc = subprocess.Popen(
         ["autofyn-connector", "--port", connector_port],
         stdout=log_handle,

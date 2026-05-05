@@ -49,6 +49,9 @@ GIT_SLUG_SEPARATOR: str = "/"
 DEFAULT_LOG_TAIL_LINES: int = 100
 SIGINT_EXIT_CODE: int = 130
 
+# File permissions
+SECURE_FILE_MODE: int = 0o600
+
 # Docker images
 BRANCH_TO_IMAGE_TAG: dict[str, str] = {
     "production": "stable",
