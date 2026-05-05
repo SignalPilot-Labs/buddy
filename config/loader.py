@@ -52,9 +52,9 @@ def clear_cache() -> None:
 # setting values that burn infinite compute or break the watchdog loop.
 _AGENT_BOUNDS: dict[str, tuple[int | float, int | float]] = {
     "max_rounds": (1, 512),
-    "tool_call_timeout_sec": (60, 7200),          # 1 min – 2 hours
-    "session_idle_timeout_sec": (30, 600),         # 30s – 10 min
-    "subagent_idle_kill_sec": (60, 3600),          # 1 min – 1 hour
+    "tool_call_timeout_sec": (60, 7200),  # 1 min – 2 hours
+    "session_idle_timeout_sec": (30, 600),  # 30s – 10 min
+    "subagent_idle_kill_sec": (60, 3600),  # 1 min – 1 hour
     "max_concurrent_runs": (1, 20),
     "session_error_max_retries": (0, 10),
     "session_error_base_backoff_sec": (1, 30),
@@ -131,6 +131,7 @@ _REQUIRED_DB_KEYS = {
 
 # ── Merge helper ─────────────────────────────────────────────────────
 
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """Merge override into base, recursing into nested dicts."""
     merged = base.copy()
@@ -181,7 +182,7 @@ def _ensure_project_config() -> None:
         _ensure_gitignore_entry()
         log.info("Created %s from defaults", _PROJECT_CONFIG)
     except OSError:
-        log.debug("Skipping project config copy (read-only filesystem)")
+        log.warning("Skipping project config copy (read-only filesystem)")
 
 
 def _apply_env_overrides(config: dict) -> dict:
@@ -198,7 +199,10 @@ def _apply_env_overrides(config: dict) -> dict:
         "AF_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
         "AF_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
         "AF_LOG_LEVEL": ("log_level", str),
-        "AF_ALLOW_DOCKER": ("allow_docker", lambda v: v.lower() in ("1", "true", "yes")),
+        "AF_ALLOW_DOCKER": (
+            "allow_docker",
+            lambda v: v.lower() in ("1", "true", "yes"),
+        ),
     }
     for env_var, (key, cast) in sandbox_env_map.items():
         val = os.getenv(env_var)
@@ -253,7 +257,12 @@ def _clamp_section(
         if clamped != raw:
             log.warning(
                 "Config %s.%s=%s clamped to [%s, %s] → %s",
-                section_name, key, raw, lo, hi, clamped,
+                section_name,
+                key,
+                raw,
+                lo,
+                hi,
+                clamped,
             )
             section[key] = clamped
     return section
