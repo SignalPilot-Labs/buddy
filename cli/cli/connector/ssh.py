@@ -91,7 +91,7 @@ async def run_ssh_command(
     All env values are shell-quoted to prevent injection.
     """
     env_exports = " ".join(
-        f"{k}={shlex.quote(v)}" for k, v in env.items()
+        f"export {k}={shlex.quote(v)};" for k, v in env.items()
     )
     full_cmd = f"{env_exports} {command}" if env_exports else command
     cmd = [
