@@ -27,6 +27,10 @@ AF_BOUND_MARKER: str = "AF_BOUND"
 AF_QUEUED_MARKER: str = "AF_QUEUED"
 AF_READY_MARKER: str = "AF_READY"
 
+# Patterns to extract backend IDs from start command stdout.
+# Slurm: "srun: job 12345 queued and waiting for resources"
+SRUN_JOB_RE_PATTERN: str = r"srun: job (\d+)"
+
 PROXY_TIMEOUT_SEC: int = 300
 PROXY_KEEPALIVE_TIMEOUT_SEC: int = 10
 

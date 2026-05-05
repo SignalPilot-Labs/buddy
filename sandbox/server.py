@@ -9,10 +9,10 @@ import asyncio
 import hmac
 import logging
 import os
+import socket
+import traceback
 
 from aiohttp import web
-
-import socket
 
 from config.constants import AF_BOUND_MARKER, AF_READY_MARKER
 from config.loader import sandbox_config
@@ -63,6 +63,31 @@ _INTERNAL_SECRET = _load_sandbox_secret()
 
 
 @web.middleware
+async def error_middleware(
+    request: web.Request,
+    handler,
+) -> web.StreamResponse:
+    """Catch unhandled exceptions, log the traceback, and return it in the 500 body.
+
+    Without this, aiohttp returns generic "Server got itself in trouble"
+    and the traceback is lost — making remote sandbox debugging impossible.
+    """
+    try:
+        return await handler(request)
+    except web.HTTPException as exc:
+        if exc.status >= 500:
+            log.error("%s %s -> %d: %s", request.method, request.path, exc.status, exc.text)
+        raise
+    except Exception as exc:
+        tb = traceback.format_exc()
+        log.error("Unhandled error on %s %s:\n%s", request.method, request.path, tb)
+        return web.json_response(
+            {"error": str(exc), "traceback": tb},
+            status=500,
+        )
+
+
+@web.middleware
 async def auth_middleware(
     request: web.Request,
     handler,
@@ -107,19 +132,21 @@ async def on_shutdown(app: web.Application) -> None:
     tracker.stop()
 
 
-def _print_bound_port(site: web.TCPSite) -> None:
-    """Print AF_BOUND and AF_READY markers for OS-assigned port."""
-    name = site.name
-    # site.name is "http://host:port" — extract the port
-    port_str = name.rsplit(":", maxsplit=1)[-1]
+def _emit_markers(port: int) -> None:
+    """Print AF_BOUND and AF_READY markers after the server has bound the port."""
     host = socket.gethostname()
-    print(f'{AF_BOUND_MARKER} {{"port":{port_str}}}', flush=True)
-    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port_str}}}', flush=True)
+    print(f'{AF_BOUND_MARKER} {{"port":{port}}}', flush=True)
+    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port}}}', flush=True)
 
 
 def main() -> None:
-    """Start the sandbox HTTP server."""
-    app = web.Application(middlewares=[auth_middleware, heartbeat_middleware])
+    """Start the sandbox HTTP server.
+
+    Always uses the AppRunner path so markers are emitted only after
+    the port is successfully bound. This prevents race conditions where
+    the connector sees AF_READY before the server is listening.
+    """
+    app = web.Application(middlewares=[error_middleware, auth_middleware, heartbeat_middleware])
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
@@ -131,35 +158,20 @@ def main() -> None:
     register_env(app)
 
     log.info("Sandbox server starting on :%d", SANDBOX_PORT)
-    if SANDBOX_PORT == 0:
-        _run_with_dynamic_port(app)
-    else:
-        _print_static_bound(SANDBOX_PORT)
-        web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
 
-
-def _print_static_bound(port: int) -> None:
-    """Print AF_BOUND and AF_READY markers for a known port."""
-    host = socket.gethostname()
-    print(f'{AF_BOUND_MARKER} {{"port":{port}}}', flush=True)
-    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port}}}', flush=True)
-
-
-def _run_with_dynamic_port(app: web.Application) -> None:
-    """Run with OS-assigned port and print AF_BOUND after binding."""
-
-    async def _start() -> None:
+    async def _run() -> None:
+        """Bind, emit markers, then block until shutdown."""
         runner = web.AppRunner(app)
         await runner.setup()
-        site = web.TCPSite(runner, SANDBOX_HOST, 0)
+        site = web.TCPSite(runner, SANDBOX_HOST, SANDBOX_PORT)
         await site.start()
-        _print_bound_port(site)
+        _emit_markers(SANDBOX_PORT)
         try:
             await asyncio.Event().wait()
         finally:
             await runner.cleanup()
 
-    asyncio.run(_start())
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

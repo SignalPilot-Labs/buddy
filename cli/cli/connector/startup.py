@@ -12,12 +12,18 @@ import shlex
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from cli.connector.constants import AF_BOUND_MARKER, AF_QUEUED_MARKER, AF_READY_MARKER
+from cli.connector.constants import (
+    AF_BOUND_MARKER,
+    AF_QUEUED_MARKER,
+    AF_READY_MARKER,
+    SRUN_JOB_RE_PATTERN,
+)
 from cli.connector.ssh import run_ssh_command
 
 log = logging.getLogger("connector.startup")
 
 MARKER_RE: re.Pattern[str] = re.compile(r"(AF_QUEUED|AF_READY|AF_BOUND)\s+(\{.*\})")
+SRUN_JOB_RE: re.Pattern[str] = re.compile(SRUN_JOB_RE_PATTERN)
 
 
 async def stream_start_events(
@@ -62,10 +68,16 @@ async def _stream_events(
     process: asyncio.subprocess.Process,
     ssh_target: str,
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Yield NDJSON events from process stdout as they arrive."""
+    """Yield NDJSON events from process stdout as they arrive.
+
+    Parses AF_* markers for structured events. Also detects srun job IDs
+    from log lines (e.g. "srun: job 12345 queued") and emits them as
+    queued events so the connector can scancel on destroy.
+    """
     if not process.stdout:
         return
 
+    srun_job_emitted = False
     async for line_bytes in process.stdout:
         line = line_bytes.decode("utf-8", errors="replace").rstrip("\n")
         marker_match = MARKER_RE.search(line)
@@ -76,6 +88,11 @@ async def _stream_events(
             if event.get("event") == "ready":
                 return
         else:
+            if not srun_job_emitted:
+                srun_match = SRUN_JOB_RE.search(line)
+                if srun_match:
+                    srun_job_emitted = True
+                    yield {"event": "queued", "backend_id": srun_match.group(1)}
             yield {"event": "log", "line": line}
 
 
@@ -88,12 +105,10 @@ def _parse_marker(match: re.Match[str], ssh_target: str) -> dict[str, Any]:
         return {"event": "queued", "backend_id": marker_data.get("backend_id")}
 
     if marker_name == AF_BOUND_MARKER:
-        # AF_BOUND only has port — promote to ready using ssh_target as host
-        return {
-            "event": "ready",
-            "host": ssh_target.split("@")[-1] if "@" in ssh_target else ssh_target,
-            "port": marker_data["port"],
-        }
+        # AF_BOUND only has port, no host. Do NOT promote to ready — wait
+        # for AF_READY which has the actual hostname (critical for slurm
+        # where the sandbox runs on a compute node, not the login node).
+        return {"event": "log", "line": f"AF_BOUND port={marker_data['port']}"}
 
     if marker_name == AF_READY_MARKER:
         event: dict[str, Any] = {
