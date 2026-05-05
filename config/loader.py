@@ -23,13 +23,14 @@ from pathlib import Path
 
 import yaml
 
+from db.constants import SANDBOX_REPO_DIR
+
 log = logging.getLogger("config")
 
 _AUTOFYN_ROOT = Path(__file__).parent.parent
 _DEFAULT_CONFIG = _AUTOFYN_ROOT / "config" / "config.yml"
 _GLOBAL_CONFIG = Path.home() / ".autofyn" / "config.yml"
-_TARGET_REPO = Path("/home/agentuser/repo")
-_PROJECT_CONFIG = _TARGET_REPO / ".autofyn" / "config.yml"
+_PROJECT_CONFIG = Path(SANDBOX_REPO_DIR) / ".autofyn" / "config.yml"
 
 # ── Cache ────────────────────────────────────────────────────────────
 # Keyed by (str(repo_path) or None, str(overlay) or None).

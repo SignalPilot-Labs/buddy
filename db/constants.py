@@ -118,6 +118,8 @@ BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
 })
 VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
 
+SANDBOX_REPO_DIR: str = "/home/agentuser/repo"
+
 # Container paths that must not be overwritten by user mounts.
 # The repo root itself is blocked (it's a Docker volume), but subdirs
 # like /home/agentuser/repo/data are allowed — users mount data there.
@@ -127,7 +129,7 @@ BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
 })
 BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
     "/",
-    "/home/agentuser/repo",
+    SANDBOX_REPO_DIR,
 })
 MAX_HOST_MOUNTS: int = 10
 MAX_MCP_SERVERS: int = 10
