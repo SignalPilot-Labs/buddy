@@ -396,26 +396,36 @@ def _connector_pid_file() -> Path:
     return Path(AUTOFYN_HOME) / ".connector.pid"
 
 
-def _kill_stale_connector(port: str) -> None:
-    """Kill a stale connector on the port by checking /health first."""
-    try:
-        resp = httpx.get(f"http://127.0.0.1:{port}/health", timeout=2)
-        if resp.status_code == 200 and "tunnel_count" in resp.text:
-            # It's a connector — kill it
-            result = subprocess.run(
-                ["lsof", "-ti", f"tcp:{port}"],
-                capture_output=True, text=True,
-            )
-            for pid_str in result.stdout.strip().split():
-                if pid_str:
-                    os.kill(int(pid_str), signal.SIGTERM)
-            console.print("[dim]Killed stale connector on port " + port + "[/dim]")
-    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError):
-        pass
+def _kill_port_pids(port: str) -> None:
+    """Kill every process listening on the given port."""
+    result = subprocess.run(
+        ["lsof", "-ti", f"tcp:{port}"],
+        capture_output=True, text=True,
+    )
+    for pid_str in result.stdout.strip().split():
+        if pid_str:
+            try:
+                os.kill(int(pid_str), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
 
 
-def _wait_for_port(port: str, timeout: float) -> bool:
-    """Block until the port is accepting connections or timeout expires."""
+def _wait_port_free(port: str, timeout: float) -> bool:
+    """Block until nothing is listening on the port."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["lsof", "-ti", f"tcp:{port}"],
+            capture_output=True, text=True,
+        )
+        if not result.stdout.strip():
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def _wait_port_ready(port: str, timeout: float) -> bool:
+    """Block until the port is accepting connections."""
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
@@ -427,74 +437,62 @@ def _wait_for_port(port: str, timeout: float) -> bool:
 
 
 def _start_connector() -> None:
-    """Spawn the connector with a restart loop wrapper."""
+    """Spawn the connector, guaranteeing the port is clean first."""
     connector_secret = os.environ.get("CONNECTOR_SECRET", "")
     if not connector_secret:
         connector_secret = secrets.token_hex(32)
         os.environ["CONNECTOR_SECRET"] = connector_secret
 
     connector_port = os.environ.get("CONNECTOR_PORT", "9400")
-
     pid_file = _connector_pid_file()
+    log_file = Path(AUTOFYN_HOME) / ".connector.log"
 
-    # Kill existing connector — both from PID file and anything holding the port
+    # 1. Kill old wrapper from PID file (kills entire process group)
     if pid_file.exists():
         try:
             old_pid = int(pid_file.read_text().strip())
-            os.kill(old_pid, signal.SIGTERM)
-        except (ProcessLookupError, ValueError, PermissionError):
+            os.killpg(os.getpgid(old_pid), signal.SIGKILL)
+        except (ProcessLookupError, ValueError, PermissionError, OSError):
             pass
         pid_file.unlink(missing_ok=True)
-    _kill_stale_connector(connector_port)
-    time.sleep(0.3)
 
-    # Spawn connector wrapper in background
-    wrapper_cmd = (
-        f'trap "kill 0" EXIT; '
-        f'while true; do '
-        f'autofyn-connector --port {connector_port}; '
-        f'sleep 1; '
-        f'done'
-    )
+    # 2. Kill anything still on the port (stale connector, manual runs, etc.)
+    _kill_port_pids(connector_port)
+
+    # 3. Wait until port is actually free — fail if something won't die
+    if not _wait_port_free(connector_port, timeout=3.0):
+        console.print(f"[red]✗[/red] Port {connector_port} still in use — cannot start connector")
+        sys.exit(1)
+
+    # 4. Spawn connector with logs (not DEVNULL)
+    log_handle = open(log_file, "a")
     proc = subprocess.Popen(
-        ["bash", "-c", wrapper_cmd],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        ["autofyn-connector", "--port", connector_port],
+        stdout=log_handle,
+        stderr=log_handle,
         start_new_session=True,
     )
     pid_file.write_text(str(proc.pid))
 
-    # Wait until connector is actually listening before proceeding
-    if not _wait_for_port(connector_port, timeout=5.0):
-        console.print("[red]✗[/red] Connector failed to start on port " + connector_port)
+    # 5. Wait until connector is actually listening
+    if not _wait_port_ready(connector_port, timeout=5.0):
+        console.print(f"[red]✗[/red] Connector failed to start — see {log_file}")
         sys.exit(1)
     console.print(f"[green]✓[/green] Connector started (pid {proc.pid}, port {connector_port})")
 
 
 def _stop_connector() -> None:
-    """Gracefully stop the connector."""
+    """Stop the connector — kill process and free port."""
     connector_port = os.environ.get("CONNECTOR_PORT", "9400")
-    connector_secret = os.environ.get("CONNECTOR_SECRET", "")
 
-    # Try graceful shutdown via /shutdown endpoint
-    if connector_secret:
-        try:
-            httpx.post(
-                f"http://127.0.0.1:{connector_port}/shutdown",
-                headers={"X-Connector-Secret": connector_secret},
-                timeout=60,
-            )
-            console.print("[dim]Connector shutdown complete[/dim]")
-        except Exception:
-            pass
-
-    # Kill the wrapper process
     pid_file = _connector_pid_file()
     if pid_file.exists():
         try:
             pid = int(pid_file.read_text().strip())
-            os.killpg(os.getpgid(pid), signal.SIGTERM)
-        except (ProcessLookupError, ValueError, PermissionError):
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except (ProcessLookupError, ValueError, PermissionError, OSError):
             pass
         pid_file.unlink(missing_ok=True)
+
+    _kill_port_pids(connector_port)
     console.print("[green]✓[/green] Connector stopped")
