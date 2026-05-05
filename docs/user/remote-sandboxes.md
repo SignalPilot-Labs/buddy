@@ -76,15 +76,17 @@ With GPU access:
 source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 -c 4 --mem=8G --gres=gpu:1 apptainer exec --nv --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
 ```
 
+> **Note:** Running the start command manually will fail with `SANDBOX_INTERNAL_SECRET is not set`. This is expected — the connector generates a fresh secret per run and injects it automatically. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command or Slurm job metadata. To test manually, prepend `SANDBOX_INTERNAL_SECRET=test` to the command.
+
 Key flags:
 
 - `source /etc/profile` — non-interactive SSH doesn't source profile, so `docker`, `module`, and other commands in `/usr/local/bin` or module paths may not be found. Always include this for both Docker and Slurm commands
-- `-n 1` — only one task. `-n > 1` would spawn > 1 processes both trying to bind port 8080
+- `-n 1` — only one task. `-n > 1` would spawn > 1 processes trying to bind port 8080 and **fail**.
 - `-c 4` — request 4 CPU cores (adjust to your needs)
 - `--mem=4G` — memory limit per node
 - `--gres=gpu:1` — request 1 GPU (Slurm generic resource)
 - `--nv` — Apptainer flag to expose NVIDIA GPUs inside the container
-- `--writable-tmpfs` — the SIF image is read-only; this adds a tmpfs overlay for writes
+- `--writable-tmpfs` — the SIF image is read-only; this adds a tmpfs overlay for writes (**required**)
 - `-B $HOME` — binds your home directory for git config, SSH keys, etc.
 
 ## Timeline events
