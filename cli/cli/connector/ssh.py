@@ -135,7 +135,7 @@ async def run_ssh_command(
     )
     # Pass command via stdin alongside env exports to avoid shell quoting
     # issues with single quotes in the command string.
-    stdin_payload = f"{env_exports}exec {command}\n"
+    stdin_payload = f"{env_exports}{command}\n"
     cmd = [
         "ssh",
         *_ssh_base_opts(),
