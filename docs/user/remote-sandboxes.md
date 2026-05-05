@@ -67,13 +67,13 @@ source /etc/profile && docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/aut
 ### Slurm / Apptainer
 
 ```bash
-source /etc/profile && module load apptainer/1.4.2 && srun -p my_partition -n 1 -c 4 --mem=4G apptainer exec --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p my_partition -n 1 -c 4 --mem=4G apptainer exec --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
 ```
 
 With GPU access:
 
 ```bash
-source /etc/profile && module load apptainer/1.4.2 && srun -p gpu -n 1 -c 4 --mem=8G --gres=gpu:1 apptainer exec --nv --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 -c 4 --mem=8G --gres=gpu:1 apptainer exec --nv --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
 ```
 
 Key flags:
