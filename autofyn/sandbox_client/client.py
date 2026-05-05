@@ -1,7 +1,7 @@
 """HTTP client for the sandbox container.
 
 SandboxClient owns the shared httpx.AsyncClient and binds four handlers
-— execute, file_system, repo, session — to it. These handlers are not
+— env, file_system, repo, session — to it. These handlers are not
 separate clients; they are typed namespaces over the same connection.
 There is exactly one SandboxClient per sandbox container.
 
@@ -16,7 +16,6 @@ import os
 import httpx
 
 from sandbox_client.handlers.env import Env
-from sandbox_client.handlers.execute import Execute
 from sandbox_client.handlers.file_system import FileSystem
 from sandbox_client.handlers.repo import Repo
 from sandbox_client.handlers.session import Session
@@ -30,7 +29,6 @@ class SandboxClient:
 
     Exposed handlers:
         env          — runtime secret injection
-        execute      — raw command execution
         file_system  — typed file I/O
         repo         — git/gh operations bound to an active working branch
         session      — Claude SDK session lifecycle
@@ -67,7 +65,6 @@ class SandboxClient:
             headers=headers,
         )
         self.env: Env = Env(self._http)
-        self.execute: Execute = Execute(self._http)
         self.file_system: FileSystem = FileSystem(self._http)
         self.repo: Repo = Repo(self._http)
         self.session: Session = Session(self._http)

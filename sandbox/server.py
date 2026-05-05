@@ -1,9 +1,9 @@
 """AutoFyn Sandbox Server — HTTP API app wiring.
 
-Starts the aiohttp app, installs auth middleware, and registers the six
-endpoint groups (execute, session, file_system, repo, health, env). All
-HTTP handling lives under sandbox/endpoints/; business logic under
-sandbox/repo/ and sandbox/session/.
+Starts the aiohttp app, installs auth middleware, and registers the five
+endpoint groups (session, file_system, repo, health, env). All HTTP
+handling lives under sandbox/api/; business logic under sandbox/repo/
+and sandbox/session/.
 """
 
 import asyncio
@@ -25,7 +25,6 @@ from constants import (
     SANDBOX_PORT,
 )
 from api.env import register as register_env
-from api.execute import register as register_execute
 from api.file_system import register as register_file_system
 from api.health import register as register_health
 from api.repo import register as register_repo
@@ -144,7 +143,6 @@ def main() -> None:
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
-    register_execute(app)
     register_session(app)
     register_file_system(app)
     register_repo(app)
