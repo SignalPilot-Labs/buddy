@@ -292,68 +292,6 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
               <div className="p-5 space-y-4">
                 <BranchPicker branches={branches} selected={baseBranch} onSelect={setBaseBranch} />
 
-                {/* Sandbox picker (collapsible) */}
-                {remoteSandboxes.length > 0 && (
-                  <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        onClick={() => {
-                          setSelectedSandboxId(null);
-                          setStartCmd("");
-                          loadMountsForSandbox(null);
-                        }}
-                        className={clsx(
-                          "text-content px-3 py-2 rounded border transition-all",
-                          selectedSandboxId === null
-                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
-                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
-                        )}
-                      >
-                        Docker (local)
-                      </button>
-                      {remoteSandboxes.map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={async () => {
-                            setSelectedSandboxId(s.id);
-                            loadMountsForSandbox(s.id);
-                            if (activeRepo) {
-                              const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch((err) => {
-                                console.warn("Failed to fetch last start cmd:", err);
-                                return null;
-                              });
-                              setStartCmd(lastCmd ?? s.default_start_cmd);
-                            } else {
-                              setStartCmd(s.default_start_cmd);
-                            }
-                          }}
-                          className={clsx(
-                            "text-content px-3 py-2 rounded border transition-all font-mono",
-                            selectedSandboxId === s.id
-                              ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
-                              : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
-                          )}
-                        >
-                          {s.name}
-                          <span className="ml-1.5 text-caption uppercase tracking-wider opacity-60">{s.type}</span>
-                        </button>
-                      ))}
-                    </div>
-                    {selectedSandboxId !== null && (
-                      <div className="mt-2">
-                        <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
-                        <textarea
-                          value={startCmd}
-                          onChange={(e) => setStartCmd(e.target.value)}
-                          placeholder="Command to start the remote sandbox..."
-                          rows={2}
-                          className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
-                        />
-                      </div>
-                    )}
-                  </CollapsibleSection>
-                )}
-
                 {/* Quick prompts */}
                 <div>
                   <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Quick Start</label>
@@ -493,8 +431,70 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                   </div>
                 </CollapsibleSection>
 
+                {/* Sandbox picker (collapsible) */}
+                {remoteSandboxes.length > 0 && (
+                  <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setSelectedSandboxId(null);
+                          setStartCmd("");
+                          loadMountsForSandbox(null);
+                        }}
+                        className={clsx(
+                          "text-content px-3 py-2 rounded border transition-all",
+                          selectedSandboxId === null
+                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
+                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                        )}
+                      >
+                        Docker (local)
+                      </button>
+                      {remoteSandboxes.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={async () => {
+                            setSelectedSandboxId(s.id);
+                            loadMountsForSandbox(s.id);
+                            if (activeRepo) {
+                              const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch((err) => {
+                                console.warn("Failed to fetch last start cmd:", err);
+                                return null;
+                              });
+                              setStartCmd(lastCmd ?? s.default_start_cmd);
+                            } else {
+                              setStartCmd(s.default_start_cmd);
+                            }
+                          }}
+                          className={clsx(
+                            "text-content px-3 py-2 rounded border transition-all font-mono",
+                            selectedSandboxId === s.id
+                              ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
+                              : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
+                          )}
+                        >
+                          {s.name}
+                          <span className="ml-1.5 text-caption uppercase tracking-wider opacity-60">{s.type}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {selectedSandboxId !== null && (
+                      <div className="mt-2">
+                        <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
+                        <textarea
+                          value={startCmd}
+                          onChange={(e) => setStartCmd(e.target.value)}
+                          placeholder="Command to start the remote sandbox..."
+                          rows={2}
+                          className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                        />
+                      </div>
+                    )}
+                  </CollapsibleSection>
+                )}
+
                 {/* Host Mounts (collapsible) */}
-                <CollapsibleSection label={selectedSandboxId !== null ? "Remote Host Mounts" : "Host Mounts"} summary={mountSummary} defaultOpen={false}>
+                <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
                   <div className="space-y-2">
                     <p className="text-content text-text-secondary mb-2">Repo is at /home/agentuser/repo inside the sandbox.</p>
                     {mounts.map((m, i) => (
