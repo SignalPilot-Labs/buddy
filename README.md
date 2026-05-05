@@ -118,7 +118,7 @@ Runs can execute on remote machines (HPC clusters, GPU servers) instead of local
 1. Pull the sandbox image on the remote:
    ```bash
    # Slurm / Apptainer
-   apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+   mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable
    # Docker remote
    docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable
    ```

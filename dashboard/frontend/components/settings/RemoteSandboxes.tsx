@@ -188,7 +188,7 @@ export function RemoteSandboxes(): React.ReactElement {
       </p>
       <div className="mt-1.5 flex items-center gap-2 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
         <span className="text-text-dim select-none shrink-0">$</span>
-        <span className="truncate">docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
+        <span className="truncate">mkdir -p ~/.autofyn &amp;&amp; apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
       </div>
     </div>
   );
