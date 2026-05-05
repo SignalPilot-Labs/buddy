@@ -54,9 +54,10 @@ class SandboxManager:
     ) -> tuple[SandboxClient, list[dict]]:
         """Spin up a sandbox for a run. Returns (client, startup_events)."""
         backend = await self._resolve_backend(sandbox_id)
+        secret = self._sandbox_secret if sandbox_id is None else ""
         handle, events = await backend.create(
             run_key, self._health_timeout, host_mounts,
-            self._sandbox_secret, start_cmd,
+            secret, start_cmd,
         )
         self._handles[run_key] = handle
 

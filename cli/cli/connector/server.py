@@ -189,7 +189,6 @@ class ConnectorServer:
         run_key: str = body["run_key"]
         ssh_target: str = body["ssh_target"]
         sandbox_type: str = body["sandbox_type"]
-        sandbox_secret: str = body["sandbox_secret"]
         start_cmd: str = body["start_cmd"]
         host_mounts: list[dict[str, str]] = body["host_mounts"]
         heartbeat_timeout: int = body.get(
@@ -204,7 +203,6 @@ class ConnectorServer:
                 ssh_target=ssh_target,
                 start_cmd=start_cmd,
                 run_key=run_key,
-                sandbox_secret=sandbox_secret,
                 sandbox_type=sandbox_type,
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
@@ -234,7 +232,7 @@ class ConnectorServer:
 
         try:
             state = await self._create_forward_state(
-                run_key, ssh_target, sandbox_type, sandbox_secret,
+                run_key, ssh_target, sandbox_type,
                 ready_event, events, process,
             )
         except Exception:
@@ -274,7 +272,6 @@ class ConnectorServer:
         run_key: str,
         ssh_target: str,
         sandbox_type: str,
-        sandbox_secret: str,
         ready_event: dict[str, Any],
         events: list[dict[str, Any]],
         process: asyncio.subprocess.Process,
@@ -282,6 +279,12 @@ class ConnectorServer:
         """Open SSH tunnel and build ForwardState."""
         remote_host: str = ready_event["host"]
         remote_port: int = ready_event["port"]
+        sandbox_secret: str | None = ready_event.get("sandbox_secret")
+        if not sandbox_secret:
+            raise RuntimeError(
+                "Sandbox did not provide secret in AF_READY marker — "
+                "upgrade sandbox image to a version that generates its own secret"
+            )
         backend_id: str | None = next(
             (
                 e.get("backend_id")
