@@ -199,7 +199,7 @@ export function EventFeed({
                     <span className="absolute inline-flex h-full w-full rounded-full bg-[#cc88ff] animate-ping opacity-50" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#cc88ff]" style={{ boxShadow: "0 0 4px rgba(204, 136, 255, 0.5)" }} />
                   </span>
-                  <span className="text-content text-[#cc88ff]/70">Agent is thinking...</span>
+                  <span className="text-content text-[#cc88ff]/70">Running...</span>
                 </motion.div>
               )}
             </AnimatePresence>

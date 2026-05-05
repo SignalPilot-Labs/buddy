@@ -230,7 +230,7 @@ describe("EventFeed thinking indicator", () => {
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
     ];
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
-    expect(screen.queryByText("Agent is thinking...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Running...")).not.toBeInTheDocument();
   });
 
   it("does not show thinking indicator when run is not active", () => {
@@ -238,7 +238,7 @@ describe("EventFeed thinking indicator", () => {
       makeAuditEvent(1, "run_started", { model: "claude", branch: "main" }),
     ];
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={false} hasSelectedRun={true} />);
-    expect(screen.queryByText("Agent is thinking...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Running...")).not.toBeInTheDocument();
   });
 });
 
