@@ -89,7 +89,7 @@ export function TokenPoolSection({
         <p className="mt-1.5 text-content text-[#ff4444]">{tokenError}</p>
       )}
 
-      <p className="mt-2 text-caption text-text-dim">
+      <p className="mt-2 text-content text-text-dim">
         Run <code className="text-[#88ccff] bg-[#88ccff]/[0.06] px-1 py-0.5 rounded">claude setup-token</code> to generate tokens. Multiple keys rotate on rate limit.
       </p>
     </div>

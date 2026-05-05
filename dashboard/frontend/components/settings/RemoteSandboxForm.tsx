@@ -42,7 +42,7 @@ function FormField(props: {
       </label>
       {props.children}
       {props.hint && (
-        <p className="text-caption text-text-dim mt-0.5">{props.hint}</p>
+        <p className="text-content text-text-dim mt-0.5">{props.hint}</p>
       )}
     </div>
   );

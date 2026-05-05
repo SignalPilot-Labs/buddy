@@ -126,7 +126,7 @@ export function RemoteSandboxes(): React.ReactElement {
               <span className="text-content text-text-secondary shrink-0">
                 {s.ssh_target}
               </span>
-              <span className="text-caption uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#88ccff]/[0.08] text-[#88ccff] shrink-0">
+              <span className="text-content uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#88ccff]/[0.08] text-[#88ccff] shrink-0">
                 {s.type}
               </span>
               <button
@@ -167,7 +167,7 @@ export function RemoteSandboxes(): React.ReactElement {
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
       )}
 
-      <p className="mt-2 text-caption text-text-dim">
+      <p className="mt-2 text-content text-text-dim">
         Pull the image on your remote first:
       </p>
       <CodeBlock

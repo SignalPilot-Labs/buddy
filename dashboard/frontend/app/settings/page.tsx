@@ -261,7 +261,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         {loading && (
           <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
-            <div className="flex items-center gap-2 text-meta text-text-secondary">
+            <div className="flex items-center gap-2 text-content text-text-secondary">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
                 <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
               </svg>
@@ -272,7 +272,7 @@ export default function SettingsPage() {
 
         {!loading && loadError && (
           <div className="flex flex-col items-center justify-center py-16 gap-3" role="alert">
-            <p className="text-meta text-[#ff4444]">{loadError}</p>
+            <p className="text-content text-[#ff4444]">{loadError}</p>
             <Button variant="success" size="md" onClick={() => setLoadAttempt((n) => n + 1)}>
               Retry
             </Button>
