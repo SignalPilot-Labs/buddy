@@ -13,7 +13,7 @@ function computeLiveStats(events: FeedEvent[]) {
   let costUsd = 0;
 
   for (const e of events) {
-    if (e._kind === "tool" && e.data.phase === "pre") {
+    if (e._kind === "tool") {
       toolCount++;
     } else if (e._kind === "usage") {
       contextTokens = e.data.context_tokens || 0;
