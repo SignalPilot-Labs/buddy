@@ -26,7 +26,7 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
       {mounts.map((m, i) => (
         <div key={i} className="p-2.5 bg-black/20 rounded border border-border space-y-1.5">
           <div className="flex items-center gap-2">
-            <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
+            <span className="text-content uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
             <input
               type="text"
               value={m.host_path}
@@ -48,7 +48,7 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Container</span>
+            <span className="text-content uppercase tracking-wider text-text-dim w-16 shrink-0">Container</span>
             <input
               type="text"
               value={m.container_path}
