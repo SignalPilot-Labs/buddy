@@ -119,26 +119,38 @@ async def run_ssh_command(
     command: str,
     env: dict[str, str],
 ) -> asyncio.subprocess.Process:
-    """Run a command over SSH with environment variables.
+    """Run a command over SSH with environment variables passed via stdin.
 
-    All env values are shell-quoted to prevent injection.
+    Env vars are written to the process stdin as shell export statements and
+    evaluated on the remote side via `bash -c 'eval "$(cat)"; <cmd>'`.
+    This keeps all env values out of the SSH command-line arguments, preventing
+    exposure via `ps aux` or /proc/<pid>/cmdline on shared HPC systems.
+
+    SSH stdin is encrypted by SSH transport; on the remote side the data is a
+    pipe (mode 0400, owner-only readable). After eval, vars exist only in the
+    process environment (/proc/PID/environ is 0400).
     """
-    env_exports = " ".join(
+    env_exports = "".join(
         f"export {k}={shlex.quote(v)};" for k, v in env.items()
     )
-    full_cmd = f"{env_exports} {command}" if env_exports else command
+    wrapped_cmd = f"bash -c 'eval \"$(cat)\"; {command}'"
     cmd = [
         "ssh",
         *_ssh_base_opts(),
         ssh_target,
-        full_cmd,
+        wrapped_cmd,
     ]
     process = await asyncio.create_subprocess_exec(
         *cmd,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
         preexec_fn=_preexec_fn,
     )
+    if process.stdin is not None:
+        if env_exports:
+            process.stdin.write(env_exports.encode())
+        process.stdin.close()
     return process
 
 
