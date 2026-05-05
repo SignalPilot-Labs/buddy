@@ -153,7 +153,12 @@ class BaseRemoteBackend(SandboxBackend):
                 )
 
         if host is None or port is None:
-            raise SandboxStartError("Sandbox start did not emit AF_READY marker", events)
+            log_lines = [e["line"] for e in events if e.get("event") == "log"]
+            tail = "\n".join(log_lines[-10:]) if log_lines else "(no output)"
+            raise SandboxStartError(
+                f"Start command exited without AF_READY:\n{tail}",
+                events,
+            )
 
         url = self._build_proxy_url(run_key)
         handle = SandboxInstance(
