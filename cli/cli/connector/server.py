@@ -57,7 +57,9 @@ def _build_image_check(sandbox_type: str, start_cmd: str) -> str | None:
     if sandbox_type == "slurm":
         for part in start_cmd.split():
             if part.endswith(".sif"):
-                return f"test -f {shlex.quote(part)}"
+                # Replace ~ with $HOME so tilde expands inside shlex.quote
+                expanded = part.replace("~", "$HOME", 1) if part.startswith("~") else part
+                return f"test -f {expanded}"
     elif sandbox_type == "docker":
         for part in start_cmd.split():
             if "/" in part and (":" in part or "." in part):
