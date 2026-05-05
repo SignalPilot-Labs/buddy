@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { FeedEvent, ToolCall, AuditEvent, UsageEvent, ConnectionState } from "@/lib/types";
-import { createSSE, pollEvents } from "@/lib/api";
+import { createSSE, fetchSseToken, pollEvents } from "@/lib/api";
 import type { PollEventItem } from "@/lib/api";
 import {
   SSE_POLL_INTERVAL_MS,
@@ -170,7 +170,7 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     runIdRef.current = null;
   }, []);
 
-  const connect = useCallback((runId: string, cursor: SSECursor) => {
+  const connect = useCallback(async (runId: string, cursor: SSECursor): Promise<void> => {
     // Clean up any existing connection and pending reconnect timers
     if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     if (reconnectTimerRef.current) { clearTimeout(reconnectTimerRef.current); reconnectTimerRef.current = null; }
@@ -256,10 +256,17 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
       reconnectTimerRef.current = setTimeout(() => {
         if (gen !== genRef.current) return;
         reconnectTimerRef.current = null;
-        // Reconnect SSE using tracked cursors
-        const es2 = createSSE(runId, lastToolCursorRef.current, lastAuditCursorRef.current);
-        esRef.current = es2;
-        attachSSEHandlers(es2);
+        // Fetch a fresh token — the previous one may have expired during backoff
+        fetchSseToken().then((token) => {
+          if (gen !== genRef.current) return;
+          const es2 = createSSE(runId, lastToolCursorRef.current, lastAuditCursorRef.current, token);
+          esRef.current = es2;
+          attachSSEHandlers(es2);
+        }).catch((err) => {
+          console.warn("SSE token fetch failed during reconnect, switching to polling:", err);
+          if (gen !== genRef.current) return;
+          switchToPolling();
+        });
       }, delay);
     }
 
@@ -349,15 +356,25 @@ export function useSSE(onRunEnded?: () => void, onSessionResumed?: () => void) {
     }
 
     // --- SSE primary with timeout fallback ---
-    const es = createSSE(runId, cursor.afterTool, cursor.afterAudit);
-    esRef.current = es;
-
-    timeoutRef.current = setTimeout(() => {
+    // Fetch an ephemeral token before opening the EventSource so the API key
+    // never appears in the SSE URL (and therefore never in server access logs).
+    try {
+      const token = await fetchSseToken();
       if (gen !== genRef.current) return;
-      if (!sseGotMessage) switchToPolling();
-    }, SSE_FALLBACK_TIMEOUT_MS);
+      const es = createSSE(runId, cursor.afterTool, cursor.afterAudit, token);
+      esRef.current = es;
 
-    attachSSEHandlers(es);
+      timeoutRef.current = setTimeout(() => {
+        if (gen !== genRef.current) return;
+        if (!sseGotMessage) switchToPolling();
+      }, SSE_FALLBACK_TIMEOUT_MS);
+
+      attachSSEHandlers(es);
+    } catch (err) {
+      console.warn("SSE token fetch failed, switching to polling:", err);
+      if (gen !== genRef.current) return;
+      switchToPolling();
+    }
   }, []);
 
   // Clean up on unmount

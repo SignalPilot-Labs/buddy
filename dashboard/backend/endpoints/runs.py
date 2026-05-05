@@ -7,6 +7,7 @@ from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend import auth
+from backend import sse_tokens
 from backend.constants import (
     AGENT_TIMEOUT_LONG,
     AGENT_TIMEOUT_SHORT,
@@ -47,6 +48,22 @@ from db.models import AuditLog, Run, ToolCall
 log = logging.getLogger("dashboard.endpoints")
 
 router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key)])
+
+
+# ---------------------------------------------------------------------------
+# SSE token issuance
+# ---------------------------------------------------------------------------
+
+@router.post("/sse-token")
+async def issue_sse_token() -> dict[str, str]:
+    """Issue a short-lived SSE token.
+
+    The caller must authenticate with the X-API-Key header (enforced by the
+    router-level dependency). The returned token is valid for SSE stream
+    endpoints only and expires in SSE_TOKEN_LIFETIME_SEC seconds.
+    """
+    token = sse_tokens.create_sse_token()
+    return {"token": token}
 
 
 # ---------------------------------------------------------------------------

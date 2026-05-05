@@ -93,3 +93,7 @@ INJECTABLE_TERMINAL_STATUSES: frozenset[str] = frozenset({
 # ── HTTP headers ──
 # Sync: autofyn/utils/constants.py must define the same constant.
 HEADER_GITHUB_TOKEN = "X-GitHub-Token"
+
+# ── SSE ephemeral tokens ──
+SSE_TOKEN_LIFETIME_SEC: int = 300
+SSE_TOKEN_BYTES: int = 32

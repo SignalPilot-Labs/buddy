@@ -1,5 +1,5 @@
 import type { Run, ToolCall, AuditEvent, RepoInfo } from "./types";
-import { API_KEY, getApiBase, UI_PORT } from "./constants";
+import { getApiBase, UI_PORT } from "./constants";
 
 import { apiFetch } from "./fetch";
 
@@ -74,13 +74,21 @@ export async function injectPrompt(
   return res.json();
 }
 
+export async function fetchSseToken(): Promise<string> {
+  const res = await apiFetch("/api/sse-token", { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to fetch SSE token (HTTP ${res.status})`);
+  const data = await res.json() as { token: string };
+  return data.token;
+}
+
 export function createSSE(
   runId: string,
   afterTool: number,
   afterAudit: number,
+  token: string,
 ): EventSource {
   return new EventSource(
-    `${getApiBase()}/api/stream/${runId}?api_key=${encodeURIComponent(API_KEY)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
+    `${getApiBase()}/api/stream/${runId}?token=${encodeURIComponent(token)}&after_tool=${afterTool}&after_audit=${afterAudit}`,
   );
 }
 
