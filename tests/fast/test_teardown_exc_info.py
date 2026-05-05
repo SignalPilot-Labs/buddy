@@ -53,7 +53,6 @@ class TestTeardownExcInfo:
                 sandbox=sandbox,
                 run=run,
                 metadata_store=metadata_mock,
-                exec_timeout=60,
             )
 
         assert result is None

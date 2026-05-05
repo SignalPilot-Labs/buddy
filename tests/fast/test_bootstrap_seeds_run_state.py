@@ -47,8 +47,7 @@ class TestBootstrapSeedsRunState:
                 github_repo="owner/repo",
                 model="claude-sonnet-4-6",
                 effort="high",
-                git_token="ghp_test",
-                clone_timeout=120,
+
                 mcp_servers=None,
             )
 
@@ -90,8 +89,6 @@ class TestBootstrapSeedsRunState:
                         github_repo="owner/repo",
                         model="claude-sonnet-4-6",
                         effort="high",
-                        git_token="ghp_test",
-                        clone_timeout=120,
                         mcp_servers=None,
                     )
 

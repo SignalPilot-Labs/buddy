@@ -99,21 +99,20 @@ class TestRunEndedAudit:
         bootstrap = _make_bootstrap()
 
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", return_value="completed"),
             patch("server.finalize_run", new_callable=AsyncMock),
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            mock_sandbox = MagicMock(close=AsyncMock())
+            mock_sandbox.env.set = AsyncMock()
+            pool.create = AsyncMock(return_value=(mock_sandbox, []))
             pool.destroy = AsyncMock()
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
 
             active = _make_active_run("run-1")
             await srv.execute_run(active, _make_body())
@@ -128,20 +127,19 @@ class TestRunEndedAudit:
         calls, fake_audit = audit_calls
 
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.bootstrap_run", side_effect=RuntimeError("clone failed")),
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            mock_sandbox = MagicMock(close=AsyncMock())
+            mock_sandbox.env.set = AsyncMock()
+            pool.create = AsyncMock(return_value=(mock_sandbox, []))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=[])
+            pool.get_logs = AsyncMock(return_value=[])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
 
             active = _make_active_run("run-2")
             with pytest.raises(RuntimeError, match="clone failed"):
@@ -158,21 +156,20 @@ class TestRunEndedAudit:
         bootstrap = _make_bootstrap()
 
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", side_effect=RuntimeError("sandbox died")),
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            mock_sandbox = MagicMock(close=AsyncMock())
+            mock_sandbox.env.set = AsyncMock()
+            pool.create = AsyncMock(return_value=(mock_sandbox, []))
             pool.destroy = AsyncMock()
-            pool.get_sandbox_logs = AsyncMock(return_value=["error: OOM killed"])
+            pool.get_logs = AsyncMock(return_value=["error: OOM killed"])
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
 
             active = _make_active_run("run-3")
             with pytest.raises(RuntimeError, match="sandbox died"):
@@ -198,21 +195,20 @@ class TestRunEndedAudit:
         bootstrap = _make_bootstrap()
 
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.bootstrap_run", return_value=bootstrap),
             patch("server.run_rounds", return_value="stopped"),
             patch("server.finalize_run", new_callable=AsyncMock),
             patch("server.log_audit", side_effect=fake_audit),
         ):
             pool = MockPool.return_value
-            pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+            mock_sandbox = MagicMock(close=AsyncMock())
+            mock_sandbox.env.set = AsyncMock()
+            pool.create = AsyncMock(return_value=(mock_sandbox, []))
             pool.destroy = AsyncMock()
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
 
             active = _make_active_run("run-4")
             await srv.execute_run(active, _make_body())

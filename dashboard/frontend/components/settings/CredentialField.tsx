@@ -1,6 +1,7 @@
 "use client";
 
 import type { SettingsStatus } from "@/lib/types";
+import { IconCheck } from "@/components/ui/icons";
 
 type StringSettingsKey = "git_token" | "github_repo" | "max_budget_usd";
 
@@ -44,9 +45,7 @@ export function CredentialField({
         </label>
         {isSet && (
           <span className="flex items-center gap-1 text-content text-[#00ff88]/60">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <polyline points="2 5 4 7 8 3" />
-            </svg>
+            <IconCheck />
             Set
           </span>
         )}
@@ -108,7 +107,7 @@ export function CredentialField({
         </div>
       )}
 
-      <p className="mt-2 text-body text-text-muted leading-relaxed">
+      <p className="mt-2 text-content text-text-dim">
         {field.helpText}
       </p>
     </div>

@@ -62,7 +62,7 @@ class TestBudgetEnvFallback:
             env={ENV_KEY_GIT_TOKEN: "ghp_test_token"},
         )
 
-        _run_id, _repo, _task, budget, _token = srv._validate_run_inputs(active, body)
+        _run_id, _repo, _task, budget = srv._validate_run_inputs(active, body)
 
         assert budget == 0.0, (
             f"Expected 0.0 (unlimited) but got {budget!r}"
@@ -83,6 +83,6 @@ class TestBudgetEnvFallback:
             env={ENV_KEY_GIT_TOKEN: "ghp_test_token"},
         )
 
-        _run_id, _repo, _task, budget, _token = srv._validate_run_inputs(active, body)
+        _run_id, _repo, _task, budget = srv._validate_run_inputs(active, body)
 
         assert budget == 10.0

@@ -87,9 +87,9 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       };
     case "sandbox_created":
       return {
-        id: `ms-${ts}-Sandbox Created`,
+        id: `ms-${ts}-Sandbox Started`,
         type: "milestone",
-        label: "Sandbox Created",
+        label: "Sandbox Started",
         detail: "",
         color: "#88ccff",
         ts,
@@ -328,6 +328,34 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         id: `ctrl-${ts}-mcp-warning`,
         type: "control",
         text: `MCP warning: ${String(d.message || "Unknown MCP issue")}`,
+        details: d,
+        ts,
+      };
+    case "sandbox_queued":
+      return {
+        id: `ms-${ts}-Sandbox Queued`,
+        type: "milestone",
+        label: "Sandbox Queued",
+        detail: d.backend_id ? `Job ${String(d.backend_id)}` : "",
+        color: "#88ccff",
+        ts,
+        event,
+      };
+    case "sandbox_allocated":
+      return {
+        id: `ms-${ts}-Sandbox Allocated`,
+        type: "milestone",
+        label: "Sandbox Allocated",
+        detail: d.backend_id ? `Job ${String(d.backend_id)}` : "",
+        color: "#88ccff",
+        ts,
+        event,
+      };
+    case "sandbox_start_failed":
+      return {
+        id: `ctrl-${ts}-sandbox-start-failed`,
+        type: "control",
+        text: `Sandbox start failed: ${String(d.error || "Unknown error")}`,
         details: d,
         ts,
       };

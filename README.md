@@ -14,6 +14,8 @@ built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPi
 
 </div>
 
+**[Getting Started](docs/user/getting-started.md)** · **[CLI](docs/user/cli.md)** · **[Remote Sandboxes](docs/user/remote-sandboxes.md)** · **[Config](docs/user/config.md)** · **[FAQ](docs/user/faq.md)**
+
 ---
 
 Give it a repo, a task, and a time limit. Walk away. Come back to a PR.
@@ -109,6 +111,12 @@ autofyn repos set-active owner/repo    # set active repo
 ```
 
 Use `--json` on any command for machine-readable output.
+
+## Remote sandboxes
+
+Runs can execute on remote machines (HPC clusters, GPU servers) instead of local Docker. AutoFyn SSH-tunnels to the remote, streams logs back, and manages the lifecycle automatically.
+
+See [docs/user/remote-sandboxes.md](docs/user/remote-sandboxes.md) for setup, start command examples, GPU access, and troubleshooting.
 
 ## Responsible disclosure
 

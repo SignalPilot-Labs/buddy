@@ -5,8 +5,11 @@ from __future__ import annotations
 import getpass
 import os
 import re
+import signal
+import socket
 import subprocess
 import sys
+import time
 
 import typer
 
@@ -89,6 +92,11 @@ def start_services(allow_docker: bool) -> None:
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
+    # Generate connector secret and start connector BEFORE docker compose
+    # so the agent container can reach it immediately on boot
+    if not os.environ.get("CONNECTOR_SECRET"):
+        os.environ["CONNECTOR_SECRET"] = secrets.token_hex(32)
+    _start_connector()
     _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:
@@ -358,6 +366,7 @@ def show_logs(tail_lines: int) -> None:
 
 def stop_services() -> None:
     """Stop all AutoFyn services."""
+    _stop_connector()
     _compose(["down"])
     console.print("[green]✓[/green] AutoFyn services stopped")
 
@@ -379,3 +388,110 @@ def uninstall_services() -> None:
         abort=True,
     )
     _run_script(UNINSTALL_SCRIPT)
+
+
+def _connector_pid_file() -> Path:
+    """Path to the connector wrapper PID file."""
+    return Path(AUTOFYN_HOME) / ".connector.pid"
+
+
+def _kill_port_pids(port: str) -> None:
+    """Kill every process listening on the given port."""
+    result = subprocess.run(
+        ["lsof", "-ti", f"tcp:{port}"],
+        capture_output=True, text=True,
+    )
+    for pid_str in result.stdout.strip().split():
+        if pid_str:
+            try:
+                os.kill(int(pid_str), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+
+
+def _wait_port_free(port: str, timeout: float) -> bool:
+    """Block until nothing is listening on the port."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = subprocess.run(
+            ["lsof", "-ti", f"tcp:{port}"],
+            capture_output=True, text=True,
+        )
+        if not result.stdout.strip():
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def _wait_port_ready(port: str, timeout: float) -> bool:
+    """Block until the port is accepting connections."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", int(port)), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+
+def _start_connector() -> None:
+    """Spawn the connector, guaranteeing the port is clean first."""
+    connector_secret = os.environ.get("CONNECTOR_SECRET", "")
+    if not connector_secret:
+        connector_secret = secrets.token_hex(32)
+        os.environ["CONNECTOR_SECRET"] = connector_secret
+
+    connector_port = os.environ.get("CONNECTOR_PORT", "9400")
+    pid_file = _connector_pid_file()
+    log_file = Path(AUTOFYN_HOME) / ".connector.log"
+
+    # 1. Kill old wrapper from PID file (kills entire process group)
+    if pid_file.exists():
+        try:
+            old_pid = int(pid_file.read_text().strip())
+            os.killpg(os.getpgid(old_pid), signal.SIGKILL)
+        except (ProcessLookupError, ValueError, PermissionError, OSError):
+            pass
+        pid_file.unlink(missing_ok=True)
+
+    # 2. Kill anything still on the port (stale connector, manual runs, etc.)
+    _kill_port_pids(connector_port)
+
+    # 3. Wait until port is actually free — fail if something won't die
+    if not _wait_port_free(connector_port, timeout=3.0):
+        console.print(f"[red]✗[/red] Port {connector_port} still in use — cannot start connector")
+        sys.exit(1)
+
+    # 4. Spawn connector with logs (not DEVNULL)
+    log_handle = open(log_file, "a")
+    proc = subprocess.Popen(
+        ["autofyn-connector", "--port", connector_port],
+        stdout=log_handle,
+        stderr=log_handle,
+        start_new_session=True,
+    )
+    pid_file.write_text(str(proc.pid))
+
+    # 5. Wait until connector is actually listening
+    if not _wait_port_ready(connector_port, timeout=5.0):
+        console.print(f"[red]✗[/red] Connector failed to start — see {log_file}")
+        sys.exit(1)
+    console.print(f"[green]✓[/green] Connector started (pid {proc.pid}, port {connector_port})")
+
+
+def _stop_connector() -> None:
+    """Stop the connector — kill process and free port."""
+    connector_port = os.environ.get("CONNECTOR_PORT", "9400")
+
+    pid_file = _connector_pid_file()
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text().strip())
+            os.killpg(os.getpgid(pid), signal.SIGKILL)
+        except (ProcessLookupError, ValueError, PermissionError, OSError):
+            pass
+        pid_file.unlink(missing_ok=True)
+
+    _kill_port_pids(connector_port)
+    console.print("[green]✓[/green] Connector stopped")

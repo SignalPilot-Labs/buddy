@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from session.manager import SessionManager
+from sdk.manager import SessionManager
 
 
 class TestSessionTaskDoneCleanup:
@@ -28,7 +28,7 @@ class TestSessionTaskDoneCleanup:
 
         manager = SessionManager()
 
-        with patch("session.manager.Session", return_value=mock_session):
+        with patch("sdk.manager.Session", return_value=mock_session):
             session_id = await manager.start({})
 
         assert session_id in manager._sessions
@@ -55,7 +55,7 @@ class TestSessionTaskDoneCleanup:
 
         manager = SessionManager()
 
-        with patch("session.manager.Session", return_value=mock_session):
+        with patch("sdk.manager.Session", return_value=mock_session):
             await manager.start({})
 
         assert manager.active_count() == 1
@@ -80,7 +80,7 @@ class TestSessionTaskDoneCleanup:
 
         manager = SessionManager()
 
-        with patch("session.manager.Session", return_value=mock_session):
+        with patch("sdk.manager.Session", return_value=mock_session):
             session_id = await manager.start({})
 
         await asyncio.sleep(0)
@@ -101,8 +101,8 @@ class TestSessionTaskDoneCleanup:
 
         manager = SessionManager()
 
-        with patch("session.manager.Session", return_value=mock_session), \
-             patch("session.manager.log"):
+        with patch("sdk.manager.Session", return_value=mock_session), \
+             patch("sdk.manager.log"):
             session_id = await manager.start({})
             await asyncio.sleep(0)
             await asyncio.sleep(0)

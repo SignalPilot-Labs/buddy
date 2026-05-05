@@ -28,7 +28,7 @@ describe("bootstrap progress milestones", () => {
     }
   });
 
-  it("sandbox_created renders as a milestone", () => {
+  it("sandbox_created renders as Sandbox Started milestone", () => {
     const events: FeedEvent[] = [
       makeAuditEvent(2, "sandbox_created", {}, ts),
     ];
@@ -36,7 +36,7 @@ describe("bootstrap progress milestones", () => {
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe("milestone");
     if (result[0].type === "milestone") {
-      expect(result[0].label).toBe("Sandbox Created");
+      expect(result[0].label).toBe("Sandbox Started");
       expect(result[0].color).toBe("#88ccff");
     }
   });
@@ -71,7 +71,7 @@ describe("bootstrap progress milestones", () => {
     expect(result).toHaveLength(4);
 
     const labels = result.map((g) => (g.type === "milestone" ? g.label : ""));
-    expect(labels).toEqual(["Run Starting", "Sandbox Created", "Repo Cloned", "Run Started"]);
+    expect(labels).toEqual(["Run Starting", "Sandbox Started", "Repo Cloned", "Run Started"]);
   });
 
   it("run_starting with empty repo shows empty detail", () => {
@@ -83,5 +83,25 @@ describe("bootstrap progress milestones", () => {
     if (result[0].type === "milestone") {
       expect(result[0].detail).toBe("");
     }
+  });
+
+  it("all sandbox milestones use the same color", () => {
+    const sandboxEvents: FeedEvent[] = [
+      makeAuditEvent(1, "sandbox_created", {}, ts),
+      makeAuditEvent(2, "sandbox_queued", { backend_id: "123" }, ts),
+      makeAuditEvent(3, "sandbox_allocated", { backend_id: "123" }, ts),
+    ];
+    const results = sandboxEvents.map((e) => groupEvents([e])[0]);
+    const colors = results.map((r) => (r.type === "milestone" ? r.color : ""));
+    expect(new Set(colors).size).toBe(1);
+    expect(colors[0]).toBe("#88ccff");
+  });
+
+  it("startup_log events are not rendered as milestones", () => {
+    const events: FeedEvent[] = [
+      makeAuditEvent(1, "startup_log", { line: "srun: job queued" }, ts),
+    ];
+    const result = groupEvents(events);
+    expect(result).toHaveLength(0);
   });
 });

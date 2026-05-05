@@ -7,7 +7,7 @@ have a colon before 'push' (in the git config value) but are NOT refspec
 pushes and must be allowed.
 """
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/test-repo"

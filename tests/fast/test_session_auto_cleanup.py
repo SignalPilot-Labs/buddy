@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from session.manager import SessionManager
+from sdk.manager import SessionManager
 
 
 class TestSessionDoneCallback:
@@ -31,7 +31,7 @@ class TestSessionDoneCallback:
 
         manager = SessionManager()
 
-        with unittest.mock.patch("session.manager.Session", return_value=mock_session):
+        with unittest.mock.patch("sdk.manager.Session", return_value=mock_session):
             session_id = await manager.start({})
 
         assert mock_session.task is not None
@@ -60,7 +60,7 @@ class TestSessionDoneCallback:
 
         manager = SessionManager()
 
-        with unittest.mock.patch("session.manager.Session", return_value=mock_session):
+        with unittest.mock.patch("sdk.manager.Session", return_value=mock_session):
             session_id = await manager.start({})
 
         await mock_session.task
@@ -84,7 +84,7 @@ class TestSessionDoneCallback:
 
         manager = SessionManager()
 
-        with unittest.mock.patch("session.manager.Session", return_value=mock_session):
+        with unittest.mock.patch("sdk.manager.Session", return_value=mock_session):
             session_id = await manager.start({})
 
         await mock_session.task

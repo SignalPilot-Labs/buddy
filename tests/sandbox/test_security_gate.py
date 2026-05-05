@@ -1,6 +1,6 @@
 """Tests for SecurityGate tool-access controls in the sandbox."""
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/test-repo"

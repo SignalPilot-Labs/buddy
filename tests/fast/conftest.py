@@ -3,6 +3,7 @@
 import os
 
 os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
+os.environ.setdefault("AF_IMAGE_TAG", "test")
 
 from unittest.mock import AsyncMock, MagicMock
 

@@ -7,7 +7,7 @@ export function SecurityBanner() {
           <span className="h-2 w-2 rounded-full bg-[#ffaa00]/30" />
           <span className="h-2 w-2 rounded-full bg-[#00ff88]/30" />
         </div>
-        <span className="text-caption text-text-secondary font-mono">security</span>
+        <span className="text-content text-text-secondary font-mono">security</span>
       </div>
       <div className="flex items-start gap-3 px-4 py-3">
         <svg width="44" height="44" viewBox="0 0 32 32" fill="none" className="shrink-0">
@@ -28,19 +28,19 @@ export function SecurityBanner() {
           <text x="26" y="28" fontSize="3" fill="#00ff88" opacity="0.15" fontFamily="monospace">00</text>
         </svg>
         <div className="space-y-1.5 min-w-0">
-          <div className="font-mono text-caption leading-relaxed">
+          <div className="font-mono text-content leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
             <span className="text-accent-hover">Credentials encrypted with</span>{" "}
             <span className="text-[#00ff88]">AES-128 (Fernet)</span>{" "}
             <span className="text-accent-hover">before storage.</span>
           </div>
-          <div className="font-mono text-caption leading-relaxed">
+          <div className="font-mono text-content leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
             <span className="text-accent-hover">Decrypted</span>{" "}
             <span className="text-[#ffcc44]">in-memory only</span>{" "}
             <span className="text-accent-hover">when starting a run.</span>
           </div>
-          <div className="font-mono text-caption leading-relaxed">
+          <div className="font-mono text-content leading-relaxed">
             <span className="text-[#00ff88]/60">$</span>{" "}
             <span className="text-accent-hover">Master key on Docker volume &mdash;</span>{" "}
             <span className="text-text-secondary">never leaves host.</span>

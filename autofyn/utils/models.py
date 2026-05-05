@@ -35,28 +35,6 @@ if TYPE_CHECKING:
     from utils.run_config import RunAgentConfig
 
 
-# ── Sandbox execute request/response ────────────────────────────────
-
-
-@dataclass
-class ExecRequest:
-    """Command execution request sent to the sandbox."""
-
-    args: list[str]
-    cwd: str
-    timeout: int
-    env: dict[str, str]
-
-
-@dataclass
-class ExecResult:
-    """Command execution result returned from the sandbox."""
-
-    stdout: str
-    stderr: str
-    exit_code: int
-
-
 # ── Sandbox repo phase results ──────────────────────────────────────
 
 

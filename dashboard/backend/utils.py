@@ -359,7 +359,7 @@ async def agent_request(
                 except Exception:
                     detail = f"Agent error {res.status_code}"
                 # Preserve client-meaningful status codes; wrap others as 502
-                if res.status_code in (404, 409, 422, 429):
+                if res.status_code in (404, 409, 422, 429, 503):
                     raise HTTPException(status_code=res.status_code, detail=detail)
                 raise HTTPException(status_code=502, detail=detail)
             return res.json()

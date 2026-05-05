@@ -19,10 +19,17 @@ export interface SSECursor {
 }
 
 function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
-  const details =
-    typeof raw.details === "string"
-      ? JSON.parse(raw.details)
-      : raw.details || {};
+  let details: Record<string, unknown>;
+  if (typeof raw.details === "string") {
+    try {
+      details = JSON.parse(raw.details) as Record<string, unknown>;
+    } catch {
+      console.warn("processAudit: invalid JSON in details, skipping event", raw.event_type);
+      return prev;
+    }
+  } else {
+    details = raw.details || {};
+  }
 
   if (raw.event_type === "usage") {
     return [
@@ -31,38 +38,40 @@ function processAudit(prev: FeedEvent[], raw: AuditEvent): FeedEvent[] {
     ];
   }
   if (raw.event_type === "llm_text") {
-    const role = details.agent_role || "worker";
+    const role = String(details.agent_role || "worker");
+    const text = String(details.text || "");
     const last = prev[prev.length - 1];
     if (last && last._kind === "llm_text" && last.agent_role === role) {
       return [
         ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
+        { ...last, text: last.text + text },
       ];
     }
     return [
       ...prev,
       {
         _kind: "llm_text",
-        text: details.text || "",
+        text,
         ts: raw.ts,
         agent_role: role,
       },
     ];
   }
   if (raw.event_type === "llm_thinking") {
-    const role = details.agent_role || "worker";
+    const role = String(details.agent_role || "worker");
+    const text = String(details.text || "");
     const last = prev[prev.length - 1];
     if (last && last._kind === "llm_thinking" && last.agent_role === role) {
       return [
         ...prev.slice(0, -1),
-        { ...last, text: last.text + (details.text || "") },
+        { ...last, text: last.text + text },
       ];
     }
     return [
       ...prev,
       {
         _kind: "llm_thinking",
-        text: details.text || "",
+        text,
         ts: raw.ts,
         agent_role: role,
       },

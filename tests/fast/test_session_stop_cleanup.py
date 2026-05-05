@@ -7,11 +7,11 @@ session — it stays readable for event draining. Use delete() to remove.
 """
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from session.manager import SessionManager
+from sdk.manager import SessionManager
 
 
 class TestSessionStopCleanup:

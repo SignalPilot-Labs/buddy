@@ -10,6 +10,7 @@ from endpoints.control import register_control_routes
 from endpoints.diff import register_diff_routes
 from endpoints.logs import register_log_routes
 from endpoints.run import register_run_routes
+from endpoints.test_sandbox import register_test_sandbox_routes
 
 if TYPE_CHECKING:
     from server import AgentServer
@@ -21,3 +22,4 @@ def register_routes(app: FastAPI, server: "AgentServer") -> None:
     register_control_routes(app, server)
     register_diff_routes(app, server)
     register_log_routes(app, server)
+    register_test_sandbox_routes(app, server)

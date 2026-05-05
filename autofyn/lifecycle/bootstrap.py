@@ -55,15 +55,15 @@ async def bootstrap_run(
     github_repo: str,
     model: str,
     effort: str,
-    git_token: str,
-    clone_timeout: int,
     mcp_servers: dict[str, dict] | None,
 ) -> BootstrapResult:
-    """Prepare sandbox state and services for a fresh run."""
+    """Prepare sandbox state and services for a fresh run.
+
+    Secrets (GIT_TOKEN, etc.) must already be injected via POST /env
+    before calling this function.
+    """
     if not custom_prompt:
         raise RuntimeError("bootstrap_run requires a non-empty task prompt")
-    if not git_token:
-        raise RuntimeError("bootstrap_run requires a GIT_TOKEN")
 
     fallback_model = get_fallback_model(model)
 
@@ -74,10 +74,8 @@ async def bootstrap_run(
     log.info("Run %s bootstrapping %s on branch %s", run_id, github_repo, branch_name)
     await sandbox.repo.bootstrap(
         repo=github_repo,
-        token=git_token,
         base_branch=base_branch,
         working_branch=branch_name,
-        timeout=clone_timeout,
     )
     await log_audit(run_id, "repo_cloned", {"repo": github_repo, "branch": branch_name})
     run_config = await load_run_agent_config(sandbox)

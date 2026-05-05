@@ -61,9 +61,6 @@ def _make_server() -> AgentServer:
     """Build an AgentServer instance without calling __init__ (avoids DB + pool setup)."""
     srv = AgentServer.__new__(AgentServer)
     srv._pool = MagicMock()
-    srv._exec_timeout = 300
-    srv._health_timeout = 30
-    srv._clone_timeout = 120
     return srv
 
 
@@ -132,13 +129,15 @@ class TestServerAuditRedaction:
 
         srv = _make_server()
         pool = srv._pool
-        pool.get_sandbox_logs = AsyncMock(
+        pool.get_logs = AsyncMock(
             return_value=[
                 f"line1 https://x-access-token:{sentinel}@github.com/o/r.git fatal",
                 "line2",
             ]
         )
-        pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+        mock_sandbox = MagicMock(close=AsyncMock())
+        mock_sandbox.env.set = AsyncMock()
+        pool.create = AsyncMock(return_value=(mock_sandbox, []))
         pool.destroy = AsyncMock()
 
         log_audit_mock = AsyncMock()
@@ -179,13 +178,15 @@ class TestServerAuditRedaction:
 
         srv = _make_server()
         pool = srv._pool
-        pool.get_sandbox_logs = AsyncMock(
+        pool.get_logs = AsyncMock(
             return_value=[
                 f"line1 https://x-access-token:{sentinel}@github.com/o/r.git fatal",
                 "line2",
             ]
         )
-        pool.create = AsyncMock(return_value=MagicMock(close=AsyncMock()))
+        mock_sandbox = MagicMock(close=AsyncMock())
+        mock_sandbox.env.set = AsyncMock()
+        pool.create = AsyncMock(return_value=(mock_sandbox, []))
         pool.destroy = AsyncMock()
 
         with (

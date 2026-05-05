@@ -8,6 +8,8 @@ import re
 
 import posixpath
 
+from config.constants import SANDBOX_REPO_DIR as SANDBOX_REPO_DIR
+
 # ── Secret Redaction ──
 SECRET_REDACT_MASK: str = "***REDACTED***"
 
@@ -23,6 +25,7 @@ RUN_STATUS_STOPPED: str = "stopped"
 RUN_STATUS_ERROR: str = "error"
 RUN_STATUS_CRASHED: str = "crashed"
 RUN_STATUS_KILLED: str = "killed"
+RUN_STATUS_CONNECTOR_LOST: str = "connector_lost"
 
 # Canonical set of all run status values.
 # Cross-language sync test (test_run_status_sync.py) verifies this matches
@@ -38,6 +41,7 @@ RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_ERROR,
     RUN_STATUS_CRASHED,
     RUN_STATUS_KILLED,
+    RUN_STATUS_CONNECTOR_LOST,
 })
 
 # Statuses where the run is still alive (not terminal).
@@ -46,6 +50,7 @@ ACTIVE_RUN_STATUSES: frozenset[str] = frozenset({
     RUN_STATUS_RUNNING,
     RUN_STATUS_PAUSED,
     RUN_STATUS_RATE_LIMITED,
+    RUN_STATUS_CONNECTOR_LOST,
 })
 
 # Truly terminal statuses — run's background task has stopped.
@@ -124,7 +129,7 @@ BLOCKED_CONTAINER_PATHS: frozenset[str] = frozenset({
 })
 BLOCKED_CONTAINER_EXACT_PATHS: frozenset[str] = frozenset({
     "/",
-    "/home/agentuser/repo",
+    SANDBOX_REPO_DIR,
 })
 MAX_HOST_MOUNTS: int = 10
 MAX_MCP_SERVERS: int = 10
@@ -163,6 +168,60 @@ def validate_host_mount(
     for prefix in BLOCKED_MOUNT_PREFIXES:
         if resolved_host == prefix or resolved_host.startswith(prefix + "/"):
             return f"host_path under blocked prefix {prefix}: {host_path!r}"
+    return None
+
+
+# ── Remote Sandbox Timeouts ──
+SSH_CONNECT_TIMEOUT_SEC: int = 30
+SANDBOX_QUEUE_TIMEOUT_SEC: int = 1800
+SANDBOX_BOOT_TIMEOUT_SEC: int = 120
+SANDBOX_STOP_TIMEOUT_SEC: int = 60
+CONNECTOR_RECONNECT_TIMEOUT_SEC: int = 300
+SANDBOX_HEARTBEAT_TIMEOUT_SEC: int = 1800
+
+# ── Remote Sandbox Types ──
+SANDBOX_TYPE_SLURM: str = "slurm"
+SANDBOX_TYPE_DOCKER: str = "docker"
+VALID_SANDBOX_TYPES: frozenset[str] = frozenset({SANDBOX_TYPE_SLURM, SANDBOX_TYPE_DOCKER})
+
+# ── Sandbox Protocol ──
+SANDBOX_PROTOCOL_VERSION: int = 1
+
+# Regex for safe remote mount paths: absolute POSIX, no spaces or shell metacharacters.
+REMOTE_MOUNT_PATH_RE: re.Pattern[str] = re.compile(r"^/[a-zA-Z0-9._/\-]+$")
+
+# SSH target validation: user@host, host, host:port — no shell metacharacters.
+SSH_TARGET_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9@._:/\-]+$")
+
+# ── Remote Sandbox Config CRUD Limits ──
+REMOTE_SANDBOX_KEY_PREFIX: str = "remote_sandbox:"
+LAST_START_CMD_KEY_PREFIX: str = "last_start_cmd:"
+REMOTE_MOUNTS_KEY_PREFIX: str = "remote_mounts:"
+SANDBOX_NAME_MIN_LEN: int = 1
+SANDBOX_NAME_MAX_LEN: int = 256
+SSH_TARGET_MIN_LEN: int = 1
+SSH_TARGET_MAX_LEN: int = 512
+START_CMD_MIN_LEN: int = 1
+START_CMD_MAX_LEN: int = 65536
+QUEUE_TIMEOUT_MIN: int = 60
+QUEUE_TIMEOUT_MAX: int = 86400
+HEARTBEAT_TIMEOUT_MIN: int = 60
+HEARTBEAT_TIMEOUT_MAX: int = 86400
+MAX_REMOTE_MOUNTS: int = 50
+
+_BLOCKED_REMOTE_MOUNT_PREFIXES: tuple[str, ...] = ("/proc", "/sys", "/dev")
+
+
+def validate_remote_mount_path(path: str) -> str | None:
+    """Validate a remote mount path. Returns error string or None if valid."""
+    if not path or not path.startswith("/"):
+        return f"Path must be absolute, got: {path!r}"
+    if not REMOTE_MOUNT_PATH_RE.fullmatch(path):
+        return f"Path contains invalid characters (spaces, shell metacharacters not allowed): {path!r}"
+    normalized = posixpath.normpath(path)
+    for prefix in _BLOCKED_REMOTE_MOUNT_PREFIXES:
+        if normalized == prefix or normalized.startswith(prefix + "/"):
+            return f"Path under blocked prefix {prefix}: {path!r}"
     return None
 
 
@@ -243,6 +302,28 @@ MIGRATION_CACHE_TOKEN_COLUMNS: tuple[str, ...] = (
 # Allowlisted table names for idempotency_key migration DDL.
 MIGRATION_IDEMPOTENCY_TABLES: tuple[str, ...] = ("tool_calls", "audit_log")
 
+# Sandbox snapshot columns for migration DDL: (column_name, sql_type) pairs.
+# All column names are safe SQL identifiers (lowercase letters and underscores only).
+MIGRATION_SANDBOX_SNAPSHOT_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("sandbox_id", "VARCHAR"),
+    ("sandbox_backend_id", "VARCHAR"),
+)
+
+# Columns removed after /env refactor — no longer snapshotted per-run.
+# The sandbox config lives in the settings table keyed by sandbox_id.
+MIGRATION_SANDBOX_DROP_COLUMNS: tuple[str, ...] = (
+    "sandbox_type",
+    "sandbox_ssh_target",
+    "sandbox_start_cmd",
+    "sandbox_remote_host",
+    "sandbox_remote_port",
+)
+
+# Allowlist of column names from MIGRATION_SANDBOX_SNAPSHOT_COLUMNS for DDL safety.
+MIGRATION_SANDBOX_SNAPSHOT_COL_NAMES: tuple[str, ...] = tuple(
+    col for col, _ in MIGRATION_SANDBOX_SNAPSHOT_COLUMNS
+)
+
 # Regex for a safe SQL identifier: lowercase letters, digits, and underscores only.
 # No SQL metacharacters, no quotes, no spaces.
 SAFE_SQL_IDENTIFIER_RE: re.Pattern[str] = re.compile(r"^[a-z_][a-z0-9_]*$")
@@ -318,6 +399,11 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "agent_stop",
     # MCP
     "mcp_warning",
+    # Remote sandbox
+    "sandbox_queued",
+    "sandbox_allocated",
+    "startup_log",
+    "sandbox_start_failed",
     # LLM output
     "llm_text",
     "llm_thinking",

@@ -57,11 +57,13 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       baseBranch: string,
       model: string,
       effort: string,
+      sandboxId: string | null,
+      startCmd: string | null,
     ): Promise<void> => {
       setStartModalOpen(false);
       setBusy(true);
       try {
-        const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, model, effort, activeRepoFilter);
+        const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, model, effort, activeRepoFilter, sandboxId, startCmd);
         await refreshRunsRef.current();
         if (result.run_id) {
           await handleSelectRun(result.run_id);

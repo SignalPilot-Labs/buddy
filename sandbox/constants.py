@@ -1,8 +1,10 @@
 """Sandbox constants loaded from config.yml."""
 
 import logging
+import os
 import re
 
+from config.constants import SANDBOX_REPO_DIR
 from config.loader import sandbox_config, security_config
 
 
@@ -20,14 +22,18 @@ _security_cfg = security_config()
 
 # ── Execution ──
 CMD_TIMEOUT: int = _cfg["exec_timeout_sec"]
-SANDBOX_PORT: int = 8080
+SANDBOX_PORT: int = int(os.environ.get("AF_SANDBOX_PORT", "8080"))
 SANDBOX_HOST: str = "0.0.0.0"
 
 # ── Security ──
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"
 INTERNAL_SECRET_ENV_VAR: str = "SANDBOX_INTERNAL_SECRET"
 
-
+# ── Remote Sandbox ──
+SANDBOX_HEARTBEAT_TIMEOUT_ENV_VAR: str = "AF_HEARTBEAT_TIMEOUT"
+SANDBOX_HEARTBEAT_CHECK_INTERVAL_SEC: int = 10
+SANDBOX_PROTOCOL_VERSION: int = 1
+SANDBOX_IMAGE_TAG: str = os.environ.get("AF_IMAGE_TAG", "unknown")
 
 CREDENTIAL_PATTERNS: list[str] = _security_cfg["credential_patterns"]
 SECRET_ENV_VARS: str = _security_cfg["secret_env_vars"]
@@ -79,7 +85,7 @@ RETRY_TRANSIENT_PATTERNS: tuple[str, ...] = (
 SECRET_REDACT_MASK: str = "***REDACTED***"
 
 # ── Repo handlers ──
-REPO_WORK_DIR: str = "/home/agentuser/repo"
+REPO_WORK_DIR: str = SANDBOX_REPO_DIR
 REPO_BRANCH_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_./]*$")
 REPO_BRANCH_NAME_MAX_LEN: int = 256
 

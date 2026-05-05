@@ -25,6 +25,7 @@ autofyn/monitor/static/
 # Docker volumes / runtime
 *.log
 .autofyn/
+*.tar
 
 # Python tooling caches
 .pytest_cache/

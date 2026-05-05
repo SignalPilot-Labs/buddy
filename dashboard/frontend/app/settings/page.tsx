@@ -12,6 +12,7 @@ import type { ModelId } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { TokenPoolSection } from "@/components/settings/TokenPoolSection";
+import { RemoteSandboxes } from "@/components/settings/RemoteSandboxes";
 import { RepoListSection } from "@/components/settings/RepoListSection";
 import { SecurityBanner } from "@/components/settings/SecurityBanner";
 import { CredentialField } from "@/components/settings/CredentialField";
@@ -28,15 +29,14 @@ const FIELDS: CredentialFieldConfig[] = [
     statusKey: "has_git_token",
     placeholder: "ghp_...",
     secret: true,
-    helpText:
-      "GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens. Grant Contents + Pull requests read/write on your repo.",
+    helpText: "Fine-grained token with Contents + Pull requests read/write",
   },
   {
     key: "max_budget_usd",
     label: "Default Max Budget (USD)",
     placeholder: "50",
     secret: false,
-    helpText: "Optional. Default max spend per run. Can be overridden when starting a run.",
+    helpText: "Default max spend per run. 0 = unlimited",
   },
 ];
 
@@ -58,10 +58,7 @@ function DefaultModelSetting(): React.ReactElement {
   return (
     <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="mb-3">
-        <h3 className="text-title font-semibold text-accent-hover uppercase tracking-[0.12em]">Default Model</h3>
-        <p className="mt-1 text-body text-text-muted leading-relaxed">
-          Select the Claude model to use for new runs. Saved as your default preference.
-        </p>
+        <label className="text-content font-semibold text-accent-hover">Default Model</label>
       </div>
       <ModelSelector value={selectedModel} onChange={handleSelect} />
       {modelSaveError && (
@@ -246,7 +243,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-center h-6 w-6 rounded bg-white/[0.04] border border-white/[0.08]">
                 <Image src="/logo.svg" alt="AutoFyn" width={14} height={14} />
               </div>
-              <h1 className="text-content font-semibold">Settings</h1>
+              <h1 className="text-title font-semibold">Settings</h1>
             </div>
           </div>
           {status && (
@@ -264,7 +261,7 @@ export default function SettingsPage() {
       <div className="max-w-2xl mx-auto px-6 py-8">
         {loading && (
           <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
-            <div className="flex items-center gap-2 text-meta text-text-secondary">
+            <div className="flex items-center gap-2 text-content text-text-secondary">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin">
                 <circle cx="6" cy="6" r="5" stroke="#00ff88" strokeWidth="1" strokeDasharray="16 10" />
               </svg>
@@ -275,7 +272,7 @@ export default function SettingsPage() {
 
         {!loading && loadError && (
           <div className="flex flex-col items-center justify-center py-16 gap-3" role="alert">
-            <p className="text-meta text-[#ff4444]">{loadError}</p>
+            <p className="text-content text-[#ff4444]">{loadError}</p>
             <Button variant="success" size="md" onClick={() => setLoadAttempt((n) => n + 1)}>
               Retry
             </Button>
@@ -322,6 +319,8 @@ export default function SettingsPage() {
               onAddToken={handleAddToken}
               onRemoveToken={handleRemoveToken}
             />
+
+            <RemoteSandboxes />
 
             <DefaultModelSetting />
 

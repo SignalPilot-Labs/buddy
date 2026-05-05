@@ -16,7 +16,7 @@ PREFIX_B = RUN_B[:RUN_ID_LOG_PREFIX_LEN]
 
 
 def _filter(lines: list[str], run_id: str) -> list[str]:
-    """Reproduce the filtering logic from endpoints.get_logs."""
+    """Reproduce the filtering logic from api.get_logs."""
     prefix = run_id[:RUN_ID_LOG_PREFIX_LEN]
     filtered: list[str] = []
     keep = False

@@ -17,7 +17,7 @@ from claude_agent_sdk.types import (
     SubagentStopHookInput,
 )
 
-from session.session import Session
+from sdk.session import Session
 
 
 BASE_OPTS = {

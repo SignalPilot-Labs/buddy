@@ -147,6 +147,8 @@ export async function startRun(
   model: string,
   effort: string,
   repo: string | null,
+  sandboxId: string | null,
+  startCmd: string | null,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
@@ -160,6 +162,8 @@ export async function startRun(
       model: model,
       effort: effort,
       repo: repo || null,
+      sandbox_id: sandboxId || null,
+      start_cmd: startCmd || null,
     }),
   });
   if (!res.ok) {
@@ -220,6 +224,32 @@ export async function saveRepoMounts(
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Unknown error" }));
     throw new Error(err.detail || `Failed to save mounts (HTTP ${res.status})`);
+  }
+}
+
+export async function fetchRemoteMounts(
+  repo: string,
+  sandboxId: string,
+): Promise<HostMount[]> {
+  const res = await apiFetch(`/api/repos/${repo}/remote-mounts/${sandboxId}`);
+  if (!res.ok) throw new Error(`Failed to fetch remote mounts (HTTP ${res.status})`);
+  const data = await res.json();
+  return data.mounts;
+}
+
+export async function saveRemoteMounts(
+  repo: string,
+  sandboxId: string,
+  mounts: HostMount[],
+): Promise<void> {
+  const res = await apiFetch(`/api/repos/${repo}/remote-mounts/${sandboxId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mounts }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `Failed to save remote mounts (HTTP ${res.status})`);
   }
 }
 
@@ -411,5 +441,92 @@ export async function saveRepoMcpServers(
       err.detail || `Failed to save MCP servers (HTTP ${res.status})`,
     );
   }
+}
+
+// ── Remote Sandboxes ────────────────────────────────────────────────────────
+
+export interface RemoteSandboxConfig {
+  id: string;
+  name: string;
+  ssh_target: string;
+  type: "slurm" | "docker";
+  default_start_cmd: string;
+  queue_timeout: number;
+  heartbeat_timeout: number;
+}
+
+export interface TestSandboxResult {
+  ok: boolean;
+  checks: { name: string; ok: boolean; detail: string }[];
+}
+
+export async function testRemoteSandbox(sandboxId: string): Promise<TestSandboxResult> {
+  const res = await apiFetch(`/api/sandboxes/${sandboxId}/test`, { method: "POST" });
+  if (!res.ok) throw new Error(`Test failed (HTTP ${res.status})`);
+  return res.json();
+}
+
+export async function fetchRemoteSandboxes(): Promise<RemoteSandboxConfig[]> {
+  const res = await apiFetch(`/api/sandboxes`);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch sandboxes (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
+export async function createRemoteSandbox(
+  config: Omit<RemoteSandboxConfig, "id">,
+): Promise<{ ok: boolean; sandbox_id: string }> {
+  const res = await apiFetch(`/api/sandboxes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function updateRemoteSandbox(
+  id: string,
+  config: Omit<RemoteSandboxConfig, "id">,
+): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/sandboxes/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteRemoteSandbox(
+  id: string,
+): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/sandboxes/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchLastStartCmd(
+  sandboxId: string,
+  repo: string,
+): Promise<string | null> {
+  const res = await apiFetch(
+    `/api/sandboxes/${sandboxId}/last-start-cmd?repo=${encodeURIComponent(repo)}`,
+  );
+  if (!res.ok) {
+    throw new Error(`Failed to fetch last start cmd (HTTP ${res.status})`);
+  }
+  const data = await res.json();
+  return data.start_cmd || null;
 }
 

@@ -3,6 +3,7 @@ set -euo pipefail
 cd "$HOME/.autofyn"
 export AGENT_INTERNAL_SECRET="${AGENT_INTERNAL_SECRET:-$(openssl rand -hex 32)}"
 export SANDBOX_INTERNAL_SECRET="${SANDBOX_INTERNAL_SECRET:-$(openssl rand -hex 32)}"
+export CONNECTOR_SECRET="${CONNECTOR_SECRET:-$(openssl rand -hex 32)}"
 PYTHON_VERSION=3.12
 NODE_VERSION=22
 UV_VERSION=0.11

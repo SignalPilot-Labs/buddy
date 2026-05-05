@@ -13,10 +13,12 @@ dependencies = [
     "httpx-sse>=0.4.0",
     "rich>=13.0.0",
     "InquirerPy>=0.3.4",
+    "aiohttp>=3.9",
 ]
 
 [project.scripts]
 autofyn = "cli.main:app"
+autofyn-connector = "cli.connector.server:main"
 
 [project.optional-dependencies]
 dev = [

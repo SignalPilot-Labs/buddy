@@ -19,7 +19,7 @@ from db.constants import (
     RUN_STATUS_RUNNING,
     RUN_STATUS_STARTING,
 )
-from db.models import AuditLog, ControlSignal, Run, ToolCall
+from db.models import AuditLog, ControlSignal, Run, Setting, ToolCall
 from utils.db_helpers import swallow_errors
 from utils.models import UserAction
 
@@ -308,3 +308,32 @@ async def mark_crashed_runs() -> int:
             )
         await s.commit()
         return len(run_ids)
+
+
+async def get_setting_value(key: str) -> str | None:
+    """Read a single setting value by key. Returns None if not found."""
+    async with get_session_factory()() as s:
+        setting = await s.get(Setting, key)
+        if setting is None:
+            return None
+        return setting.value
+
+
+async def update_run_sandbox_id(run_id: str, sandbox_id: str) -> None:
+    """Link a run to a remote sandbox config."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Run).where(Run.id == run_id).values(sandbox_id=sandbox_id)
+        )
+        await s.commit()
+
+
+async def update_run_sandbox_backend_id(run_id: str, sandbox_backend_id: str) -> None:
+    """Set sandbox_backend_id once the remote job is queued/assigned."""
+    async with get_session_factory()() as s:
+        await s.execute(
+            update(Run)
+            .where(Run.id == run_id)
+            .values(sandbox_backend_id=sandbox_backend_id)
+        )
+        await s.commit()

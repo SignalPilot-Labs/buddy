@@ -2,7 +2,7 @@
 /opt/autofyn/config/ (contains DB password in config.yml).
 """
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/test-repo"

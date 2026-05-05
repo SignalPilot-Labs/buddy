@@ -24,7 +24,7 @@ const MOCK_LOGS = {
 Element.prototype.scrollIntoView = vi.fn();
 
 function mockFetch(data: object) {
-  return vi.fn(() =>
+  return vi.fn((input: string | URL | Request) =>
     Promise.resolve(new Response(JSON.stringify(data), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -77,7 +77,7 @@ describe("ContainerLogs", () => {
     await waitFor(() => {
       expect(screen.getByText(/Run started/)).toBeInTheDocument();
     });
-    const url = fetchSpy.mock.calls[0]?.[0] as string;
+    const url = fetchSpy.mock.calls[0][0] as string;
     expect(url).toContain("run_id=abc12345-full-uuid");
   });
 

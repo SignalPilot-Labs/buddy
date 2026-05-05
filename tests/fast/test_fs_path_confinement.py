@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 from aiohttp import web
 
-from handlers.path_validation import validate_fs_path
+from api.file_system import validate_fs_path
 
 
 def _validate_no_resolve(raw_path: str) -> Path:

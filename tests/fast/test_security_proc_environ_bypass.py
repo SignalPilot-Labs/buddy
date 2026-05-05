@@ -8,7 +8,7 @@ Covers two categories:
      to block on api.github.com presence alone.
 """
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/test-repo"

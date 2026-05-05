@@ -53,7 +53,7 @@ class TestPrDescriptionFromRounds:
         ))
 
         with patch("lifecycle.teardown.log_audit", new_callable=AsyncMock):
-            await _run_teardown(sandbox, _make_run(), metadata_store, 60)
+            await _run_teardown(sandbox, _make_run(), metadata_store)
 
         call_kwargs = sandbox.repo.teardown.call_args.kwargs
         desc = call_kwargs["pr_description"]
@@ -79,7 +79,7 @@ class TestPrDescriptionFromRounds:
         ))
 
         with patch("lifecycle.teardown.log_audit", new_callable=AsyncMock):
-            await _run_teardown(sandbox, _make_run(), metadata_store, 60)
+            await _run_teardown(sandbox, _make_run(), metadata_store)
 
         call_kwargs = sandbox.repo.teardown.call_args.kwargs
         assert "No rounds recorded." in call_kwargs["pr_description"]

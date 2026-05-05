@@ -185,7 +185,12 @@ export const ACTIVE_STATUSES: ReadonlyArray<RunStatus> = [
   "running",
   "paused",
   "rate_limited",
+  "connector_lost",
 ];
+
+export function isActiveStatus(status: string): boolean {
+  return (ACTIVE_STATUSES as ReadonlyArray<string>).includes(status);
+}
 
 export const RESUMABLE_STATUSES: ReadonlyArray<RunStatus> = [
   "paused",

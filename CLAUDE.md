@@ -113,8 +113,9 @@ Before finishing any task, run:
 ```
 pyright
 ruff check
+python -m pytest tests/fast/ -q
 ```
-Both must pass clean.
+All three must pass clean. `AF_IMAGE_TAG` defaults to `test` via `tests/fast/conftest.py`.
 
 ## Audit Event Types
 

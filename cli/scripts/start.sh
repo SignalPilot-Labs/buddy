@@ -29,6 +29,11 @@ if [ -z "${SANDBOX_INTERNAL_SECRET:-}" ]; then
     export SANDBOX_INTERNAL_SECRET
 fi
 
+if [ -z "${CONNECTOR_SECRET:-}" ]; then
+    echo "[autofyn] ERROR: CONNECTOR_SECRET not set." >&2
+    exit 1
+fi
+
 # Only tear down if containers are already running
 if docker compose ps -q 2>/dev/null | grep -q .; then
     docker compose down --remove-orphans 2>/dev/null || true

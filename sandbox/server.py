@@ -1,16 +1,21 @@
 """AutoFyn Sandbox Server — HTTP API app wiring.
 
 Starts the aiohttp app, installs auth middleware, and registers the five
-endpoint groups (execute, session, file_system, repo, health). All request
-handling lives under sandbox/endpoints/.
+endpoint groups (session, file_system, repo, health, env). All HTTP
+handling lives under sandbox/api/; business logic under sandbox/repo/
+and sandbox/session/.
 """
 
+import asyncio
 import hmac
 import logging
 import os
+import socket
+import traceback
 
 from aiohttp import web
 
+from config.constants import AF_BOUND_MARKER, AF_READY_MARKER
 from config.loader import sandbox_config
 from constants import (
     AccessNoiseFilter,
@@ -19,12 +24,14 @@ from constants import (
     SANDBOX_HOST,
     SANDBOX_PORT,
 )
-from handlers.execute import register as register_execute
-from handlers.file_system import register as register_file_system
-from handlers.health import register as register_health
-from handlers.repo import register as register_repo
-from handlers.session import register as register_session
-from session.manager import SessionManager
+from api.env import register as register_env
+from api.file_system import register as register_file_system
+from api.health import register as register_health
+from api.repo import register as register_repo
+from api.session import register as register_session
+from shared.heartbeat import HeartbeatTracker
+from repo.service import RepoService
+from sdk.manager import SessionManager
 
 cfg = sandbox_config()
 
@@ -39,15 +46,42 @@ for _logger_name in ("aiohttp.access", "aiohttp.server", "aiohttp.web", ""):
     logging.getLogger(_logger_name).addFilter(_health_filter)
 
 
-# Cache the internal secret in Python memory at import time, then scrub
-# it from os.environ so subprocesses spawned by the SDK Bash tool (and
-# anything else running in this process) cannot inherit it. The sandbox
-# process keeps it in memory for auth_middleware — nothing on the OS env.
-_INTERNAL_SECRET = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
-if not _INTERNAL_SECRET:
-    raise RuntimeError(
-        f"{INTERNAL_SECRET_ENV_VAR} is empty — sandbox cannot start",
-    )
+def _load_sandbox_secret() -> str:
+    """Load the sandbox authentication secret from SANDBOX_INTERNAL_SECRET env var.
+
+    Works for both local Docker (set by docker-compose) and remote
+    (passed as env var over SSH by the connector).
+    """
+    secret = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
+    if not secret:
+        raise RuntimeError(
+            f"{INTERNAL_SECRET_ENV_VAR} is not set — sandbox cannot start"
+        )
+    return secret
+
+
+_INTERNAL_SECRET = _load_sandbox_secret()
+
+
+@web.middleware
+async def error_middleware(
+    request: web.Request,
+    handler,
+) -> web.StreamResponse:
+    """Catch unhandled exceptions, log the traceback, and return it in the 500 body."""
+    try:
+        return await handler(request)
+    except web.HTTPException as exc:
+        if exc.status >= 500:
+            log.error("%s %s -> %d: %s", request.method, request.path, exc.status, exc.text)
+        raise
+    except Exception as exc:
+        tb = traceback.format_exc()
+        log.error("Unhandled error on %s %s:\n%s", request.method, request.path, tb)
+        return web.json_response(
+            {"error": str(exc), "traceback": tb},
+            status=500,
+        )
 
 
 @web.middleware
@@ -67,31 +101,69 @@ async def auth_middleware(
     return await handler(request)
 
 
+@web.middleware
+async def heartbeat_middleware(
+    request: web.Request,
+    handler,
+) -> web.StreamResponse:
+    """Touch the heartbeat tracker on authenticated requests only."""
+    if request.path != "/health":
+        tracker: HeartbeatTracker = request.app["heartbeat"]
+        tracker.touch()
+    return await handler(request)
+
+
 async def on_startup(app: web.Application) -> None:
-    """Initialize session manager."""
+    """Initialize services and start heartbeat tracker."""
     app["sessions"] = SessionManager()
+    app["repo_service"] = RepoService()
+    tracker = HeartbeatTracker()
+    app["heartbeat"] = tracker
+    tracker.start()
 
 
 async def on_shutdown(app: web.Application) -> None:
-    """Stop all sessions."""
+    """Stop all sessions and heartbeat tracker."""
     sessions: SessionManager = app["sessions"]
     await sessions.stop_all()
+    tracker: HeartbeatTracker = app["heartbeat"]
+    tracker.stop()
+
+
+def _emit_markers(port: int) -> None:
+    """Print AF_BOUND and AF_READY markers after the server has bound the port."""
+    host = socket.gethostname()
+    print(f'{AF_BOUND_MARKER} {{"port":{port}}}', flush=True)
+    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port}}}', flush=True)
 
 
 def main() -> None:
     """Start the sandbox HTTP server."""
-    app = web.Application(middlewares=[auth_middleware])
+    app = web.Application(middlewares=[error_middleware, auth_middleware, heartbeat_middleware])
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
 
-    register_execute(app)
     register_session(app)
     register_file_system(app)
     register_repo(app)
     register_health(app)
+    register_env(app)
 
     log.info("Sandbox server starting on :%d", SANDBOX_PORT)
-    web.run_app(app, host=SANDBOX_HOST, port=SANDBOX_PORT)
+
+    async def _run() -> None:
+        """Bind, emit markers, then block until shutdown."""
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, SANDBOX_HOST, SANDBOX_PORT)
+        await site.start()
+        _emit_markers(SANDBOX_PORT)
+        try:
+            await asyncio.Event().wait()
+        finally:
+            await runner.cleanup()
+
+    asyncio.run(_run())
 
 
 if __name__ == "__main__":

@@ -27,10 +27,12 @@ describe("handleStopConfirm: busy lock must clear on API failure", () => {
     expect(block).not.toContain("void controlAction");
     // Must attach a .catch handler
     expect(block).toContain(".catch(");
-    // The catch handler must call setBusy(false)
+    // The catch handler must call setBusy(false).
+    // Use the closing `});` of the catch to find the full body (inner braces
+    // from if-blocks mean the first `}` is not necessarily the catch end).
     const catchStart = block.indexOf(".catch(");
-    const catchEnd = block.indexOf("}", catchStart);
-    const catchBlock = block.slice(catchStart, catchEnd + 1);
+    const catchEnd = block.indexOf("});", catchStart);
+    const catchBlock = block.slice(catchStart, catchEnd + 3);
     expect(catchBlock).toContain("setBusy(false)");
   });
 

@@ -1,14 +1,11 @@
 """Config loader for AutoFyn.
 
 Resolution order (later overrides earlier):
-  1. Built-in defaults (config/config.yml in repo)
-  2. ~/.autofyn/config.yml (global user config)
-  3. .autofyn/config.yml (per-project config)
-  4. overlay dict (target repo config, passed by caller)
+  1. Built-in defaults (config/config.yml — shipped with AutoFyn, always used)
+  2. ~/.autofyn/config.yml (global user overrides)
+  3. /home/agentuser/repo/.autofyn/config.yml (per-project overrides in target repo)
+  4. overlay dict (runtime overrides from caller)
   5. AF_* environment variables (highest priority)
-
-On first run, copies the default config to .autofyn/config.yml so the
-user has a visible, editable file.
 
 Config split:
   Server-level (read once at startup, shared across all runs):
@@ -22,17 +19,18 @@ Config split:
 
 import logging
 import os
-import shutil
 from pathlib import Path
 
 import yaml
 
+from config.constants import SANDBOX_REPO_DIR
+
 log = logging.getLogger("config")
 
-_REPO_ROOT = Path(__file__).parent.parent
-_DEFAULT_CONFIG = _REPO_ROOT / "config" / "config.yml"
+_AUTOFYN_ROOT = Path(__file__).parent.parent
+_DEFAULT_CONFIG = _AUTOFYN_ROOT / "config" / "config.yml"
 _GLOBAL_CONFIG = Path.home() / ".autofyn" / "config.yml"
-_PROJECT_CONFIG = _REPO_ROOT / ".autofyn" / "config.yml"
+_PROJECT_CONFIG = Path(SANDBOX_REPO_DIR) / ".autofyn" / "config.yml"
 
 # ── Cache ────────────────────────────────────────────────────────────
 # Keyed by (str(repo_path) or None, str(overlay) or None).
@@ -52,9 +50,9 @@ def clear_cache() -> None:
 # setting values that burn infinite compute or break the watchdog loop.
 _AGENT_BOUNDS: dict[str, tuple[int | float, int | float]] = {
     "max_rounds": (1, 512),
-    "tool_call_timeout_sec": (60, 7200),          # 1 min – 2 hours
-    "session_idle_timeout_sec": (30, 600),         # 30s – 10 min
-    "subagent_idle_kill_sec": (60, 3600),          # 1 min – 1 hour
+    "tool_call_timeout_sec": (60, 7200),  # 1 min – 2 hours
+    "session_idle_timeout_sec": (30, 600),  # 30s – 10 min
+    "subagent_idle_kill_sec": (60, 3600),  # 1 min – 1 hour
     "max_concurrent_runs": (1, 20),
     "session_error_max_retries": (0, 10),
     "session_error_base_backoff_sec": (1, 30),
@@ -131,6 +129,7 @@ _REQUIRED_DB_KEYS = {
 
 # ── Merge helper ─────────────────────────────────────────────────────
 
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """Merge override into base, recursing into nested dicts."""
     merged = base.copy()
@@ -150,32 +149,7 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def _ensure_gitignore_entry() -> None:
-    """Append .autofyn/ to .gitignore if not already listed."""
-    gitignore = _REPO_ROOT / ".gitignore"
-    entry = ".autofyn/"
-    if gitignore.exists():
-        content = gitignore.read_text()
-        if entry in content.splitlines():
-            return
-        if not content.endswith("\n"):
-            content += "\n"
-        gitignore.write_text(content + entry + "\n")
-    else:
-        gitignore.write_text(entry + "\n")
-    log.info("Added %s to %s", entry, gitignore)
 
-
-def _ensure_project_config() -> None:
-    """Copy default config to .autofyn/config.yml on first run."""
-    if _PROJECT_CONFIG.exists():
-        return
-    if not _DEFAULT_CONFIG.exists():
-        return
-    _PROJECT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(_DEFAULT_CONFIG, _PROJECT_CONFIG)
-    _ensure_gitignore_entry()
-    log.info("Created %s from defaults", _PROJECT_CONFIG)
 
 
 def _apply_env_overrides(config: dict) -> dict:
@@ -192,7 +166,10 @@ def _apply_env_overrides(config: dict) -> dict:
         "AF_CLONE_TIMEOUT_SEC": ("clone_timeout_sec", int),
         "AF_NPM_TIMEOUT_SEC": ("npm_timeout_sec", int),
         "AF_LOG_LEVEL": ("log_level", str),
-        "AF_ALLOW_DOCKER": ("allow_docker", lambda v: v.lower() in ("1", "true", "yes")),
+        "AF_ALLOW_DOCKER": (
+            "allow_docker",
+            lambda v: v.lower() in ("1", "true", "yes"),
+        ),
     }
     for env_var, (key, cast) in sandbox_env_map.items():
         val = os.getenv(env_var)
@@ -247,7 +224,12 @@ def _clamp_section(
         if clamped != raw:
             log.warning(
                 "Config %s.%s=%s clamped to [%s, %s] → %s",
-                section_name, key, raw, lo, hi, clamped,
+                section_name,
+                key,
+                raw,
+                lo,
+                hi,
+                clamped,
             )
             section[key] = clamped
     return section
@@ -292,7 +274,6 @@ def load(overlay: dict | None) -> dict:
     if cached is not None:
         return cached
 
-    _ensure_project_config()
     config = _load_yaml(_DEFAULT_CONFIG)
     config = _deep_merge(config, _load_yaml(_GLOBAL_CONFIG))
     config = _deep_merge(config, _load_yaml(_PROJECT_CONFIG))

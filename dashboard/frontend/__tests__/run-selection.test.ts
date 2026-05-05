@@ -29,7 +29,7 @@ describe("run auto-selection: active runs take priority", () => {
   );
 
   it("checks for active runs before localStorage restore", () => {
-    const activeIdx = autoSelectBlock.indexOf('"running"');
+    const activeIdx = autoSelectBlock.indexOf("isActiveStatus");
     const localStorageIdx = autoSelectBlock.indexOf("localStorage.getItem");
     expect(activeIdx).toBeGreaterThan(-1);
     expect(localStorageIdx).toBeGreaterThan(-1);
@@ -38,7 +38,7 @@ describe("run auto-selection: active runs take priority", () => {
 
   it("returns early when an active run is found and none selected", () => {
     const activeBlock = autoSelectBlock.slice(
-      autoSelectBlock.indexOf('"running"'),
+      autoSelectBlock.indexOf("isActiveStatus"),
     );
     const handleCall = activeBlock.indexOf("handleSelectRun(active.id)");
     const returnAfter = activeBlock.indexOf("return;", handleCall);
