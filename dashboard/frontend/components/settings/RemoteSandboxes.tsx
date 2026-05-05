@@ -138,7 +138,7 @@ export function RemoteSandboxes(): React.ReactElement {
               </span>
               <button
                 onClick={() => handleEdit(s)}
-                className="text-content text-text-secondary hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                className="text-content text-text-dim hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
               >
                 Edit
               </button>
@@ -187,9 +187,9 @@ export function RemoteSandboxes(): React.ReactElement {
       <p className="mt-2 text-body text-text-muted">
         Pull the image on your remote first. The start command is how you run it.
       </p>
-      <div className="mt-1.5 flex items-center gap-2 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
-        <span className="text-text-dim select-none shrink-0">$</span>
-        <span className="whitespace-nowrap">mkdir -p ~/.autofyn &amp;&amp; apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
+      <div className="mt-1.5 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
+        <span className="text-text-dim select-none">$ </span>
+        <span>mkdir -p ~/.autofyn &amp;&amp; apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
       </div>
     </div>
   );

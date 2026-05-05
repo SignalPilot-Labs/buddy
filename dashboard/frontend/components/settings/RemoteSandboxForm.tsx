@@ -194,18 +194,18 @@ export function RemoteSandboxForm({
             {testing ? "Testing..." : "Test"}
           </Button>
         )}
-        {testResult && (() => {
-          const { text, ok } = formatTestResult(testResult);
-          return (
-            <span className={clsx("text-content", ok ? "text-[#00ff88]" : "text-[#ff4444]")}>
-              {text}
-            </span>
-          );
-        })()}
-        {testError && (
-          <span className="text-content text-[#ff4444]">{testError}</span>
-        )}
       </div>
+      {testResult && (() => {
+        const { text, ok } = formatTestResult(testResult);
+        return (
+          <p className={clsx("text-content", ok ? "text-[#00ff88]" : "text-[#ff4444]")}>
+            {text}
+          </p>
+        );
+      })()}
+      {testError && (
+        <p className="text-content text-[#ff4444]">{testError}</p>
+      )}
     </div>
   );
 }
