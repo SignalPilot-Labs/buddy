@@ -149,9 +149,9 @@ describe("EventFeed user_prompt interruption boundary", () => {
     ];
 
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
-    // Agent card before the user_prompt should NOT show "running" or "finalizing"
+    // Agent card before the user_prompt should NOT show "running" or "thinking"
     expect(screen.queryAllByText("running")).toHaveLength(0);
-    expect(screen.queryAllByText("finalizing")).toHaveLength(0);
+    expect(screen.queryAllByText("thinking")).toHaveLength(0);
   });
 
   it("agent card after user_prompt keeps runActive=true", () => {
@@ -180,7 +180,7 @@ describe("EventFeed user_prompt interruption boundary", () => {
 
     render(<EventFeed {...DEFAULT_FEED_PROPS} events={events} runActive={true} hasSelectedRun={true} />);
     expect(screen.queryAllByText("running")).toHaveLength(0);
-    expect(screen.queryAllByText("finalizing")).toHaveLength(0);
+    expect(screen.queryAllByText("thinking")).toHaveLength(0);
   });
 
   it("last user_prompt is the interruption boundary (not earlier ones)", () => {
