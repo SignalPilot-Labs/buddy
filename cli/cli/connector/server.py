@@ -50,20 +50,22 @@ log = logging.getLogger("connector.server")
 HandlerType = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
 
-def _build_image_check(sandbox_type: str, start_cmd: str) -> str | None:
-    """Extract the image path from a start command and build a check command."""
+def _build_image_check(sandbox_type: str, start_cmd: str) -> tuple[str, str] | None:
+    """Extract the image path from a start command and build a check command.
+
+    Returns (check_command, image_path) or None if no image found.
+    """
     if not start_cmd:
         return None
     if sandbox_type == "slurm":
         for part in start_cmd.split():
             if part.endswith(".sif"):
-                # Replace ~ with $HOME so tilde expands inside shlex.quote
                 expanded = part.replace("~", "$HOME", 1) if part.startswith("~") else part
-                return f"test -f {expanded}"
+                return f"test -f {expanded}", part
     elif sandbox_type == "docker":
         for part in start_cmd.split():
             if "/" in part and (":" in part or "." in part):
-                return f"docker image inspect {shlex.quote(part)} > /dev/null 2>&1"
+                return f"docker image inspect {shlex.quote(part)} > /dev/null 2>&1", part
     return None
 
 
@@ -135,15 +137,17 @@ class ConnectorServer:
             return web.json_response({"ok": False, "checks": checks})
 
         # Check 2: sandbox image exists — extract image path from start command
-        image_check_cmd = _build_image_check(sandbox_type, start_cmd)
-        if image_check_cmd:
+        image_check = _build_image_check(sandbox_type, start_cmd)
+        if image_check:
+            check_cmd, image_path = image_check
             try:
-                proc = await run_ssh_command(ssh_target, image_check_cmd, {})
+                proc = await run_ssh_command(ssh_target, check_cmd, {})
                 await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
                 img_ok = proc.returncode == 0
-                checks.append({"name": "image", "ok": img_ok, "detail": "Found" if img_ok else "Not found"})
+                detail = f"Found ({image_path})" if img_ok else f"Not found at {image_path}"
+                checks.append({"name": "image", "ok": img_ok, "detail": detail})
             except asyncio.TimeoutError:
-                checks.append({"name": "image", "ok": False, "detail": "Timeout"})
+                checks.append({"name": "image", "ok": False, "detail": f"Timeout checking {image_path}"})
             except Exception as exc:
                 checks.append({"name": "image", "ok": False, "detail": str(exc)})
 
