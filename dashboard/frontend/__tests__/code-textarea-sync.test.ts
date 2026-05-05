@@ -44,10 +44,13 @@ describe("CodeTextarea: highlight and textarea must stay in sync", () => {
     expect(taClass).toContain("px-3 py-2.5");
   });
 
-  it("pre uses whitespace-pre-wrap and break-words for wrapping", () => {
+  it("pre and textarea both use whitespace-pre-wrap and break-words", () => {
     const preClass = SRC.slice(SRC.indexOf("className=\"absolute"), SRC.indexOf("dangerouslySetInnerHTML"));
+    const taClass = SRC.slice(SRC.indexOf("className=\"relative w-full"), SRC.indexOf("style={{"));
     expect(preClass).toContain("whitespace-pre-wrap");
     expect(preClass).toContain("break-words");
+    expect(taClass).toContain("whitespace-pre-wrap");
+    expect(taClass).toContain("break-words");
   });
 
   it("shiki inner pre also gets whitespace-pre-wrap", () => {
