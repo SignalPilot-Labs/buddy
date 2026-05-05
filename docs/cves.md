@@ -16,7 +16,7 @@ Security advisories filed by AutoFyn and recognized by maintainers.
 | Advisory | Status |
 |----------|--------|
 | [GHSA-g978-rqfm-7m79](https://github.com/BerriAI/litellm/security/advisories/GHSA-g978-rqfm-7m79) | Recognized |
-| [GHSA-h8fm-g6wc-j228](https://github.com/BerriAI/litellm/security/advisories/GHSA-h8fm-g6wc-j228) | Recognized (duplicate of ongoing report) |
+| [GHSA-h8fm-g6wc-j228](https://github.com/BerriAI/litellm/security/advisories/GHSA-h8fm-g6wc-j228) | Recognized (duplicate of ongoing investigation) |
 
 ## [Langflow](https://github.com/langflow-ai/langflow)
 
