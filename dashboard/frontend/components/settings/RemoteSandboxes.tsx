@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
+import CodeBlock from "@/components/ui/CodeBlock";
 
 export interface SandboxFormData {
   name: string;
@@ -187,10 +188,10 @@ export function RemoteSandboxes(): React.ReactElement {
       <p className="mt-2 text-body text-text-muted">
         Pull the image on your remote first. The start command is how you run it.
       </p>
-      <div className="mt-1.5 px-2.5 py-1.5 bg-black/30 rounded border border-border font-mono text-content text-text-secondary overflow-x-auto">
-        <span className="text-text-dim select-none">$ </span>
-        <span>mkdir -p ~/.autofyn &amp;&amp; apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable</span>
-      </div>
+      <CodeBlock
+        code="mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
+        className="mt-1.5"
+      />
     </div>
   );
 }

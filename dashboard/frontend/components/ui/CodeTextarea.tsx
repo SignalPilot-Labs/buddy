@@ -1,18 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-
-type ShikiHighlighter = Awaited<ReturnType<typeof import("shiki").createHighlighter>>;
-let highlighterPromise: Promise<ShikiHighlighter> | null = null;
-
-function getHighlighter(): Promise<ShikiHighlighter> {
-  if (!highlighterPromise) {
-    highlighterPromise = import("shiki").then(({ createHighlighter }) =>
-      createHighlighter({ themes: ["github-dark"], langs: ["bash"] }),
-    );
-  }
-  return highlighterPromise;
-}
+import { getHighlighter } from "@/components/ui/shikiHighlighter";
 
 interface CodeTextareaProps {
   value: string;
