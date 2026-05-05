@@ -22,9 +22,7 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
 
   return (
     <div className="space-y-2">
-      {mounts.length === 0 && (
-        <p className="text-caption text-text-dim">Repo is at <code className="text-[#88ccff]">/home/agentuser/repo</code> inside the sandbox.</p>
-      )}
+      <p className="text-content text-text-dim">Bind-mount directories from your machine into the sandbox. Repo is at <code className="text-[#88ccff]">/home/agentuser/repo</code>.</p>
       {mounts.map((m, i) => (
         <div key={i} className="p-2.5 bg-black/20 rounded border border-border space-y-1.5">
           <div className="flex items-center gap-2">
