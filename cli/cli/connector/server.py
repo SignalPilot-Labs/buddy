@@ -50,6 +50,19 @@ log = logging.getLogger("connector.server")
 HandlerType = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
 
+def _quote_slurm_path(part: str) -> str:
+    """Quote a path for safe inclusion in a remote shell command.
+
+    Tilde paths preserve $HOME expansion; the rest of the path is quoted
+    to handle spaces and shell metacharacters. Non-tilde paths are quoted
+    directly with shlex.quote().
+    """
+    if part.startswith("~"):
+        rest = part[1:]
+        return "$HOME" + shlex.quote(rest) if rest else "$HOME"
+    return shlex.quote(part)
+
+
 def _build_image_check(sandbox_type: str, start_cmd: str) -> tuple[str, str] | None:
     """Extract the image path from a start command and build a check command.
 
@@ -60,8 +73,8 @@ def _build_image_check(sandbox_type: str, start_cmd: str) -> tuple[str, str] | N
     if sandbox_type == "slurm":
         for part in start_cmd.split():
             if part.endswith(".sif"):
-                expanded = part.replace("~", "$HOME", 1) if part.startswith("~") else part
-                return f"test -f {expanded}", part
+                quoted = _quote_slurm_path(part)
+                return f"test -f {quoted}", part
     elif sandbox_type == "docker":
         for part in start_cmd.split():
             if "/" in part and (":" in part or "." in part):
