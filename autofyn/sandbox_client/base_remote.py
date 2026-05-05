@@ -143,8 +143,6 @@ class BaseRemoteBackend(SandboxBackend):
             if etype == "queued":
                 backend_id = event.get("backend_id")
                 await log_audit(run_key, "sandbox_queued", {"backend_id": backend_id})
-            elif etype == "status":
-                await log_audit(run_key, "startup_log", {"line": event.get("message", "")})
             elif etype == "log":
                 await log_audit(run_key, "startup_log", {"line": event.get("line", "")})
             elif etype == "ready":

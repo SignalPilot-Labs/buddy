@@ -349,6 +349,8 @@ class AgentServer:
         bootstrap = None
         try:
             await self._snapshot_sandbox_config(run_id, body)
+            if body.sandbox_id is not None:
+                await log_audit(run_id, "startup_log", {"line": "Connecting to remote sandbox..."})
             sandbox, events = await self._pool.create(
                 run_id,
                 self._health_timeout,
