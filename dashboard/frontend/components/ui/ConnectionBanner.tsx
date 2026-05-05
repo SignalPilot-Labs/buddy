@@ -34,13 +34,17 @@ export function ConnectionBanner({ connectionState, runStatus, showToast }: Conn
   }, [wantsBanner]);
 
   const prevStateRef = useRef<ConnectionState>(connectionState);
+  const hasConnectedRef = useRef(false);
 
   useEffect(() => {
     const prev = prevStateRef.current;
     prevStateRef.current = connectionState;
 
-    if (connectionState === "connected" && prev !== "connected" && isActiveRun) {
-      showToast("Reconnected", "success");
+    if (connectionState === "connected") {
+      if (hasConnectedRef.current && prev !== "connected" && isActiveRun) {
+        showToast("Reconnected", "success");
+      }
+      hasConnectedRef.current = true;
     }
   }, [connectionState, isActiveRun, showToast]);
 
