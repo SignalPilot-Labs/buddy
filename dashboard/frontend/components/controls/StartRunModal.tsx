@@ -420,7 +420,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
 
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
-                  <HostMountsEditor mounts={mounts} onChange={setMounts} loading={mountsLoading} error={mountError} />
+                  <HostMountsEditor mounts={mounts} onChange={setMounts} loading={mountsLoading} error={mountError} isRemote={selectedSandboxId !== null} />
                 </CollapsibleSection>
 
                 {/* MCP Servers (collapsible) */}

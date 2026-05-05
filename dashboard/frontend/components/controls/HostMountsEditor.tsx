@@ -12,17 +12,23 @@ interface HostMountsEditorProps {
   onChange: (mounts: HostMount[]) => void;
   loading: boolean;
   error: string | null;
+  isRemote: boolean;
 }
 
 const INPUT_CLASS =
   "flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30";
 
-export function HostMountsEditor({ mounts, onChange, loading, error }: HostMountsEditorProps) {
+export function HostMountsEditor({ mounts, onChange, loading, error, isRemote }: HostMountsEditorProps) {
   if (loading) return <p className="text-content text-text-secondary">Loading mounts...</p>;
 
   return (
     <div className="space-y-2">
-      <p className="text-content text-text-dim">Bind-mount directories from your machine into the sandbox. Repo is at <code className="text-[#88ccff]">/home/agentuser/repo</code>.</p>
+      <p className="text-content text-text-dim">
+        {isRemote
+          ? "Mount directories from the remote host into the sandbox."
+          : "Mount directories from your local machine into the sandbox."
+        } Repo is at <code className="text-[#88ccff]">/home/agentuser/repo</code>.
+      </p>
       {mounts.map((m, i) => (
         <div key={i} className="p-2.5 bg-black/20 rounded border border-border space-y-1.5">
           <div className="flex items-center gap-2">
