@@ -220,7 +220,11 @@ class ConnectorServer:
 
         if not ready_event:
             await kill_process_group(process)
-            fail = {"event": "failed", "error": "Start command exited without AF_READY"}
+            log_lines = [
+                e["line"] for e in events if e.get("event") == "log"
+            ]
+            tail = "\n".join(log_lines[-10:]) if log_lines else "(no output)"
+            fail = {"event": "failed", "error": f"Start command exited without AF_READY:\n{tail}"}
             await response.write((json.dumps(fail) + "\n").encode())
             return
 
