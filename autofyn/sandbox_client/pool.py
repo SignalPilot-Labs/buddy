@@ -62,12 +62,13 @@ class SandboxPool:
                 raise RuntimeError(f"No client available for run {run_key}")
             return client, events
 
-        # Remote: point SandboxClient at the connector proxy URL + per-run secret
+        # Remote: point SandboxClient at the connector proxy URL
         client = SandboxClient(
             base_url=handle.url,
             health_timeout=health_timeout,
             timeout=health_timeout,
             sandbox_secret=handle.sandbox_secret,
+            extra_headers=None,
         )
         return client, events
 

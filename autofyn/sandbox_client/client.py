@@ -44,6 +44,7 @@ class SandboxClient:
         health_timeout: int,
         timeout: int,
         sandbox_secret: str | None,
+        extra_headers: dict[str, str] | None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._health_timeout = health_timeout
@@ -55,10 +56,13 @@ class SandboxClient:
             raise RuntimeError(
                 f"{ENV_KEY_SANDBOX_SECRET} is empty — refusing to talk to sandbox",
             )
+        headers: dict[str, str] = {INTERNAL_SECRET_HEADER: secret}
+        if extra_headers is not None:
+            headers.update(extra_headers)
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(timeout),
-            headers={INTERNAL_SECRET_HEADER: secret},
+            headers=headers,
         )
         self.execute: Execute = Execute(self._http)
         self.file_system: FileSystem = FileSystem(self._http)

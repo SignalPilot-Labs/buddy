@@ -265,6 +265,7 @@ class TestRemoteSandboxClientCreation:
             health_timeout=10,
             timeout=10,
             sandbox_secret=remote_handle.sandbox_secret,
+            extra_headers=None,
         )
         assert result_client is mock_client
         assert result_events == []

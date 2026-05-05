@@ -88,8 +88,14 @@ class ConnectorServer:
         request: web.Request,
         handler: HandlerType,
     ) -> web.StreamResponse:
-        """Require X-Connector-Secret on all endpoints except /health."""
+        """Require X-Connector-Secret on control endpoints.
+
+        Proxy paths (/sandboxes/{run_key}/...) are authenticated by
+        the sandbox itself via X-Internal-Secret — no connector auth needed.
+        """
         if request.path == "/health":
+            return await handler(request)
+        if "/sandboxes/" in request.path and request.match_info.get("path") is not None:
             return await handler(request)
         provided = request.headers.get(CONNECTOR_SECRET_HEADER, "")
         if not hmac.compare_digest(provided, self._secret):
