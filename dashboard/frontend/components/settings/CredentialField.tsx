@@ -108,7 +108,7 @@ export function CredentialField({
         </div>
       )}
 
-      <p className="mt-2 text-body text-text-muted leading-relaxed">
+      <p className="mt-2 text-caption text-text-dim">
         {field.helpText}
       </p>
     </div>

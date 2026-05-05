@@ -29,14 +29,14 @@ const FIELDS: CredentialFieldConfig[] = [
     statusKey: "has_git_token",
     placeholder: "ghp_...",
     secret: true,
-    helpText: "Fine-grained token with Contents + Pull requests read/write.",
+    helpText: "Fine-grained token with Contents + Pull requests read/write",
   },
   {
     key: "max_budget_usd",
     label: "Default Max Budget (USD)",
     placeholder: "50",
     secret: false,
-    helpText: "Default max spend per run. 0 = unlimited.",
+    helpText: "Default max spend per run. 0 = unlimited",
   },
 ];
 
@@ -58,7 +58,7 @@ function DefaultModelSetting(): React.ReactElement {
   return (
     <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
       <div className="mb-3">
-        <h3 className="text-title font-semibold text-accent-hover uppercase tracking-[0.12em]">Default Model</h3>
+        <label className="text-content font-semibold text-accent-hover">Default Model</label>
       </div>
       <ModelSelector value={selectedModel} onChange={handleSelect} />
       {modelSaveError && (

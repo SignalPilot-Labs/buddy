@@ -1,10 +1,12 @@
-"use client";
-
 /**Settings section for managing remote sandbox configurations.*/
 
+"use client";
+
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
+import { ListRow } from "@/components/ui/ListRow";
+import { IconServer, IconPencil, IconPlus } from "@/components/ui/icons";
 import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
@@ -108,7 +110,7 @@ export function RemoteSandboxes(): React.ReactElement {
         <label className="text-content font-semibold text-accent-hover">
           Remote Sandboxes
         </label>
-        <span className="text-content text-text-secondary">
+        <span className="text-caption text-text-secondary">
           {sandboxes.length} configured
         </span>
       </div>
@@ -116,22 +118,12 @@ export function RemoteSandboxes(): React.ReactElement {
       <div className="space-y-1.5 mb-3">
         <AnimatePresence>
           {sandboxes.map((s) => (
-            <motion.div
-              key={s.id}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center gap-2 px-2.5 py-2 bg-black/30 rounded border border-border group"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-secondary shrink-0">
-                <rect x="2" y="3" width="20" height="14" rx="2" />
-                <line x1="8" y1="21" x2="16" y2="21" />
-                <line x1="12" y1="17" x2="12" y2="21" />
-              </svg>
+            <ListRow key={s.id} layoutId={s.id} onDelete={() => void handleDelete(s)} deleteTitle="Delete sandbox">
+              <IconServer className="text-text-secondary shrink-0" />
               <span className="text-content font-mono text-accent-hover flex-1 min-w-0 truncate">
                 {s.name}
               </span>
-              <span className="text-content text-text-secondary shrink-0">
+              <span className="text-caption text-text-secondary shrink-0">
                 {s.ssh_target}
               </span>
               <span className="text-caption uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#88ccff]/[0.08] text-[#88ccff] shrink-0">
@@ -139,26 +131,18 @@ export function RemoteSandboxes(): React.ReactElement {
               </span>
               <button
                 onClick={() => handleEdit(s)}
-                className="text-content text-text-secondary hover:text-[#00ff88] transition-colors shrink-0"
+                className="text-text-secondary hover:text-[#00ff88] transition-colors shrink-0"
+                title="Edit sandbox"
               >
-                Edit
+                <IconPencil size={11} />
               </button>
-              <button
-                onClick={() => void handleDelete(s)}
-                className="text-text-secondary hover:text-[#ff4444] transition-colors shrink-0"
-                title="Delete sandbox"
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-                </svg>
-              </button>
-            </motion.div>
+            </ListRow>
           ))}
         </AnimatePresence>
 
         {sandboxes.length === 0 && !showForm && (
           <div className="px-2.5 py-3 text-content text-text-secondary text-center">
-            No remote sandboxes configured.
+            No remote sandboxes yet
           </div>
         )}
       </div>
@@ -175,22 +159,20 @@ export function RemoteSandboxes(): React.ReactElement {
         />
       )}
 
-      <div className="flex gap-2">
-        <Button variant="success" size="md" onClick={handleAdd}>
-          Add Sandbox
-        </Button>
-      </div>
+      <Button variant="success" size="md" icon={<IconPlus size={10} />} onClick={handleAdd}>
+        Add Sandbox
+      </Button>
 
       {error && (
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
       )}
 
-      <p className="mt-2 text-body text-text-muted">
-        Pull the image on your remote first. The start command is how you run it.
+      <p className="mt-2 text-caption text-text-dim">
+        Pull the image on your remote first:
       </p>
       <CodeBlock
         code="mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
-        className="mt-1.5"
+        className="mt-1"
       />
     </div>
   );

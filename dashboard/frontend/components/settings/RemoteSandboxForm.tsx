@@ -6,6 +6,7 @@ import { useState } from "react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import CodeTextarea from "@/components/ui/CodeTextarea";
+import { IconX } from "@/components/ui/icons";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
 
@@ -36,12 +37,12 @@ function FormField(props: {
 }): React.ReactElement {
   return (
     <div>
-      <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
+      <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">
         {props.label}
       </label>
       {props.children}
       {props.hint && (
-        <p className="text-body text-text-dim mt-0.5">{props.hint}</p>
+        <p className="text-caption text-text-dim mt-0.5">{props.hint}</p>
       )}
     </div>
   );
@@ -102,9 +103,7 @@ export function RemoteSandboxForm({
         className="absolute top-2.5 right-2.5 text-text-secondary hover:text-[#ff4444] transition-colors"
         title="Close"
       >
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-        </svg>
+        <IconX />
       </button>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Name">
