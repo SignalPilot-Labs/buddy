@@ -24,7 +24,7 @@ export function ListRow({ layoutId, onDelete, deleteTitle, children }: ListRowPr
       {children}
       <button
         onClick={onDelete}
-        className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+        className="text-text-secondary hover:text-[#ff4444] transition-colors shrink-0"
         title={deleteTitle}
       >
         <IconTrash size={11} />

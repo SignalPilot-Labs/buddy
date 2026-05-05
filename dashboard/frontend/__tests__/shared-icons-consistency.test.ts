@@ -65,9 +65,9 @@ describe("shared ListRow: all settings list items use ListRow", () => {
     expect(LIST_ROW_SRC).toContain("hover:text-[#ff4444]");
   });
 
-  it("ListRow shows delete on hover only", () => {
-    expect(LIST_ROW_SRC).toContain("opacity-0");
-    expect(LIST_ROW_SRC).toContain("group-hover:opacity-100");
+  it("ListRow delete button is always visible", () => {
+    expect(LIST_ROW_SRC).not.toContain("opacity-0");
+    expect(LIST_ROW_SRC).not.toContain("group-hover:opacity-100");
   });
 
   it("TokenPoolSection uses ListRow", () => {
