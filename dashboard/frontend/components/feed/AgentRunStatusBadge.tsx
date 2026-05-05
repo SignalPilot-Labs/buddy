@@ -13,7 +13,7 @@ export interface AgentRunStatusBadgeProps {
   isPending: boolean;
   isPaused: boolean;
   isIdle: boolean;
-  isFinalizing: boolean;
+  isThinking: boolean;
   isCompleted: boolean;
   isFailed: boolean;
   idleSec: number;
@@ -28,7 +28,7 @@ export function AgentRunStatusBadge({
   isPending,
   isPaused,
   isIdle,
-  isFinalizing,
+  isThinking,
   isCompleted,
   isFailed,
   phaseColor,
@@ -38,29 +38,29 @@ export function AgentRunStatusBadge({
       <span
         className={clsx(
           "flex items-center gap-1.5 text-content font-semibold",
-          isFinalizing ? "text-[#cc88ff]" : "text-[#ffaa00]"
+          isThinking ? "text-[#cc88ff]" : "text-[#ffaa00]"
         )}
       >
         <span className="relative flex h-1.5 w-1.5">
           <span
             className={clsx(
               "absolute inline-flex h-full w-full rounded-full animate-ping opacity-50",
-              isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
+              isThinking ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
             )}
           />
           <span
             className={clsx(
               "relative inline-flex h-1.5 w-1.5 rounded-full",
-              isFinalizing ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
+              isThinking ? "bg-[#cc88ff]" : "bg-[#ffaa00]"
             )}
             style={{
-              boxShadow: isFinalizing
+              boxShadow: isThinking
                 ? "0 0 4px rgba(204, 136, 255, 0.5)"
                 : "0 0 4px rgba(255, 170, 0, 0.5)",
             }}
           />
         </span>
-        {isFinalizing ? "finalizing" : "running"}
+        {isThinking ? "thinking" : "running"}
       </span>
     );
   }

@@ -61,7 +61,14 @@ describe("ConnectionBanner debounce", () => {
 
   it("triggers exit and toast when reconnected after banner was shown", () => {
     const toastFn = vi.fn();
+    // First connection (initial connect — no toast)
     const { rerender } = render(
+      <ConnectionBanner connectionState="connected" runStatus="running" showToast={toastFn} />,
+    );
+    expect(toastFn).not.toHaveBeenCalled();
+
+    // Disconnect
+    rerender(
       <ConnectionBanner connectionState="disconnected" runStatus="running" showToast={toastFn} />,
     );
     act(() => {
@@ -69,11 +76,10 @@ describe("ConnectionBanner debounce", () => {
     });
     expect(screen.getByText(/Disconnected/)).toBeInTheDocument();
 
+    // Reconnect — toast fires because this is a real reconnection
     rerender(
       <ConnectionBanner connectionState="connected" runStatus="running" showToast={toastFn} />,
     );
-    // Banner enters AnimatePresence exit (framer-motion keeps DOM node during
-    // animation), but the reconnect toast fires immediately confirming state reset.
     expect(toastFn).toHaveBeenCalledWith("Reconnected", "success");
   });
 
@@ -108,15 +114,33 @@ describe("ConnectionBanner debounce", () => {
   });
 
   it("fires reconnected toast when transitioning from disconnected to connected", () => {
+    // Establish initial connection first
     const { rerender } = render(
+      <ConnectionBanner connectionState="connected" runStatus="running" showToast={NOOP_TOAST} />,
+    );
+    // Disconnect
+    rerender(
       <ConnectionBanner connectionState="disconnected" runStatus="running" showToast={NOOP_TOAST} />,
     );
     act(() => {
       vi.advanceTimersByTime(CONNECTION_BANNER_DELAY_MS);
     });
+    // Reconnect
     rerender(
       <ConnectionBanner connectionState="connected" runStatus="running" showToast={NOOP_TOAST} />,
     );
     expect(NOOP_TOAST).toHaveBeenCalledWith("Reconnected", "success");
+  });
+
+  it("does not fire reconnected toast on initial SSE connection", () => {
+    const toastFn = vi.fn();
+    const { rerender } = render(
+      <ConnectionBanner connectionState="disconnected" runStatus="running" showToast={toastFn} />,
+    );
+    // First connect — should NOT show "Reconnected"
+    rerender(
+      <ConnectionBanner connectionState="connected" runStatus="running" showToast={toastFn} />,
+    );
+    expect(toastFn).not.toHaveBeenCalled();
   });
 });

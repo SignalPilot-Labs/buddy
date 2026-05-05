@@ -44,8 +44,8 @@ describe("formatCostStat", () => {
 });
 
 describe("formatToolStat", () => {
-  it("prefers settled tool count, even when zero", () => {
-    expect(formatToolStat(0, 5)).toBe("0");
+  it("uses live count when settled is zero (active run)", () => {
+    expect(formatToolStat(0, 5)).toBe("5");
   });
 
   it("uses live count when settled is null", () => {

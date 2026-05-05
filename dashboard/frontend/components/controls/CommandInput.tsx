@@ -7,25 +7,6 @@ import { getButtonState } from "@/lib/commandState";
 import { SmartButton } from "@/components/controls/SmartButton";
 import { StatsRow } from "@/components/stats/StatsBar";
 
-const PRESETS = [
-  {
-    label: "Wrap up",
-    text: "Wrap up. Commit your progress with a clear summary of what was done and what remains, then stop.",
-  },
-  {
-    label: "Security audit",
-    text: "Focus on security. Do a security-focused review of the changes you've made so far and fix any issues you find.",
-  },
-  {
-    label: "Fresh angle",
-    text: "Step back and attack the problem from a fresh angle. Don't iterate on your existing approach — try something different.",
-  },
-  {
-    label: "Add tests",
-    text: "Focus on increasing test coverage for the code you've changed. Don't make any other changes.",
-  },
-];
-
 const PLACEHOLDER_BY_STATUS: Record<string, string> = {
   running: "Message the agent...",
   paused: "Send a message to resume...",
@@ -131,37 +112,10 @@ export function CommandInput({
     [hasText, status, handleAction],
   );
 
-  const handlePresetClick = useCallback(
-    (presetText: string) => {
-      setText(presetText);
-      textareaRef.current?.focus();
-    },
-    [],
-  );
-
   return (
     <div className="border-t border-border bg-bg-card flex flex-col">
-      {/* Preset chips — always visible */}
-      <div className="flex gap-1.5 px-3 pt-2 flex-wrap">
-        {PRESETS.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handlePresetClick(p.text);
-            }}
-            onClick={() => handlePresetClick(p.text)}
-            aria-label={`Quick prompt: ${p.label}`}
-            className="text-caption px-2 py-1 rounded bg-white/[0.03] text-text-dim hover:bg-white/[0.06] hover:text-accent-hover transition-colors border border-border"
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
       {/* Textarea */}
-      <div className="px-3 pt-2">
+      <div className="px-3 pt-3">
         <textarea
           ref={textareaRef}
           value={text}

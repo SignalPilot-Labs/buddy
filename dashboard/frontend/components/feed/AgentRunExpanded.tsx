@@ -25,7 +25,7 @@ export function AgentRunExpanded({
   finalText,
   showFinalText,
   setShowFinalText,
-  isFinalizing,
+  isThinking,
 }: {
   tool: ToolCall;
   childTools: ToolCall[];
@@ -37,7 +37,7 @@ export function AgentRunExpanded({
   finalText: string;
   showFinalText: boolean;
   setShowFinalText: (v: boolean) => void;
-  isFinalizing: boolean;
+  isThinking: boolean;
 }) {
   const [showTools, setShowTools] = useState(false);
   return (
@@ -142,11 +142,11 @@ export function AgentRunExpanded({
         </div>
       )}
 
-      {isFinalizing && (
+      {isThinking && (
         <div className="border-t border-white/[0.03] px-4 py-3 flex items-center gap-2">
           <SpinnerIcon color="#cc88ff" />
           <span className="text-content text-[#cc88ff]/80">
-            Agent is writing its final response...
+            Agent is thinking...
           </span>
         </div>
       )}

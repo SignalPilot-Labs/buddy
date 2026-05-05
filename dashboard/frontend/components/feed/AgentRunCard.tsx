@@ -67,7 +67,7 @@ function AgentRunCardInner({
   const idleMs = isPending ? now - lastActivityTs : 0;
   const isIdle = idleMs > IDLE_WARN_MS;
   const idleSec = Math.floor(idleMs / 1000);
-  const isFinalizing =
+  const isThinking =
     isPending && childTools.length > 0 && idleMs > 3000 && !isIdle;
 
   useEffect(() => {
@@ -207,7 +207,7 @@ function AgentRunCardInner({
           </div>
           {!expanded && childTools.length > 0 && (
             <div className="flex items-center gap-2 mt-0.5">
-              {isPending && !isFinalizing && lastChild && (
+              {isPending && !isThinking && lastChild && (
                 <motion.span
                   key={lastChild.id}
                   initial={{ opacity: 0, x: -4 }}
@@ -235,14 +235,14 @@ function AgentRunCardInner({
                   </span>
                 </motion.span>
               )}
-              {isFinalizing && (
+              {isThinking && (
                 <motion.span
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="flex items-center gap-1.5 text-caption text-[#cc88ff]"
                 >
                   <SpinnerIcon color="#cc88ff" />
-                  writing response...
+                  thinking...
                 </motion.span>
               )}
               {!isPending && (
@@ -278,7 +278,7 @@ function AgentRunCardInner({
             isPending={isPending}
             isPaused={isPaused}
             isIdle={isIdle}
-            isFinalizing={isFinalizing}
+            isThinking={isThinking}
             isCompleted={isCompleted}
             isFailed={isFailed}
             idleSec={idleSec}
@@ -302,7 +302,7 @@ function AgentRunCardInner({
           finalText={finalText}
           showFinalText={showFinalText}
           setShowFinalText={setShowFinalText}
-          isFinalizing={isFinalizing}
+          isThinking={isThinking}
         />
       )}
     </motion.div>

@@ -53,6 +53,7 @@ export const MAX_VISIBLE_TOASTS = 3;
 export const TOOL_CATEGORIES_DEFAULT_EXPANDED: ReadonlySet<string> = new Set(["todo"]);
 export const SCROLL_BOTTOM_THRESHOLD = 20;
 export const AGENT_IDLE_TIMER_INTERVAL_MS = 5000;
+export const THINKING_INDICATOR_DELAY_MS = 10_000;
 
 // Skeleton loading state
 export const SKELETON_COUNT = 5;

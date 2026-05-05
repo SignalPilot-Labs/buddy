@@ -4,10 +4,9 @@ import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import type { FeedEvent } from "@/lib/types";
-import { SCROLL_BOTTOM_THRESHOLD, SKELETON_COUNT, SKELETON_HEIGHT, SKELETON_WIDTHS } from "@/lib/constants";
+import { SCROLL_BOTTOM_THRESHOLD, SKELETON_COUNT, SKELETON_HEIGHT, SKELETON_WIDTHS, THINKING_INDICATOR_DELAY_MS } from "@/lib/constants";
 import { groupEvents } from "@/lib/groupEvents";
 import { GroupedEventCard } from "./GroupedEventCard";
-import { UserPromptCard } from "./MessageCards";
 import { EmptyEvents, EmptyRunEvents } from "@/components/ui/EmptyStates";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 
@@ -53,6 +52,22 @@ export function EventFeed({
   const [seenCount, setSeenCount] = useState(0);
 
   const grouped = useMemo(() => groupEvents(events), [events]);
+
+  // "Agent is thinking..." indicator after silence during active run
+  const [showThinking, setShowThinking] = useState(false);
+  const lastEventCountRef = useRef(events.length);
+  useEffect(() => {
+    if (events.length !== lastEventCountRef.current) {
+      lastEventCountRef.current = events.length;
+      setShowThinking(false);
+    }
+    if (!runActive || runPaused || !hasSelectedRun) {
+      setShowThinking(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowThinking(true), THINKING_INDICATOR_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [events.length, runActive, runPaused, hasSelectedRun]);
 
   const lastInterruptionTs = useMemo(() => {
     const interruptLabels = new Set(["Pause Requested", "Stop Requested", "Run Resumed"]);
@@ -164,12 +179,29 @@ export function EventFeed({
                     <GroupedEventCard
                       event={gev}
                       isLast={i === grouped.length - 1}
-                      runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                      runActive={gev.type === "agent_run" ? runActive : runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
                       runPaused={runPaused}
                     />
                   </ErrorBoundary>
                 </motion.div>
               ))}
+            </AnimatePresence>
+            <AnimatePresence>
+              {showThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-2 px-3 py-2"
+                >
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-[#cc88ff] animate-ping opacity-50" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#cc88ff]" style={{ boxShadow: "0 0 4px rgba(204, 136, 255, 0.5)" }} />
+                  </span>
+                  <span className="text-content text-[#cc88ff]/70">Agent is thinking...</span>
+                </motion.div>
+              )}
             </AnimatePresence>
           </>
         )}
