@@ -1,9 +1,9 @@
-"""Tests for SandboxPool container/volume naming."""
+"""Tests for SandboxManager container/volume naming."""
 
-from sandbox_client.pool import SandboxPool
+from sandbox_client.manager import SandboxManager
 
 
-class TestSandboxPoolNaming:
+class TestSandboxManagerNaming:
     """Tests for container and volume name generation."""
 
     def test_container_name_format(self):
@@ -17,10 +17,10 @@ class TestSandboxPoolNaming:
     def test_pool_initializes_empty(self):
         """Pool should have no containers tracked on init.
 
-        Note: SandboxPool.__init__ calls docker.from_env() which requires
+        Note: SandboxManager.__init__ calls docker.from_env() which requires
         the Docker daemon. This test verifies the class can be imported
         and its container dict structure is correct.
         """
-        assert hasattr(SandboxPool, "create")
-        assert hasattr(SandboxPool, "destroy")
-        assert hasattr(SandboxPool, "destroy_all")
+        assert hasattr(SandboxManager, "create")
+        assert hasattr(SandboxManager, "destroy")
+        assert hasattr(SandboxManager, "destroy_all")

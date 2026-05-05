@@ -73,7 +73,6 @@ async def handle_stopped(
     run: RunContext,
     metadata_store: MetadataStore,
     result: RoundResult,
-    exec_timeout: int,
 ) -> None:
     """Handle a stopped round: log, audit, commit+push."""
     rid = run.run_id[:8]
@@ -90,7 +89,6 @@ async def handle_stopped(
         metadata_store,
         result.round_summary,
         result.session_summary,
-        exec_timeout,
     )
 
 
@@ -123,7 +121,6 @@ async def handle_complete_or_ended(
     sandbox: SandboxClient,
     run: RunContext,
     metadata_store: MetadataStore,
-    exec_timeout: int,
     time_lock: TimeLock,
     inbox: UserInbox,
     max_rounds: int,
@@ -137,7 +134,6 @@ async def handle_complete_or_ended(
         metadata_store,
         result.round_summary,
         result.session_summary,
-        exec_timeout,
     )
 
     if result.status == "ended":
@@ -189,14 +185,13 @@ async def _commit_and_push_round(
     metadata_store: MetadataStore,
     end_round_summary: str | None,
     session_summary: str | None,
-    exec_timeout: int,
 ) -> None:
     """Commit the round. round_summary becomes the git commit message.
     session_summary becomes the PR title in rounds.json."""
     summary = end_round_summary or " ended without summary -- autocommit"
     message = f"[Round {round_number}] {summary}"
 
-    result = await sandbox.repo.save(message, exec_timeout)
+    result = await sandbox.repo.save(message)
 
     if not result.committed:
         log.info("Round %d produced no commit", round_number)

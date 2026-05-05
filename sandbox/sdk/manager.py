@@ -13,10 +13,10 @@ import logging
 import uuid
 
 from constants import MAX_CONCURRENT_SESSIONS
-from session.errors import ClientNotReadyError
-from session.errors import SessionNotFoundError
-from session.event_log import SessionEventLog
-from session.session import Session
+from sdk.errors import ClientNotReadyError
+from sdk.errors import SessionNotFoundError
+from sdk.event_log import SessionEventLog
+from sdk.session import Session
 
 log = logging.getLogger("sandbox.session_manager")
 

@@ -113,9 +113,9 @@ Before finishing any task, run:
 ```
 pyright
 ruff check
-AF_IMAGE_TAG=test python -m pytest tests/fast/ -q
+python -m pytest tests/fast/ -q
 ```
-All three must pass clean. `AF_IMAGE_TAG` is required because some test files import `AgentServer` which initializes `DockerLocalBackend` at module load time.
+All three must pass clean. `AF_IMAGE_TAG` defaults to `test` via `tests/fast/conftest.py`.
 
 ## Audit Event Types
 

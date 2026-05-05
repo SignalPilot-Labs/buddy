@@ -11,7 +11,7 @@ from unittest.mock import patch
 import pytest
 
 from utils.constants import ENV_KEY_IMAGE_TAG, SANDBOX_POOL_IMAGE_BASE
-from sandbox_client.docker_local import DockerLocalBackend
+from sandbox_client.backends.docker_local_backend import DockerLocalBackend
 
 
 class TestPoolImageTag:

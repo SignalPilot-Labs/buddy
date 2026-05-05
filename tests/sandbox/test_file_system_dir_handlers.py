@@ -15,14 +15,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from handlers.file_system import handle_read_dir, handle_write_dir
+from api.file_system import handle_read_dir, handle_write_dir
 
 
 @pytest.fixture(autouse=True)
 def _bypass_path_validation() -> Generator[None, None, None]:
     """Allow any path through validate_fs_path for unit tests."""
     with patch(
-        "handlers.file_system.validate_fs_path",
+        "api.file_system.validate_fs_path",
         side_effect=lambda raw: Path(raw).resolve(),
     ):
         yield

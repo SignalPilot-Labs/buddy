@@ -46,7 +46,6 @@ log = logging.getLogger("lifecycle.round_loop")
 async def run_rounds(
     sandbox: SandboxClient,
     bootstrap: BootstrapResult,
-    exec_timeout: int,
     host_mounts: list[dict[str, str]] | None,
     user_env_keys: list[str],
 ) -> str:
@@ -128,7 +127,6 @@ async def run_rounds(
             inbox=inbox,
             time_lock=time_lock,
             metadata_store=metadata_for_commit,
-            exec_timeout=exec_timeout,
             consecutive_session_errors=consecutive_session_errors,
             max_rounds=bootstrap.run_config.max_rounds,
         )
@@ -169,7 +167,6 @@ async def _handle_round_outcome(
     inbox: UserInbox,
     time_lock: TimeLock,
     metadata_store: MetadataStore,
-    exec_timeout: int,
     consecutive_session_errors: int,
     max_rounds: int,
 ) -> tuple[str | None, int]:
@@ -190,7 +187,7 @@ async def _handle_round_outcome(
 
     if result.status == RUN_STATUS_STOPPED:
         await handle_stopped(
-            round_number, sandbox, run, metadata_store, result, exec_timeout
+            round_number, sandbox, run, metadata_store, result,
         )
         return RUN_STATUS_STOPPED, 0
 
@@ -200,7 +197,7 @@ async def _handle_round_outcome(
 
     # status in ("complete", "ended")
     terminal = await handle_complete_or_ended(
-        result, round_number, sandbox, run, metadata_store, exec_timeout,
+        result, round_number, sandbox, run, metadata_store,
         time_lock, inbox, max_rounds,
     )
     return terminal, 0

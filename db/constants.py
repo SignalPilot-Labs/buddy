@@ -8,6 +8,8 @@ import re
 
 import posixpath
 
+from config.constants import SANDBOX_REPO_DIR as SANDBOX_REPO_DIR
+
 # ── Secret Redaction ──
 SECRET_REDACT_MASK: str = "***REDACTED***"
 
@@ -117,8 +119,6 @@ BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
     "/usr",
 })
 VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
-
-from config.constants import SANDBOX_REPO_DIR as SANDBOX_REPO_DIR
 
 # Container paths that must not be overwritten by user mounts.
 # The repo root itself is blocked (it's a Docker volume), but subdirs
@@ -306,12 +306,17 @@ MIGRATION_IDEMPOTENCY_TABLES: tuple[str, ...] = ("tool_calls", "audit_log")
 # All column names are safe SQL identifiers (lowercase letters and underscores only).
 MIGRATION_SANDBOX_SNAPSHOT_COLUMNS: tuple[tuple[str, str], ...] = (
     ("sandbox_id", "VARCHAR"),
-    ("sandbox_type", "VARCHAR"),
     ("sandbox_backend_id", "VARCHAR"),
-    ("sandbox_ssh_target", "VARCHAR"),
-    ("sandbox_start_cmd", "TEXT"),
-    ("sandbox_remote_host", "VARCHAR"),
-    ("sandbox_remote_port", "INTEGER"),
+)
+
+# Columns removed after /env refactor — no longer snapshotted per-run.
+# The sandbox config lives in the settings table keyed by sandbox_id.
+MIGRATION_SANDBOX_DROP_COLUMNS: tuple[str, ...] = (
+    "sandbox_type",
+    "sandbox_ssh_target",
+    "sandbox_start_cmd",
+    "sandbox_remote_host",
+    "sandbox_remote_port",
 )
 
 # Allowlist of column names from MIGRATION_SANDBOX_SNAPSHOT_COLUMNS for DDL safety.

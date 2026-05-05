@@ -14,8 +14,6 @@ class ForwardState:
     run_key: str
     ssh_target: str
     sandbox_type: str
-    remote_host: str
-    remote_port: int
     local_port: int
     tunnel_process: asyncio.subprocess.Process
     start_process: asyncio.subprocess.Process | None

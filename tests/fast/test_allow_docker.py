@@ -4,7 +4,7 @@ import os
 from unittest.mock import patch
 
 from utils.constants import DOCKER_SOCKET_PATH, ENV_KEY_ALLOW_DOCKER, ENV_KEY_IMAGE_TAG
-from sandbox_client.docker_local import DockerLocalBackend
+from sandbox_client.backends.docker_local_backend import DockerLocalBackend
 
 
 # All tests need AF_IMAGE_TAG set — DockerLocalBackend.__init__ requires it.

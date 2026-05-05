@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp import web
 
-from handlers.execute import handle_execute
+from api.execute import handle_execute
 
 
 def _request(payload: dict) -> MagicMock:
@@ -39,7 +39,7 @@ class TestExecuteReturncodeNone:
         mock_proc.communicate = AsyncMock(return_value=(b"some output", b""))
 
         with patch(
-            "handlers.execute.asyncio.create_subprocess_exec",
+            "api.execute.asyncio.create_subprocess_exec",
             new=AsyncMock(return_value=mock_proc),
         ):
             resp = await handle_execute(_request({"args": ["true"]}))
@@ -55,7 +55,7 @@ class TestExecuteReturncodeNone:
         mock_proc.communicate = AsyncMock(return_value=(b"ok", b""))
 
         with patch(
-            "handlers.execute.asyncio.create_subprocess_exec",
+            "api.execute.asyncio.create_subprocess_exec",
             new=AsyncMock(return_value=mock_proc),
         ):
             resp = await handle_execute(_request({"args": ["true"]}))
@@ -71,7 +71,7 @@ class TestExecuteReturncodeNone:
         mock_proc.communicate = AsyncMock(return_value=(b"", b"error"))
 
         with patch(
-            "handlers.execute.asyncio.create_subprocess_exec",
+            "api.execute.asyncio.create_subprocess_exec",
             new=AsyncMock(return_value=mock_proc),
         ):
             resp = await handle_execute(_request({"args": ["false"]}))

@@ -149,7 +149,6 @@ class TestCommitAndPushSessionSummary:
             metadata_store=metadata_store,
             end_round_summary="Fix unicode regression",
             session_summary="Optimize compression",
-            exec_timeout=60,
         )
 
         metadata_store.record_round.assert_called_once()
@@ -174,7 +173,6 @@ class TestCommitAndPushSessionSummary:
             metadata_store=metadata_store,
             end_round_summary="Setup env",
             session_summary=None,
-            exec_timeout=60,
         )
 
         call_kwargs = metadata_store.record_round.call_args

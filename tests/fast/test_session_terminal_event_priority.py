@@ -7,7 +7,7 @@ import asyncio
 
 import pytest
 
-from session.event_log import (
+from sdk.event_log import (
     SessionEventLog,
     SessionEventLogOverflow,
     SessionEventGap,

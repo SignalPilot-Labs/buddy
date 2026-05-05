@@ -1,6 +1,6 @@
 """Local Docker sandbox backend — manages per-run containers via Docker API.
 
-Extracts the container lifecycle logic from the original SandboxPool into
+Extracts the container lifecycle logic from the original SandboxManager into
 a SandboxBackend subclass. Each run gets an isolated container with its own
 repo volume. A ring buffer captures the last 100 lines of container stdout
 for crash log retrieval.
@@ -19,9 +19,9 @@ from docker.models.containers import Container
 
 from config.loader import sandbox_config
 from db.constants import validate_host_mount
-from sandbox_client.backend import SandboxBackend
+from sandbox_client.backends.base_backend import SandboxBackend
 from sandbox_client.client import SandboxClient
-from sandbox_client.instance import SandboxInstance
+from sandbox_client.models import SandboxInstance
 from utils.constants import (
     AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
@@ -60,7 +60,7 @@ class _LogDrainer(threading.Thread):
 
 
 class DockerLocalBackend(SandboxBackend):
-    """Local Docker via Docker API — existing behavior extracted from SandboxPool."""
+    """Local Docker via Docker API — existing behavior extracted from SandboxManager."""
 
     def __init__(self) -> None:
         """Initialize Docker client and internal state."""
@@ -91,7 +91,6 @@ class DockerLocalBackend(SandboxBackend):
         self,
         run_key: str,
         health_timeout: int,
-        extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
         start_cmd: str | None,
@@ -101,8 +100,6 @@ class DockerLocalBackend(SandboxBackend):
         volume_name = f"autofyn-repo-{run_key}"
 
         env = self._container_env()
-        if extra_env is not None:
-            env.update(extra_env)
 
         volumes = self._build_volumes(volume_name, host_mounts)
 
@@ -138,12 +135,8 @@ class DockerLocalBackend(SandboxBackend):
         handle = SandboxInstance(
             run_key=run_key,
             url=f"http://{container_name}:{SANDBOX_POOL_PORT}",
-            backend_id=container_id,
             sandbox_secret=sandbox_secret,
             sandbox_id=None,
-            sandbox_type=None,
-            remote_host=None,
-            remote_port=None,
         )
         return handle, []
 

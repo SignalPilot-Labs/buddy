@@ -27,10 +27,6 @@ def _make_server() -> AgentServer:
     """Build an AgentServer instance without calling __init__."""
     srv = AgentServer.__new__(AgentServer)
     srv._pool = MagicMock()
-    srv._exec_timeout = 300
-    srv._health_timeout = 30
-    srv._clone_timeout = 120
-    srv._sandbox_secret = "test-secret"
     return srv
 
 
@@ -131,7 +127,9 @@ class TestSandboxReadyEvent:
     async def test_sandbox_created_emitted_after_pool_create(self) -> None:
         srv = _make_server()
         pool = srv._pool
-        pool.create = AsyncMock(return_value=(MagicMock(close=AsyncMock()), []))
+        mock_sandbox = MagicMock(close=AsyncMock())
+        mock_sandbox.env.set = AsyncMock()
+        pool.create = AsyncMock(return_value=(mock_sandbox, []))
         pool.destroy = AsyncMock()
         pool.get_logs = AsyncMock(return_value=[])
 
@@ -163,6 +161,7 @@ class TestSandboxReadyEvent:
         async def mock_create(*args, **kwargs):
             call_order.append("pool.create")
             sandbox = MagicMock(close=AsyncMock())
+            sandbox.env.set = AsyncMock()
             return sandbox, []
 
         async def mock_bootstrap(*args, **kwargs):
@@ -225,8 +224,7 @@ class TestRepoClonedEvent:
                     github_repo="owner/repo",
                     model="claude-opus-4-6",
                     effort="high",
-                    git_token="ghp_test",
-                    clone_timeout=120,
+
                     mcp_servers=None,
                 )
 

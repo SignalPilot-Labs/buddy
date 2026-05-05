@@ -16,7 +16,7 @@ os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 with patch("docker.from_env", return_value=MagicMock()):
     from server import AgentServer
 
-from sandbox_client.errors import SandboxStartError
+from sandbox_client.models import SandboxStartError
 from utils.constants import ENV_KEY_GIT_TOKEN
 from utils.models import ActiveRun
 from utils.models_http import StartRequest
@@ -26,10 +26,6 @@ def _make_server() -> AgentServer:
     """Build an AgentServer without calling __init__ (avoids DB + pool setup)."""
     srv = AgentServer.__new__(AgentServer)
     srv._pool = MagicMock()
-    srv._exec_timeout = 300
-    srv._health_timeout = 30
-    srv._clone_timeout = 120
-    srv._sandbox_secret = "test-secret"
     return srv
 
 

@@ -10,7 +10,7 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient
 
-from sandbox.handlers.env import register as register_env
+from sandbox.api.env import register as register_env
 
 
 @pytest.fixture

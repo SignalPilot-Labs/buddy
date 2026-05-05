@@ -11,8 +11,6 @@ class TestForwardState:
             run_key="test",
             ssh_target="user@host",
             sandbox_type="slurm",
-            remote_host="compute-1",
-            remote_port=9123,
             local_port=12345,
             tunnel_process=None,  # type: ignore[arg-type]
             start_process=None,

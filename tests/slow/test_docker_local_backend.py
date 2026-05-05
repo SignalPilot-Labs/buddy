@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.docker_local import DockerLocalBackend, _LogDrainer
-from sandbox_client.instance import SandboxInstance
+from sandbox_client.backends.docker_local_backend import DockerLocalBackend, _LogDrainer
+from sandbox_client.models import SandboxInstance
 
 
 def _mock_container(container_id: str, short_id: str) -> MagicMock:
@@ -27,8 +27,8 @@ def _mock_container(container_id: str, short_id: str) -> MagicMock:
 
 def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with mocked Docker."""
-    with patch("sandbox_client.docker_local.docker.from_env", return_value=MagicMock()):
-        with patch("sandbox_client.docker_local.sandbox_config", return_value={"vm_timeout_sec": 30}):
+    with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
+        with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
                 return DockerLocalBackend()
 
@@ -47,14 +47,12 @@ class TestDockerLocalBackendLifecycle:
         with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "secret-xyz"}):
             with patch.object(backend, "_wait_healthy", new=AsyncMock()):
                 handle, events = await backend.create(
-                    "run-1", 10, None, None, "secret-xyz", None,
+                    "run-1", 10, None, "secret-xyz", None,
                 )
 
         assert events == []
         assert handle.run_key == "run-1"
         assert handle.sandbox_id is None
-        assert handle.sandbox_type is None
-        assert handle.backend_id == "abc123"
         assert handle.sandbox_secret == "secret-xyz"
         assert "run-1" in backend._containers
 
@@ -83,9 +81,8 @@ class TestDockerLocalBackendLifecycle:
         backend._clients["run-1"] = mock_client
 
         handle = SandboxInstance(
-            run_key="run-1", url="", backend_id="abc123",
-            sandbox_secret="", sandbox_id=None, sandbox_type=None,
-            remote_host=None, remote_port=None,
+            run_key="run-1", url="",
+            sandbox_secret="", sandbox_id=None,
         )
         with patch.object(backend, "_remove_container", new=AsyncMock()):
             with patch.object(backend, "_remove_volume", new=AsyncMock()):

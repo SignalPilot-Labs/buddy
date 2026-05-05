@@ -22,7 +22,7 @@ def _run_mcp_test(test_code: str) -> None:
     sys.modules["claude_agent_sdk"] = MagicMock()
     sys.modules["claude_agent_sdk.types"] = MagicMock()
 
-    from session.session import Session
+    from sdk.session import Session
 
     def _make_session():
         return Session(session_id="test-session", options_dict={"run_id": "test-run"})

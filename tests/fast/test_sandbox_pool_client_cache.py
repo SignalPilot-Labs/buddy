@@ -10,29 +10,25 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.docker_local import DockerLocalBackend
-from sandbox_client.instance import SandboxInstance
+from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.models import SandboxInstance
 
 
 def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with a mocked Docker client."""
-    with patch("sandbox_client.docker_local.docker.from_env", return_value=MagicMock()):
-        with patch("sandbox_client.docker_local.sandbox_config", return_value={"vm_timeout_sec": 30}):
+    with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
+        with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
                 return DockerLocalBackend()
 
 
-def _make_handle(run_key: str, backend_id: str) -> SandboxInstance:
+def _make_handle(run_key: str) -> SandboxInstance:
     """Build a minimal SandboxInstance for testing."""
     return SandboxInstance(
         run_key=run_key,
         url="",
-        backend_id=backend_id,
         sandbox_secret="",
         sandbox_id=None,
-        sandbox_type=None,
-        remote_host=None,
-        remote_port=None,
     )
 
 
@@ -77,7 +73,7 @@ class TestSandboxPoolClientCache:
         mock_client.close = AsyncMock()
         backend._clients["key1"] = mock_client
 
-        handle = _make_handle("key1", "fake-container-id")
+        handle = _make_handle("key1")
         with patch.object(backend, "_remove_container", new=AsyncMock()):
             with patch.object(backend, "_remove_volume", new=AsyncMock()):
                 await backend.destroy(handle)
@@ -94,7 +90,7 @@ class TestSandboxPoolClientCache:
         mock_client.close = AsyncMock()
         backend._clients["key1"] = mock_client
 
-        handle = _make_handle("key1", "fake-container-id")
+        handle = _make_handle("key1")
         with patch.object(backend, "_remove_container", new=AsyncMock()):
             with patch.object(backend, "_remove_volume", new=AsyncMock()):
                 await backend.destroy(handle)
@@ -105,7 +101,7 @@ class TestSandboxPoolClientCache:
     async def test_destroy_unknown_key_no_error(self) -> None:
         """destroy() on an unknown key must silently return."""
         backend = _make_backend()
-        handle = _make_handle("no-such-key", "")
+        handle = _make_handle("no-such-key")
         await backend.destroy(handle)
 
     @pytest.mark.asyncio

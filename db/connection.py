@@ -13,6 +13,7 @@ from config.loader import database_config
 from db.constants import (
     MIGRATION_CACHE_TOKEN_COLUMNS,
     MIGRATION_IDEMPOTENCY_TABLES,
+    MIGRATION_SANDBOX_DROP_COLUMNS,
     MIGRATION_SANDBOX_SNAPSHOT_COLUMNS,
     MIGRATION_SANDBOX_SNAPSHOT_COL_NAMES,
     VALID_CONTROL_SIGNALS,
@@ -85,6 +86,7 @@ async def run_migrations() -> None:
         await _migrate_branch_name_nullable(conn)
         await _migrate_idempotency_key_columns(conn)
         await _migrate_sandbox_snapshot_columns(conn)
+        await _migrate_drop_redundant_sandbox_columns(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -217,6 +219,26 @@ async def _migrate_sandbox_snapshot_columns(conn) -> None:
                 "ALTER TABLE runs ADD COLUMN " + safe_col + " " + col_type
             ))
             log.info("Added column runs.%s", col_name)
+
+
+async def _migrate_drop_redundant_sandbox_columns(conn) -> None:
+    """Drop sandbox snapshot columns made redundant by /env refactor.
+
+    Config is readable from the settings table via sandbox_id — no need
+    to duplicate type, ssh_target, start_cmd, remote_host, remote_port
+    on every run row.
+    """
+    for col_name in MIGRATION_SANDBOX_DROP_COLUMNS:
+        safe_col = validate_sql_identifier(col_name, MIGRATION_SANDBOX_DROP_COLUMNS)
+        result = await conn.execute(text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = 'runs' AND column_name = :col"
+        ), {"col": col_name})
+        if result.first() is not None:
+            await conn.execute(text(
+                "ALTER TABLE runs DROP COLUMN " + safe_col
+            ))
+            log.info("Dropped column runs.%s", col_name)
 
 
 async def close() -> None:

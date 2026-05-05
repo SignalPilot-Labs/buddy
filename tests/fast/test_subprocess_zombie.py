@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from handlers.execute import handle_execute
-from handlers.repo_git import _run
+from api.execute import handle_execute
+from shared.subprocess import run_cmd
 
 
 class TestSubprocessZombie:
@@ -51,7 +51,7 @@ class TestSubprocessZombie:
 
         with patch("asyncio.create_subprocess_exec", side_effect=fake_create_subprocess):
             with patch("asyncio.wait_for", side_effect=asyncio.TimeoutError):
-                result = await _run(["sleep", "999"], "/tmp", 1)
+                result = await run_cmd(["sleep", "999"], "/tmp", 1)
 
         mock_proc.kill.assert_called_once()
         mock_proc.wait.assert_awaited_once()

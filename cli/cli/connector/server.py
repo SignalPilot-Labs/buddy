@@ -195,7 +195,6 @@ class ConnectorServer:
         heartbeat_timeout: int = body.get(
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
-        extra_env: dict[str, str] = body.get("extra_env", {})
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
@@ -209,7 +208,6 @@ class ConnectorServer:
                 sandbox_type=sandbox_type,
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
-                extra_env=extra_env,
             ),
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
         )
@@ -302,8 +300,6 @@ class ConnectorServer:
             run_key=run_key,
             ssh_target=ssh_target,
             sandbox_type=sandbox_type,
-            remote_host=remote_host,
-            remote_port=remote_port,
             local_port=local_port,
             tunnel_process=tunnel,
             start_process=process if sandbox_type == "slurm" else None,

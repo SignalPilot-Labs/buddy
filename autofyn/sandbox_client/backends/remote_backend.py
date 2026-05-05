@@ -1,8 +1,8 @@
-"""Shared transport logic for remote sandbox backends.
+"""Remote sandbox backend — manages sandboxes on remote machines via the connector.
 
-Both SlurmBackend and DockerRemoteBackend use the connector for SSH tunnels,
-NDJSON streaming, and reverse proxying. This base class holds the common HTTP
-calls to the connector and the shared create/destroy lifecycle.
+Handles both Slurm and remote Docker. The connector manages SSH tunnels,
+NDJSON streaming, and reverse proxying. This class holds the HTTP calls
+to the connector and the create/destroy lifecycle.
 """
 
 import json
@@ -13,9 +13,9 @@ from typing import Any
 import httpx
 
 from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
-from sandbox_client.backend import SandboxBackend
-from sandbox_client.errors import SandboxStartError
-from sandbox_client.instance import SandboxInstance
+from sandbox_client.backends.base_backend import SandboxBackend
+from sandbox_client.models import SandboxStartError
+from sandbox_client.models import SandboxInstance
 from utils.db_logging import log_audit
 
 log = logging.getLogger("sandbox_client.base_remote")
@@ -23,7 +23,7 @@ log = logging.getLogger("sandbox_client.base_remote")
 CONNECTOR_SECRET_HEADER: str = "X-Connector-Secret"
 
 
-class BaseRemoteBackend(SandboxBackend):
+class RemoteBackend(SandboxBackend):
     """Shared connector transport and lifecycle for remote backends."""
 
     def __init__(
@@ -54,7 +54,6 @@ class BaseRemoteBackend(SandboxBackend):
         start_cmd: str,
         sandbox_secret: str,
         host_mounts: list[dict[str, str]] | None,
-        extra_env: dict[str, str] | None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """POST /sandboxes/start to connector, yield NDJSON events."""
         body: dict[str, Any] = {
@@ -65,7 +64,6 @@ class BaseRemoteBackend(SandboxBackend):
             "sandbox_secret": sandbox_secret,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
-            "extra_env": extra_env or {},
         }
         timeout = httpx.Timeout(SANDBOX_QUEUE_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -116,7 +114,6 @@ class BaseRemoteBackend(SandboxBackend):
         self,
         run_key: str,
         health_timeout: int,
-        extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
         start_cmd: str | None,
@@ -136,7 +133,7 @@ class BaseRemoteBackend(SandboxBackend):
         backend_id: str | None = None
 
         async for event in self._start_remote_sandbox(
-            run_key, start_cmd, sandbox_secret, host_mounts, extra_env,
+            run_key, start_cmd, sandbox_secret, host_mounts,
         ):
             events.append(event)
             etype = event.get("event")
@@ -168,12 +165,8 @@ class BaseRemoteBackend(SandboxBackend):
         handle = SandboxInstance(
             run_key=run_key,
             url=url,
-            backend_id=backend_id,
             sandbox_secret=sandbox_secret,
             sandbox_id=self._sandbox_id,
-            sandbox_type=self._sandbox_type,
-            remote_host=host,
-            remote_port=port,
         )
         self._handles[run_key] = handle
         return handle, events

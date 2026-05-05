@@ -11,7 +11,6 @@ import subprocess
 import sys
 import time
 
-import httpx
 import typer
 
 from pathlib import Path

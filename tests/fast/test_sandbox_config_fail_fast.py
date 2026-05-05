@@ -11,46 +11,9 @@ os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
 os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "test-sandbox-secret")
 
 with patch("docker.from_env", return_value=MagicMock()):
-    from server import AgentServer
+    pass
 
 from sandbox_client.client import SandboxClient
-
-
-class TestAgentServerMissingConfig:
-    """AgentServer.__init__ must raise KeyError if a required config key is absent."""
-
-    def test_missing_health_timeout_raises(self) -> None:
-        incomplete_cfg = {
-            "exec_timeout_sec": 120,
-            "clone_timeout_sec": 300,
-            # health_timeout_sec intentionally omitted
-        }
-        with patch("server.sandbox_config", return_value=incomplete_cfg):
-            with patch("sandbox_client.pool.SandboxPool.__init__", return_value=None):
-                with pytest.raises(KeyError):
-                    AgentServer()
-
-    def test_missing_exec_timeout_raises(self) -> None:
-        incomplete_cfg = {
-            "health_timeout_sec": 5,
-            "clone_timeout_sec": 300,
-            # exec_timeout_sec intentionally omitted
-        }
-        with patch("server.sandbox_config", return_value=incomplete_cfg):
-            with patch("sandbox_client.pool.SandboxPool.__init__", return_value=None):
-                with pytest.raises(KeyError):
-                    AgentServer()
-
-    def test_missing_clone_timeout_raises(self) -> None:
-        incomplete_cfg = {
-            "health_timeout_sec": 5,
-            "exec_timeout_sec": 120,
-            # clone_timeout_sec intentionally omitted
-        }
-        with patch("server.sandbox_config", return_value=incomplete_cfg):
-            with patch("sandbox_client.pool.SandboxPool.__init__", return_value=None):
-                with pytest.raises(KeyError):
-                    AgentServer()
 
 
 class TestSandboxPoolMissingMount:

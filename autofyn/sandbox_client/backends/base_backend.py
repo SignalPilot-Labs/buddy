@@ -1,12 +1,13 @@
 """Abstract base class for sandbox backends.
 
-The agent calls backend.create() / backend.destroy() without knowing
-whether the sandbox is a local Docker container or a remote Slurm job.
+Defines the contract that all sandbox backends (local Docker, remote
+Docker, remote Slurm) must implement. The pool calls these methods
+without knowing the underlying infrastructure.
 """
 
 from abc import ABC, abstractmethod
 
-from sandbox_client.instance import SandboxInstance
+from sandbox_client.models import SandboxInstance
 
 
 class SandboxBackend(ABC):
@@ -17,7 +18,6 @@ class SandboxBackend(ABC):
         self,
         run_key: str,
         health_timeout: int,
-        extra_env: dict[str, str] | None,
         host_mounts: list[dict[str, str]] | None,
         sandbox_secret: str,
         start_cmd: str | None,

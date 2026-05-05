@@ -1,4 +1,4 @@
-"""Tests for SandboxPool remote backend wiring.
+"""Tests for SandboxManager remote backend wiring.
 
 Covers _resolve_backend(), remote SandboxClient construction, and destroy_all()
 with mixed local+remote handles.
@@ -9,14 +9,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.instance import SandboxInstance
-from sandbox_client.pool import SandboxPool
+from sandbox_client.models import SandboxInstance
+from sandbox_client.manager import SandboxManager
 
 
-def _make_pool() -> SandboxPool:
-    """Create a SandboxPool with mocked DockerLocalBackend."""
-    with patch("sandbox_client.pool.DockerLocalBackend", return_value=MagicMock()):
-        return SandboxPool()
+def _make_pool() -> SandboxManager:
+    """Create a SandboxManager with mocked DockerLocalBackend and config."""
+    with (
+        patch("sandbox_client.manager.DockerLocalBackend", return_value=MagicMock()),
+        patch("sandbox_client.manager.sandbox_config", return_value={"health_timeout_sec": 30}),
+        patch("sandbox_client.manager.os.environ", {"SANDBOX_INTERNAL_SECRET": "test", "CONNECTOR_URL": "http://localhost:9400", "CONNECTOR_SECRET": "test"}),
+    ):
+        return SandboxManager()
 
 
 def _remote_handle(run_key: str, sandbox_id: str) -> SandboxInstance:
@@ -24,12 +28,8 @@ def _remote_handle(run_key: str, sandbox_id: str) -> SandboxInstance:
     return SandboxInstance(
         run_key=run_key,
         url="http://connector:9400/sandboxes/" + run_key,
-        backend_id="job-42",
         sandbox_secret="per-run-secret",
         sandbox_id=sandbox_id,
-        sandbox_type="slurm",
-        remote_host="compute-7",
-        remote_port=9123,
     )
 
 
@@ -38,12 +38,8 @@ def _local_handle(run_key: str) -> SandboxInstance:
     return SandboxInstance(
         run_key=run_key,
         url="http://sandbox:8080",
-        backend_id="container-abc",
         sandbox_secret="local-secret",
         sandbox_id=None,
-        sandbox_type=None,
-        remote_host=None,
-        remote_port=None,
     )
 
 
@@ -73,19 +69,20 @@ class TestResolveBackendRemote:
         }
 
         with patch(
-            "sandbox_client.pool.get_setting_value",
+            "sandbox_client.manager.get_setting_value",
             new=AsyncMock(return_value=json.dumps(config)),
         ):
-            with patch("sandbox_client.pool.SlurmBackend") as MockSlurm:
+            with patch("sandbox_client.manager.RemoteBackend") as MockRemote:
                 backend_instance = MagicMock()
-                MockSlurm.return_value = backend_instance
+                MockRemote.return_value = backend_instance
                 result = await pool._resolve_backend("sandbox-uuid-1")
 
-        MockSlurm.assert_called_once_with(
+        MockRemote.assert_called_once_with(
             connector_url="http://connector:9400",
             connector_secret="connector-secret",
             sandbox_id="sandbox-uuid-1",
             ssh_target="user@hpc.example.com",
+            sandbox_type="slurm",
             heartbeat_timeout=3600,
         )
         assert result is backend_instance
@@ -103,19 +100,20 @@ class TestResolveBackendRemote:
         }
 
         with patch(
-            "sandbox_client.pool.get_setting_value",
+            "sandbox_client.manager.get_setting_value",
             new=AsyncMock(return_value=json.dumps(config)),
         ):
-            with patch("sandbox_client.pool.DockerRemoteBackend") as MockDocker:
+            with patch("sandbox_client.manager.RemoteBackend") as MockRemote:
                 backend_instance = MagicMock()
-                MockDocker.return_value = backend_instance
+                MockRemote.return_value = backend_instance
                 result = await pool._resolve_backend("sandbox-uuid-2")
 
-        MockDocker.assert_called_once_with(
+        MockRemote.assert_called_once_with(
             connector_url="http://connector:9400",
             connector_secret="connector-secret",
             sandbox_id="sandbox-uuid-2",
             ssh_target="user@remote-server.example.com",
+            sandbox_type="docker",
             heartbeat_timeout=1800,
         )
         assert result is backend_instance
@@ -145,7 +143,7 @@ class TestResolveBackendRemote:
         pool._connector_secret = "secret"
 
         with patch(
-            "sandbox_client.pool.get_setting_value",
+            "sandbox_client.manager.get_setting_value",
             new=AsyncMock(return_value=None),
         ):
             with pytest.raises(ValueError, match="No remote sandbox config found"):
@@ -161,7 +159,7 @@ class TestResolveBackendRemote:
         config = {"type": "slurm", "ssh_target": "user@hpc"}
 
         with patch(
-            "sandbox_client.pool.get_setting_value",
+            "sandbox_client.manager.get_setting_value",
             new=AsyncMock(return_value=json.dumps(config)),
         ):
             with pytest.raises(KeyError, match="heartbeat_timeout"):
@@ -247,23 +245,20 @@ class TestRemoteSandboxClientCreation:
         mock_backend.create = AsyncMock(return_value=(remote_handle, []))
 
         with patch.object(pool, "_resolve_backend", new=AsyncMock(return_value=mock_backend)):
-            with patch("sandbox_client.pool.SandboxClient") as MockClient:
+            with patch("sandbox_client.manager.SandboxClient") as MockClient:
                 mock_client = MagicMock()
                 MockClient.return_value = mock_client
                 result_client, result_events = await pool.create(
                     run_key="run-x",
-                    health_timeout=10,
-                    extra_env=None,
-                    host_mounts=None,
-                    sandbox_secret="pool-secret",
                     sandbox_id="sandbox-Z",
+                    host_mounts=None,
                     start_cmd="./start.sh",
                 )
 
         MockClient.assert_called_once_with(
             base_url=remote_handle.url,
-            health_timeout=10,
-            timeout=10,
+            health_timeout=30,
+            timeout=30,
             sandbox_secret=remote_handle.sandbox_secret,
             extra_headers=None,
         )

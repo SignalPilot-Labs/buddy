@@ -9,8 +9,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from session.errors import ClientNotReadyError
-from session.manager import SessionManager
+from sdk.errors import ClientNotReadyError
+from sdk.manager import SessionManager
 
 
 def _make_manager_with_session(session_id: str, client=None) -> SessionManager:

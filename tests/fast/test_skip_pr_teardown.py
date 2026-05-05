@@ -56,7 +56,7 @@ class TestSkipPrTeardown:
                 run=run,
                 metadata_store=AsyncMock(),
                 status="stopped",
-                exec_timeout=300,
+
             )
             mock_teardown.assert_not_called()
 
@@ -78,7 +78,7 @@ class TestSkipPrTeardown:
                 run=run,
                 metadata_store=AsyncMock(),
                 status="completed",
-                exec_timeout=300,
+
             )
             mock_teardown.assert_called_once()
 
@@ -98,7 +98,7 @@ class TestSkipPrTeardown:
                 run=run,
                 metadata_store=AsyncMock(),
                 status="killed",
-                exec_timeout=300,
+
             )
             mock_teardown.assert_not_called()
 
@@ -118,7 +118,7 @@ class TestSkipPrTeardown:
                 run=run,
                 metadata_store=AsyncMock(),
                 status="stopped",
-                exec_timeout=300,
+
             )
             mock_finish.assert_called_once()
             args = mock_finish.call_args[0]
@@ -146,7 +146,7 @@ class TestSkipPrTeardown:
                 run=run,
                 metadata_store=AsyncMock(),
                 status="completed",
-                exec_timeout=300,
+
             )
             args = mock_finish.call_args[0]
             assert args[2] == "https://github.com/owner/repo/pull/1"

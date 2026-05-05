@@ -38,7 +38,7 @@ class TestExecuteRunUnboundSandbox:
     async def test_pool_create_raises_calls_destroy(self) -> None:
         """When pool.create raises, pool.destroy must still be called."""
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.log_audit", new_callable=AsyncMock),
         ):
             pool = MockPool.return_value
@@ -48,10 +48,6 @@ class TestExecuteRunUnboundSandbox:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
-            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-timeout")
             with pytest.raises(TimeoutError, match="container start timed out"):
@@ -63,7 +59,7 @@ class TestExecuteRunUnboundSandbox:
     async def test_pool_create_raises_not_unbound_error(self) -> None:
         """The exception propagated must be the original TimeoutError, not UnboundLocalError."""
         with (
-            patch("server.SandboxPool") as MockPool,
+            patch("server.SandboxManager") as MockPool,
             patch("server.log_audit", new_callable=AsyncMock),
         ):
             pool = MockPool.return_value
@@ -73,10 +69,6 @@ class TestExecuteRunUnboundSandbox:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
-            srv._exec_timeout = 300
-            srv._health_timeout = 30
-            srv._clone_timeout = 120
-            srv._sandbox_secret = "test-secret"
 
             active = _make_active_run("run-timeout-2")
             exc_type = None

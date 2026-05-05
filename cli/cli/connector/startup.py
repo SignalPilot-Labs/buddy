@@ -34,13 +34,13 @@ async def stream_start_events(
     sandbox_type: str,
     host_mounts: list[dict[str, str]],
     heartbeat_timeout: int,
-    extra_env: dict[str, str],
 ) -> tuple[asyncio.subprocess.Process, AsyncGenerator[dict[str, Any], None]]:
     """Execute start command over SSH. Returns (process, event_gen).
 
     The sandbox secret is passed as SANDBOX_INTERNAL_SECRET env var.
-    The returned async generator yields NDJSON events as they arrive.
-    Callers must fully consume or close the generator.
+    Runtime secrets (GIT_TOKEN, etc.) are injected later via POST /env
+    after the sandbox is healthy — they never appear in SSH args or
+    Slurm job metadata.
     """
     mounts_json = json.dumps(host_mounts)
     apptainer_binds = (
@@ -58,7 +58,6 @@ async def stream_start_events(
         "AF_DOCKER_VOLUMES": docker_volumes if docker_volumes else "",
         "AF_HEARTBEAT_TIMEOUT": str(heartbeat_timeout),
     }
-    env.update(extra_env)
 
     process = await run_ssh_command(ssh_target, start_cmd, env)
     return process, _stream_events(process, ssh_target)

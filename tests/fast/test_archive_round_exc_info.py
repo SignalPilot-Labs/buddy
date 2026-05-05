@@ -118,7 +118,7 @@ class TestArchiveRoundExcInfo:
             await run_rounds(
                 sandbox=sandbox,
                 bootstrap=bootstrap,
-                exec_timeout=120,
+
                 host_mounts=None,
                 user_env_keys=[],
             )
@@ -166,7 +166,7 @@ class TestArchiveRoundExcInfo:
             result = await run_rounds(
                 sandbox=sandbox,
                 bootstrap=bootstrap,
-                exec_timeout=120,
+
                 host_mounts=None,
                 user_env_keys=[],
             )

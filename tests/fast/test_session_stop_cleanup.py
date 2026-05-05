@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from session.manager import SessionManager
+from sdk.manager import SessionManager
 
 
 class TestSessionStopCleanup:

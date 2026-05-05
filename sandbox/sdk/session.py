@@ -15,11 +15,11 @@ from claude_agent_sdk.types import (
     ToolPermissionContext,
 )
 
-from session.event_log import SessionEventLog, SessionEventLogOverflow, SESSION_EVENT_LOG_MAX_BYTES
-from session.gate import SessionGate
-from session.hooks import SessionHooks
-from session.security import SecurityGate
-from session.utils import parse_agents, serialize_message
+from sdk.event_log import SessionEventLog, SessionEventLogOverflow, SESSION_EVENT_LOG_MAX_BYTES
+from sdk.gate import SessionGate
+from sdk.hooks import SessionHooks
+from sdk.security import SecurityGate
+from sdk.utils import parse_agents, serialize_message
 
 log = logging.getLogger("sandbox.session")
 

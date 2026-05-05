@@ -29,7 +29,6 @@ async def finalize_run(
     run: RunContext,
     metadata_store: MetadataStore,
     status: str,
-    exec_timeout: int,
 ) -> str | None:
     """Commit residual work, push, open PR, capture diff, finalize DB.
 
@@ -40,7 +39,7 @@ async def finalize_run(
     diff_stats: list[dict] | None = None
 
     if status != RUN_STATUS_KILLED and not run.skip_pr:
-        result = await _run_teardown(sandbox, run, metadata_store, exec_timeout)
+        result = await _run_teardown(sandbox, run, metadata_store)
         if result is not None:
             pr_url = result.pr_url
             diff_stats = result.diff_stats
@@ -75,7 +74,6 @@ async def _run_teardown(
     sandbox: SandboxClient,
     run: RunContext,
     metadata_store: MetadataStore,
-    exec_timeout: int,
 ) -> TeardownResult | None:
     """Call /repo/teardown with the PR title/description from metadata."""
     metadata = await metadata_store.load()
@@ -95,7 +93,6 @@ async def _run_teardown(
             pr_title=title,
             pr_description=description,
             base=run.base_branch,
-            timeout=exec_timeout,
         )
     except Exception as exc:
         log.error("Teardown call failed: %s", exc, exc_info=True)

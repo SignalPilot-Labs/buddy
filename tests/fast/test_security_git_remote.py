@@ -5,7 +5,7 @@ Write subcommands like `git remote add` and `git remote set-url` must be blocked
 when the target repo is not the configured repo.
 """
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/repo"

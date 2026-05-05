@@ -6,7 +6,7 @@ Covers the case-insensitive flag variants that were previously unblocked:
   git switch --force-create  (long-form force-create)
 """
 
-from session.security import SecurityGate
+from sdk.security import SecurityGate
 
 
 REPO = "owner/test-repo"

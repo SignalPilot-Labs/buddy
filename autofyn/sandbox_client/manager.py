@@ -1,7 +1,8 @@
-"""Sandbox pool — per-run backend factory.
+"""Sandbox manager — per-run backend lifecycle.
 
 Instantiated once by the agent server. Resolves which SandboxBackend
 to use per run based on sandbox_id (None = local Docker, UUID = remote).
+Creates, destroys, and routes requests to the correct backend.
 """
 
 import json
@@ -10,49 +11,52 @@ import os
 
 import httpx
 
-from db.constants import (
-    REMOTE_SANDBOX_KEY_PREFIX,
-    SANDBOX_TYPE_SLURM,
-)
-from sandbox_client.backend import SandboxBackend
-from sandbox_client.base_remote import CONNECTOR_SECRET_HEADER
+from config.loader import sandbox_config
+from db.constants import REMOTE_SANDBOX_KEY_PREFIX
+from sandbox_client.backends.base_backend import SandboxBackend
+from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.remote_backend import CONNECTOR_SECRET_HEADER, RemoteBackend
 from sandbox_client.client import SandboxClient
-from sandbox_client.docker_local import DockerLocalBackend
-from sandbox_client.docker_remote import DockerRemoteBackend
-from sandbox_client.instance import SandboxInstance
-from sandbox_client.slurm_backend import SlurmBackend
-from utils.constants import ENV_KEY_CONNECTOR_SECRET, ENV_KEY_CONNECTOR_URL
+from sandbox_client.models import SandboxInstance
+from utils.constants import (
+    ENV_KEY_CONNECTOR_SECRET,
+    ENV_KEY_CONNECTOR_URL,
+    ENV_KEY_SANDBOX_SECRET,
+)
 from utils.db import get_setting_value
 
-log = logging.getLogger("sandbox_client.pool")
+log = logging.getLogger("sandbox_client.manager")
 
 
-class SandboxPool:
-    """Per-run backend factory. Agent code calls pool methods — doesn't know local vs remote."""
+class SandboxManager:
+    """Per-run backend lifecycle. Reads server-level config internally.
+
+    Caller only provides per-run values (run_key, sandbox_id, host_mounts, start_cmd).
+    """
 
     def __init__(self) -> None:
-        """Initialize the pool with a local Docker backend and connector env vars."""
+        """Initialize backends and read server-level config."""
+        cfg = sandbox_config()
         self._docker_local = DockerLocalBackend()
         self._handles: dict[str, SandboxInstance] = {}
         self._remote_backends: dict[str, SandboxBackend] = {}
         self._connector_url: str | None = os.environ.get(ENV_KEY_CONNECTOR_URL) or None
         self._connector_secret: str | None = os.environ.get(ENV_KEY_CONNECTOR_SECRET) or None
+        self._sandbox_secret: str = os.environ[ENV_KEY_SANDBOX_SECRET]
+        self._health_timeout: int = cfg["health_timeout_sec"]
 
     async def create(
         self,
         run_key: str,
-        health_timeout: int,
-        extra_env: dict[str, str] | None,
-        host_mounts: list[dict[str, str]] | None,
-        sandbox_secret: str,
         sandbox_id: str | None,
+        host_mounts: list[dict[str, str]] | None,
         start_cmd: str | None,
     ) -> tuple[SandboxClient, list[dict]]:
         """Spin up a sandbox for a run. Returns (client, startup_events)."""
         backend = await self._resolve_backend(sandbox_id)
         handle, events = await backend.create(
-            run_key, health_timeout, extra_env, host_mounts,
-            sandbox_secret, start_cmd,
+            run_key, self._health_timeout, host_mounts,
+            self._sandbox_secret, start_cmd,
         )
         self._handles[run_key] = handle
 
@@ -62,18 +66,17 @@ class SandboxPool:
                 raise RuntimeError(f"No client available for run {run_key}")
             return client, events
 
-        # Remote: point SandboxClient at the connector proxy URL
         client = SandboxClient(
             base_url=handle.url,
-            health_timeout=health_timeout,
-            timeout=health_timeout,
+            health_timeout=self._health_timeout,
+            timeout=self._health_timeout,
             sandbox_secret=handle.sandbox_secret,
             extra_headers=None,
         )
         return client, events
 
     async def destroy(self, run_key: str) -> None:
-        """Stop and remove a sandbox. Closes cached client."""
+        """Stop and remove a sandbox."""
         handle = self._handles.pop(run_key, None)
         if not handle:
             return
@@ -144,12 +147,7 @@ class SandboxPool:
             raise RuntimeError("Connector not reachable — is it running? (autofyn start)")
 
     async def _resolve_backend(self, sandbox_id: str | None) -> SandboxBackend:
-        """Resolve the backend for a given sandbox_id.
-
-        Returns local Docker backend for None. For a remote UUID, reads the
-        config from DB settings and instantiates the appropriate backend.
-        Caches remote backends by sandbox_id to avoid repeated DB reads.
-        """
+        """Resolve the backend for a given sandbox_id."""
         if sandbox_id is None:
             return self._docker_local
 
@@ -171,27 +169,13 @@ class SandboxPool:
             raise ValueError(f"No remote sandbox config found for sandbox_id={sandbox_id}")
 
         config: dict[str, str | int] = json.loads(config_str)
-        sandbox_type: str = str(config["type"])
-        ssh_target: str = str(config["ssh_target"])
-        heartbeat_timeout: int = int(config["heartbeat_timeout"])
-
-        backend: SandboxBackend
-        if sandbox_type == SANDBOX_TYPE_SLURM:
-            backend = SlurmBackend(
-                connector_url=self._connector_url,
-                connector_secret=self._connector_secret,
-                sandbox_id=sandbox_id,
-                ssh_target=ssh_target,
-                heartbeat_timeout=heartbeat_timeout,
-            )
-        else:
-            backend = DockerRemoteBackend(
-                connector_url=self._connector_url,
-                connector_secret=self._connector_secret,
-                sandbox_id=sandbox_id,
-                ssh_target=ssh_target,
-                heartbeat_timeout=heartbeat_timeout,
-            )
-
+        backend = RemoteBackend(
+            connector_url=self._connector_url,
+            connector_secret=self._connector_secret,
+            sandbox_id=sandbox_id,
+            ssh_target=str(config["ssh_target"]),
+            sandbox_type=str(config["type"]),
+            heartbeat_timeout=int(config["heartbeat_timeout"]),
+        )
         self._remote_backends[sandbox_id] = backend
         return backend

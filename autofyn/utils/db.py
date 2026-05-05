@@ -319,24 +319,11 @@ async def get_setting_value(key: str) -> str | None:
         return setting.value
 
 
-async def update_run_sandbox_snapshot(
-    run_id: str,
-    sandbox_id: str,
-    sandbox_type: str,
-    sandbox_ssh_target: str,
-    sandbox_start_cmd: str | None,
-) -> None:
-    """Snapshot remote sandbox config fields on the run record before start."""
+async def update_run_sandbox_id(run_id: str, sandbox_id: str) -> None:
+    """Link a run to a remote sandbox config."""
     async with get_session_factory()() as s:
         await s.execute(
-            update(Run)
-            .where(Run.id == run_id)
-            .values(
-                sandbox_id=sandbox_id,
-                sandbox_type=sandbox_type,
-                sandbox_ssh_target=sandbox_ssh_target,
-                sandbox_start_cmd=sandbox_start_cmd,
-            )
+            update(Run).where(Run.id == run_id).values(sandbox_id=sandbox_id)
         )
         await s.commit()
 
@@ -348,23 +335,5 @@ async def update_run_sandbox_backend_id(run_id: str, sandbox_backend_id: str) ->
             update(Run)
             .where(Run.id == run_id)
             .values(sandbox_backend_id=sandbox_backend_id)
-        )
-        await s.commit()
-
-
-async def update_run_sandbox_remote_host(
-    run_id: str,
-    sandbox_remote_host: str,
-    sandbox_remote_port: int,
-) -> None:
-    """Set sandbox_remote_host/port once the remote sandbox is ready."""
-    async with get_session_factory()() as s:
-        await s.execute(
-            update(Run)
-            .where(Run.id == run_id)
-            .values(
-                sandbox_remote_host=sandbox_remote_host,
-                sandbox_remote_port=sandbox_remote_port,
-            )
         )
         await s.commit()

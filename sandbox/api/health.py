@@ -3,7 +3,7 @@
 from aiohttp import web
 
 from constants import SANDBOX_IMAGE_TAG, SANDBOX_PROTOCOL_VERSION
-from session.manager import SessionManager
+from sdk.manager import SessionManager
 
 
 async def handle_health(request: web.Request) -> web.Response:

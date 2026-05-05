@@ -6,7 +6,6 @@ Verifies that:
   - AF_READY with actual hostname terminates the generator
 """
 
-import asyncio
 from unittest.mock import MagicMock
 
 import pytest

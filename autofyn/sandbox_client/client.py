@@ -15,6 +15,7 @@ import os
 
 import httpx
 
+from sandbox_client.handlers.env import Env
 from sandbox_client.handlers.execute import Execute
 from sandbox_client.handlers.file_system import FileSystem
 from sandbox_client.handlers.repo import Repo
@@ -28,6 +29,7 @@ class SandboxClient:
     """The one client for a sandbox container.
 
     Exposed handlers:
+        env          — runtime secret injection
         execute      — raw command execution
         file_system  — typed file I/O
         repo         — git/gh operations bound to an active working branch
@@ -64,6 +66,7 @@ class SandboxClient:
             timeout=httpx.Timeout(timeout),
             headers=headers,
         )
+        self.env: Env = Env(self._http)
         self.execute: Execute = Execute(self._http)
         self.file_system: FileSystem = FileSystem(self._http)
         self.repo: Repo = Repo(self._http)

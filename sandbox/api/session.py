@@ -11,10 +11,10 @@ import logging
 
 from aiohttp import web
 
-from session.errors import ClientNotReadyError
-from session.errors import SessionNotFoundError
-from session.event_log import SessionEventGap
-from session.manager import SessionManager
+from sdk.errors import ClientNotReadyError
+from sdk.errors import SessionNotFoundError
+from sdk.event_log import SessionEventGap
+from sdk.manager import SessionManager
 
 log = logging.getLogger("sandbox.endpoints.session")
 

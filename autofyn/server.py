@@ -1,14 +1,13 @@
 """AutoFyn agent HTTP server.
 
 Orchestrates bootstrap → round loop → teardown. Each run gets its own
-sandbox container via SandboxPool for isolation. Round-based execution:
+sandbox container via SandboxManager for isolation. Round-based execution:
 the Python `lifecycle.round_loop` is the long-running thing — each
 round starts a fresh Claude SDK session in the sandbox.
 """
 
 import asyncio
 import hmac
-import json
 import logging
 import os
 import traceback
@@ -18,25 +17,21 @@ from fastapi import FastAPI, HTTPException
 from starlette.responses import JSONResponse
 import uvicorn
 
-from config.loader import sandbox_config
 from endpoints.registry import register_routes
 from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
 from sandbox_client.client import SandboxClient
-from sandbox_client.errors import SandboxStartError
-from sandbox_client.pool import SandboxPool
+from sandbox_client.models import SandboxStartError
+from sandbox_client.manager import SandboxManager
 from utils import db
 from utils.db import (
-    get_setting_value,
     update_run_sandbox_backend_id,
-    update_run_sandbox_remote_host,
-    update_run_sandbox_snapshot,
+    update_run_sandbox_id,
 )
 from utils.db_logging import log_audit
 from db.constants import (
     ACTIVE_RUN_STATUSES,
-    REMOTE_SANDBOX_KEY_PREFIX,
     RUN_STATUS_CRASHED,
     RUN_STATUS_ERROR,
     RUN_STATUS_KILLED,
@@ -84,21 +79,13 @@ class AgentServer:
     """HTTP server managing concurrent agent runs with per-run sandboxes."""
 
     def __init__(self) -> None:
-        cfg = sandbox_config()
-        self._health_timeout: int = cfg["health_timeout_sec"]
-        self._exec_timeout: int = cfg["exec_timeout_sec"]
-        self._clone_timeout: int = cfg["clone_timeout_sec"]
-
-        self._pool = SandboxPool()
+        self._pool = SandboxManager()
         self._runs: dict[str, ActiveRun] = {}
 
         self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ[ENV_KEY_INTERNAL_SECRET]
         if not self._internal_secret:
             raise RuntimeError(f"{ENV_KEY_INTERNAL_SECRET} is empty")
-        self._sandbox_secret = os.environ[ENV_KEY_SANDBOX_SECRET]
-        if not self._sandbox_secret:
-            raise RuntimeError(f"{ENV_KEY_SANDBOX_SECRET} is empty")
         self._install_internal_auth()
         register_routes(self.app, self)
 
@@ -179,7 +166,7 @@ class AgentServer:
         """Expose the run dict (read-only use by endpoints)."""
         return self._runs
 
-    def pool(self) -> SandboxPool:
+    def pool(self) -> SandboxManager:
         """Expose the sandbox pool."""
         return self._pool
 
@@ -189,10 +176,10 @@ class AgentServer:
         self,
         active: ActiveRun,
         body: StartRequest,
-    ) -> tuple[str, str, str, float, str]:
+    ) -> tuple[str, str, str, float]:
         """Validate required run fields. Raises RuntimeError for any missing value.
 
-        Returns (run_id, github_repo, task, budget, git_token).
+        Returns (run_id, github_repo, task, budget).
         """
         run_id = active.run_id
         if run_id is None:
@@ -213,7 +200,7 @@ class AgentServer:
         if not git_token:
             raise RuntimeError(f"{ENV_KEY_GIT_TOKEN} missing from run env")
 
-        return run_id, github_repo, task, budget, git_token
+        return run_id, github_repo, task, budget
 
     async def _emit_start_failed(
         self, run_id: str, exc: SandboxStartError, run_env: dict[str, str] | None
@@ -290,78 +277,48 @@ class AgentServer:
             await sandbox.close()
         await self._pool.destroy(run_id)
 
-    async def _snapshot_sandbox_config(
-        self,
-        run_id: str,
-        body: "StartRequest",
-    ) -> None:
-        """Snapshot the remote sandbox config to the run record before start.
-
-        Only called when body.sandbox_id is set. Reads config from DB settings
-        so the cleanup path knows which sandbox to tear down even if the agent
-        restarts mid-run.
-        """
-        if not body.sandbox_id:
-            return
-        config_str = await get_setting_value(
-            f"{REMOTE_SANDBOX_KEY_PREFIX}{body.sandbox_id}"
-        )
-        if config_str is None:
-            raise ValueError(
-                f"No remote sandbox config found for sandbox_id={body.sandbox_id}"
-            )
-        config: dict = json.loads(config_str)
-        await update_run_sandbox_snapshot(
-            run_id,
-            sandbox_id=body.sandbox_id,
-            sandbox_type=config["type"],
-            sandbox_ssh_target=config["ssh_target"],
-            sandbox_start_cmd=body.start_cmd,
-        )
+    async def _link_sandbox(self, run_id: str, sandbox_id: str | None) -> None:
+        """Link run to its remote sandbox config, if any."""
+        if sandbox_id:
+            await update_run_sandbox_id(run_id, sandbox_id)
 
     async def _process_sandbox_events(
         self,
         run_id: str,
         events: list[dict],
     ) -> None:
-        """Update DB columns from sandbox startup events.
-
-        Audit events are already emitted in real-time by base_remote.create().
-        This only handles DB column updates that need the full event list.
-        """
+        """Update DB from sandbox startup events (backend_id for cleanup)."""
         for event in events:
-            etype = event.get("event")
-            if etype == "queued":
+            if event.get("event") == "queued":
                 backend_id = event.get("backend_id")
                 if backend_id:
                     await update_run_sandbox_backend_id(run_id, backend_id)
-            elif etype == "ready":
-                host: str = event["host"]
-                port: int = event["port"]
-                await update_run_sandbox_remote_host(run_id, host, port)
 
     async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
-        run_id, github_repo, task, budget, git_token = self._validate_run_inputs(active, body)
+        run_id, github_repo, task, budget = self._validate_run_inputs(active, body)
 
         sandbox: SandboxClient | None = None
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
         try:
-            await self._snapshot_sandbox_config(run_id, body)
+            await self._link_sandbox(run_id, body.sandbox_id)
             if body.sandbox_id is not None:
                 await log_audit(run_id, "startup_log", {"line": "Connecting to remote sandbox..."})
             sandbox, events = await self._pool.create(
                 run_id,
-                self._health_timeout,
-                body.env,
-                body.host_mounts,
-                self._sandbox_secret,
                 body.sandbox_id,
+                body.host_mounts,
                 body.start_cmd,
             )
             await self._process_sandbox_events(run_id, events)
             await log_audit(run_id, "sandbox_created", {})
+
+            # Inject secrets via /env — universal path for all sandbox types.
+            # Secrets never appear in container env, SSH args, or Slurm metadata.
+            run_env = body.env or {}
+            await sandbox.env.set(run_env)
+
             bootstrap = await bootstrap_run(
                 sandbox=sandbox,
                 run_id=run_id,
@@ -372,8 +329,6 @@ class AgentServer:
                 github_repo=github_repo,
                 model=body.model,
                 effort=body.effort,
-                git_token=git_token,
-                clone_timeout=self._clone_timeout,
                 mcp_servers=body.mcp_servers,
             )
             active.status = RUN_STATUS_RUNNING
@@ -385,7 +340,6 @@ class AgentServer:
             terminal_status = await run_rounds(
                 sandbox,
                 bootstrap,
-                self._exec_timeout,
                 body.host_mounts,
                 list((body.env or {}).keys()),
             )
@@ -397,7 +351,6 @@ class AgentServer:
                 run=bootstrap.run,
                 metadata_store=bootstrap.metadata,
                 status=terminal_status,
-                exec_timeout=self._exec_timeout,
             )
             active.status = terminal_status
         except SandboxStartError as exc:

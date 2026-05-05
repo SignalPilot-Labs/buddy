@@ -1,8 +1,9 @@
 """AutoFyn Sandbox Server — HTTP API app wiring.
 
 Starts the aiohttp app, installs auth middleware, and registers the six
-endpoint groups (execute, session, file_system, repo, health, env). All request
-handling lives under sandbox/handlers/.
+endpoint groups (execute, session, file_system, repo, health, env). All
+HTTP handling lives under sandbox/endpoints/; business logic under
+sandbox/repo/ and sandbox/session/.
 """
 
 import asyncio
@@ -23,14 +24,15 @@ from constants import (
     SANDBOX_HOST,
     SANDBOX_PORT,
 )
-from handlers.env import register as register_env
-from handlers.execute import register as register_execute
-from handlers.file_system import register as register_file_system
-from handlers.health import register as register_health
-from handlers.repo import register as register_repo
-from handlers.session import register as register_session
-from heartbeat import HeartbeatTracker
-from session.manager import SessionManager
+from api.env import register as register_env
+from api.execute import register as register_execute
+from api.file_system import register as register_file_system
+from api.health import register as register_health
+from api.repo import register as register_repo
+from api.session import register as register_session
+from shared.heartbeat import HeartbeatTracker
+from repo.service import RepoService
+from sdk.manager import SessionManager
 
 cfg = sandbox_config()
 
@@ -67,11 +69,7 @@ async def error_middleware(
     request: web.Request,
     handler,
 ) -> web.StreamResponse:
-    """Catch unhandled exceptions, log the traceback, and return it in the 500 body.
-
-    Without this, aiohttp returns generic "Server got itself in trouble"
-    and the traceback is lost — making remote sandbox debugging impossible.
-    """
+    """Catch unhandled exceptions, log the traceback, and return it in the 500 body."""
     try:
         return await handler(request)
     except web.HTTPException as exc:
@@ -117,8 +115,9 @@ async def heartbeat_middleware(
 
 
 async def on_startup(app: web.Application) -> None:
-    """Initialize session manager and start heartbeat tracker."""
+    """Initialize services and start heartbeat tracker."""
     app["sessions"] = SessionManager()
+    app["repo_service"] = RepoService()
     tracker = HeartbeatTracker()
     app["heartbeat"] = tracker
     tracker.start()
@@ -140,12 +139,7 @@ def _emit_markers(port: int) -> None:
 
 
 def main() -> None:
-    """Start the sandbox HTTP server.
-
-    Always uses the AppRunner path so markers are emitted only after
-    the port is successfully bound. This prevents race conditions where
-    the connector sees AF_READY before the server is listening.
-    """
+    """Start the sandbox HTTP server."""
     app = web.Application(middlewares=[error_middleware, auth_middleware, heartbeat_middleware])
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)

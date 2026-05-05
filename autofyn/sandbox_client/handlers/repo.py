@@ -16,11 +16,8 @@ import logging
 import httpx
 
 from utils.models import SaveResult, TeardownResult
-from utils.secrets import scrub_secrets
 
 log = logging.getLogger("sandbox_client.repo")
-
-_SECRET_BODY_KEYS: frozenset[str] = frozenset({"token", "claude_token", "git_token"})
 
 
 class Repo:
@@ -38,25 +35,23 @@ class Repo:
     async def bootstrap(
         self,
         repo: str,
-        token: str,
         base_branch: str,
         working_branch: str,
-        timeout: int,
     ) -> None:
-        """Clone the repo, verify the base branch, create the working branch."""
+        """Clone the repo, verify the base branch, create the working branch.
+
+        GIT_TOKEN must be injected via POST /env before calling this.
+        """
         await self._post("/repo/bootstrap", {
             "repo": repo,
-            "token": token,
             "base_branch": base_branch,
             "working_branch": working_branch,
-            "timeout": timeout,
         })
 
-    async def save(self, message: str, timeout: int) -> SaveResult:
+    async def save(self, message: str) -> SaveResult:
         """Per-round commit + push. No-op if the working tree is clean."""
         data = await self._post("/repo/save", {
             "message": message,
-            "timeout": timeout,
         })
         return SaveResult(
             committed=bool(data["committed"]),
@@ -69,14 +64,12 @@ class Repo:
         pr_title: str,
         pr_description: str,
         base: str,
-        timeout: int,
     ) -> TeardownResult:
         """End-of-run commit + push + PR + diff. One HTTP round-trip."""
         data = await self._post("/repo/teardown", {
             "pr_title": pr_title,
             "pr_description": pr_description,
             "base": base,
-            "timeout": timeout,
         })
         return TeardownResult(
             auto_committed=bool(data["auto_committed"]),
@@ -108,8 +101,7 @@ class Repo:
         """Send a POST and return the JSON response dict."""
         resp = await self._http.post(path, json=body)
         if resp.status_code >= 400:
-            scrubbed = scrub_secrets(resp.text, [body.get(k) for k in _SECRET_BODY_KEYS])
             raise RuntimeError(
-                f"sandbox {path} -> {resp.status_code}: {scrubbed[:1000]}"
+                f"sandbox {path} -> {resp.status_code}: {resp.text[:1000]}"
             )
         return resp.json()

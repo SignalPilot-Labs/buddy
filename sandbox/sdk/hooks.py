@@ -22,7 +22,7 @@ from claude_agent_sdk.types import (
 
 from constants import TASK_TOOL_NAME
 from models import ToolContext
-from session.utils import summarize
+from sdk.utils import summarize
 
 log = logging.getLogger("sandbox.session.hooks")
 

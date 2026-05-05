@@ -63,7 +63,7 @@ class TestSessionErrorRetry:
                 inbox=_mock_inbox(),
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
-                exec_timeout=120,
+
                 consecutive_session_errors=0,
                 max_rounds=128,
             )
@@ -87,7 +87,7 @@ class TestSessionErrorRetry:
                 inbox=_mock_inbox(),
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
-                exec_timeout=120,
+
                 consecutive_session_errors=1,
                 max_rounds=128,
             )
@@ -111,7 +111,7 @@ class TestSessionErrorRetry:
                 inbox=_mock_inbox(),
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
-                exec_timeout=120,
+
                 consecutive_session_errors=session_error_max_retries() - 1,
                 max_rounds=128,
             )
@@ -135,7 +135,7 @@ class TestSessionErrorRetry:
                 inbox=_mock_inbox(),
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
-                exec_timeout=120,
+
                 consecutive_session_errors=2,
                 max_rounds=128,
             )
@@ -169,7 +169,7 @@ class TestSessionErrorRetry:
                 inbox=_mock_inbox(),
                 time_lock=_mock_time_lock(),
                 metadata_store=MagicMock(),
-                exec_timeout=120,
+
                 consecutive_session_errors=1,
                 max_rounds=128,
             )
