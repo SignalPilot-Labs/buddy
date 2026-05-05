@@ -110,7 +110,7 @@ export function RemoteSandboxes(): React.ReactElement {
         <label className="text-content font-semibold text-accent-hover">
           Remote Sandboxes
         </label>
-        <span className="text-caption text-text-secondary">
+        <span className="text-content text-text-secondary">
           {sandboxes.length} configured
         </span>
       </div>
@@ -123,7 +123,7 @@ export function RemoteSandboxes(): React.ReactElement {
               <span className="text-content font-mono text-accent-hover flex-1 min-w-0 truncate">
                 {s.name}
               </span>
-              <span className="text-caption text-text-secondary shrink-0">
+              <span className="text-content text-text-secondary shrink-0">
                 {s.ssh_target}
               </span>
               <span className="text-caption uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#88ccff]/[0.08] text-[#88ccff] shrink-0">

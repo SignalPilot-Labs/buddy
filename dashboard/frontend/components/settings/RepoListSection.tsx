@@ -37,7 +37,7 @@ export function RepoListSection({
         <label className="text-content font-semibold text-accent-hover">
           Repositories
         </label>
-        <span className="text-caption text-text-secondary">
+        <span className="text-content text-text-secondary">
           {repos.length} configured
         </span>
       </div>
@@ -52,7 +52,7 @@ export function RepoListSection({
                 <span className="text-content font-mono text-accent-hover flex-1 min-w-0 truncate">
                   {r.repo}
                 </span>
-                <span className="text-caption text-text-secondary shrink-0">
+                <span className="text-content text-text-secondary shrink-0">
                   {r.run_count} run{r.run_count !== 1 ? "s" : ""}
                 </span>
                 {isActive ? (
@@ -63,7 +63,7 @@ export function RepoListSection({
                 ) : (
                   <button
                     onClick={() => onSetActive(r.repo)}
-                    className="text-caption text-text-secondary hover:text-[#00ff88] transition-colors shrink-0"
+                    className="text-content text-text-secondary hover:text-[#00ff88] transition-colors shrink-0"
                   >
                     Set Active
                   </button>

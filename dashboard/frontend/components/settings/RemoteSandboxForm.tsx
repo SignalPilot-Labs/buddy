@@ -37,7 +37,7 @@ function FormField(props: {
 }): React.ReactElement {
   return (
     <div>
-      <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">
+      <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
         {props.label}
       </label>
       {props.children}

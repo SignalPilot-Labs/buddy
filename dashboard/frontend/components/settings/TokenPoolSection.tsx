@@ -33,7 +33,7 @@ export function TokenPoolSection({
         <label className="text-content font-semibold text-accent-hover">
           Claude Tokens
         </label>
-        <span className="text-caption text-text-secondary">
+        <span className="text-content text-text-secondary">
           {tokens.length} key{tokens.length !== 1 ? "s" : ""} · round-robin
         </span>
       </div>

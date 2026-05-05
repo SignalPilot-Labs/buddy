@@ -243,7 +243,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-center h-6 w-6 rounded bg-white/[0.04] border border-white/[0.08]">
                 <Image src="/logo.svg" alt="AutoFyn" width={14} height={14} />
               </div>
-              <h1 className="text-content font-semibold">Settings</h1>
+              <h1 className="text-title font-semibold">Settings</h1>
             </div>
           </div>
           {status && (
