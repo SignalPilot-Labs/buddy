@@ -1,6 +1,10 @@
+/**Editor for host-to-sandbox bind mount entries in the New Run modal.*/
+
 "use client";
 
 import { clsx } from "clsx";
+import { Button } from "@/components/ui/Button";
+import { IconTrash, IconPlus } from "@/components/ui/icons";
 import type { HostMount } from "@/lib/api";
 
 interface HostMountsEditorProps {
@@ -10,14 +14,19 @@ interface HostMountsEditorProps {
   error: string | null;
 }
 
+const INPUT_CLASS =
+  "flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30";
+
 export function HostMountsEditor({ mounts, onChange, loading, error }: HostMountsEditorProps) {
   if (loading) return <p className="text-content text-text-secondary">Loading mounts...</p>;
 
   return (
     <div className="space-y-2">
-      <p className="text-content text-text-secondary mb-2">Repo is at /home/agentuser/repo inside the sandbox.</p>
+      {mounts.length === 0 && (
+        <p className="text-caption text-text-dim">Repo is at <code className="text-[#88ccff]">/home/agentuser/repo</code> inside the sandbox.</p>
+      )}
       {mounts.map((m, i) => (
-        <div key={i} className="space-y-1.5 mb-3">
+        <div key={i} className="p-2.5 bg-black/20 rounded border border-border space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
             <input
@@ -29,20 +38,19 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
                 onChange(next);
               }}
               placeholder="/Users/you/datasets"
-              className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+              className={INPUT_CLASS}
             />
             <button
               type="button"
               onClick={() => onChange(mounts.filter((_, j) => j !== i))}
               className="p-1 text-text-dim hover:text-[#ff4444] transition-colors"
+              title="Remove mount"
             >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-              </svg>
+              <IconTrash size={11} />
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
+            <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Container</span>
             <input
               type="text"
               value={m.container_path}
@@ -52,7 +60,7 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
                 onChange(next);
               }}
               placeholder="/home/agentuser/datasets"
-              className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
+              className={INPUT_CLASS}
             />
             <span className="w-[26px]" />
           </div>
@@ -81,13 +89,14 @@ export function HostMountsEditor({ mounts, onChange, loading, error }: HostMount
           </div>
         </div>
       ))}
-      <button
-        type="button"
+      <Button
+        variant="success"
+        size="sm"
+        icon={<IconPlus size={10} />}
         onClick={() => onChange([...mounts, { host_path: "", container_path: "", mode: "ro" }])}
-        className="text-content text-text-secondary hover:text-accent-hover transition-colors"
       >
-        + Add mount
-      </button>
+        Add Mount
+      </Button>
       {error && <p className="mt-1 text-content text-[#ff4444]">{error}</p>}
     </div>
   );

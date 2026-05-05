@@ -1,3 +1,5 @@
+/**Sandbox selector: local Docker or remote, with start command editor.*/
+
 "use client";
 
 import { clsx } from "clsx";
@@ -16,7 +18,7 @@ interface SandboxPickerProps {
 
 export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
   return (
-    <>
+    <div className="space-y-2">
       <div className="flex gap-1.5 flex-wrap">
         <button
           onClick={() => { onSelect(null); onStartCmdChange(""); }}
@@ -45,7 +47,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
               }
             }}
             className={clsx(
-              "text-content px-3 py-2 rounded border transition-all font-mono",
+              "text-content px-3 py-2 rounded border transition-all",
               selectedId === s.id
                 ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
                 : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
@@ -57,16 +59,13 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
         ))}
       </div>
       {selectedId !== null && (
-        <div className="mt-2">
-          <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
-          <CodeTextarea
-            value={startCmd}
-            onChange={onStartCmdChange}
-            placeholder="Command to start the remote sandbox..."
-            rows={3}
-          />
-        </div>
+        <CodeTextarea
+          value={startCmd}
+          onChange={onStartCmdChange}
+          placeholder="Start command for remote sandbox..."
+          rows={3}
+        />
       )}
-    </>
+    </div>
   );
 }

@@ -91,8 +91,7 @@ const QUICK_START_ICONS: Record<string, React.ReactElement> = {
 
 export function StartRunModal({ open, onClose, onStart, busy, branches, activeRepo }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
-  const [budgetEnabled, setBudgetEnabled] = useState(false);
-  const [budget, setBudget] = useState(50);
+  const [budget, setBudget] = useState(0);
   const [duration, setDuration] = useState(0);
   const [baseBranch, setBaseBranch] = useState(DEFAULT_BASE_BRANCH);
   const [selectedQuick, setSelectedQuick] = useState<StarterPresetKey | null>(null);
@@ -227,7 +226,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         void updateRemoteSandbox(selectedSandboxId, { ...sandbox, default_start_cmd: cmdToSend });
       }
     }
-    onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
+    onStart(prompt, preset, budget, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -235,7 +234,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   };
 
   const modelSummary = `${MODELS[model].label} · ${capitalize(effort)}`;
-  const budgetSummary = budgetEnabled ? `$${budget}` : "Unlimited";
+  const budgetSummary = budget > 0 ? `$${budget}` : "Unlimited";
   const envCount = countEnvVars(envText);
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
   const mountSummary = mountsLoading ? "Loading..." : (mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None");
@@ -380,17 +379,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
 
                 {/* Budget (collapsible) */}
                 <CollapsibleSection label="Budget" summary={budgetSummary} defaultOpen={false}>
-                  <div>
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-content text-text-secondary">
-                      <input type="checkbox" checked={budgetEnabled} onChange={() => setBudgetEnabled(!budgetEnabled)} className="rounded" />
-                      Enable budget cap
-                    </label>
-                    {budgetEnabled && (
-                      <div className="flex items-center gap-3 mt-2">
-                        <input type="range" min={5} max={200} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 range-slider" />
-                        <span className="text-content font-semibold text-text tabular-nums w-16 text-right">${budget}</span>
-                      </div>
-                    )}
+                  <div className="flex items-center gap-3">
+                    <input type="range" min={0} max={200} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 range-slider" />
+                    <span className="text-content font-semibold text-text tabular-nums w-20 text-right">
+                      {budget === 0 ? "Unlimited" : `$${budget}`}
+                    </span>
                   </div>
                 </CollapsibleSection>
 
