@@ -1,4 +1,4 @@
-# Recognized CVEs
+# 9 Recognized CVEs
 
 Security advisories filed by AutoFyn and recognized by maintainers.
 
