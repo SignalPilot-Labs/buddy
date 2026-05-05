@@ -194,6 +194,8 @@ class ConnectorServer:
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
 
+        await self._emit_status(response, f"Connecting to {ssh_target}...")
+
         process, event_gen = await asyncio.wait_for(
             stream_start_events(
                 ssh_target=ssh_target,
@@ -207,6 +209,8 @@ class ConnectorServer:
             ),
             timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
         )
+
+        await self._emit_status(response, "Running start command...")
 
         try:
             events, ready_event = await asyncio.wait_for(
@@ -228,6 +232,8 @@ class ConnectorServer:
             await response.write((json.dumps(fail) + "\n").encode())
             return
 
+        await self._emit_status(response, "Setting up SSH tunnel...")
+
         try:
             state = await self._create_forward_state(
                 run_key, ssh_target, sandbox_type, sandbox_secret,
@@ -245,6 +251,15 @@ class ConnectorServer:
         self._heartbeat_tasks[run_key] = asyncio.create_task(
             self._heartbeat_loop(run_key),
         )
+
+    async def _emit_status(
+        self,
+        response: web.StreamResponse,
+        message: str,
+    ) -> None:
+        """Write a status event to the NDJSON stream."""
+        event = {"event": "status", "message": message}
+        await response.write((json.dumps(event) + "\n").encode())
 
     async def _stream_and_collect(
         self,
