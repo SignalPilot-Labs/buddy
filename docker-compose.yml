@@ -71,7 +71,7 @@ services:
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
       AF_IMAGE_TAG: ${AF_IMAGE_TAG}
-      CONNECTOR_SECRET: ${CONNECTOR_SECRET:-}
+      CONNECTOR_SECRET: ${CONNECTOR_SECRET}
       CONNECTOR_URL: http://host.docker.internal:${CONNECTOR_PORT:-9400}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AGENT_PORT:-8500}/health || exit 1"]

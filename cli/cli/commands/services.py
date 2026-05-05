@@ -91,8 +91,12 @@ def start_services(allow_docker: bool) -> None:
     if allow_docker:
         console.print(_DOCKER_WARNING)
         os.environ["AF_ALLOW_DOCKER"] = "1"
-    _run_script(START_SCRIPT)
+    # Generate connector secret and start connector BEFORE docker compose
+    # so the agent container can reach it immediately on boot
+    if not os.environ.get("CONNECTOR_SECRET"):
+        os.environ["CONNECTOR_SECRET"] = secrets.token_hex(32)
     _start_connector()
+    _run_script(START_SCRIPT)
     console.print("[green]✓[/green] AutoFyn services started")
     try:
         _ensure_tokens()

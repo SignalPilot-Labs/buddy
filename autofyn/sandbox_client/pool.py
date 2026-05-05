@@ -35,8 +35,8 @@ class SandboxPool:
         self._docker_local = DockerLocalBackend()
         self._handles: dict[str, SandboxInstance] = {}
         self._remote_backends: dict[str, SandboxBackend] = {}
-        self._connector_url: str = os.environ.get(ENV_KEY_CONNECTOR_URL, "")
-        self._connector_secret: str = os.environ.get(ENV_KEY_CONNECTOR_SECRET, "")
+        self._connector_url: str | None = os.environ.get(ENV_KEY_CONNECTOR_URL) or None
+        self._connector_secret: str | None = os.environ.get(ENV_KEY_CONNECTOR_SECRET) or None
 
     async def create(
         self,
@@ -113,10 +113,10 @@ class SandboxPool:
 
     async def test_connection(self, sandbox_id: str) -> dict:
         """Test SSH connection and image availability for a remote sandbox."""
-        if not self._connector_url:
-            raise RuntimeError("Connector URL not configured")
-        if not self._connector_secret:
-            raise RuntimeError("Connector secret not configured")
+        if self._connector_url is None:
+            raise RuntimeError("CONNECTOR_URL not set — cannot reach connector")
+        if self._connector_secret is None:
+            raise RuntimeError("CONNECTOR_SECRET not set — cannot reach connector")
 
         config_str = await get_setting_value(f"{REMOTE_SANDBOX_KEY_PREFIX}{sandbox_id}")
         if config_str is None:
@@ -129,15 +129,18 @@ class SandboxPool:
             "sandbox_type": str(config["type"]),
             "start_cmd": str(config["default_start_cmd"]),
         }
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
-            resp = await client.post(
-                f"{self._connector_url}/sandboxes/test",
-                json=body,
-                headers=headers,
-            )
-            resp.raise_for_status()
-            result: dict = resp.json()
-            return result
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30)) as client:
+                resp = await client.post(
+                    f"{self._connector_url}/sandboxes/test",
+                    json=body,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                result: dict = resp.json()
+                return result
+        except httpx.ConnectError:
+            raise RuntimeError("Connector not reachable — is it running? (autofyn start)")
 
     async def _resolve_backend(self, sandbox_id: str | None) -> SandboxBackend:
         """Resolve the backend for a given sandbox_id.
@@ -153,11 +156,11 @@ class SandboxPool:
         if cached is not None:
             return cached
 
-        if not self._connector_url:
+        if self._connector_url is None:
             raise RuntimeError(
                 f"Remote sandbox {sandbox_id} requested but {ENV_KEY_CONNECTOR_URL} is not set"
             )
-        if not self._connector_secret:
+        if self._connector_secret is None:
             raise RuntimeError(
                 f"Remote sandbox {sandbox_id} requested but {ENV_KEY_CONNECTOR_SECRET} is not set"
             )

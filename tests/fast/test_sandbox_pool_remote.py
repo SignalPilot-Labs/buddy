@@ -123,7 +123,7 @@ class TestResolveBackendRemote:
     @pytest.mark.asyncio
     async def test_resolve_missing_connector_url_raises(self) -> None:
         pool = _make_pool()
-        pool._connector_url = ""
+        pool._connector_url = None
         pool._connector_secret = "connector-secret"
 
         with pytest.raises(RuntimeError, match="CONNECTOR_URL is not set"):
@@ -133,7 +133,7 @@ class TestResolveBackendRemote:
     async def test_resolve_missing_connector_secret_raises(self) -> None:
         pool = _make_pool()
         pool._connector_url = "http://connector:9400"
-        pool._connector_secret = ""
+        pool._connector_secret = None
 
         with pytest.raises(RuntimeError, match="CONNECTOR_SECRET is not set"):
             await pool._resolve_backend("sandbox-uuid-4")
