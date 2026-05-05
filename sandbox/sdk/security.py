@@ -66,6 +66,10 @@ class SecurityGate:
         remote GitHub state, or rewrite branching outside the working branch."""
         return (
             self._check_token_exposure(cmd)
+            or self._check_subshell_env_dump(cmd)
+            or self._check_shell_wrapper_env_dump(cmd)
+            or self._check_quote_concatenation_bypass(cmd)
+            or self._check_interpreter_env_dump(cmd)
             or self._check_secret_var_refs(cmd)
             or self._check_proc_environ(cmd)
             or self._check_branch_integrity(cmd)
@@ -83,13 +87,92 @@ class SecurityGate:
             return "Blocked command that references credential file paths"
         return None
 
+    def _check_subshell_env_dump(self, cmd: str) -> str | None:
+        """Block env-dump commands inside $(...), backtick, or <(...) subshells.
+
+        Catches `x=$(env)`, `echo $(printenv)`, `$(export -p)`, the
+        equivalent backtick forms, and process substitution `cat <(env)`.
+        The [^)]* / [^`]* stops at the closing delimiter so we stay within
+        the subshell boundary.
+        """
+        patterns = [
+            r"\$\([^)]*\b(env|printenv|set|export\s+-p|declare\s+-x)\b[^)]*\)",
+            r"`[^`]*\b(env|printenv|set|export\s+-p|declare\s+-x)\b[^`]*`",
+            r"<\([^)]*\b(env|printenv|set|export\s+-p|declare\s+-x)\b[^)]*\)",
+        ]
+        for pattern in patterns:
+            if re.search(pattern, cmd):
+                return "Blocked command that would expose credentials"
+        return None
+
+    def _check_shell_wrapper_env_dump(self, cmd: str) -> str | None:
+        """Block env-dump commands passed to shells via -c.
+
+        Catches `sh -c "env"`, `bash -c 'printenv'`, `sh -c 'env | grep TOKEN'`,
+        `bash -c "export -p"`, `bash -c "declare -x"`, and the same for
+        zsh/dash/ksh/fish. The [^\"']* form bounds the match inside the quoted
+        argument so it does not reach across command boundaries into a later
+        `env VAR=val cmd`.
+        """
+        patterns = [
+            r"\b(sh|bash|zsh|dash|ksh|fish)\s+-c\s+[\"'][^\"']*\b(env|printenv)\b",
+            r"\b(sh|bash|zsh|dash|ksh|fish)\s+-c\s+[\"'][^\"']*\b(export\s+-p|declare\s+-x)\b",
+        ]
+        for pattern in patterns:
+            if re.search(pattern, cmd):
+                return "Blocked command that would expose credentials"
+        return None
+
+    def _check_quote_concatenation_bypass(self, cmd: str) -> str | None:
+        """Block env-dump commands obfuscated with empty-string insertions.
+
+        Shell allows `e""nv` and `e''nv` as equivalent to `env`. Strip all
+        adjacent empty-quote pairs then re-run all checks on the stripped
+        command. If there were no empty-quote pairs the check is skipped
+        (stripped == cmd). Each sub-check is called individually to avoid
+        infinite recursion — this method skips itself.
+        """
+        stripped = cmd.replace('""', "").replace("''", "")
+        if stripped == cmd:
+            return None
+        return (
+            self._check_token_exposure(stripped)
+            or self._check_subshell_env_dump(stripped)
+            or self._check_shell_wrapper_env_dump(stripped)
+            or self._check_interpreter_env_dump(stripped)
+        )
+
+    def _check_interpreter_env_dump(self, cmd: str) -> str | None:
+        """Block inline interpreter invocations that dump the full environment.
+
+        Only blocks whole-env dump APIs (os.environ, environ, process.env,
+        %ENV, ENV.to_h/each/keys/values/inspect) via -c/-e/--eval inline
+        code flags. Single-variable lookups (os.getenv('HOME'), ENV['HOME'])
+        are allowed because they cannot dump secret vars that are not already
+        named.
+        """
+        patterns = [
+            r"\bpython[23]?\s+-c\s+.*\bos\.environ\b",
+            r"\bpython[23]?\s+-c\s+.*(?<!\/)environ\b",
+            r"\bnode\s+(-e|--eval)\s+.*\bprocess\.env\b",
+            r"\b(ruby|irb)\s+(-e|--eval)\s+.*\bENV\.(to_h|each|keys|values|inspect)\b",
+            r"\bperl\s+(-e|--eval)\s+.*%ENV\b",
+        ]
+        for pattern in patterns:
+            if re.search(pattern, cmd):
+                return "Blocked command that would expose credentials"
+        return None
+
     def _check_token_exposure(self, cmd: str) -> str | None:
         """Block commands that would print secrets to stdout (gets logged)."""
         patterns = [
             rf"echo\s+.*\$\{{?({SECRET_ENV_VARS})",
             r"cat\s+.*\.env",
             rf"printenv\s+({SECRET_ENV_VARS})",
-            r"printenv\s*$", r"\benv\s*$", r"\bset\s*$", r"\bexport\s*$",
+            r"\bprintenv\s*($|[|;>&])", r"\benv\s*($|[|;>&])", r"\bset\s*($|[|;>&])", r"\bexport\s*($|[|;>&])",
+            r"\bexport\s+-p\b", r"\bdeclare\s+-x\b",
+            r"\benv\s+--?(0|null|zero)\b",
+            r"\bprintenv\s+--?(0|null|zero)\b",
         ]
         for pattern in patterns:
             if re.search(pattern, cmd):

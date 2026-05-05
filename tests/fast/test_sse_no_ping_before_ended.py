@@ -24,7 +24,7 @@ def _import_streaming_module() -> object:
     """Import backend.endpoints.streaming with auth + db stubbed out."""
     auth_mock = MagicMock()
     auth_mock._api_key = "test"
-    auth_mock.verify_api_key_or_query = MagicMock()
+    auth_mock.verify_sse_token = MagicMock()
     sys.modules["backend.auth"] = auth_mock
     sys.modules["backend.db"] = MagicMock()
     sys.modules["db.connection"] = MagicMock()

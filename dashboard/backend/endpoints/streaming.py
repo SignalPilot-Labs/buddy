@@ -27,7 +27,7 @@ from db.models import AuditLog, Run, ToolCall
 
 log = logging.getLogger("dashboard.streaming")
 
-router = APIRouter(prefix="/api", dependencies=[Depends(auth.verify_api_key_or_query)])
+router = APIRouter(prefix="/api")
 
 _RUN_ENDED_STATUSES = TERMINAL_RUN_STATUSES
 
@@ -42,7 +42,7 @@ class _PollResult(NamedTuple):
     ended_payload: dict | None
 
 
-@router.get("/stream/latest")
+@router.get("/stream/latest", dependencies=[Depends(auth.verify_sse_token)])
 async def stream_latest() -> StreamingResponse:
     """Stream events for the most recent run."""
     async with session() as s:
@@ -127,7 +127,7 @@ async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) ->
     return _PollResult(merged, new_tool_id, new_audit_id, ended_payload)
 
 
-@router.get("/stream/{run_id}")
+@router.get("/stream/{run_id}", dependencies=[Depends(auth.verify_sse_token)])
 async def stream_events(
     run_id: str = RunId,
     after_tool: int = Query(default=-1),
@@ -183,7 +183,7 @@ async def _query_recent_audit_events(s: AsyncSession, run_id: str, after_audit: 
     return [model_to_dict(al) for al in rows]
 
 
-@router.get("/poll/{run_id}")
+@router.get("/poll/{run_id}", dependencies=[Depends(auth.verify_api_key)])
 async def poll_events(
     run_id: str = RunId,
     after_tool: int = Query(default=0, ge=0),
