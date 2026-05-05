@@ -6,8 +6,10 @@ import getpass
 import os
 import re
 import signal
+import socket
 import subprocess
 import sys
+import time
 
 import httpx
 import typer
@@ -394,6 +396,36 @@ def _connector_pid_file() -> Path:
     return Path(AUTOFYN_HOME) / ".connector.pid"
 
 
+def _kill_stale_connector(port: str) -> None:
+    """Kill a stale connector on the port by checking /health first."""
+    try:
+        resp = httpx.get(f"http://127.0.0.1:{port}/health", timeout=2)
+        if resp.status_code == 200 and "tunnel_count" in resp.text:
+            # It's a connector — kill it
+            result = subprocess.run(
+                ["lsof", "-ti", f"tcp:{port}"],
+                capture_output=True, text=True,
+            )
+            for pid_str in result.stdout.strip().split():
+                if pid_str:
+                    os.kill(int(pid_str), signal.SIGTERM)
+            console.print("[dim]Killed stale connector on port " + port + "[/dim]")
+    except (httpx.ConnectError, httpx.TimeoutException, OSError, ValueError):
+        pass
+
+
+def _wait_for_port(port: str, timeout: float) -> bool:
+    """Block until the port is accepting connections or timeout expires."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", int(port)), timeout=0.5):
+                return True
+        except OSError:
+            time.sleep(0.2)
+    return False
+
+
 def _start_connector() -> None:
     """Spawn the connector with a restart loop wrapper."""
     connector_secret = os.environ.get("CONNECTOR_SECRET", "")
@@ -405,16 +437,16 @@ def _start_connector() -> None:
 
     pid_file = _connector_pid_file()
 
-    # Kill existing connector if running
+    # Kill existing connector — both from PID file and anything holding the port
     if pid_file.exists():
         try:
             old_pid = int(pid_file.read_text().strip())
-            os.kill(old_pid, 0)  # Check if alive
             os.kill(old_pid, signal.SIGTERM)
-            console.print("[dim]Stopped existing connector[/dim]")
         except (ProcessLookupError, ValueError, PermissionError):
             pass
         pid_file.unlink(missing_ok=True)
+    _kill_stale_connector(connector_port)
+    time.sleep(0.3)
 
     # Spawn connector wrapper in background
     wrapper_cmd = (
@@ -431,6 +463,11 @@ def _start_connector() -> None:
         start_new_session=True,
     )
     pid_file.write_text(str(proc.pid))
+
+    # Wait until connector is actually listening before proceeding
+    if not _wait_for_port(connector_port, timeout=5.0):
+        console.print("[red]✗[/red] Connector failed to start on port " + connector_port)
+        sys.exit(1)
     console.print(f"[green]✓[/green] Connector started (pid {proc.pid}, port {connector_port})")
 
 
