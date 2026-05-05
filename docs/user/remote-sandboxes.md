@@ -61,7 +61,7 @@ In the **New Run** modal, expand the **Sandbox** section and select your remote 
 ### Docker remote
 
 ```bash
-docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+source /etc/profile && docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 ```
 
 ### Slurm / Apptainer
@@ -78,7 +78,7 @@ source /etc/profile && module load apptainer/1.4.2 && srun -p gpu -n 1 -c 4 --me
 
 Key flags:
 
-- `source /etc/profile` — non-interactive SSH doesn't source profile, so modules won't load without this
+- `source /etc/profile` — non-interactive SSH doesn't source profile, so `docker`, `module`, and other commands in `/usr/local/bin` or module paths may not be found. Always include this for both Docker and Slurm commands
 - `-n 1` — only one task. `-n > 1` would spawn > 1 processes both trying to bind port 8080
 - `-c 4` — request 4 CPU cores (adjust to your needs)
 - `--mem=4G` — memory limit per node
@@ -109,6 +109,11 @@ Startup log lines (srun output, server boot, etc.) are stored in the audit log b
 **"Start command exited without AF_READY":**
 - The process exited before printing `AF_READY`. Run the command manually on the remote to see errors
 - Common causes: wrong module name, missing SIF file, port already in use
+
+**Docker: permission denied / cannot connect to daemon:**
+- Your SSH user must have access to the Docker socket. Either add the user to the `docker` group (`sudo usermod -aG docker $USER`, then re-login) or run with `sudo` in the start command
+- Verify with: `ssh user@remote "source /etc/profile && docker info"`
+- If the socket exists but isn't writable, check permissions: `ls -la /var/run/docker.sock`
 
 **Connection drops during run:**
 - The connector auto-reconnects. If it can't, the run status changes to `connector_lost`
