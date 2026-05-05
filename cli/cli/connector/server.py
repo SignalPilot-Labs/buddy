@@ -250,6 +250,12 @@ class ConnectorServer:
             )
         except Exception:
             await kill_process_group(process)
+            backend_id = next(
+                (e.get("backend_id") for e in events if e.get("backend_id")),
+                None,
+            )
+            if backend_id and sandbox_type in ("slurm", "docker"):
+                await run_derived_stop(ssh_target, sandbox_type, backend_id)
             raise
         self._states[run_key] = state
 
@@ -309,7 +315,7 @@ class ConnectorServer:
 
         local_port = await find_free_port()
         tunnel = await open_ssh_tunnel(
-            ssh_target, remote_host, remote_port, local_port, sandbox_type,
+            ssh_target, remote_host, remote_port, local_port,
         )
 
         return ForwardState(

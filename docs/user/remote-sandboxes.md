@@ -14,9 +14,9 @@ The agent talks to the remote sandbox exactly like a local one — same HTTP API
 
 ## Security
 
-The sandbox HTTP server binds to `127.0.0.1` by default, preventing other users on shared HPC nodes from accessing it. The SSH tunnel uses ProxyJump to route traffic directly to the compute node.
+Every sandbox endpoint (except `/health`) requires a 256-bit authentication secret in the `X-Internal-Secret` header. The sandbox generates this secret at startup and transmits it to the connector over the encrypted SSH stdout pipe — it never appears in command-line arguments or Slurm job metadata.
 
-If your cluster does not allow SSH from login nodes to compute nodes, set `AF_SANDBOX_BIND_HOST=0.0.0.0` in your start command. This is less secure on shared nodes but may be required for some cluster configurations.
+Other users on shared HPC nodes can see the port is open but cannot authenticate. All other secrets (Git tokens, API keys) are injected after startup via the authenticated tunnel.
 
 ## Setup
 

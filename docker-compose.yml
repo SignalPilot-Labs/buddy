@@ -104,7 +104,6 @@ services:
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
-      AF_SANDBOX_BIND_HOST: "0.0.0.0" # only local sandbox gets it
     depends_on:
       db:
         condition: service_healthy

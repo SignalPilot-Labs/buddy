@@ -28,7 +28,6 @@ from utils.constants import (
     ENV_KEY_ALLOW_DOCKER,
     ENV_KEY_IMAGE_TAG,
     ENV_KEY_SANDBOX_SECRET,
-    SANDBOX_POOL_BIND_HOST,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE_BASE,
@@ -83,10 +82,7 @@ class DockerLocalBackend(SandboxBackend):
 
     def _container_env(self) -> dict[str, str]:
         """Build env vars for pool-created sandbox containers."""
-        env: dict[str, str] = {
-            "GIT_TERMINAL_PROMPT": "0",
-            "AF_SANDBOX_BIND_HOST": SANDBOX_POOL_BIND_HOST,
-        }
+        env: dict[str, str] = {"GIT_TERMINAL_PROMPT": "0"}
         for key in SANDBOX_POOL_ENV_PASSTHROUGH:
             val = os.environ.get(key, "")
             if val:
