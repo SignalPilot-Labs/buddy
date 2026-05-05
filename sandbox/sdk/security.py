@@ -89,7 +89,8 @@ class SecurityGate:
             rf"echo\s+.*\$\{{?({SECRET_ENV_VARS})",
             r"cat\s+.*\.env",
             rf"printenv\s+({SECRET_ENV_VARS})",
-            r"printenv\s*$", r"\benv\s*$", r"\bset\s*$", r"\bexport\s*$",
+            r"\bprintenv\s*($|[|;>&])", r"\benv\s*($|[|;>&])", r"\bset\s*($|[|;>&])", r"\bexport\s*($|[|;>&])",
+            r"\bexport\s+-p\b", r"\bdeclare\s+-x\b",
         ]
         for pattern in patterns:
             if re.search(pattern, cmd):
