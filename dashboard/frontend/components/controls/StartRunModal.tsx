@@ -7,6 +7,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
+import CodeTextarea from "@/components/ui/CodeTextarea";
 import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
@@ -488,12 +489,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     {selectedSandboxId !== null && (
                       <div className="mt-2">
                         <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
-                        <textarea
+                        <CodeTextarea
                           value={startCmd}
-                          onChange={(e) => setStartCmd(e.target.value)}
+                          onChange={setStartCmd}
                           placeholder="Command to start the remote sandbox..."
-                          rows={2}
-                          className="w-full bg-black/30 border border-border rounded px-3 py-2.5 text-content text-accent-hover font-mono placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+                          rows={3}
                         />
                       </div>
                     )}

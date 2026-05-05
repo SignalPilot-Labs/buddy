@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
+import CodeTextarea from "@/components/ui/CodeTextarea";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
 
@@ -147,12 +148,11 @@ export function RemoteSandboxForm({
       </FormField>
 
       <FormField label="Start Command">
-        <textarea
+        <CodeTextarea
           value={data.default_start_cmd}
-          onChange={(e) => update({ default_start_cmd: e.target.value })}
+          onChange={(v) => update({ default_start_cmd: v })}
           placeholder={START_CMD_PLACEHOLDERS[data.type]}
-          rows={2}
-          className={`${INPUT_CLASS} resize-y`}
+          rows={3}
         />
       </FormField>
 
