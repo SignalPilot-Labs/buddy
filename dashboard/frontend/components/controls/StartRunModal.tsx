@@ -380,7 +380,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 {/* Budget (collapsible) */}
                 <CollapsibleSection label="Budget" summary={budgetSummary} defaultOpen={false}>
                   <div className="flex items-center gap-3">
-                    <input type="range" min={0} max={200} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 range-slider" />
+                    <input type="range" min={0} max={1000} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 range-slider" />
                     <span className="text-content font-semibold text-text tabular-nums w-20 text-right">
                       {budget === 0 ? "Unlimited" : `$${budget}`}
                     </span>
