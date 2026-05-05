@@ -141,7 +141,10 @@ class RemoteBackend(SandboxBackend):
                 backend_id = event.get("backend_id")
                 await log_audit(run_key, "sandbox_queued", {"backend_id": backend_id})
             elif etype == "log":
-                await log_audit(run_key, "startup_log", {"line": event.get("line", "")})
+                line = event.get("line", "")
+                await log_audit(run_key, "startup_log", {"line": line})
+                if "has been allocated resources" in line:
+                    await log_audit(run_key, "sandbox_allocated", {"backend_id": backend_id})
             elif etype == "ready":
                 host = event["host"]
                 port = event["port"]

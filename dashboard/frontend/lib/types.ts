@@ -309,6 +309,7 @@ export type AuditEventType =
   | "repo_cloned"
   | "mcp_warning"
   | "sandbox_queued"
+  | "sandbox_allocated"
   | "startup_log"
   | "sandbox_start_failed";
 
@@ -347,10 +348,11 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   idle_timeout:        { label: "Idle Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   tool_timeout:        { label: "Tool Timeout",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   run_starting:        { label: "Run Starting",      color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
-  sandbox_created:       { label: "Sandbox Created",     color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  sandbox_created:       { label: "Sandbox Started",      color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   repo_cloned:         { label: "Repo Cloned",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   mcp_warning:         { label: "MCP Warning",       color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   sandbox_queued:        { label: "Sandbox Queued",       color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
+  sandbox_allocated:     { label: "Sandbox Allocated",   color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   startup_log:           { label: "Startup Log",          color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
   sandbox_start_failed:  { label: "Start Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
 };

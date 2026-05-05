@@ -401,6 +401,7 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "mcp_warning",
     # Remote sandbox
     "sandbox_queued",
+    "sandbox_allocated",
     "startup_log",
     "sandbox_start_failed",
     # LLM output
