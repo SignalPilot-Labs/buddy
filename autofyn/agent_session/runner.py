@@ -230,7 +230,12 @@ class RoundRunner:
                 await sse_task
             except (asyncio.CancelledError, Exception):
                 pass
-            await stream_iter.aclose()
+            try:
+                await stream_iter.aclose()
+            except RuntimeError:
+                # Generator may still be unwinding from cancellation;
+                # the GC will finalize it.
+                pass
 
     async def _handle_user_event(
         self,
