@@ -167,15 +167,21 @@ def _ensure_gitignore_entry() -> None:
 
 
 def _ensure_project_config() -> None:
-    """Copy default config to .autofyn/config.yml on first run."""
+    """Copy default config to .autofyn/config.yml on first run.
+
+    Skips silently on read-only filesystems (e.g. Apptainer SIF).
+    """
     if _PROJECT_CONFIG.exists():
         return
     if not _DEFAULT_CONFIG.exists():
         return
-    _PROJECT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(_DEFAULT_CONFIG, _PROJECT_CONFIG)
-    _ensure_gitignore_entry()
-    log.info("Created %s from defaults", _PROJECT_CONFIG)
+    try:
+        _PROJECT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_DEFAULT_CONFIG, _PROJECT_CONFIG)
+        _ensure_gitignore_entry()
+        log.info("Created %s from defaults", _PROJECT_CONFIG)
+    except OSError:
+        log.debug("Skipping project config copy (read-only filesystem)")
 
 
 def _apply_env_overrides(config: dict) -> dict:
