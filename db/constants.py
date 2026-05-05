@@ -118,7 +118,7 @@ BLOCKED_MOUNT_PATHS: frozenset[str] = frozenset({
 })
 VALID_MOUNT_MODES: frozenset[str] = frozenset({"ro", "rw"})
 
-SANDBOX_REPO_DIR: str = "/home/agentuser/repo"
+from config.constants import SANDBOX_REPO_DIR as SANDBOX_REPO_DIR
 
 # Container paths that must not be overwritten by user mounts.
 # The repo root itself is blocked (it's a Docker volume), but subdirs

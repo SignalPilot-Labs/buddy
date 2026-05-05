@@ -23,7 +23,7 @@ from pathlib import Path
 
 import yaml
 
-from db.constants import SANDBOX_REPO_DIR
+from config.constants import SANDBOX_REPO_DIR
 
 log = logging.getLogger("config")
 
