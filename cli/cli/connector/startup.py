@@ -12,12 +12,12 @@ import shlex
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from cli.connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
+from cli.connector.constants import AF_BOUND_MARKER, AF_QUEUED_MARKER, AF_READY_MARKER
 from cli.connector.ssh import run_ssh_command
 
 log = logging.getLogger("connector.startup")
 
-MARKER_RE: re.Pattern[str] = re.compile(r"(AF_QUEUED|AF_READY)\s+(\{.*\})")
+MARKER_RE: re.Pattern[str] = re.compile(r"(AF_QUEUED|AF_READY|AF_BOUND)\s+(\{.*\})")
 
 
 async def stream_start_events(
@@ -55,11 +55,12 @@ async def stream_start_events(
     env.update(extra_env)
 
     process = await run_ssh_command(ssh_target, start_cmd, env)
-    return process, _stream_events(process)
+    return process, _stream_events(process, ssh_target)
 
 
 async def _stream_events(
     process: asyncio.subprocess.Process,
+    ssh_target: str,
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Yield NDJSON events from process stdout as they arrive."""
     if not process.stdout:
@@ -70,7 +71,7 @@ async def _stream_events(
         marker_match = MARKER_RE.search(line)
 
         if marker_match:
-            event = _parse_marker(marker_match)
+            event = _parse_marker(marker_match, ssh_target)
             yield event
             if event.get("event") == "ready":
                 return
@@ -78,7 +79,7 @@ async def _stream_events(
             yield {"event": "log", "line": line}
 
 
-def _parse_marker(match: re.Match[str]) -> dict[str, Any]:
+def _parse_marker(match: re.Match[str], ssh_target: str) -> dict[str, Any]:
     """Parse a marker regex match into an event dict."""
     marker_name = match.group(1)
     marker_data: dict[str, Any] = json.loads(match.group(2))
@@ -86,17 +87,25 @@ def _parse_marker(match: re.Match[str]) -> dict[str, Any]:
     if marker_name == AF_QUEUED_MARKER:
         return {"event": "queued", "backend_id": marker_data.get("backend_id")}
 
-    if marker_name != AF_READY_MARKER:
-        raise ValueError(f"Unknown marker: {marker_name}")
+    if marker_name == AF_BOUND_MARKER:
+        # AF_BOUND only has port — promote to ready using ssh_target as host
+        return {
+            "event": "ready",
+            "host": ssh_target.split("@")[-1] if "@" in ssh_target else ssh_target,
+            "port": marker_data["port"],
+        }
 
-    event: dict[str, Any] = {
-        "event": "ready",
-        "host": marker_data["host"],
-        "port": marker_data["port"],
-    }
-    if "backend_id" in marker_data:
-        event["backend_id"] = marker_data["backend_id"]
-    return event
+    if marker_name == AF_READY_MARKER:
+        event: dict[str, Any] = {
+            "event": "ready",
+            "host": marker_data["host"],
+            "port": marker_data["port"],
+        }
+        if "backend_id" in marker_data:
+            event["backend_id"] = marker_data["backend_id"]
+        return event
+
+    raise ValueError(f"Unknown marker: {marker_name}")
 
 
 def _compute_apptainer_binds(mounts: list[dict[str, str]]) -> str:

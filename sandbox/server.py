@@ -12,6 +12,9 @@ import os
 
 from aiohttp import web
 
+import socket
+
+from config.constants import AF_BOUND_MARKER, AF_READY_MARKER
 from config.loader import sandbox_config
 from constants import (
     AccessNoiseFilter,
@@ -105,11 +108,13 @@ async def on_shutdown(app: web.Application) -> None:
 
 
 def _print_bound_port(site: web.TCPSite) -> None:
-    """Print the actual bound port for AF_SANDBOX_PORT=0 (OS-assigned)."""
+    """Print AF_BOUND and AF_READY markers for OS-assigned port."""
     name = site.name
     # site.name is "http://host:port" — extract the port
     port_str = name.rsplit(":", maxsplit=1)[-1]
-    print(f'AF_BOUND {{"port":{port_str}}}', flush=True)
+    host = socket.gethostname()
+    print(f'{AF_BOUND_MARKER} {{"port":{port_str}}}', flush=True)
+    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port_str}}}', flush=True)
 
 
 def main() -> None:
@@ -134,8 +139,10 @@ def main() -> None:
 
 
 def _print_static_bound(port: int) -> None:
-    """Print AF_BOUND marker for a known port before run_app blocks."""
-    print(f'AF_BOUND {{"port":{port}}}', flush=True)
+    """Print AF_BOUND and AF_READY markers for a known port."""
+    host = socket.gethostname()
+    print(f'{AF_BOUND_MARKER} {{"port":{port}}}', flush=True)
+    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port}}}', flush=True)
 
 
 def _run_with_dynamic_port(app: web.Application) -> None:

@@ -22,6 +22,8 @@ KILL_WAIT_TIMEOUT_SEC: int = 5
 RING_BUFFER_MAX_LINES: int = 100
 DEFAULT_LOG_TAIL: int = 100
 
+# Must match config/constants.py — sync test enforces parity
+AF_BOUND_MARKER: str = "AF_BOUND"
 AF_QUEUED_MARKER: str = "AF_QUEUED"
 AF_READY_MARKER: str = "AF_READY"
 
