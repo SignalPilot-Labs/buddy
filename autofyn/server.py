@@ -324,9 +324,10 @@ class AgentServer:
         run_id: str,
         events: list[dict],
     ) -> None:
-        """Process NDJSON events from pool.create() and write DB columns.
+        """Update DB columns from sandbox startup events.
 
-        Handles: queued (sandbox_backend_id), ready (remote_host/port), log (audit).
+        Audit events are already emitted in real-time by base_remote.create().
+        This only handles DB column updates that need the full event list.
         """
         for event in events:
             etype = event.get("event")
@@ -334,14 +335,10 @@ class AgentServer:
                 backend_id = event.get("backend_id")
                 if backend_id:
                     await update_run_sandbox_backend_id(run_id, backend_id)
-                    await log_audit(run_id, "sandbox_queued", {"backend_id": backend_id})
             elif etype == "ready":
                 host: str = event["host"]
                 port: int = event["port"]
                 await update_run_sandbox_remote_host(run_id, host, port)
-            elif etype == "log":
-                line: str = event.get("line", "")
-                await log_audit(run_id, "startup_log", {"line": line})
 
     async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → round loop → teardown → destroy."""

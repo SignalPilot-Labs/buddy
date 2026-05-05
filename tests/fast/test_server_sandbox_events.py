@@ -1,9 +1,9 @@
 """Tests for AgentServer._process_sandbox_events().
 
-Verifies that NDJSON events from pool.create() are processed correctly:
-  - queued events write sandbox_backend_id and log sandbox_queued audit
+Verifies that NDJSON events from pool.create() update DB columns:
+  - queued events write sandbox_backend_id
   - ready events write remote_host/port
-  - log events write startup_log audit
+  - log/status events are ignored (handled real-time by base_remote)
   - unknown event types are silently ignored
 """
 
@@ -27,25 +27,20 @@ def _make_server() -> AgentServer:
 
 
 class TestProcessSandboxEvents:
-    """_process_sandbox_events writes correct DB columns and audit events."""
+    """_process_sandbox_events writes correct DB columns."""
 
     @pytest.mark.asyncio
-    async def test_queued_event_writes_backend_id_and_audit(self) -> None:
+    async def test_queued_event_writes_backend_id(self) -> None:
         server = _make_server()
 
         mock_update_backend = AsyncMock()
-        mock_log_audit = AsyncMock()
 
         events = [{"event": "queued", "backend_id": "job-42"}]
 
         with patch("server.update_run_sandbox_backend_id", mock_update_backend):
-            with patch("server.log_audit", mock_log_audit):
-                await server._process_sandbox_events("run-123", events)
+            await server._process_sandbox_events("run-123", events)
 
         mock_update_backend.assert_awaited_once_with("run-123", "job-42")
-        mock_log_audit.assert_awaited_once_with(
-            "run-123", "sandbox_queued", {"backend_id": "job-42"}
-        )
 
     @pytest.mark.asyncio
     async def test_queued_event_without_backend_id_skips_update(self) -> None:
@@ -53,16 +48,13 @@ class TestProcessSandboxEvents:
         server = _make_server()
 
         mock_update_backend = AsyncMock()
-        mock_log_audit = AsyncMock()
 
         events = [{"event": "queued"}]
 
         with patch("server.update_run_sandbox_backend_id", mock_update_backend):
-            with patch("server.log_audit", mock_log_audit):
-                await server._process_sandbox_events("run-123", events)
+            await server._process_sandbox_events("run-123", events)
 
         mock_update_backend.assert_not_awaited()
-        mock_log_audit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_ready_event_writes_remote_host_and_port(self) -> None:
@@ -78,34 +70,21 @@ class TestProcessSandboxEvents:
         mock_update_host.assert_awaited_once_with("run-456", "compute-7", 9123)
 
     @pytest.mark.asyncio
-    async def test_log_event_writes_startup_log_audit(self) -> None:
+    async def test_log_event_ignored(self) -> None:
+        """Log events are handled real-time by base_remote, not here."""
         server = _make_server()
 
-        mock_log_audit = AsyncMock()
+        mock_update_backend = AsyncMock()
+        mock_update_host = AsyncMock()
 
         events = [{"event": "log", "line": "Sandbox starting..."}]
 
-        with patch("server.log_audit", mock_log_audit):
-            await server._process_sandbox_events("run-789", events)
+        with patch("server.update_run_sandbox_backend_id", mock_update_backend):
+            with patch("server.update_run_sandbox_remote_host", mock_update_host):
+                await server._process_sandbox_events("run-789", events)
 
-        mock_log_audit.assert_awaited_once_with(
-            "run-789", "startup_log", {"line": "Sandbox starting..."}
-        )
-
-    @pytest.mark.asyncio
-    async def test_log_event_missing_line_defaults_to_empty_string(self) -> None:
-        server = _make_server()
-
-        mock_log_audit = AsyncMock()
-
-        events = [{"event": "log"}]
-
-        with patch("server.log_audit", mock_log_audit):
-            await server._process_sandbox_events("run-789", events)
-
-        mock_log_audit.assert_awaited_once_with(
-            "run-789", "startup_log", {"line": ""}
-        )
+        mock_update_backend.assert_not_awaited()
+        mock_update_host.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_unknown_event_type_ignored(self) -> None:
@@ -114,32 +93,26 @@ class TestProcessSandboxEvents:
 
         mock_update_backend = AsyncMock()
         mock_update_host = AsyncMock()
-        mock_log_audit = AsyncMock()
 
         events = [{"event": "unknown_type", "data": "whatever"}]
 
         with patch("server.update_run_sandbox_backend_id", mock_update_backend):
             with patch("server.update_run_sandbox_remote_host", mock_update_host):
-                with patch("server.log_audit", mock_log_audit):
-                    await server._process_sandbox_events("run-xyz", events)
+                await server._process_sandbox_events("run-xyz", events)
 
         mock_update_backend.assert_not_awaited()
         mock_update_host.assert_not_awaited()
-        mock_log_audit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_empty_events_list_is_noop(self) -> None:
         server = _make_server()
 
         mock_update_backend = AsyncMock()
-        mock_log_audit = AsyncMock()
 
         with patch("server.update_run_sandbox_backend_id", mock_update_backend):
-            with patch("server.log_audit", mock_log_audit):
-                await server._process_sandbox_events("run-abc", [])
+            await server._process_sandbox_events("run-abc", [])
 
         mock_update_backend.assert_not_awaited()
-        mock_log_audit.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_multiple_events_all_processed(self) -> None:
@@ -147,7 +120,6 @@ class TestProcessSandboxEvents:
 
         mock_update_backend = AsyncMock()
         mock_update_host = AsyncMock()
-        mock_log_audit = AsyncMock()
 
         events = [
             {"event": "log", "line": "line 1"},
@@ -158,9 +130,7 @@ class TestProcessSandboxEvents:
 
         with patch("server.update_run_sandbox_backend_id", mock_update_backend):
             with patch("server.update_run_sandbox_remote_host", mock_update_host):
-                with patch("server.log_audit", mock_log_audit):
-                    await server._process_sandbox_events("run-multi", events)
+                await server._process_sandbox_events("run-multi", events)
 
         mock_update_backend.assert_awaited_once_with("run-multi", "job-99")
         mock_update_host.assert_awaited_once_with("run-multi", "node-5", 8080)
-        assert mock_log_audit.await_count == 3  # 2 log + 1 queued

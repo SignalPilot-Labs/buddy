@@ -16,6 +16,7 @@ from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 from sandbox_client.backend import SandboxBackend
 from sandbox_client.errors import SandboxStartError
 from sandbox_client.instance import SandboxInstance
+from utils.db_logging import log_audit
 
 log = logging.getLogger("sandbox_client.base_remote")
 
@@ -141,6 +142,11 @@ class BaseRemoteBackend(SandboxBackend):
             etype = event.get("event")
             if etype == "queued":
                 backend_id = event.get("backend_id")
+                await log_audit(run_key, "sandbox_queued", {"backend_id": backend_id})
+            elif etype == "status":
+                await log_audit(run_key, "startup_log", {"line": event.get("message", "")})
+            elif etype == "log":
+                await log_audit(run_key, "startup_log", {"line": event.get("line", "")})
             elif etype == "ready":
                 host = event["host"]
                 port = event["port"]
