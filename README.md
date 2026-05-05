@@ -4,7 +4,7 @@
 
 **Run Claude in self-improving loops to optimize measurable goals.**
 
-built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 101 vulnerabilities across popular Open Source Software · improved Caveman compression from 44% to 54%
+built the [#1 Spider 2.0 DBT agent](https://github.com/SignalPilot-Labs/SignalPilot) · found 131 vulnerabilities across popular OSS · improved Caveman compression from 44% to 54%
 
 <img src="assets/ui.png" width="800" alt="AutoFyn Monitor" />
 
