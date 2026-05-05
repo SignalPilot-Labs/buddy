@@ -103,7 +103,7 @@ export function RemoteSandboxes(): React.ReactElement {
 
   return (
     <div className="p-4 bg-white/[0.01] border border-border rounded-lg">
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-3">
         <label className="text-content font-semibold text-accent-hover">
           Remote Sandboxes
         </label>
@@ -138,13 +138,13 @@ export function RemoteSandboxes(): React.ReactElement {
               </span>
               <button
                 onClick={() => handleEdit(s)}
-                className="text-content text-accent-hover/60 hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                className="text-content text-text-secondary hover:text-[#00ff88] transition-colors shrink-0"
               >
                 Edit
               </button>
               <button
                 onClick={() => void handleDelete(s)}
-                className="text-accent-hover/60 hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                className="text-text-secondary hover:text-[#ff4444] transition-colors shrink-0"
                 title="Delete sandbox"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -174,11 +174,11 @@ export function RemoteSandboxes(): React.ReactElement {
         />
       )}
 
-      {!showForm && (
+      <div className="flex gap-2">
         <Button variant="success" size="md" onClick={handleAdd}>
           Add Sandbox
         </Button>
-      )}
+      </div>
 
       {error && (
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
