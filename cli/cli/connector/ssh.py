@@ -131,14 +131,16 @@ async def run_ssh_command(
     process environment (/proc/PID/environ is 0400).
     """
     env_exports = "".join(
-        f"export {k}={shlex.quote(v)};" for k, v in env.items()
+        f"export {k}={shlex.quote(v)};\n" for k, v in env.items()
     )
-    wrapped_cmd = f"bash -c 'eval \"$(cat)\"; {command}'"
+    # Pass command via stdin alongside env exports to avoid shell quoting
+    # issues with single quotes in the command string.
+    stdin_payload = f"{env_exports}exec {command}\n"
     cmd = [
         "ssh",
         *_ssh_base_opts(),
         ssh_target,
-        wrapped_cmd,
+        "bash -s",
     ]
     process = await asyncio.create_subprocess_exec(
         *cmd,
@@ -148,8 +150,7 @@ async def run_ssh_command(
         preexec_fn=_preexec_fn,
     )
     if process.stdin is not None:
-        if env_exports:
-            process.stdin.write(env_exports.encode())
+        process.stdin.write(stdin_payload.encode())
         process.stdin.close()
     return process
 

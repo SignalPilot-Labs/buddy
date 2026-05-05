@@ -113,14 +113,12 @@ class RemoteBackend(SandboxBackend):
         run_key: str,
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        sandbox_secret: str,
         start_cmd: str | None,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote sandbox via the connector.
 
         Streams NDJSON events and returns (handle, events).
-        The sandbox_secret parameter is accepted for interface compatibility
-        but ignored — the secret is extracted from the AF_READY marker event.
+        The secret is extracted from the AF_READY marker event.
         """
         if start_cmd is None:
             raise ValueError(

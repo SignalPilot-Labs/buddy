@@ -82,7 +82,7 @@ With GPU access:
 source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 -c 4 --mem=8G --gres=gpu:1 apptainer exec --nv --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
 ```
 
-> **Note:** Running the start command manually will fail with `SANDBOX_INTERNAL_SECRET is not set`. This is expected — the connector generates a fresh secret per run and injects it automatically. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command or Slurm job metadata. To test manually, prepend `SANDBOX_INTERNAL_SECRET=test` to the command.
+> **Note:** The sandbox generates its own authentication secret at startup and transmits it back to the connector over the encrypted SSH stdout pipe. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command, SSH command-line arguments, or Slurm job metadata.
 
 Key flags:
 

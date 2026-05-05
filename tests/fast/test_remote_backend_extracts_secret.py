@@ -1,7 +1,6 @@
 """Regression test: RemoteBackend.create() extracts secret from AF_READY event.
 
-Verifies that RemoteBackend ignores the sandbox_secret parameter passed by
-the manager and instead uses the secret transmitted in the AF_READY marker
+Verifies that RemoteBackend uses the secret transmitted in the AF_READY marker
 event from the connector. This is the end-to-end flow that eliminates
 command-line secret exposure.
 """
@@ -45,7 +44,7 @@ class TestRemoteBackendExtractsSecret:
 
     @pytest.mark.asyncio
     async def test_secret_extracted_from_ready_event(self) -> None:
-        """SandboxInstance.sandbox_secret comes from AF_READY, not the parameter."""
+        """SandboxInstance.sandbox_secret comes from AF_READY event."""
         backend = _make_backend()
         marker_secret = "deadbeef" * 8  # 64-char hex
 
@@ -64,12 +63,10 @@ class TestRemoteBackendExtractsSecret:
                     run_key="run-123",
                     health_timeout=30,
                     host_mounts=None,
-                    sandbox_secret="ignored-caller-secret",
                     start_cmd="start.sh",
                 )
 
         assert handle.sandbox_secret == marker_secret
-        assert handle.sandbox_secret != "ignored-caller-secret"
 
     @pytest.mark.asyncio
     async def test_raises_when_ready_event_has_no_secret(self) -> None:
@@ -92,7 +89,6 @@ class TestRemoteBackendExtractsSecret:
                         run_key="run-456",
                         health_timeout=30,
                         host_mounts=None,
-                        sandbox_secret="",
                         start_cmd="start.sh",
                     )
 
@@ -117,7 +113,6 @@ class TestRemoteBackendExtractsSecret:
                         run_key="run-789",
                         health_timeout=30,
                         host_mounts=None,
-                        sandbox_secret="",
                         start_cmd="start.sh",
                     )
 
@@ -143,7 +138,6 @@ class TestRemoteBackendExtractsSecret:
                     run_key="run-999",
                     health_timeout=30,
                     host_mounts=None,
-                    sandbox_secret="",
                     start_cmd="start.sh",
                 )
 

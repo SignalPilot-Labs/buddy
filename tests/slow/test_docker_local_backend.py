@@ -29,7 +29,7 @@ def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with mocked Docker."""
     with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
         with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
-            with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
+            with patch.dict(os.environ, {"AF_IMAGE_TAG": "test", "SANDBOX_INTERNAL_SECRET": "test-sandbox-secret"}):
                 return DockerLocalBackend()
 
 
@@ -47,13 +47,13 @@ class TestDockerLocalBackendLifecycle:
         with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "secret-xyz"}):
             with patch.object(backend, "_wait_healthy", new=AsyncMock()):
                 handle, events = await backend.create(
-                    "run-1", 10, None, "secret-xyz", None,
+                    "run-1", 10, None, None,
                 )
 
         assert events == []
         assert handle.run_key == "run-1"
         assert handle.sandbox_id is None
-        assert handle.sandbox_secret == "secret-xyz"
+        assert handle.sandbox_secret == "test-sandbox-secret"
         assert "run-1" in backend._containers
 
     @pytest.mark.asyncio

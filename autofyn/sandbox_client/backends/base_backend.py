@@ -19,13 +19,14 @@ class SandboxBackend(ABC):
         run_key: str,
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        sandbox_secret: str,
         start_cmd: str | None,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Spin up a sandbox and return (handle, startup_events).
 
         Local backends ignore start_cmd and return empty events.
         Remote backends require start_cmd and return NDJSON events.
+        Each backend owns its own secret: local reads from env,
+        remote extracts from the AF_READY marker event.
         """
         ...
 

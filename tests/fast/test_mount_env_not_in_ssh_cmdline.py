@@ -68,8 +68,8 @@ class TestMountEnvNotInSshCmdline:
         assert "export" not in cmdline_str, (
             "export statements must not appear in SSH command-line args"
         )
-        assert "eval \"$(cat)\"" in cmdline_str or "eval \"$(cat)\"" in cmdline_str, (
-            "Command must be wrapped with bash stdin eval pattern"
+        assert "bash -s" in cmdline_str, (
+            "Command must use bash -s to read script from stdin"
         )
 
     @pytest.mark.asyncio
@@ -177,7 +177,7 @@ class TestMountEnvNotInSshCmdline:
             )
 
         cmdline_str = " ".join(captured_args)
-        assert "bash -c" in cmdline_str, (
-            "Even with empty env, command must be wrapped with bash -c for consistency"
+        assert "bash -s" in cmdline_str, (
+            "Even with empty env, command must use bash -s for stdin script"
         )
         mock_process.stdin.close.assert_called_once()
