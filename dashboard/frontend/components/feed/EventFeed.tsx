@@ -164,7 +164,7 @@ export function EventFeed({
                     <GroupedEventCard
                       event={gev}
                       isLast={i === grouped.length - 1}
-                      runActive={runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
+                      runActive={gev.type === "agent_run" ? runActive : runActive && (!lastInterruptionTs || gev.ts > lastInterruptionTs)}
                       runPaused={runPaused}
                     />
                   </ErrorBoundary>
