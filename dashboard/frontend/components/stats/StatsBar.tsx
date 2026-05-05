@@ -52,7 +52,7 @@ export function formatCostStat(
 }
 
 export function formatToolStat(settled: number | null | undefined, liveCount: number): string {
-  if (settled !== null && settled !== undefined) return String(settled);
+  if (settled !== null && settled !== undefined && settled > 0) return String(settled);
   if (liveCount > 0) return String(liveCount);
   return NO_DATA;
 }
