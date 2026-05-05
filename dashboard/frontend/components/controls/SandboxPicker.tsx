@@ -68,8 +68,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
                 : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
             )}
           >
-            {s.name}
-            <span className="ml-1.5 text-caption uppercase tracking-wider opacity-60">{s.type}</span>
+            {s.name} <span className="opacity-60">({s.type})</span>
           </button>
         ))}
       </div>
