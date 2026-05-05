@@ -1,6 +1,6 @@
 """Verify ForwardState dataclass."""
 
-from connector.forward_state import ForwardState
+from cli.connector.forward_state import ForwardState
 
 
 class TestForwardState:

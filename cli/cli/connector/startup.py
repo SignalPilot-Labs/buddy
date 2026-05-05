@@ -12,8 +12,8 @@ import shlex
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
-from connector.ssh import run_ssh_command
+from cli.connector.constants import AF_QUEUED_MARKER, AF_READY_MARKER
+from cli.connector.ssh import run_ssh_command
 
 log = logging.getLogger("connector.startup")
 

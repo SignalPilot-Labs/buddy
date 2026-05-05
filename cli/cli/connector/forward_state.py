@@ -4,7 +4,7 @@ import asyncio
 import collections
 from dataclasses import dataclass, field
 
-from connector.constants import RING_BUFFER_MAX_LINES
+from cli.connector.constants import RING_BUFFER_MAX_LINES
 
 
 @dataclass

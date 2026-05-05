@@ -9,7 +9,7 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient
 
-from connector.server import ConnectorServer
+from cli.connector.server import ConnectorServer
 
 
 TEST_SECRET = "test-connector-secret-12345"

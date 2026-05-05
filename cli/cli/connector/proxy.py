@@ -5,8 +5,8 @@ import logging
 import httpx
 from aiohttp import web
 
-from connector.constants import PROXY_TIMEOUT_SEC, SANDBOX_SECRET_HEADER
-from connector.forward_state import ForwardState
+from cli.connector.constants import PROXY_TIMEOUT_SEC, SANDBOX_SECRET_HEADER
+from cli.connector.forward_state import ForwardState
 
 log = logging.getLogger("connector.proxy")
 

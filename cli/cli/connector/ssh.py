@@ -7,7 +7,7 @@ import shlex
 import signal
 import socket
 
-from connector.constants import (
+from cli.connector.constants import (
     KILL_WAIT_TIMEOUT_SEC,
     SSH_CONNECT_TIMEOUT_SEC,
     SSH_KEEPALIVE_COUNT_MAX,

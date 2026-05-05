@@ -18,7 +18,7 @@ from typing import Any, Callable, Awaitable
 import httpx
 from aiohttp import web
 
-from connector.constants import (
+from cli.connector.constants import (
     CONNECTOR_BIND_HOST,
     CONNECTOR_DEFAULT_PORT,
     CONNECTOR_SECRET_ENV,
@@ -28,24 +28,22 @@ from connector.constants import (
     HEARTBEAT_INTERVAL_SEC,
     HEARTBEAT_MAX_FAILURES,
     RING_BUFFER_MAX_LINES,
+    SANDBOX_HEARTBEAT_TIMEOUT_SEC,
+    SANDBOX_QUEUE_TIMEOUT_SEC,
     SANDBOX_SECRET_HEADER,
     SHUTDOWN_TIMEOUT_SEC,
+    SSH_CONNECT_TIMEOUT_SEC,
 )
-from connector.forward_state import ForwardState
-from connector.proxy import handle_proxy
-from connector.ssh import (
+from cli.connector.forward_state import ForwardState
+from cli.connector.proxy import handle_proxy
+from cli.connector.ssh import (
     find_free_port,
     kill_process_group,
     open_ssh_tunnel,
     run_derived_stop,
     run_ssh_command,
 )
-from connector.startup import stream_start_events
-from db.constants import (
-    SANDBOX_HEARTBEAT_TIMEOUT_SEC,
-    SANDBOX_QUEUE_TIMEOUT_SEC,
-    SSH_CONNECT_TIMEOUT_SEC,
-)
+from cli.connector.startup import stream_start_events
 
 log = logging.getLogger("connector.server")
 
