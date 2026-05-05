@@ -7,14 +7,15 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { ModelSelector } from "@/components/ui/ModelSelector";
 import { CollapsibleSection } from "@/components/controls/CollapsibleSection";
-import CodeTextarea from "@/components/ui/CodeTextarea";
 import { BranchPicker } from "@/components/controls/BranchPicker";
+import { HostMountsEditor } from "@/components/controls/HostMountsEditor";
+import { SandboxPicker } from "@/components/controls/SandboxPicker";
+import { McpServersEditor } from "@/components/controls/McpServersEditor";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, fetchLastStartCmd, updateRemoteSandbox } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
-import { McpServersEditor } from "@/components/controls/McpServersEditor";
 
 export interface StartRunModalProps {
   open: boolean;
@@ -48,8 +49,8 @@ function envToText(env: Record<string, string>): string {
   return Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n");
 }
 
-const PROMPT_LINE_HEIGHT = 24; // matches leading-6
-const PROMPT_VERTICAL_PADDING = 20; // py-2.5 = 10px top + 10px bottom
+const PROMPT_LINE_HEIGHT = 24;
+const PROMPT_VERTICAL_PADDING = 20;
 const PROMPT_MIN_ROWS = 3;
 const PROMPT_MAX_ROWS = 10;
 
@@ -88,8 +89,6 @@ const QUICK_START_ICONS: Record<string, React.ReactElement> = {
   ),
 };
 
-type QuickStartIcon = keyof typeof QUICK_START_ICONS;
-
 export function StartRunModal({ open, onClose, onStart, busy, branches, activeRepo }: StartRunModalProps) {
   const [customPrompt, setCustomPrompt] = useState("");
   const [budgetEnabled, setBudgetEnabled] = useState(false);
@@ -111,6 +110,15 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [startCmd, setStartCmd] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Restore last-used sandbox per repo
+  useEffect(() => {
+    if (!open || !activeRepo) return;
+    try {
+      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
+      if (saved) setSelectedSandboxId(saved);
+    } catch { /* ignore */ }
+  }, [open, activeRepo]);
+
   const adjustPromptHeight = useCallback((): void => {
     const el = textareaRef.current;
     if (!el) return;
@@ -123,20 +131,14 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   }, []);
 
   const loadMountsForSandbox = useCallback(async (sandboxId: string | null): Promise<void> => {
-    if (!activeRepo) {
-      setMounts([]);
-      return;
-    }
+    if (!activeRepo) { setMounts([]); return; }
     setMountsLoading(true);
     setMountError(null);
     try {
-      if (sandboxId === null) {
-        const loaded = await fetchRepoMounts(activeRepo);
-        setMounts(loaded);
-      } else {
-        const loaded = await fetchRemoteMounts(activeRepo, sandboxId);
-        setMounts(loaded);
-      }
+      const loaded = sandboxId === null
+        ? await fetchRepoMounts(activeRepo)
+        : await fetchRemoteMounts(activeRepo, sandboxId);
+      setMounts(loaded);
     } catch (e) {
       setMountError(e instanceof Error ? e.message : "Failed to load mounts");
       setMounts([]);
@@ -145,16 +147,10 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     }
   }, [activeRepo]);
 
-  useEffect(() => {
-    adjustPromptHeight();
-  }, [customPrompt, adjustPromptHeight]);
+  useEffect(() => { adjustPromptHeight(); }, [customPrompt, adjustPromptHeight]);
 
   useEffect(() => {
-    if (open) {
-      fetchRemoteSandboxes()
-        .then(setRemoteSandboxes)
-        .catch(() => setRemoteSandboxes([]));
-    }
+    if (open) fetchRemoteSandboxes().then(setRemoteSandboxes).catch(() => setRemoteSandboxes([]));
   }, [open]);
 
   useEffect(() => {
@@ -163,21 +159,15 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       setMcpError(null);
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
-      }).catch(() => {
-        setEnvError("Failed to load environment variables");
-      });
+      }).catch(() => setEnvError("Failed to load environment variables"));
       loadMountsForSandbox(selectedSandboxId);
       fetchRepoMcpServers(activeRepo).then((servers) => {
         setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
-      }).catch(() => {
-        setMcpError("Failed to load MCP servers");
-      });
+      }).catch(() => setMcpError("Failed to load MCP servers"));
     }
   }, [open, activeRepo, loadMountsForSandbox]);
 
-  useEffect(() => {
-    if (open) setTimeout(() => textareaRef.current?.focus(), 150);
-  }, [open]);
+  useEffect(() => { if (open) setTimeout(() => textareaRef.current?.focus(), 150); }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -194,6 +184,17 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
+  const handleSandboxSelect = useCallback((id: string | null) => {
+    setSelectedSandboxId(id);
+    loadMountsForSandbox(id);
+    if (activeRepo) {
+      try {
+        if (id) localStorage.setItem(`autofyn_last_sandbox:${activeRepo}`, id);
+        else localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
+      } catch { /* ignore */ }
+    }
+  }, [loadMountsForSandbox, activeRepo]);
+
   const handleStart = async () => {
     const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
     const preset = selectedQuick !== null ? selectedQuick : undefined;
@@ -203,39 +204,23 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       return;
     }
     if (activeRepo) {
+      try { await saveRepoEnv(activeRepo, parseEnvText(envText)); setEnvError(null); }
+      catch (e) { setEnvError(e instanceof Error ? e.message : "Failed to save env vars"); return; }
       try {
-        await saveRepoEnv(activeRepo, parseEnvText(envText));
-        setEnvError(null);
-      } catch (e) {
-        setEnvError(e instanceof Error ? e.message : "Failed to save env vars");
-        return;
-      }
-      try {
-        if (selectedSandboxId === null) {
-          await saveRepoMounts(activeRepo, mounts);
-        } else {
-          await saveRemoteMounts(activeRepo, selectedSandboxId, mounts);
-        }
+        if (selectedSandboxId === null) await saveRepoMounts(activeRepo, mounts);
+        else await saveRemoteMounts(activeRepo, selectedSandboxId, mounts);
         setMountError(null);
-      } catch (e) {
-        setMountError(e instanceof Error ? e.message : "Failed to save mounts");
-        return;
-      }
+      } catch (e) { setMountError(e instanceof Error ? e.message : "Failed to save mounts"); return; }
       try {
         const parsedMcp: unknown = mcpText.trim() ? JSON.parse(mcpText) : {};
         if (typeof parsedMcp !== "object" || parsedMcp === null || Array.isArray(parsedMcp)) {
-          setMcpError("MCP servers must be a JSON object");
-          return;
+          setMcpError("MCP servers must be a JSON object"); return;
         }
         await saveRepoMcpServers(activeRepo, parsedMcp as Record<string, Record<string, unknown>>);
         setMcpError(null);
-      } catch (e) {
-        setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers");
-        return;
-      }
+      } catch (e) { setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers"); return; }
     }
     const cmdToSend = selectedSandboxId !== null && startCmd.trim() ? startCmd.trim() : null;
-    // Persist start command back to DB so next run uses the updated value
     if (selectedSandboxId !== null && cmdToSend) {
       const sandbox = remoteSandboxes.find((s) => s.id === selectedSandboxId);
       if (sandbox && cmdToSend !== sandbox.default_start_cmd) {
@@ -397,25 +382,12 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 <CollapsibleSection label="Budget" summary={budgetSummary} defaultOpen={false}>
                   <div>
                     <label className="flex items-center gap-2 cursor-pointer select-none text-content text-text-secondary">
-                      <input
-                        type="checkbox"
-                        checked={budgetEnabled}
-                        onChange={() => setBudgetEnabled(!budgetEnabled)}
-                        className="rounded"
-                      />
+                      <input type="checkbox" checked={budgetEnabled} onChange={() => setBudgetEnabled(!budgetEnabled)} className="rounded" />
                       Enable budget cap
                     </label>
                     {budgetEnabled && (
                       <div className="flex items-center gap-3 mt-2">
-                        <input
-                          type="range"
-                          min={5}
-                          max={200}
-                          step={5}
-                          value={budget}
-                          onChange={(e) => setBudget(Number(e.target.value))}
-                          className="flex-1 range-slider"
-                        />
+                        <input type="range" min={5} max={200} step={5} value={budget} onChange={(e) => setBudget(Number(e.target.value))} className="flex-1 range-slider" />
                         <span className="text-content font-semibold text-text tabular-nums w-16 text-right">${budget}</span>
                       </div>
                     )}
@@ -442,143 +414,22 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 {/* Sandbox picker (collapsible) */}
                 {remoteSandboxes.length > 0 && (
                   <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        onClick={() => {
-                          setSelectedSandboxId(null);
-                          setStartCmd("");
-                          loadMountsForSandbox(null);
-                        }}
-                        className={clsx(
-                          "text-content px-3 py-2 rounded border transition-all",
-                          selectedSandboxId === null
-                            ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
-                            : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
-                        )}
-                      >
-                        Docker (local)
-                      </button>
-                      {remoteSandboxes.map((s) => (
-                        <button
-                          key={s.id}
-                          onClick={async () => {
-                            setSelectedSandboxId(s.id);
-                            loadMountsForSandbox(s.id);
-                            if (activeRepo) {
-                              const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch((err) => {
-                                console.warn("Failed to fetch last start cmd:", err);
-                                return null;
-                              });
-                              setStartCmd(lastCmd ?? s.default_start_cmd);
-                            } else {
-                              setStartCmd(s.default_start_cmd);
-                            }
-                          }}
-                          className={clsx(
-                            "text-content px-3 py-2 rounded border transition-all font-mono",
-                            selectedSandboxId === s.id
-                              ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
-                              : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
-                          )}
-                        >
-                          {s.name}
-                          <span className="ml-1.5 text-caption uppercase tracking-wider opacity-60">{s.type}</span>
-                        </button>
-                      ))}
-                    </div>
-                    {selectedSandboxId !== null && (
-                      <div className="mt-2">
-                        <label className="text-caption uppercase tracking-wider text-text-dim mb-1 block">Start Command</label>
-                        <CodeTextarea
-                          value={startCmd}
-                          onChange={setStartCmd}
-                          placeholder="Command to start the remote sandbox..."
-                          rows={3}
-                        />
-                      </div>
-                    )}
+                    <SandboxPicker
+                      sandboxes={remoteSandboxes}
+                      selectedId={selectedSandboxId}
+                      onSelect={handleSandboxSelect}
+                      startCmd={startCmd}
+                      onStartCmdChange={setStartCmd}
+                      activeRepo={activeRepo}
+                    />
                   </CollapsibleSection>
                 )}
 
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
-                  <div className="space-y-2">
-                    <p className="text-content text-text-secondary mb-2">Repo is at /home/agentuser/repo inside the sandbox.</p>
-                    {mounts.map((m, i) => (
-                      <div key={i} className="space-y-1.5 mb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Host</span>
-                          <input
-                            type="text"
-                            value={m.host_path}
-                            onChange={(e) => {
-                              const next = [...mounts];
-                              next[i] = { ...m, host_path: e.target.value };
-                              setMounts(next);
-                            }}
-                            placeholder="/Users/you/datasets"
-                            className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setMounts(mounts.filter((_, j) => j !== i))}
-                            className="p-1 text-text-dim hover:text-[#ff4444] transition-colors"
-                          >
-                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
-                            </svg>
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-caption uppercase tracking-wider text-text-dim w-16 shrink-0">Sandbox</span>
-                          <input
-                            type="text"
-                            value={m.container_path}
-                            onChange={(e) => {
-                              const next = [...mounts];
-                              next[i] = { ...m, container_path: e.target.value };
-                              setMounts(next);
-                            }}
-                            placeholder="/home/agentuser/datasets"
-                            className="flex-1 bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30"
-                          />
-                          <span className="w-[26px]" />
-                        </div>
-                        <div className="flex items-center gap-2 pl-[72px]">
-                          <div className="flex items-center bg-black/30 border border-border rounded-full p-0.5">
-                            {(["ro", "rw"] as const).map((mode) => (
-                              <button
-                                key={mode}
-                                type="button"
-                                onClick={() => {
-                                  const next = [...mounts];
-                                  next[i] = { ...m, mode };
-                                  setMounts(next);
-                                }}
-                                className={clsx(
-                                  "px-2.5 py-0.5 rounded-full text-content transition-all",
-                                  m.mode === mode
-                                    ? "bg-[#00ff88]/[0.12] text-[#00ff88] font-medium"
-                                    : "text-text-dim hover:text-text-secondary"
-                                )}
-                              >
-                                {mode === "ro" ? "Read only" : "Read & write"}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => setMounts([...mounts, { host_path: "", container_path: "", mode: "ro" }])}
-                      className="text-content text-text-secondary hover:text-accent-hover transition-colors"
-                    >
-                      + Add mount
-                    </button>
-                    {mountError && <p className="mt-1 text-content text-[#ff4444]">{mountError}</p>}
-                  </div>
+                  <HostMountsEditor mounts={mounts} onChange={setMounts} loading={mountsLoading} error={mountError} />
                 </CollapsibleSection>
+
                 {/* MCP Servers (collapsible) */}
                 <CollapsibleSection label="MCP Servers" summary={mcpSummary} defaultOpen={false}>
                   <McpServersEditor value={mcpText} onChange={setMcpText} />
