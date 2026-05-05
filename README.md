@@ -114,16 +114,7 @@ Use `--json` on any command for machine-readable output.
 
 Runs can execute on remote machines (HPC clusters, GPU servers) instead of local Docker. AutoFyn SSH-tunnels to the remote, streams logs back, and manages the lifecycle automatically.
 
-**Setup:**
-1. Pull the sandbox image on the remote:
-   ```bash
-   # Slurm / Apptainer
-   mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable
-   # Docker remote
-   docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable
-   ```
-2. In the dashboard, go to **Settings → Remote Sandboxes → Add Sandbox**. Enter the SSH target (`user@host`), type (Slurm or Docker), and start command.
-3. When starting a run, select the remote sandbox instead of "Docker (local)."
+See [docs/user/remote-sandboxes.md](docs/user/remote-sandboxes.md) for setup, start command examples, GPU access, and troubleshooting.
 
 ## Responsible disclosure
 
