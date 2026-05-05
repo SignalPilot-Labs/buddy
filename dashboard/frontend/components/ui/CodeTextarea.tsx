@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getHighlighter } from "@/components/ui/shikiHighlighter";
 
 interface CodeTextareaProps {
@@ -15,7 +15,6 @@ interface CodeTextareaProps {
 
 export default function CodeTextarea({ value, onChange, placeholder, rows, className }: CodeTextareaProps) {
   const [html, setHtml] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -28,39 +27,30 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
     getHighlighter()
       .then((h) => {
         if (cancelled) return;
-        setHtml(h.codeToHtml(value, { lang: "bash", theme: "github-dark" }));
+        const result = h.codeToHtml(value, { lang: "bash", theme: "github-dark" });
+        setHtml(result);
       })
       .catch(() => setHtml(""));
     return () => { cancelled = true; };
   }, [value]);
 
-  const syncScroll = useCallback(() => {
+  const syncScroll = () => {
     if (preRef.current && textareaRef.current) {
       preRef.current.scrollTop = textareaRef.current.scrollTop;
       preRef.current.scrollLeft = textareaRef.current.scrollLeft;
     }
-  }, []);
-
-  // Keep pre height in sync when textarea is resized (drag handle)
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    const pre = preRef.current;
-    if (!textarea || !pre) return;
-    const observer = new ResizeObserver(() => {
-      pre.style.height = `${textarea.offsetHeight}px`;
-    });
-    observer.observe(textarea);
-    return () => observer.disconnect();
-  }, []);
+  };
 
   return (
-    <div ref={containerRef} className={`relative ${className ?? ""}`}>
+    <div className={`relative ${className ?? ""}`}>
+      {/* Highlighted layer */}
       <pre
         ref={preRef}
         aria-hidden
-        className="absolute inset-x-0 top-0 overflow-hidden pointer-events-none rounded border border-transparent px-3 py-2.5 font-mono text-[length:inherit] leading-[1.5] whitespace-pre-wrap break-words [word-break:break-all] [&_pre]:!bg-transparent [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_pre]:![word-break:break-all] [&_pre]:!leading-[1.5] [&_code]:!bg-transparent [&_code]:!font-mono [&_code]:!text-[length:inherit] [&_code]:!leading-[1.5]"
+        className="absolute inset-0 overflow-hidden pointer-events-none rounded border border-transparent px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words [&_pre]:!bg-transparent [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_code]:!bg-transparent [&_code]:!font-mono [&_code]:!text-[length:inherit] [&_code]:!leading-[inherit]"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {/* Editable textarea — transparent text, visible caret */}
       <textarea
         ref={textareaRef}
         value={value}
@@ -69,7 +59,7 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
         placeholder={placeholder}
         rows={rows}
         spellCheck={false}
-        className="relative w-full bg-black/30 border border-border rounded px-3 py-2.5 font-mono text-content leading-[1.5] whitespace-pre-wrap [word-break:break-all] placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+        className="relative w-full bg-black/30 border border-border rounded px-3 py-2.5 font-mono text-content leading-normal placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
         style={{ color: html ? "transparent" : undefined, caretColor: "#00ff88" }}
       />
     </div>
