@@ -33,7 +33,8 @@ class TestPrDescriptionFromRounds:
 
     @pytest.mark.asyncio
     async def test_description_contains_round_summaries(self) -> None:
-        sandbox = MagicMock()
+        sandbox = AsyncMock()
+        sandbox.file_system.read = AsyncMock(return_value=None)
         sandbox.repo.teardown = AsyncMock(
             return_value=MagicMock(
                 auto_committed=False, commits_ahead=1,
@@ -64,7 +65,8 @@ class TestPrDescriptionFromRounds:
 
     @pytest.mark.asyncio
     async def test_no_rounds_shows_fallback(self) -> None:
-        sandbox = MagicMock()
+        sandbox = AsyncMock()
+        sandbox.file_system.read = AsyncMock(return_value=None)
         sandbox.repo.teardown = AsyncMock(
             return_value=MagicMock(
                 auto_committed=False, commits_ahead=1,
