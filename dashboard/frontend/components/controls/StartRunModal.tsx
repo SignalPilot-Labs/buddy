@@ -11,7 +11,7 @@ import { BranchPicker } from "@/components/controls/BranchPicker";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, fetchLastStartCmd } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, fetchLastStartCmd, updateRemoteSandbox } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 import { McpServersEditor } from "@/components/controls/McpServersEditor";
 
@@ -234,6 +234,13 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       }
     }
     const cmdToSend = selectedSandboxId !== null && startCmd.trim() ? startCmd.trim() : null;
+    // Persist start command back to DB so next run uses the updated value
+    if (selectedSandboxId !== null && cmdToSend) {
+      const sandbox = remoteSandboxes.find((s) => s.id === selectedSandboxId);
+      if (sandbox && cmdToSend !== sandbox.default_start_cmd) {
+        void updateRemoteSandbox(selectedSandboxId, { ...sandbox, default_start_cmd: cmdToSend });
+      }
+    }
     onStart(prompt, preset, budgetEnabled ? budget : 0, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
   };
 
