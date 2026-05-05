@@ -11,6 +11,7 @@ import hmac
 import json
 import logging
 import os
+import shlex
 from collections.abc import AsyncGenerator
 from typing import Any, Callable, Awaitable
 
@@ -37,13 +38,33 @@ from connector.ssh import (
     kill_process_group,
     open_ssh_tunnel,
     run_derived_stop,
+    run_ssh_command,
 )
 from connector.startup import stream_start_events
-from db.constants import SANDBOX_HEARTBEAT_TIMEOUT_SEC, SANDBOX_QUEUE_TIMEOUT_SEC
+from db.constants import (
+    SANDBOX_HEARTBEAT_TIMEOUT_SEC,
+    SANDBOX_QUEUE_TIMEOUT_SEC,
+    SSH_CONNECT_TIMEOUT_SEC,
+)
 
 log = logging.getLogger("connector.server")
 
 HandlerType = Callable[[web.Request], Awaitable[web.StreamResponse]]
+
+
+def _build_image_check(sandbox_type: str, start_cmd: str) -> str | None:
+    """Extract the image path from a start command and build a check command."""
+    if not start_cmd:
+        return None
+    if sandbox_type == "slurm":
+        for part in start_cmd.split():
+            if part.endswith(".sif"):
+                return f"test -f {shlex.quote(part)}"
+    elif sandbox_type == "docker":
+        for part in start_cmd.split():
+            if "/" in part and (":" in part or "." in part):
+                return f"docker image inspect {shlex.quote(part)} > /dev/null 2>&1"
+    return None
 
 
 class ConnectorServer:
@@ -79,6 +100,7 @@ class ConnectorServer:
         self._app.router.add_post("/sandboxes/start", self._handle_start)
         self._app.router.add_post("/sandboxes/stop", self._handle_stop)
         self._app.router.add_post("/shutdown", self._handle_shutdown)
+        self._app.router.add_post("/sandboxes/test", self._handle_test)
         self._app.router.add_get(
             "/sandboxes/{run_key}/logs", self._handle_logs,
         )
@@ -89,6 +111,44 @@ class ConnectorServer:
     async def _handle_health(self, request: web.Request) -> web.Response:
         """Return connector health — non-sensitive info only."""
         return web.json_response({"status": "ok", "tunnel_count": len(self._states)})
+
+    async def _handle_test(self, request: web.Request) -> web.Response:
+        """Test SSH connection and sandbox image availability."""
+        body: dict[str, Any] = await request.json()
+        ssh_target: str = body["ssh_target"]
+        sandbox_type: str = body["sandbox_type"]
+        start_cmd: str = body.get("start_cmd", "")
+
+        checks: list[dict[str, str | bool]] = []
+
+        # Check 1: SSH connectivity
+        try:
+            proc = await run_ssh_command(ssh_target, "echo ok", {})
+            await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+            ssh_ok = proc.returncode == 0
+            checks.append({"name": "ssh", "ok": ssh_ok, "detail": "Connected" if ssh_ok else f"Exit {proc.returncode}"})
+        except asyncio.TimeoutError:
+            checks.append({"name": "ssh", "ok": False, "detail": "Timeout"})
+            return web.json_response({"ok": False, "checks": checks})
+        except Exception as exc:
+            checks.append({"name": "ssh", "ok": False, "detail": str(exc)})
+            return web.json_response({"ok": False, "checks": checks})
+
+        # Check 2: sandbox image exists — extract image path from start command
+        image_check_cmd = _build_image_check(sandbox_type, start_cmd)
+        if image_check_cmd:
+            try:
+                proc = await run_ssh_command(ssh_target, image_check_cmd, {})
+                await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+                img_ok = proc.returncode == 0
+                checks.append({"name": "image", "ok": img_ok, "detail": "Found" if img_ok else "Not found"})
+            except asyncio.TimeoutError:
+                checks.append({"name": "image", "ok": False, "detail": "Timeout"})
+            except Exception as exc:
+                checks.append({"name": "image", "ok": False, "detail": str(exc)})
+
+        all_ok = all(c["ok"] for c in checks)
+        return web.json_response({"ok": all_ok, "checks": checks})
 
     async def _handle_start(self, request: web.Request) -> web.StreamResponse:
         """Start a remote sandbox — NDJSON streaming response."""

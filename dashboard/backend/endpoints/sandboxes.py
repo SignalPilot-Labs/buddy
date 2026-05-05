@@ -10,7 +10,7 @@ from sqlalchemy import select, func
 
 from backend import auth
 from backend.endpoints.settings import validate_repo_slug
-from backend.utils import session, upsert_setting
+from backend.utils import AGENT_TIMEOUT_SHORT, agent_request, session, upsert_setting
 from db.constants import (
     ACTIVE_RUN_STATUSES,
     HEARTBEAT_TIMEOUT_MAX,
@@ -198,6 +198,15 @@ async def delete_sandbox(sandbox_id: str) -> dict[str, str | bool | int]:
         await s.delete(setting)
         await s.commit()
     return {"ok": True, "sandbox_id": sandbox_id}
+
+
+@router.post("/sandboxes/{sandbox_id}/test")
+async def test_sandbox(sandbox_id: str) -> dict:
+    """Test SSH connection and image availability via agent → connector → SSH."""
+    return await agent_request(
+        "POST", f"/test-sandbox/{sandbox_id}", AGENT_TIMEOUT_SHORT, None, None, None,
+        extra_headers=None,
+    )
 
 
 @router.get("/sandboxes/{sandbox_id}/last-start-cmd")

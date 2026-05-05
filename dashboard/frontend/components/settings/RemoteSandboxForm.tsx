@@ -63,7 +63,16 @@ export function RemoteSandboxForm({
   };
 
   return (
-    <div className="p-3 bg-white/[0.02] border border-border rounded-lg space-y-3 mb-3">
+    <div className="p-3 bg-white/[0.02] border border-border rounded-lg space-y-3 mb-3 relative">
+      <button
+        onClick={onCancel}
+        className="absolute top-2.5 right-2.5 text-text-secondary hover:text-[#ff4444] transition-colors"
+        title="Close"
+      >
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <line x1="2" y1="2" x2="8" y2="8" /><line x1="8" y1="2" x2="2" y2="8" />
+        </svg>
+      </button>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Name">
           <input
@@ -135,9 +144,6 @@ export function RemoteSandboxForm({
       </div>
 
       <div className="flex gap-2 pt-1">
-        <Button variant="ghost" size="md" onClick={onCancel}>
-          Cancel
-        </Button>
         <Button
           variant="success"
           size="md"

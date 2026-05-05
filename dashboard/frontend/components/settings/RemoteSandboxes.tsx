@@ -5,8 +5,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
-import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox } from "@/lib/api";
-import type { RemoteSandboxConfig } from "@/lib/api";
+import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
+import type { RemoteSandboxConfig, TestSandboxResult } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
 
 export interface SandboxFormData {
@@ -45,6 +45,22 @@ export function RemoteSandboxes(): React.ReactElement {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SandboxFormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<TestSandboxResult | null>(null);
+
+  const handleTest = async (s: RemoteSandboxConfig): Promise<void> => {
+    setTestingId(s.id);
+    setTestResult(null);
+    setError(null);
+    try {
+      const result = await testRemoteSandbox(s.id);
+      setTestResult(result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Test failed");
+    } finally {
+      setTestingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchRemoteSandboxes()
@@ -137,6 +153,13 @@ export function RemoteSandboxes(): React.ReactElement {
                 {s.type}
               </span>
               <button
+                onClick={() => void handleTest(s)}
+                disabled={testingId === s.id}
+                className="text-content text-text-secondary hover:text-[#88ccff] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 disabled:opacity-50"
+              >
+                {testingId === s.id ? "Testing…" : "Test"}
+              </button>
+              <button
                 onClick={() => handleEdit(s)}
                 className="text-content text-text-secondary hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
               >
@@ -181,6 +204,17 @@ export function RemoteSandboxes(): React.ReactElement {
 
       {error && (
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
+      )}
+
+      {testResult && (
+        <div className="mt-1.5 flex items-center gap-2 text-content">
+          <div className={`w-1.5 h-1.5 rounded-full ${testResult.ok ? "bg-[#00ff88]" : "bg-[#ff4444]"}`} />
+          {testResult.checks.map((c) => (
+            <span key={c.name} className={c.ok ? "text-[#00ff88]" : "text-[#ff4444]"}>
+              {c.name}: {c.detail}
+            </span>
+          ))}
+        </div>
       )}
 
       <p className="mt-2 text-body text-text-muted">

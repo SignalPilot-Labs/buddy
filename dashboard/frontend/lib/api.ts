@@ -455,6 +455,17 @@ export interface RemoteSandboxConfig {
   heartbeat_timeout: number;
 }
 
+export interface TestSandboxResult {
+  ok: boolean;
+  checks: { name: string; ok: boolean; detail: string }[];
+}
+
+export async function testRemoteSandbox(sandboxId: string): Promise<TestSandboxResult> {
+  const res = await apiFetch(`/api/sandboxes/${sandboxId}/test`, { method: "POST" });
+  if (!res.ok) throw new Error(`Test failed (HTTP ${res.status})`);
+  return res.json();
+}
+
 export async function fetchRemoteSandboxes(): Promise<RemoteSandboxConfig[]> {
   const res = await apiFetch(`/api/sandboxes`);
   if (!res.ok) {
