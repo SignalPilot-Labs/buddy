@@ -2,9 +2,11 @@
 
 /**Inline form for creating or editing a remote sandbox configuration.*/
 
+import { useState } from "react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
+import type { TestSandboxResult } from "@/lib/api";
 
 const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
   { value: "docker", label: "Docker" },
@@ -20,6 +22,7 @@ interface RemoteSandboxFormProps {
   data: SandboxFormData;
   onChange: (data: SandboxFormData) => void;
   onSave: (data: SandboxFormData) => Promise<void>;
+  onTest: (() => Promise<TestSandboxResult>) | null;
   onCancel: () => void;
   saving: boolean;
   isEdit: boolean;
@@ -46,20 +49,49 @@ function FormField(props: {
 const INPUT_CLASS =
   "w-full bg-black/30 border border-border rounded px-2.5 py-1.5 text-content font-mono text-accent-hover placeholder:text-text-secondary focus-visible:outline-none focus-visible:border-[#00ff88]/30";
 
+function formatTestResult(result: TestSandboxResult): { text: string; ok: boolean } {
+  if (result.ok) {
+    return { text: "Connected", ok: true };
+  }
+  const failed = result.checks.filter((c) => !c.ok);
+  const messages = failed.map((c) => `${c.name}: ${c.detail}`);
+  return { text: messages.join(", "), ok: false };
+}
+
 export function RemoteSandboxForm({
   data,
   onChange,
   onSave,
+  onTest,
   onCancel,
   saving,
   isEdit,
 }: RemoteSandboxFormProps): React.ReactElement {
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<TestSandboxResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
   const update = (patch: Partial<SandboxFormData>): void => {
     onChange({ ...data, ...patch });
   };
 
   const handleSubmit = (): void => {
     void onSave(data);
+  };
+
+  const handleTest = async (): Promise<void> => {
+    if (!onTest) return;
+    setTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const result = await onTest();
+      setTestResult(result);
+    } catch (e) {
+      setTestError(e instanceof Error ? e.message : "Test failed");
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -143,7 +175,7 @@ export function RemoteSandboxForm({
         </FormField>
       </div>
 
-      <div className="flex gap-2 pt-1">
+      <div className="flex items-center gap-2 pt-1">
         <Button
           variant="success"
           size="md"
@@ -152,6 +184,27 @@ export function RemoteSandboxForm({
         >
           {saving ? "Saving..." : isEdit ? "Update" : "Create"}
         </Button>
+        {onTest && (
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={() => void handleTest()}
+            disabled={testing}
+          >
+            {testing ? "Testing..." : "Test"}
+          </Button>
+        )}
+        {testResult && (() => {
+          const { text, ok } = formatTestResult(testResult);
+          return (
+            <span className={clsx("text-content", ok ? "text-[#00ff88]" : "text-[#ff4444]")}>
+              {text}
+            </span>
+          );
+        })()}
+        {testError && (
+          <span className="text-content text-[#ff4444]">{testError}</span>
+        )}
       </div>
     </div>
   );
