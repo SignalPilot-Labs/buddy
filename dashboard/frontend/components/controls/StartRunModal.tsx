@@ -247,6 +247,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const envSummary = envCount > 0 ? `${envCount} vars` : "No vars";
   const mountSummary = mountsLoading ? "Loading..." : (mounts.length > 0 ? `${mounts.length} mount${mounts.length > 1 ? "s" : ""}` : "None");
   const mcpSummary = mcpText.trim() ? "Configured" : "None";
+  const sandboxSummary = selectedSandboxId === null
+    ? "Docker (local)"
+    : remoteSandboxes.find((s) => s.id === selectedSandboxId)?.name ?? "Remote";
   const selectedDurationPreset = DURATION_PRESETS.find((d) => d.minutes === duration);
 
   if (typeof document === "undefined") return null;
@@ -289,11 +292,10 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
               <div className="p-5 space-y-4">
                 <BranchPicker branches={branches} selected={baseBranch} onSelect={setBaseBranch} />
 
-                {/* Sandbox picker */}
+                {/* Sandbox picker (collapsible) */}
                 {remoteSandboxes.length > 0 && (
-                  <div>
-                    <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold">Sandbox</label>
-                    <div className="flex gap-1.5 flex-wrap mt-2">
+                  <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
+                    <div className="flex gap-1.5 flex-wrap">
                       <button
                         onClick={() => {
                           setSelectedSandboxId(null);
@@ -326,14 +328,14 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                             }
                           }}
                           className={clsx(
-                            "text-content px-3 py-2 rounded border transition-all",
+                            "text-content px-3 py-2 rounded border transition-all font-mono",
                             selectedSandboxId === s.id
                               ? "border-[#00ff88]/30 bg-[#00ff88]/[0.06] text-[#00ff88] font-medium"
                               : "border-border bg-white/[0.01] text-text-dim hover:bg-white/[0.03]"
                           )}
                         >
                           {s.name}
-                          <span className="ml-1.5 text-caption uppercase opacity-60">{s.type}</span>
+                          <span className="ml-1.5 text-caption uppercase tracking-wider opacity-60">{s.type}</span>
                         </button>
                       ))}
                     </div>
@@ -349,7 +351,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                         />
                       </div>
                     )}
-                  </div>
+                  </CollapsibleSection>
                 )}
 
                 {/* Quick prompts */}

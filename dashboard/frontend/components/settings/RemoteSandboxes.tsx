@@ -138,13 +138,13 @@ export function RemoteSandboxes(): React.ReactElement {
               </span>
               <button
                 onClick={() => handleEdit(s)}
-                className="text-content text-text-dim hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                className="text-content text-accent-hover/60 hover:text-[#00ff88] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
               >
                 Edit
               </button>
               <button
                 onClick={() => void handleDelete(s)}
-                className="text-text-secondary hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                className="text-accent-hover/60 hover:text-[#ff4444] transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
                 title="Delete sandbox"
               >
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
