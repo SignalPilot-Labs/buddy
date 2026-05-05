@@ -12,8 +12,8 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
 ];
 
 const START_CMD_PLACEHOLDERS: Record<string, string> = {
-  docker: "docker run --rm --gpus all ghcr.io/signalpilot-labs/autofyn-sandbox:stable",
-  slurm: "srun --gpus=1 apptainer run --nv ~/.autofyn/sandbox.sif python3 -m sandbox.server",
+  docker: "docker run --rm -v $HOME:$HOME ghcr.io/signalpilot-labs/autofyn-sandbox:stable python3 -m sandbox.server",
+  slurm: "srun -p PARTITION --mem=4G singularity exec -B $HOME ~/.autofyn/sandbox.sif python3 -m sandbox.server",
 };
 
 interface RemoteSandboxFormProps {
