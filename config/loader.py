@@ -1,14 +1,11 @@
 """Config loader for AutoFyn.
 
 Resolution order (later overrides earlier):
-  1. Built-in defaults (config/config.yml in repo)
-  2. ~/.autofyn/config.yml (global user config)
-  3. .autofyn/config.yml (per-project config)
-  4. overlay dict (target repo config, passed by caller)
+  1. Built-in defaults (config/config.yml — shipped with AutoFyn, always used)
+  2. ~/.autofyn/config.yml (global user overrides)
+  3. /home/agentuser/repo/.autofyn/config.yml (per-project overrides in target repo)
+  4. overlay dict (runtime overrides from caller)
   5. AF_* environment variables (highest priority)
-
-On first run, copies the default config to .autofyn/config.yml so the
-user has a visible, editable file.
 
 Config split:
   Server-level (read once at startup, shared across all runs):
@@ -22,17 +19,17 @@ Config split:
 
 import logging
 import os
-import shutil
 from pathlib import Path
 
 import yaml
 
 log = logging.getLogger("config")
 
-_REPO_ROOT = Path(__file__).parent.parent
-_DEFAULT_CONFIG = _REPO_ROOT / "config" / "config.yml"
+_AUTOFYN_ROOT = Path(__file__).parent.parent
+_DEFAULT_CONFIG = _AUTOFYN_ROOT / "config" / "config.yml"
 _GLOBAL_CONFIG = Path.home() / ".autofyn" / "config.yml"
-_PROJECT_CONFIG = _REPO_ROOT / ".autofyn" / "config.yml"
+_TARGET_REPO = Path("/home/agentuser/repo")
+_PROJECT_CONFIG = _TARGET_REPO / ".autofyn" / "config.yml"
 
 # ── Cache ────────────────────────────────────────────────────────────
 # Keyed by (str(repo_path) or None, str(overlay) or None).
@@ -151,38 +148,7 @@ def _load_yaml(path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
-def _ensure_gitignore_entry() -> None:
-    """Append .autofyn/ to .gitignore if not already listed."""
-    gitignore = _REPO_ROOT / ".gitignore"
-    entry = ".autofyn/"
-    if gitignore.exists():
-        content = gitignore.read_text()
-        if entry in content.splitlines():
-            return
-        if not content.endswith("\n"):
-            content += "\n"
-        gitignore.write_text(content + entry + "\n")
-    else:
-        gitignore.write_text(entry + "\n")
-    log.info("Added %s to %s", entry, gitignore)
 
-
-def _ensure_project_config() -> None:
-    """Copy default config to .autofyn/config.yml on first run.
-
-    Skips silently on read-only filesystems (e.g. Apptainer SIF).
-    """
-    if _PROJECT_CONFIG.exists():
-        return
-    if not _DEFAULT_CONFIG.exists():
-        return
-    try:
-        _PROJECT_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(_DEFAULT_CONFIG, _PROJECT_CONFIG)
-        _ensure_gitignore_entry()
-        log.info("Created %s from defaults", _PROJECT_CONFIG)
-    except OSError:
-        log.warning("Skipping project config copy (read-only filesystem)")
 
 
 def _apply_env_overrides(config: dict) -> dict:
@@ -307,7 +273,6 @@ def load(overlay: dict | None) -> dict:
     if cached is not None:
         return cached
 
-    _ensure_project_config()
     config = _load_yaml(_DEFAULT_CONFIG)
     config = _deep_merge(config, _load_yaml(_GLOBAL_CONFIG))
     config = _deep_merge(config, _load_yaml(_PROJECT_CONFIG))
