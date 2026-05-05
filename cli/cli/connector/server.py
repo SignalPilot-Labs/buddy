@@ -296,7 +296,7 @@ class ConnectorServer:
 
         local_port = await find_free_port()
         tunnel = await open_ssh_tunnel(
-            ssh_target, remote_host, remote_port, local_port,
+            ssh_target, remote_host, remote_port, local_port, sandbox_type,
         )
 
         return ForwardState(

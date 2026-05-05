@@ -23,7 +23,8 @@ _security_cfg = security_config()
 # ── Execution ──
 CMD_TIMEOUT: int = _cfg["exec_timeout_sec"]
 SANDBOX_PORT: int = int(os.environ.get("AF_SANDBOX_PORT", "8080"))
-SANDBOX_HOST: str = "0.0.0.0"
+SANDBOX_HOST_DEFAULT: str = "127.0.0.1"
+SANDBOX_HOST: str = os.environ.get("AF_SANDBOX_BIND_HOST") or SANDBOX_HOST_DEFAULT
 
 # ── Security ──
 INTERNAL_SECRET_HEADER: str = "X-Internal-Secret"

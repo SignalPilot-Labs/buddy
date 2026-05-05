@@ -33,22 +33,55 @@ def _preexec_fn() -> None:
     os.setsid()
 
 
-async def open_ssh_tunnel(
+def _build_tunnel_cmd(
     ssh_target: str,
     remote_host: str,
     remote_port: int,
     local_port: int,
-) -> asyncio.subprocess.Process:
-    """Open an SSH tunnel: local_port -> remote_host:remote_port.
+    sandbox_type: str,
+) -> list[str]:
+    """Build SSH tunnel command based on sandbox type.
 
-    Waits until the local port accepts connections before returning.
+    For Slurm: Uses ProxyJump through ssh_target to reach the compute node,
+    then forwards to 127.0.0.1 on the compute node. This allows the sandbox
+    to bind securely to loopback only.
+
+    For Docker: Direct tunnel to ssh_target with forward to remote_host:port.
     """
-    cmd = [
+    if sandbox_type == "slurm":
+        return [
+            "ssh", "-N",
+            "-J", ssh_target,
+            "-L", f"127.0.0.1:{local_port}:127.0.0.1:{remote_port}",
+            *_ssh_base_opts(),
+            remote_host,
+        ]
+    return [
         "ssh", "-N",
         "-L", f"127.0.0.1:{local_port}:{remote_host}:{remote_port}",
         *_ssh_base_opts(),
         ssh_target,
     ]
+
+
+async def open_ssh_tunnel(
+    ssh_target: str,
+    remote_host: str,
+    remote_port: int,
+    local_port: int,
+    sandbox_type: str,
+) -> asyncio.subprocess.Process:
+    """Open an SSH tunnel: local_port -> remote sandbox.
+
+    For Slurm: Uses ProxyJump through ssh_target to reach compute node,
+    then forwards to 127.0.0.1 on the compute node. This allows the
+    sandbox to bind securely to loopback only.
+
+    For Docker: Direct tunnel to ssh_target with forward to remote_host:port.
+
+    Waits until the local port accepts connections before returning.
+    """
+    cmd = _build_tunnel_cmd(ssh_target, remote_host, remote_port, local_port, sandbox_type)
     process = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.DEVNULL,

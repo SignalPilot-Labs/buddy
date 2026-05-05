@@ -12,6 +12,12 @@ By default, AutoFyn runs each sandbox in a local Docker container. Remote sandbo
 
 The agent talks to the remote sandbox exactly like a local one — same HTTP API, same security.
 
+## Security
+
+The sandbox HTTP server binds to `127.0.0.1` by default, preventing other users on shared HPC nodes from accessing it. The SSH tunnel uses ProxyJump to route traffic directly to the compute node.
+
+If your cluster does not allow SSH from login nodes to compute nodes, set `AF_SANDBOX_BIND_HOST=0.0.0.0` in your start command. This is less secure on shared nodes but may be required for some cluster configurations.
+
 ## Setup
 
 ### 1. Pull the sandbox image on the remote
@@ -61,7 +67,7 @@ In the **New Run** modal, expand the **Sandbox** section and select your remote 
 ### Docker remote
 
 ```bash
-source /etc/profile && docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+source /etc/profile && docker run --rm -p 127.0.0.1:8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 ```
 
 ### Slurm / Apptainer
