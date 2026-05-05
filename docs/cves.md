@@ -2,7 +2,7 @@
 
 Security advisories filed by AutoFyn and recognized by maintainers.
 
-## Warp
+## [Warp](https://github.com/warpdotdev/Warp)
 
 | Advisory | Status |
 |----------|--------|
@@ -11,14 +11,14 @@ Security advisories filed by AutoFyn and recognized by maintainers.
 | [GHSA-f8rx-99w2-3rgp](https://github.com/warpdotdev/Warp/security/advisories/GHSA-f8rx-99w2-3rgp) | Recognized |
 | [GHSA-xpw4-xmjx-f6gc](https://github.com/warpdotdev/Warp/security/advisories/GHSA-xpw4-xmjx-f6gc) | Recognized |
 
-## LiteLLM
+## [LiteLLM](https://github.com/BerriAI/litellm)
 
 | Advisory | Status |
 |----------|--------|
 | [GHSA-g978-rqfm-7m79](https://github.com/BerriAI/litellm/security/advisories/GHSA-g978-rqfm-7m79) | Recognized |
 | [GHSA-h8fm-g6wc-j228](https://github.com/BerriAI/litellm/security/advisories/GHSA-h8fm-g6wc-j228) | Recognized (duplicate of ongoing report) |
 
-## Langflow
+## [Langflow](https://github.com/langflow-ai/langflow)
 
 | Advisory | Status |
 |----------|--------|
