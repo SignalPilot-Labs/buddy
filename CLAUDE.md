@@ -1,10 +1,12 @@
 # AutoFyn
 
-Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude Code SDK), dashboard (FastAPI + Next.js), PostgreSQL, sandbox (gVisor).
+Autonomous AI software engineer. Runs as a Docker stack: agent container (Claude Code SDK), dashboard (FastAPI + Next.js), PostgreSQL, sandbox (gVisor). Supports remote sandboxes on HPC clusters and GPU servers via SSH tunnel.
 
 ## How It Works
 
 Three containers: `autofyn/` is the brain (orchestrator, decisions, DB), `sandbox/` is the hands (executes all code, git, Claude SDK), `dashboard/` is the control plane (starts/stops runs, settings, SSE streaming). Agent never runs untrusted code — everything goes through HTTP to sandbox.
+
+Sandboxes can be **local Docker** (default) or **remote** (Docker/Slurm on any SSH-reachable machine). Remote sandboxes are managed by the **connector** (`cli/cli/connector/`), a local process that opens SSH tunnels, proxies traffic, and manages lifecycle. The agent talks to both local and remote sandboxes through the same HTTP API — `autofyn/sandbox_client/backends/` abstracts the difference.
 
 The orchestrator delegates to subagents organized by phase: Explore (code-explorer, debugger), Plan (architect), Build (backend-dev, frontend-dev), Review (code-reviewer, ui-reviewer, security-reviewer). Subagents write their reports to `/tmp/round-N/<agent-name>.md`.
 
@@ -12,13 +14,17 @@ The orchestrator delegates to subagents organized by phase: Explore (code-explor
 
 - `autofyn/` — Agent (brain): orchestrator loop, lifecycle, memory, session, subagent prompts
 - `autofyn/sandbox_client/` — HTTP client to sandbox: repo ops, session management, file I/O
-- `sandbox/` — Sandbox (hands): HTTP API, command execution, Claude SDK sessions, SecurityGate
-- `sandbox/handlers/` — HTTP endpoints: execute, file_system, repo, session, health
-- `sandbox/session/` — Claude SDK session lifecycle and security gating
-- `dashboard/backend/` — FastAPI dashboard API: runs, settings, SSE streaming, agent proxy
+- `autofyn/sandbox_client/backends/` — Sandbox backend abstraction: `docker_local_backend.py` (local), `remote_backend.py` (remote via connector)
+- `sandbox/` — Sandbox (hands): HTTP API, Claude SDK sessions, SecurityGate
+- `sandbox/api/` — HTTP endpoints: env, file_system, repo, session, health
+- `sandbox/repo/` — Git/GitHub operations: clone, commit, push, PR, diff
+- `sandbox/sdk/` — Claude SDK session lifecycle, security gating, event streaming
+- `dashboard/backend/` — FastAPI dashboard API: runs, settings, SSE streaming, agent proxy, remote sandbox CRUD
 - `dashboard/frontend/` — Next.js UI: run feed, controls, settings, diff viewer
 - `db/` — Shared SQLAlchemy models and connection (PostgreSQL)
 - `cli/` — CLI tool: `autofyn start/stop/run/settings` via dashboard API
+- `cli/cli/connector/` — Remote sandbox connector: SSH tunnels, reverse proxy, startup/shutdown lifecycle
+- `config/` — Shared config loader and constants (sandbox config, AF_BOUND/AF_READY markers)
 
 ## Tech Stack
 
