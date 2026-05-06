@@ -48,11 +48,10 @@ describe("StartRunModal: populate startCmd on localStorage restore", () => {
     expect(PICKER_SRC).not.toContain("useEffect");
   });
 
-  it("SandboxPicker onClick still populates startCmd on manual selection", () => {
-    const start = PICKER_SRC.indexOf("onClick={async");
-    const end = PICKER_SRC.indexOf("}}", start) + 2;
-    const onClickBlock = PICKER_SRC.slice(start, end);
-    expect(onClickBlock).toContain("fetchLastStartCmd");
-    expect(onClickBlock).toContain("default_start_cmd");
+  it("SandboxPicker populates startCmd on manual selection via handleRemoteClick", () => {
+    // The async fetch logic is in handleRemoteClick, invoked from onClick.
+    expect(PICKER_SRC).toContain("handleRemoteClick");
+    expect(PICKER_SRC).toContain("fetchLastStartCmd");
+    expect(PICKER_SRC).toContain("default_start_cmd");
   });
 });

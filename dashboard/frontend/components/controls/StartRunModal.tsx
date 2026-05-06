@@ -118,9 +118,13 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     try {
       const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
       if (!saved) return;
-      setSelectedSandboxId(saved);
       const sandbox = remoteSandboxes.find((s) => s.id === saved);
-      if (!sandbox) return;
+      if (!sandbox) {
+        // Sandbox was deleted — clear stale selection.
+        localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
+        return;
+      }
+      setSelectedSandboxId(saved);
       fetchLastStartCmd(saved, activeRepo)
         .catch(() => null)
         .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
