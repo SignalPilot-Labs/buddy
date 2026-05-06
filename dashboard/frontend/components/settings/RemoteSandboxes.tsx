@@ -144,7 +144,7 @@ export function RemoteSandboxes(): React.ReactElement {
 
         {sandboxes.length === 0 && !showForm && (
           <div className="px-2.5 py-3 text-content text-text-secondary text-center">
-            No remote sandboxes yet
+            No remote sandboxes yet — <a href="https://github.com/SignalPilot-Labs/AutoFyn/blob/main/docs/user/remote-sandboxes.md" target="_blank" rel="noopener noreferrer" className="text-[#00ff88] hover:underline">setup guide</a>
           </div>
         )}
       </div>
