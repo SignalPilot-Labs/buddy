@@ -37,14 +37,32 @@ def _import_streaming_module() -> object:
 _streaming = _import_streaming_module()
 
 
+def _make_session_ctx() -> MagicMock:
+    """Build a mock async session context manager for stream_events existence check."""
+    mock_session_obj = AsyncMock()
+    ctx = MagicMock()
+    ctx.__aenter__ = AsyncMock(return_value=mock_session_obj)
+    ctx.__aexit__ = AsyncMock(return_value=None)
+    return ctx
+
+
 async def _collect_events(run_id: str) -> list[str]:
     """Run the SSE event_generator once (one poll) and collect all yielded strings."""
     streaming_mod = _streaming
     stream_events_fn = streaming_mod.stream_events  # type: ignore[attr-defined]
 
-    # We test event_generator directly by extracting it from a StreamingResponse
-    # Patch _init_cursors to return (0, 0) and asyncio.sleep to stop after 1 iteration
-    response = await stream_events_fn(run_id=run_id, after_tool=0, after_audit=0)
+    # We test event_generator directly by extracting it from a StreamingResponse.
+    # Patch session() and _validate_run_exists so the existence check passes
+    # without a real DB connection, regardless of test execution order.
+    with (
+        patch("backend.endpoints.streaming.session", return_value=_make_session_ctx()),
+        patch(
+            "backend.endpoints.streaming._validate_run_exists",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+    ):
+        response = await stream_events_fn(run_id=run_id, after_tool=0, after_audit=0)
 
     events: list[str] = []
     async for chunk in response.body_iterator:  # type: ignore[attr-defined]

@@ -116,6 +116,13 @@ async def _init_cursors(run_id: str) -> tuple[int, int]:
     return last_tool_id, last_audit_id
 
 
+async def _validate_run_exists(s: AsyncSession, run_id: str) -> None:
+    """Raise HTTPException(404) if no Run with the given id exists."""
+    run = (await s.execute(select(Run).where(Run.id == run_id))).scalar_one_or_none()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+
 async def _poll_and_yield(run_id: str, last_tool_id: int, last_audit_id: int) -> _PollResult:
     """Fetch one round of new events; also checks for run-ended when nothing new arrived."""
     async with session() as s:
@@ -134,6 +141,8 @@ async def stream_events(
     after_audit: int = Query(default=-1),
 ) -> StreamingResponse:
     """SSE endpoint — polls Postgres for new tool calls and audit events."""
+    async with session() as s:
+        await _validate_run_exists(s, run_id)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         if after_tool >= 0 and after_audit >= 0:
@@ -192,6 +201,7 @@ async def poll_events(
 ) -> dict:
     """Polling fallback for environments where SSE doesn't work."""
     async with session() as s:
+        await _validate_run_exists(s, run_id)
         tool_calls = await _query_recent_tool_calls(s, run_id, after_tool, limit)
         audit_events = await _query_recent_audit_events(s, run_id, after_audit, limit)
 
