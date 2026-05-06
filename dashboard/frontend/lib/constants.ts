@@ -77,11 +77,16 @@ export const DEFAULT_REMOTE_DOCKER_CMD =
   "source /etc/profile && docker run --rm --network=host -e AF_SANDBOX_PORT=0 $AF_HOST_MOUNTS ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
 
 // Default local Docker start command. Must match autofyn/sandbox_client/backends/local_backend.py.
+// Env vars (AF_RUN_KEY, AF_IMAGE_TAG, AF_HOST_MOUNTS, AF_SANDBOX_PORT,
+// SANDBOX_INTERNAL_SECRET) are provided by _build_env() and expanded by the
+// shell subprocess.
 export const DEFAULT_DOCKER_START_CMD =
   "docker run --rm=false" +
   " --name autofyn-sandbox-$AF_RUN_KEY" +
   " --hostname autofyn-sandbox-$AF_RUN_KEY" +
   " --network autofyn_default" +
+  " -e AF_SANDBOX_PORT=$AF_SANDBOX_PORT" +
+  " -e SANDBOX_INTERNAL_SECRET=$SANDBOX_INTERNAL_SECRET" +
   " --cap-add SYS_PTRACE --cap-add SYS_ADMIN" +
   " --security-opt apparmor:unconfined" +
   " -v autofyn-repo-$AF_RUN_KEY:/home/agentuser/repo:rw" +

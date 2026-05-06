@@ -16,6 +16,8 @@ describe("DEFAULT_DOCKER_START_CMD sync", () => {
       "--name autofyn-sandbox-$AF_RUN_KEY",
       "--hostname autofyn-sandbox-$AF_RUN_KEY",
       "--network autofyn_default",
+      "-e AF_SANDBOX_PORT=$AF_SANDBOX_PORT",
+      "-e SANDBOX_INTERNAL_SECRET=$SANDBOX_INTERNAL_SECRET",
       "--cap-add SYS_PTRACE",
       "--cap-add SYS_ADMIN",
       "--security-opt apparmor:unconfined",

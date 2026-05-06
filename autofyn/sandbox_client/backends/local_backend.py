@@ -41,6 +41,8 @@ DEFAULT_DOCKER_START_CMD: str = (
     " --name autofyn-sandbox-$AF_RUN_KEY"
     " --hostname autofyn-sandbox-$AF_RUN_KEY"
     f" --network {SANDBOX_POOL_NETWORK}"
+    " -e AF_SANDBOX_PORT=$AF_SANDBOX_PORT"
+    " -e SANDBOX_INTERNAL_SECRET=$SANDBOX_INTERNAL_SECRET"
     " --cap-add SYS_PTRACE --cap-add SYS_ADMIN"
     " --security-opt apparmor:unconfined"
     " -v autofyn-repo-$AF_RUN_KEY:/home/agentuser/repo:rw"
