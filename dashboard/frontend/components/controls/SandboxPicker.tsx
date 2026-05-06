@@ -28,6 +28,8 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
 
   // Cache start commands per sandbox so switching back restores edits.
   const cmdCache = useRef<Map<string, string>>(new Map());
+  // Generation counter to discard stale async fetch results after a newer selection.
+  const selectGenRef = useRef(0);
 
   /** Save current command, then switch to a new sandbox with the given command. */
   const switchTo = useCallback((nextId: string | null, nextCmd: string) => {
@@ -43,6 +45,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
   }, [switchTo]);
 
   const handleRemoteClick = useCallback(async (s: RemoteSandboxConfig) => {
+    const gen = ++selectGenRef.current;
     const currentKey = selectedId ?? LOCAL_KEY;
     cmdCache.current.set(currentKey, startCmd);
 
@@ -56,6 +59,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
       let cmd = s.default_start_cmd;
       if (activeRepo) {
         const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch(() => null);
+        if (gen !== selectGenRef.current) return; // stale fetch — discard
         cmd = lastCmd ?? s.default_start_cmd;
       }
       onStartCmdChange(cmd);

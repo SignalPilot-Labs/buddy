@@ -23,6 +23,7 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
     if (!runId) { setLines([]); setFilter(""); return; }
     setLines([]);
     setFilter("");
+    setAutoScroll(true);
     setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [runId, refresh]);

@@ -73,6 +73,8 @@ export function RemoteSandboxForm({
   const [testError, setTestError] = useState<string | null>(null);
 
   const update = (patch: Partial<SandboxFormData>): void => {
+    setTestResult(null);
+    setTestError(null);
     onChange({ ...data, ...patch });
   };
 
