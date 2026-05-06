@@ -38,7 +38,6 @@ from utils.constants import (
 log = logging.getLogger("sandbox_client.docker_local")
 
 _RING_BUFFER_SIZE: int = 100
-_FALLBACK_HEALTH_TIMEOUT: int = 5
 
 
 class _LogDrainer(threading.Thread):
@@ -207,11 +206,11 @@ class DockerLocalBackend(SandboxBackend):
             return None
         if run_key in self._clients:
             return self._clients[run_key]
-        container_name = f"autofyn-sandbox-{run_key}"
-        url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(url, _FALLBACK_HEALTH_TIMEOUT, self._client_timeout, sandbox_secret=None, extra_headers=None)
-        self._clients[run_key] = client
-        return client
+        log.warning(
+            "run_key %s is in _containers but has no cached client — state inconsistency",
+            run_key,
+        )
+        return None
 
     async def get_logs(self, run_key: str, tail: int) -> list[str]:
         """Return last N lines from the ring buffer."""

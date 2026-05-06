@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.client import SandboxClient
 from sandbox_client.models import SandboxInstance
 
 
@@ -41,27 +42,33 @@ class TestSandboxPoolClientCache:
         result = backend.get_client("no-such-key")
         assert result is None
 
-    def test_get_client_returns_same_instance_on_second_call(self) -> None:
-        """get_client() must return the cached SandboxClient, not a new one."""
+    def test_get_client_returns_same_cached_instance_on_second_call(self) -> None:
+        """get_client() must return the same cached SandboxClient on repeated calls."""
         backend = _make_backend()
         backend._containers["key1"] = "fake-container-id"
+        mock_client = MagicMock(spec=SandboxClient)
+        backend._clients["key1"] = mock_client  # type: ignore[assignment]
 
-        secret = "test-secret"
-        with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": secret}):
-            client_a = backend.get_client("key1")
-            client_b = backend.get_client("key1")
+        client_a = backend.get_client("key1")
+        client_b = backend.get_client("key1")
 
-        assert client_a is client_b
+        assert client_a is mock_client
+        assert client_b is mock_client
 
-    def test_get_client_caches_client_in_dict(self) -> None:
-        """After get_client(), _clients must contain the run_key."""
+    def test_get_client_returns_none_when_container_but_no_client(self) -> None:
+        """get_client() must return None if _containers has the key but _clients does not.
+
+        The old fallback silently created an unchecked client here. The new
+        behaviour returns None so the caller can handle the inconsistency.
+        """
         backend = _make_backend()
         backend._containers["key1"] = "fake-container-id"
 
         with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "test-secret"}):
-            backend.get_client("key1")
+            result = backend.get_client("key1")
 
-        assert "key1" in backend._clients
+        assert result is None
+        assert "key1" not in backend._clients
 
     @pytest.mark.asyncio
     async def test_destroy_closes_cached_client(self) -> None:

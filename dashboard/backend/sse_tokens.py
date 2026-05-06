@@ -35,7 +35,7 @@ def validate_sse_token(token: str) -> bool:
     if expiry is None:
         return False
     if time.time() > expiry:
-        del _tokens[token]
+        _tokens.pop(token, None)
         return False
     return True
 
@@ -45,4 +45,4 @@ def _prune_expired() -> None:
     now = time.time()
     expired = [tok for tok, exp in _tokens.items() if now > exp]
     for tok in expired:
-        del _tokens[tok]
+        _tokens.pop(tok, None)

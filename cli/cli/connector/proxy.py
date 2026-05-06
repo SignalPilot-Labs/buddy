@@ -45,9 +45,13 @@ async def handle_proxy(
                 },
             )
             await response.prepare(request)
-            async for chunk in resp.aiter_bytes():
-                await response.write(chunk)
-            await response.write_eof()
+            try:
+                async for chunk in resp.aiter_bytes():
+                    await response.write(chunk)
+            except httpx.HTTPError as exc:
+                log.warning("Upstream error while streaming response for %s: %s", run_key, exc)
+            finally:
+                await response.write_eof()
             return response
 
 
