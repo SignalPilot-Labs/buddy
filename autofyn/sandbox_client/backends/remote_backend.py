@@ -180,9 +180,17 @@ class RemoteBackend(SandboxBackend):
         return handle, events
 
     async def destroy(self, handle: SandboxInstance) -> None:
-        """Stop a remote sandbox via the connector."""
+        """Stop a remote sandbox via the connector.
+
+        Timeouts are logged but not raised — the sandbox may already be
+        gone (Slurm job ended, SSH tunnel closed). A timeout during
+        cleanup must not mask a successful run.
+        """
         self._handles.pop(handle.run_key, None)
-        await self._stop_remote_sandbox(handle.run_key)
+        try:
+            await self._stop_remote_sandbox(handle.run_key)
+        except (httpx.TimeoutException, httpx.ConnectError) as exc:
+            log.warning("Sandbox %s destroy timed out (likely already gone): %s", handle.run_key, exc)
 
     async def destroy_all(self) -> None:
         """Tear down all managed remote sandboxes."""
