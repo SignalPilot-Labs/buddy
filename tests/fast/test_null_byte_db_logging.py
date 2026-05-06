@@ -11,8 +11,6 @@ log_tool_call_idempotent swallows DB errors instead of propagating.
 
 import json
 
-import pytest
-
 from utils.db_logging import _strip_null_bytes
 
 
