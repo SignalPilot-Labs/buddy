@@ -168,10 +168,10 @@ export function RemoteSandboxes(): React.ReactElement {
       )}
 
       <p className="mt-2 text-content text-text-dim">
-        Pull the image on your remote first:
+        Setup (run once on the remote):
       </p>
       <CodeBlock
-        code="mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
+        code="source /etc/profile && module load apptainer && mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
         className="mt-1"
       />
     </div>
