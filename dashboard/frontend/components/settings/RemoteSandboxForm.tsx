@@ -266,7 +266,7 @@ export function RemoteSandboxForm({
             update({ default_start_cmd: v });
             setCmdManuallyEdited(true);
           }}
-          placeholder={data.type === "docker" ? DOCKER_PLACEHOLDER : undefined}
+          placeholder={data.type === "docker" ? DOCKER_PLACEHOLDER : ""}
           rows={3}
         />
       </FormField>
