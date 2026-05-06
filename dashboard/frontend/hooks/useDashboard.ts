@@ -221,6 +221,7 @@ export function useDashboard(): DashboardState {
       else localStorage.removeItem("sp_improve_active_repo");
     } catch {}
     sseRef.current.disconnect();
+    selectGenRef.current += 1;
     setSelectedRunId(null);
     setSelectedRun(null);
     setHistoryEventsRef.current([]);

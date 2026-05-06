@@ -112,55 +112,6 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const prevOpenRef = useRef(open);
 
-  // Reset all local form state when modal transitions from closed to open.
-  // This ensures a fresh form each time the user opens the modal, regardless
-  // of how it was left during a previous session.
-  useEffect(() => {
-    const wasOpen = prevOpenRef.current;
-    prevOpenRef.current = open;
-    if (!wasOpen && open) {
-      setCustomPrompt("");
-      setBudget(0);
-      setDuration(0);
-      setBaseBranch(DEFAULT_BASE_BRANCH);
-      setSelectedQuick(null);
-      setEffort(DEFAULT_EFFORT);
-      setEnvText("");
-      setMounts([]);
-      setMcpText("");
-      setStartCmd(DEFAULT_DOCKER_START_CMD);
-      setSelectedSandboxId(null);
-      submittingRef.current = false;
-      setSubmitting(false);
-      setEnvError(null);
-      setMountError(null);
-      setMcpError(null);
-      setMountsLoading(false);
-    }
-  }, [open]);
-
-  // Restore last-used sandbox and its start command per repo.
-  // Runs when remoteSandboxes loads (async), which has the latest
-  // default_start_cmd from the database — even if user just changed it
-  // in Settings.
-  useEffect(() => {
-    if (!open || !activeRepo || remoteSandboxes.length === 0) return;
-    try {
-      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
-      if (!saved) return;
-      const sandbox = remoteSandboxes.find((s) => s.id === saved);
-      if (!sandbox) {
-        // Sandbox was deleted — clear stale selection.
-        localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
-        return;
-      }
-      setSelectedSandboxId(saved);
-      fetchLastStartCmd(saved, activeRepo)
-        .catch(() => null)
-        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
-    } catch { /* ignore */ }
-  }, [open, activeRepo, remoteSandboxes]);
-
   const adjustPromptHeight = useCallback((): void => {
     const el = textareaRef.current;
     if (!el) return;
@@ -189,6 +140,60 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     }
   }, [activeRepo]);
 
+  // Reset all local form state when modal transitions from closed to open.
+  // This ensures a fresh form each time the user opens the modal, regardless
+  // of how it was left during a previous session.
+  useEffect(() => {
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!wasOpen && open) {
+      setCustomPrompt("");
+      setBudget(0);
+      setDuration(0);
+      setBaseBranch(DEFAULT_BASE_BRANCH);
+      setSelectedQuick(null);
+      setEffort(DEFAULT_EFFORT);
+      setEnvText("");
+      setMounts([]);
+      setMcpText("");
+      setStartCmd(DEFAULT_DOCKER_START_CMD);
+      setSelectedSandboxId(null);
+      submittingRef.current = false;
+      setSubmitting(false);
+      setEnvError(null);
+      setMountError(null);
+      setMcpError(null);
+      setMountsLoading(false);
+      // Load local-Docker mounts immediately on open. If a remote sandbox is
+      // restored asynchronously (restoration effect), it will overwrite these
+      // with remote mounts for the correct sandbox.
+      if (activeRepo) void loadMountsForSandbox(null);
+    }
+  }, [open, activeRepo, loadMountsForSandbox]);
+
+  // Restore last-used sandbox and its start command per repo.
+  // Runs when remoteSandboxes loads (async), which has the latest
+  // default_start_cmd from the database — even if user just changed it
+  // in Settings.
+  useEffect(() => {
+    if (!open || !activeRepo || remoteSandboxes.length === 0) return;
+    try {
+      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
+      if (!saved) return;
+      const sandbox = remoteSandboxes.find((s) => s.id === saved);
+      if (!sandbox) {
+        // Sandbox was deleted — clear stale selection.
+        localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
+        return;
+      }
+      setSelectedSandboxId(saved);
+      void loadMountsForSandbox(saved);
+      fetchLastStartCmd(saved, activeRepo)
+        .catch(() => null)
+        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
+    } catch { /* ignore */ }
+  }, [open, activeRepo, remoteSandboxes, loadMountsForSandbox]);
+
   useEffect(() => { adjustPromptHeight(); }, [customPrompt, adjustPromptHeight]);
 
   useEffect(() => {
@@ -202,12 +207,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       }).catch(() => setEnvError("Failed to load environment variables"));
-      loadMountsForSandbox(selectedSandboxId);
       fetchRepoMcpServers(activeRepo).then((servers) => {
         setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
       }).catch(() => setMcpError("Failed to load MCP servers"));
     }
-  }, [open, activeRepo, loadMountsForSandbox]);
+  }, [open, activeRepo]);
 
   useEffect(() => { if (open) setTimeout(() => textareaRef.current?.focus(), 150); }, [open]);
 

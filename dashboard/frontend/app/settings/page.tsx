@@ -45,12 +45,15 @@ function DefaultModelSetting(): React.ReactElement {
   const [modelSaveError, setModelSaveError] = useState<string | null>(null);
 
   const handleSelect = async (id: ModelId): Promise<void> => {
+    const previousModel = selectedModel;
     setSelectedModel(id);
     setModelSaveError(null);
     saveStoredModel(id);
     try {
       await updateSettings({ default_model: id });
     } catch (e) {
+      setSelectedModel(previousModel);
+      saveStoredModel(previousModel);
       setModelSaveError(e instanceof Error ? e.message : "Failed to save model preference");
     }
   };
