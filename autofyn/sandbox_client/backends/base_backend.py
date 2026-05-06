@@ -57,11 +57,21 @@ class SandboxBackend(ABC):
 
     @staticmethod
     def parse_ready_marker(line: str) -> dict[str, Any] | None:
-        """Parse AF_READY JSON from a log line. Returns None if not a marker."""
+        """Parse AF_READY JSON from a log line. Returns None if not a marker.
+
+        Validates that the marker contains the required keys (host, port,
+        secret). Raises ValueError if any are missing so callers get a clear
+        error instead of a KeyError deep in sandbox setup.
+        """
         match = MARKER_RE.search(line)
         if not match:
             return None
         data: dict[str, Any] = json.loads(match.group(2))
+        missing = [k for k in ("host", "port", "secret") if k not in data]
+        if missing:
+            raise ValueError(
+                f"AF_READY marker missing required keys {missing}: {line[:200]}"
+            )
         return data
 
     @staticmethod

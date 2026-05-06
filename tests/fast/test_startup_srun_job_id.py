@@ -34,7 +34,7 @@ class TestSrunJobIdExtraction:
         """srun: job NNNN queued → queued event with backend_id."""
         proc = _make_process([
             "srun: job 13303020 queued and waiting for resources",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -47,7 +47,7 @@ class TestSrunJobIdExtraction:
         """srun: job NNNN has been allocated → queued event with backend_id."""
         proc = _make_process([
             "srun: job 99999 has been allocated resources",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -61,7 +61,7 @@ class TestSrunJobIdExtraction:
         proc = _make_process([
             "srun: job 111 queued and waiting for resources",
             "srun: job 111 has been allocated resources",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -74,7 +74,7 @@ class TestSrunJobIdExtraction:
         """Without srun output, no queued event is emitted."""
         proc = _make_process([
             "some other log line",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -87,7 +87,7 @@ class TestSrunJobIdExtraction:
         proc = _make_process([
             "srun: job 42 queued and waiting for resources",
             "srun: job 42 has been allocated resources",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -102,7 +102,7 @@ class TestSrunJobIdExtraction:
         """Log events should still be emitted for srun lines."""
         proc = _make_process([
             "srun: job 555 queued and waiting for resources",
-            'AF_READY {"host":"node1","port":8080}',
+            'AF_READY {"host":"node1","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@host")]
 
@@ -119,7 +119,7 @@ class TestAfBoundNotPromoted:
         """AF_BOUND should be emitted as a log event, not ready."""
         proc = _make_process([
             'AF_BOUND {"port":8080}',
-            'AF_READY {"host":"node3108","port":8080}',
+            'AF_READY {"host":"node3108","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@loginnode")]
 
@@ -139,7 +139,7 @@ class TestAfBoundNotPromoted:
             "srun: job 123 queued and waiting for resources",
             "srun: job 123 has been allocated resources",
             'AF_BOUND {"port":8080}',
-            'AF_READY {"host":"compute-7","port":8080}',
+            'AF_READY {"host":"compute-7","port":8080,"secret":"s"}',
         ])
         events = [e async for e in _stream_events(proc, "user@loginnode")]
 

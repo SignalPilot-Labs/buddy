@@ -113,11 +113,15 @@ def _parse_marker(match: re.Match[str], ssh_target: str) -> dict[str, Any]:
         return {"event": "log", "line": f"AF_BOUND port={marker_data['port']}"}
 
     if marker_name == AF_READY_MARKER:
+        missing = [k for k in ("host", "port", "secret") if k not in marker_data]
+        if missing:
+            log.error("AF_READY from %s missing required keys %s", ssh_target, missing)
+            return {"event": "log", "line": f"AF_READY missing keys {missing}"}
         event: dict[str, Any] = {
             "event": "ready",
             "host": marker_data["host"],
             "port": marker_data["port"],
-            "sandbox_secret": marker_data.get("secret"),
+            "sandbox_secret": marker_data["secret"],
         }
         if "backend_id" in marker_data:
             event["backend_id"] = marker_data["backend_id"]
