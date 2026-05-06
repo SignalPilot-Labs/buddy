@@ -620,6 +620,15 @@ input[type="range"].range-slider::-moz-range-track {
   }
 }
 
+/* ── Hidden-scrollbar utility (highlight overlay in CodeTextarea) ── */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Sidebar scrollbar override ── */
 .sidebar-scroll {
   scrollbar-width: thin;
