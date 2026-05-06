@@ -4,6 +4,7 @@
 
 import { clsx } from "clsx";
 import CodeTextarea from "@/components/ui/CodeTextarea";
+import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { fetchLastStartCmd } from "@/lib/api";
 
@@ -17,6 +18,8 @@ interface SandboxPickerProps {
 }
 
 export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
+  const selectedSandbox = sandboxes.find((s) => s.id === selectedId) ?? null;
+
   return (
     <div className="space-y-2">
       <div className="flex gap-1.5 flex-wrap">
@@ -57,7 +60,14 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
           </button>
         ))}
       </div>
-      {selectedId !== null && (
+      {selectedId !== null && selectedSandbox?.type === "slurm" && (
+        <SlurmFieldsCard
+          key={selectedId}
+          startCmd={startCmd}
+          onStartCmdChange={onStartCmdChange}
+        />
+      )}
+      {selectedId !== null && selectedSandbox?.type !== "slurm" && (
         <div>
           <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">Start Command</label>
           <CodeTextarea

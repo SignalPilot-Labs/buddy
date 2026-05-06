@@ -2,11 +2,12 @@
 
 /**Inline form for creating or editing a remote sandbox configuration.*/
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import { IconX } from "@/components/ui/icons";
+import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
 
@@ -17,49 +18,6 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
 
 const DOCKER_PLACEHOLDER =
   "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
-
-interface SlurmFields {
-  partition: string;
-  cpus: string;
-  memory: string;
-  gpu_gres: string;
-  work_dir: string;
-}
-
-const EMPTY_SLURM: SlurmFields = {
-  partition: "",
-  cpus: "",
-  memory: "",
-  gpu_gres: "",
-  work_dir: "",
-};
-
-function buildSlurmCmd(s: SlurmFields): string {
-  const gres = s.gpu_gres.trim() ? ` --gres=gpu:${s.gpu_gres.trim()}` : "";
-  const nv = s.gpu_gres.trim() ? " --nv" : "";
-  const partition = s.partition.trim() || "PARTITION";
-  const cpus = s.cpus.trim() || "CPUS";
-  const mem = s.memory.trim() || "MEMORY";
-  const workDir = s.work_dir.trim() || "WORK_DIR";
-  return (
-    `source /etc/profile && module load apptainer && ` +
-    `srun --job-name=autofyn -p ${partition} -n 1 --cpus-per-task=${cpus} --mem=${mem}${gres} ` +
-    `bash -c 'W=${workDir}/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && ` +
-    `apptainer exec${nv} --overlay $W --pwd /opt/autofyn -B $HOME ${workDir}/autofyn/sandbox.sif python3 -m server; rm -rf $W'`
-  );
-}
-
-function parseSlurmCmd(cmd: string): SlurmFields | null {
-  if (!cmd.includes("srun") || !cmd.includes("apptainer")) return null;
-  const partition = cmd.match(/-p\s+(\S+)/)?.[1] ?? "";
-  const cpus = cmd.match(/--cpus-per-task=(\S+)/)?.[1] ?? "";
-  const memory = cmd.match(/--mem=(\S+)/)?.[1] ?? "";
-  const gresMatch = cmd.match(/--gres=gpu:(\S+)/);
-  const gpu_gres = gresMatch?.[1] ?? "";
-  const workDirMatch = cmd.match(/W=(\S+?)\/autofyn\/runs/);
-  const work_dir = workDirMatch?.[1] ?? "";
-  return { partition, cpus, memory, gpu_gres, work_dir };
-}
 
 interface RemoteSandboxFormProps {
   data: SandboxFormData;
@@ -116,19 +74,9 @@ export function RemoteSandboxForm({
   const [testResult, setTestResult] = useState<TestSandboxResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
 
-  const initialSlurm = data.type === "slurm" && data.default_start_cmd
-    ? parseSlurmCmd(data.default_start_cmd) ?? EMPTY_SLURM
-    : EMPTY_SLURM;
-  const [slurm, setSlurm] = useState<SlurmFields>(initialSlurm);
   const update = (patch: Partial<SandboxFormData>): void => {
     onChange({ ...data, ...patch });
   };
-
-  const updateSlurm = useCallback((patch: Partial<SlurmFields>): void => {
-    const next = { ...slurm, ...patch };
-    setSlurm(next);
-    update({ default_start_cmd: buildSlurmCmd(next), work_dir: next.work_dir });
-  }, [slurm, data]);
 
   const handleSubmit = (): void => {
     void onSave(data);
@@ -187,11 +135,10 @@ export function RemoteSandboxForm({
               type="button"
               onClick={() => {
                 if (t.value === "slurm") {
-                  update({ type: t.value, default_start_cmd: buildSlurmCmd(slurm) });
+                  update({ type: t.value, default_start_cmd: data.default_start_cmd });
                 } else {
                   update({ type: t.value, default_start_cmd: "" });
                 }
-
               }}
               className={clsx(
                 "px-3 py-1 rounded-full text-content transition-all",
@@ -206,70 +153,23 @@ export function RemoteSandboxForm({
         </div>
       </FormField>
 
-      {data.type === "slurm" && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Partition" required>
-              <input
-                type="text"
-                value={slurm.partition}
-                onChange={(e) => updateSlurm({ partition: e.target.value })}
-                placeholder="gpu, normal, etc."
-                className={INPUT_CLASS}
-              />
-            </FormField>
-            <FormField label="AutoFyn Work Directory" required>
-              <input
-                type="text"
-                value={slurm.work_dir}
-                onChange={(e) => updateSlurm({ work_dir: e.target.value })}
-                placeholder="~/scratch"
-                className={INPUT_CLASS}
-              />
-            </FormField>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <FormField label="CPUs" required>
-              <input
-                type="text"
-                value={slurm.cpus}
-                onChange={(e) => updateSlurm({ cpus: e.target.value })}
-                placeholder="4"
-                className={INPUT_CLASS}
-              />
-            </FormField>
-            <FormField label="Memory" required>
-              <input
-                type="text"
-                value={slurm.memory}
-                onChange={(e) => updateSlurm({ memory: e.target.value })}
-                placeholder="16G"
-                className={INPUT_CLASS}
-              />
-            </FormField>
-            <FormField label="GPU" hint="Leave blank for no GPU.">
-              <input
-                type="text"
-                value={slurm.gpu_gres}
-                onChange={(e) => updateSlurm({ gpu_gres: e.target.value })}
-                placeholder="a100:2"
-                className={INPUT_CLASS}
-              />
-            </FormField>
-          </div>
-        </>
-      )}
-
-      <FormField label="Start Command" hint={data.type === "slurm" ? "Auto-generated from fields above. Edit directly for custom flags." : undefined}>
-        <CodeTextarea
-          value={data.default_start_cmd}
-          onChange={(v) => {
-            update({ default_start_cmd: v });
-          }}
-          placeholder={data.type === "docker" ? DOCKER_PLACEHOLDER : ""}
-          rows={5}
+      {data.type === "slurm" ? (
+        <SlurmFieldsCard
+          key="slurm"
+          startCmd={data.default_start_cmd}
+          onStartCmdChange={(cmd) => update({ default_start_cmd: cmd })}
+          onWorkDirChange={(wd) => update({ work_dir: wd })}
         />
-      </FormField>
+      ) : (
+        <FormField label="Start Command">
+          <CodeTextarea
+            value={data.default_start_cmd}
+            onChange={(v) => update({ default_start_cmd: v })}
+            placeholder={DOCKER_PLACEHOLDER}
+            rows={5}
+          />
+        </FormField>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Startup Timeout (s)" hint="Max wait for sandbox to be ready.">
