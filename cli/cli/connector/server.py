@@ -402,7 +402,7 @@ class ConnectorServer:
         await kill_process_group(state.tunnel_process)
 
         if state.work_dir and state.sandbox_type == "slurm":
-            overlay_path = f"{state.work_dir}/autofyn_runs/{run_key}"
+            overlay_path = f"{state.work_dir}/autofyn/runs/{run_key}"
             rm_cmd = f"rm -rf {_quote_slurm_path(overlay_path)}"
             try:
                 proc = await run_ssh_command(state.ssh_target, rm_cmd, {})

@@ -44,19 +44,19 @@ function buildSlurmCmd(s: SlurmFields): string {
   return (
     `source /etc/profile && module load apptainer && ` +
     `srun --job-name=autofyn -p ${partition} -n 1 --cpus-per-task=${cpus} --mem=${mem}${gres} ` +
-    `bash -c 'W=${workDir}/autofyn_runs/$AF_RUN_KEY && mkdir -p $W && ` +
-    `apptainer exec${nv} --overlay $W --pwd /opt/autofyn -B $HOME ~/.autofyn/sandbox.sif python3 -m server; rm -rf $W'`
+    `bash -c 'W=${workDir}/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && ` +
+    `apptainer exec${nv} --overlay $W --pwd /opt/autofyn -B $HOME ${workDir}/autofyn/sandbox.sif python3 -m server; rm -rf $W'`
   );
 }
 
 function parseSlurmCmd(cmd: string): SlurmFields | null {
   if (!cmd.includes("srun") || !cmd.includes("apptainer")) return null;
   const partition = cmd.match(/-p\s+(\S+)/)?.[1] ?? "";
-  const cpus = cmd.match(/--cpus-per-task=(\S+)/)?.[1] ?? "4";
-  const memory = cmd.match(/--mem=(\S+)/)?.[1] ?? "16G";
+  const cpus = cmd.match(/--cpus-per-task=(\S+)/)?.[1] ?? "";
+  const memory = cmd.match(/--mem=(\S+)/)?.[1] ?? "";
   const gresMatch = cmd.match(/--gres=gpu:(\S+)/);
   const gpu_gres = gresMatch?.[1] ?? "";
-  const workDirMatch = cmd.match(/W=(\S+?)\/autofyn_runs/);
+  const workDirMatch = cmd.match(/W=(\S+?)\/autofyn\/runs/);
   const work_dir = workDirMatch?.[1] ?? "";
   return { partition, cpus, memory, gpu_gres, work_dir };
 }
