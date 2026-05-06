@@ -37,6 +37,8 @@ Slurm sandboxes need a writable directory for temporary run files (cloned repos,
 ssh user@remote "mkdir -p ~/scratch/autofyn_runs"
 ```
 
+If a run is killed hard (SIGKILL, node crash), its subdirectory may not be cleaned up. Leftover directories in `autofyn_runs/` are from past runs and can be safely deleted.
+
 Use any fast, high-capacity storage your cluster provides (scratch, local SSD, etc.). Avoid home directories — they're usually small and backed up.
 
 ### 3. Ensure SSH access
