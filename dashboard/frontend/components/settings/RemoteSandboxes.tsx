@@ -175,7 +175,7 @@ export function RemoteSandboxes(): React.ReactElement {
         Setup (run once on the remote):
       </p>
       <CodeBlock
-        code="source /etc/profile && module load apptainer && mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
+        code="source /etc/profile && module load apptainer && mkdir -p ~/scratch/autofyn && apptainer pull ~/scratch/autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
         className="mt-1"
       />
     </div>
