@@ -109,9 +109,12 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [startCmd, setStartCmd] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Restore last-used sandbox and its start command per repo
+  // Restore last-used sandbox and its start command per repo.
+  // Runs when remoteSandboxes loads (async), which has the latest
+  // default_start_cmd from the database — even if user just changed it
+  // in Settings.
   useEffect(() => {
-    if (!open || !activeRepo) return;
+    if (!open || !activeRepo || remoteSandboxes.length === 0) return;
     try {
       const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
       if (!saved) return;
@@ -120,9 +123,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       if (!sandbox) return;
       fetchLastStartCmd(saved, activeRepo)
         .catch(() => null)
-        .then((lastCmd) => {
-          setStartCmd((prev) => prev || lastCmd || sandbox.default_start_cmd);
-        });
+        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
     } catch { /* ignore */ }
   }, [open, activeRepo, remoteSandboxes]);
 
