@@ -12,7 +12,7 @@ from typing import Any
 
 import httpx
 
-from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
+from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SANDBOX_STOP_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 from sandbox_client.backends.base_backend import SandboxBackend
 from sandbox_client.models import SandboxStartError
 from sandbox_client.models import SandboxInstance
@@ -84,7 +84,7 @@ class RemoteBackend(SandboxBackend):
 
     async def _stop_remote_sandbox(self, run_key: str) -> None:
         """POST /sandboxes/stop to connector."""
-        timeout = httpx.Timeout(SSH_CONNECT_TIMEOUT_SEC)
+        timeout = httpx.Timeout(SANDBOX_STOP_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
                 f"{self._connector_url}/sandboxes/stop",
