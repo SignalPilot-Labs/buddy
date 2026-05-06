@@ -34,6 +34,7 @@ class RemoteBackend(SandboxBackend):
         ssh_target: str,
         sandbox_type: str,
         heartbeat_timeout: int,
+        work_dir: str,
     ) -> None:
         """Initialize the remote backend with connector connection details."""
         self._connector_url = connector_url
@@ -42,6 +43,7 @@ class RemoteBackend(SandboxBackend):
         self._ssh_target = ssh_target
         self._sandbox_type = sandbox_type
         self._heartbeat_timeout = heartbeat_timeout
+        self._work_dir = work_dir
         self._handles: dict[str, SandboxInstance] = {}
 
     def _connector_headers(self) -> dict[str, str]:
@@ -62,6 +64,7 @@ class RemoteBackend(SandboxBackend):
             "sandbox_type": self._sandbox_type,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
+            "work_dir": self._work_dir,
         }
         timeout = httpx.Timeout(SANDBOX_QUEUE_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:

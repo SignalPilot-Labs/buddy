@@ -19,6 +19,7 @@ export interface SandboxFormData {
   default_start_cmd: string;
   queue_timeout: number;
   heartbeat_timeout: number;
+  work_dir: string;
 }
 
 const EMPTY_FORM: SandboxFormData = {
@@ -28,6 +29,7 @@ const EMPTY_FORM: SandboxFormData = {
   default_start_cmd: "",
   queue_timeout: 1800,
   heartbeat_timeout: 1800,
+  work_dir: "",
 };
 
 function formFromConfig(s: RemoteSandboxConfig): SandboxFormData {
@@ -38,6 +40,7 @@ function formFromConfig(s: RemoteSandboxConfig): SandboxFormData {
     default_start_cmd: s.default_start_cmd,
     queue_timeout: s.queue_timeout,
     heartbeat_timeout: s.heartbeat_timeout,
+    work_dir: s.work_dir,
   };
 }
 

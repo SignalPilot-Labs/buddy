@@ -24,6 +24,7 @@ def _make_backend() -> RemoteBackend:
         ssh_target="user@hpc",
         sandbox_type="slurm",
         heartbeat_timeout=60,
+        work_dir="~/scratch",
     )
 
 

@@ -461,6 +461,7 @@ export interface RemoteSandboxConfig {
   default_start_cmd: string;
   queue_timeout: number;
   heartbeat_timeout: number;
+  work_dir: string;
 }
 
 export interface TestSandboxResult {

@@ -66,6 +66,7 @@ class TestResolveBackendRemote:
             "type": "slurm",
             "ssh_target": "user@hpc.example.com",
             "heartbeat_timeout": 3600,
+            "work_dir": "~/scratch",
         }
 
         with patch(
@@ -84,6 +85,7 @@ class TestResolveBackendRemote:
             ssh_target="user@hpc.example.com",
             sandbox_type="slurm",
             heartbeat_timeout=3600,
+            work_dir="~/scratch",
         )
         assert result is backend_instance
 
@@ -97,6 +99,7 @@ class TestResolveBackendRemote:
             "type": "docker",
             "ssh_target": "user@remote-server.example.com",
             "heartbeat_timeout": 1800,
+            "work_dir": "",
         }
 
         with patch(
@@ -115,6 +118,7 @@ class TestResolveBackendRemote:
             ssh_target="user@remote-server.example.com",
             sandbox_type="docker",
             heartbeat_timeout=1800,
+            work_dir="",
         )
         assert result is backend_instance
 

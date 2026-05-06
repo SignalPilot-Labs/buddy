@@ -128,7 +128,7 @@ export function RemoteSandboxForm({
     const next = { ...slurm, ...patch };
     setSlurm(next);
     setCmdManuallyEdited(false);
-    update({ default_start_cmd: buildSlurmCmd(next) });
+    update({ default_start_cmd: buildSlurmCmd(next), work_dir: next.work_dir });
   }, [slurm, data]);
 
   const handleSubmit = (): void => {

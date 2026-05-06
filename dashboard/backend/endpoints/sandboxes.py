@@ -49,6 +49,7 @@ class RemoteSandboxConfig(BaseModel):
     default_start_cmd: str = Field(min_length=START_CMD_MIN_LEN, max_length=START_CMD_MAX_LEN)
     queue_timeout: int = Field(ge=QUEUE_TIMEOUT_MIN, le=QUEUE_TIMEOUT_MAX)
     heartbeat_timeout: int = Field(ge=HEARTBEAT_TIMEOUT_MIN, le=HEARTBEAT_TIMEOUT_MAX)
+    work_dir: str = Field(max_length=4096)
 
     @field_validator("ssh_target")
     @classmethod
@@ -72,6 +73,7 @@ class RemoteSandboxResponse(BaseModel):
     default_start_cmd: str
     queue_timeout: int
     heartbeat_timeout: int
+    work_dir: str
 
 
 class RemoteMountEntry(BaseModel):
@@ -106,6 +108,10 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
     """Parse a Setting row into a RemoteSandboxResponse."""
     sandbox_id = setting.key.removeprefix(REMOTE_SANDBOX_KEY_PREFIX)
     raw: dict[str, str | int] = json.loads(setting.value)
+    required_keys = ("name", "ssh_target", "type", "default_start_cmd", "queue_timeout", "heartbeat_timeout", "work_dir")
+    missing = [k for k in required_keys if k not in raw]
+    if missing:
+        raise ValueError(f"Sandbox {sandbox_id} config missing required fields: {', '.join(missing)}")
     return RemoteSandboxResponse(
         id=sandbox_id,
         name=str(raw["name"]),
@@ -114,6 +120,7 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
         default_start_cmd=str(raw["default_start_cmd"]),
         queue_timeout=int(raw["queue_timeout"]),
         heartbeat_timeout=int(raw["heartbeat_timeout"]),
+        work_dir=str(raw["work_dir"]),
     )
 
 
@@ -126,6 +133,7 @@ def _config_to_dict(body: RemoteSandboxConfig) -> dict[str, str | int]:
         "default_start_cmd": body.default_start_cmd,
         "queue_timeout": body.queue_timeout,
         "heartbeat_timeout": body.heartbeat_timeout,
+        "work_dir": body.work_dir,
     }
 
 

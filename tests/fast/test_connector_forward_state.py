@@ -16,6 +16,7 @@ class TestForwardState:
             start_process=None,
             sandbox_secret="secret",
             backend_id=None,
+            work_dir="~/scratch",
         )
         for i in range(200):
             state.log_buffer.append(f"line {i}")

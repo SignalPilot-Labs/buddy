@@ -19,6 +19,7 @@ class ForwardState:
     start_process: asyncio.subprocess.Process | None
     sandbox_secret: str
     backend_id: str | None
+    work_dir: str
     log_buffer: collections.deque[str] = field(
         default_factory=lambda: collections.deque(maxlen=RING_BUFFER_MAX_LINES)
     )

@@ -207,6 +207,7 @@ class ConnectorServer:
         heartbeat_timeout: int = body.get(
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
+        work_dir: str = body.get("work_dir", "")
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
@@ -246,7 +247,7 @@ class ConnectorServer:
         try:
             state = await self._create_forward_state(
                 run_key, ssh_target, sandbox_type,
-                ready_event, events, process,
+                ready_event, events, process, work_dir,
             )
         except Exception:
             await kill_process_group(process)
@@ -294,6 +295,7 @@ class ConnectorServer:
         ready_event: dict[str, Any],
         events: list[dict[str, Any]],
         process: asyncio.subprocess.Process,
+        work_dir: str,
     ) -> ForwardState:
         """Open SSH tunnel and build ForwardState."""
         remote_host: str = ready_event["host"]
@@ -327,6 +329,7 @@ class ConnectorServer:
             start_process=process if sandbox_type == "slurm" else None,
             sandbox_secret=sandbox_secret,
             backend_id=backend_id,
+            work_dir=work_dir,
             log_buffer=collections.deque(maxlen=RING_BUFFER_MAX_LINES),
         )
 
@@ -397,6 +400,16 @@ class ConnectorServer:
             await kill_process_group(state.start_process)
 
         await kill_process_group(state.tunnel_process)
+
+        if state.work_dir and state.sandbox_type == "slurm":
+            overlay_path = f"{state.work_dir}/autofyn_runs/{run_key}"
+            rm_cmd = f"rm -rf {_quote_slurm_path(overlay_path)}"
+            try:
+                proc = await run_ssh_command(state.ssh_target, rm_cmd, {})
+                await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+                log.info("Cleaned up overlay %s on %s", overlay_path, state.ssh_target)
+            except Exception as exc:
+                log.warning("Overlay cleanup failed for %s: %s", run_key, exc)
 
         log.info("Destroyed sandbox %s", run_key)
 

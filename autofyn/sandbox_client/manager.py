@@ -173,6 +173,7 @@ class SandboxManager:
             ssh_target=str(config["ssh_target"]),
             sandbox_type=str(config["type"]),
             heartbeat_timeout=int(config["heartbeat_timeout"]),
+            work_dir=str(config["work_dir"]),
         )
         self._remote_backends[sandbox_id] = backend
         return backend
