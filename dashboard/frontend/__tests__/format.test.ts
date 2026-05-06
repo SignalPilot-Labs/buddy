@@ -61,8 +61,8 @@ describe("formatCost", () => {
 // formatTokens
 // ---------------------------------------------------------------------------
 describe("formatTokens", () => {
-  it("returns '0' for null", () => {
-    expect(formatTokens(null)).toBe("0");
+  it("returns '—' for null", () => {
+    expect(formatTokens(null)).toBe("—");
   });
 
   it("returns '0' for 0", () => {

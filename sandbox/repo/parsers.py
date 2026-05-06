@@ -45,8 +45,8 @@ def parse_numstat(raw: str, status_map: dict[str, str]) -> list[dict]:
         path = normalize_rename_path(parts[2])
         results.append({
             "path": path,
-            "added": int(parts[0]) if parts[0] != "-" else 0,
-            "removed": int(parts[1]) if parts[1] != "-" else 0,
+            "added": int(parts[0]) if parts[0].isdigit() else 0,
+            "removed": int(parts[1]) if parts[1].isdigit() else 0,
             "status": status_map.get(path, "modified"),
         })
     return results

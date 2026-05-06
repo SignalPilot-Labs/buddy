@@ -212,6 +212,29 @@ describe("extractBashCommands", () => {
     expect(result[0].exitOk).toBe(false);
     expect(result[0].output).toMatch(/^\[stderr\]/);
   });
+
+  it("exitOk true when exit_code is 0 even with stderr (e.g. git push warnings)", () => {
+    const tools = [
+      makeToolCall({
+        input_data: { command: "git push", description: "" },
+        output_data: { stderr: "remote: warning: large file", stdout: "", exit_code: 0 },
+      }),
+    ];
+    const result = extractBashCommands(tools);
+    expect(result[0].exitOk).toBe(true);
+    expect(result[0].output).toMatch(/^\[stderr\]/);
+  });
+
+  it("exitOk false when exit_code is non-zero even without stderr", () => {
+    const tools = [
+      makeToolCall({
+        input_data: { command: "false", description: "" },
+        output_data: { stderr: "", stdout: "", exit_code: 1 },
+      }),
+    ];
+    const result = extractBashCommands(tools);
+    expect(result[0].exitOk).toBe(false);
+  });
 });
 
 /* ── milestone detail rendering ── */

@@ -152,6 +152,23 @@ class TestParseNumstat:
         assert result[1] == {"path": "src/b.ts", "added": 50, "removed": 0, "status": "added"}
         assert result[2] == {"path": "src/c.ts", "added": 0, "removed": 15, "status": "deleted"}
 
+    def test_non_numeric_values_default_to_zero(self) -> None:
+        """Non-numeric, non-'-' content (e.g. encoding corruption) must not raise ValueError."""
+        result = parse_numstat(
+            "abc\t123\tfile.ts",
+            {"file.ts": "modified"},
+        )
+        assert result == [{"path": "file.ts", "added": 0, "removed": 123, "status": "modified"}]
+
+    def test_empty_values_default_to_zero(self) -> None:
+        """Empty first field among valid lines must not raise ValueError."""
+        raw = "10\t2\tsrc/a.ts\n\t5\tsrc/b.ts\n3\t1\tsrc/c.ts"
+        result = parse_numstat(raw, {"src/a.ts": "modified", "src/b.ts": "modified", "src/c.ts": "modified"})
+        b_entry = next((e for e in result if e["path"] == "src/b.ts"), None)
+        assert b_entry is not None
+        assert b_entry["added"] == 0
+        assert b_entry["removed"] == 5
+
 
 class TestParseNumstatWithRename:
     """Integration tests for parse_numstat + parse_name_status with renames.
