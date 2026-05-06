@@ -79,12 +79,19 @@ export function EventFeed({
     return null;
   }, [grouped]);
 
-  // Track how many events were seen when user scrolled away
+  // Track how many events were seen when user scrolled away.
+  // If events.length drops below seenCount (run switch, clear, filter)
+  // while user is scrolled away, reset seenCount to avoid drift where
+  // newEventCount = events.length - seenCount would be negative/zero
+  // even though new events have arrived since the clear.
   useEffect(() => {
     if (!userScrolled) {
       setSeenCount(events.length);
+    } else if (events.length < seenCount) {
+      // Events cleared/filtered while scrolled away — reset to avoid drift
+      setSeenCount(events.length);
     }
-  }, [userScrolled, events.length]);
+  }, [userScrolled, events.length, seenCount]);
 
   useEffect(() => {
     if (autoScroll && containerRef.current?.scrollTo) {
