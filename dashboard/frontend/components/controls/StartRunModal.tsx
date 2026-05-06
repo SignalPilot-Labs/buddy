@@ -14,7 +14,7 @@ import { McpServersEditor } from "@/components/controls/McpServersEditor";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox, fetchLastStartCmd } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 
 export interface StartRunModalProps {
@@ -109,14 +109,20 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [startCmd, setStartCmd] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Restore last-used sandbox per repo
+  // Restore last-used sandbox and its start command per repo
   useEffect(() => {
     if (!open || !activeRepo) return;
     try {
       const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
-      if (saved) setSelectedSandboxId(saved);
+      if (!saved) return;
+      setSelectedSandboxId(saved);
+      const sandbox = remoteSandboxes.find((s) => s.id === saved);
+      if (!sandbox) return;
+      fetchLastStartCmd(saved, activeRepo)
+        .catch(() => null)
+        .then((lastCmd) => setStartCmd(lastCmd ?? sandbox.default_start_cmd));
     } catch { /* ignore */ }
-  }, [open, activeRepo]);
+  }, [open, activeRepo, remoteSandboxes]);
 
   const adjustPromptHeight = useCallback((): void => {
     const el = textareaRef.current;

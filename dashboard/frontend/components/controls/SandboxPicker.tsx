@@ -2,7 +2,6 @@
 
 "use client";
 
-import { useEffect } from "react";
 import { clsx } from "clsx";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import type { RemoteSandboxConfig } from "@/lib/api";
@@ -18,19 +17,6 @@ interface SandboxPickerProps {
 }
 
 export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
-  // Populate startCmd when selectedId is restored from localStorage (no click happened)
-  useEffect(() => {
-    if (!selectedId || startCmd) return;
-    const sandbox = sandboxes.find((s) => s.id === selectedId);
-    if (!sandbox) return;
-    if (activeRepo) {
-      fetchLastStartCmd(selectedId, activeRepo)
-        .catch(() => null)
-        .then((lastCmd) => onStartCmdChange(lastCmd ?? sandbox.default_start_cmd));
-    } else {
-      onStartCmdChange(sandbox.default_start_cmd);
-    }
-  }, [selectedId, sandboxes]);
 
   return (
     <div className="space-y-2">
