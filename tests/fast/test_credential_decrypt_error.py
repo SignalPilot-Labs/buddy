@@ -40,10 +40,19 @@ def _make_setting(key: str, value: str, encrypted: bool) -> MagicMock:
 
 
 def _make_session_ctx(get_map: dict[str, MagicMock | None]) -> Any:
-    """Return an async context manager that yields a session whose .get() uses get_map."""
+    """Return an async context manager that yields a session whose .get() uses get_map.
+
+    Also stubs .execute() so that SELECT...FOR UPDATE queries (used by
+    read_token_pool with for_update=True) correctly return the value from
+    get_map for "claude_tokens".
+    """
     session_mock = AsyncMock()
     session_mock.get = AsyncMock(side_effect=lambda model, key: get_map.get(key))
     session_mock.commit = AsyncMock()
+
+    execute_result = MagicMock()
+    execute_result.scalar_one_or_none.return_value = get_map.get("claude_tokens")
+    session_mock.execute = AsyncMock(return_value=execute_result)
 
     @asynccontextmanager
     async def ctx():

@@ -152,6 +152,22 @@ class AgentServer:
                 return r
         raise HTTPException(status_code=409, detail="No run in progress")
 
+    def check_and_reserve_run(self, run_id: str) -> ActiveRun:
+        """Atomically check capacity and reserve a slot for the given run_id.
+
+        Creates and registers an ActiveRun before any async operations begin,
+        closing the TOCTOU window between ensure_capacity and register_run.
+        Raises HTTPException(409) if at capacity.
+        """
+        if self.active_count() >= max_concurrent_runs():
+            raise HTTPException(
+                status_code=409,
+                detail=f"Max concurrent runs ({max_concurrent_runs()}) reached",
+            )
+        active = ActiveRun(run_id=run_id)
+        self._runs[run_id] = active
+        return active
+
     def register_run(self, active: ActiveRun) -> None:
         """Insert a new ActiveRun into the in-process registry."""
         if active.run_id is None:
