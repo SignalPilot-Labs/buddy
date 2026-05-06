@@ -248,7 +248,7 @@ export function RemoteSandboxForm({
                 className={INPUT_CLASS}
               />
             </FormField>
-            <FormField label="GPU">
+            <FormField label="GPU" hint="Leave blank for no GPU.">
               <input
                 type="text"
                 value={slurm.gpu_gres}
