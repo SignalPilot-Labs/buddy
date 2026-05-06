@@ -113,8 +113,8 @@ describe("CSS lint", () => {
       // Modal titles — must be text-title
       ["components/controls/StartRunModal.tsx", /h2 className="text-\w+ font-semibold text-text"/, "text-title", "StartRunModal title"],
       ["components/onboarding/OnboardingModal.tsx", /h2 className="text-\w+ font-semibold text-text"/, "text-title", "OnboardingModal title"],
-      // Settings section headers — must be text-title
-      ["app/settings/page.tsx", /font-semibold text-accent-hover uppercase/, "text-title", "settings section header"],
+      // Settings section headers — must use text-content with font-semibold
+      ["app/settings/page.tsx", /font-semibold text-accent-hover/, "text-content", "settings section label"],
       // Sidebar
       ["components/sidebar/RunList.tsx", /h2 className="text-\w+ font-bold text-text-muted"/, "text-body", "RunList header"],
       ["components/sidebar/RunItem.tsx", /font-medium truncate flex-1/, "text-body", "RunItem title"],

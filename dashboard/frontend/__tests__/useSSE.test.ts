@@ -7,6 +7,13 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+
+vi.mock("@/lib/api", () => ({
+  fetchSseToken: vi.fn().mockResolvedValue("fake-token"),
+  createSSE: vi.fn((...args: unknown[]) => new (globalThis.EventSource as unknown as new (url: string) => unknown)(`http://fake/sse?run=${args[0]}`)),
+  pollEvents: vi.fn().mockResolvedValue({ events: [] }),
+}));
+
 import { useSSE } from "@/hooks/useSSE";
 
 class FakeEventSource {
@@ -69,13 +76,13 @@ describe("useSSE stale-run guard", () => {
     vi.unstubAllGlobals();
   });
 
-  it("drops events from a superseded connection after switching runs", () => {
+  it("drops events from a superseded connection after switching runs", async () => {
     const onRunEnded = vi.fn();
     const { result } = renderHook(() => useSSE(onRunEnded));
 
     // Connect to run A
-    act(() => {
-      result.current.connect("run-a", { afterTool: 0, afterAudit: 0 });
+    await act(async () => {
+      await result.current.connect("run-a", { afterTool: 0, afterAudit: 0 });
     });
     const sseA = FakeEventSource.instances[0];
     expect(sseA).toBeDefined();
@@ -87,8 +94,8 @@ describe("useSSE stale-run guard", () => {
     });
     expect(result.current.connected).toBe(true);
 
-    act(() => {
-      result.current.connect("run-b", { afterTool: 0, afterAudit: 0 });
+    await act(async () => {
+      await result.current.connect("run-b", { afterTool: 0, afterAudit: 0 });
     });
     const sseB = FakeEventSource.instances[1];
     expect(sseB).toBeDefined();

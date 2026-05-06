@@ -16,8 +16,8 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
 ];
 
 const START_CMD_PLACEHOLDERS: Record<string, string> = {
-  docker: "source /etc/profile && docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable",
-  slurm: "source /etc/profile && module load apptainer && srun --job-name=autofyn -p PARTITION -n 1 -c 4 --mem=4G apptainer exec --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server",
+  docker: "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable",
+  slurm: "source /etc/profile && module load apptainer && srun --job-name=autofyn -p PARTITION -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn_runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME ~/.autofyn/sandbox.sif python3 -m server; rm -rf $W'",
 };
 
 interface RemoteSandboxFormProps {
