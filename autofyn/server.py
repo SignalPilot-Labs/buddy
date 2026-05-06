@@ -128,14 +128,6 @@ class AgentServer:
         """Count non-terminal runs (includes starting/running/paused)."""
         return sum(1 for r in self._runs.values() if r.status in ACTIVE_RUN_STATUSES)
 
-    def ensure_capacity(self) -> None:
-        """Raise 409 if max concurrent runs reached."""
-        if self.active_count() >= max_concurrent_runs():
-            raise HTTPException(
-                status_code=409,
-                detail=f"Max concurrent runs ({max_concurrent_runs()}) reached",
-            )
-
     def get_run_or_first(self, run_id: str | None) -> ActiveRun:
         """Look up a specific run or the first running run."""
         if run_id:
@@ -151,6 +143,22 @@ class AgentServer:
                 )
                 return r
         raise HTTPException(status_code=409, detail="No run in progress")
+
+    def check_and_reserve_run(self, run_id: str) -> ActiveRun:
+        """Atomically check capacity and reserve a slot for the given run_id.
+
+        Creates and registers an ActiveRun before any async operations begin,
+        closing the TOCTOU window between ensure_capacity and register_run.
+        Raises HTTPException(409) if at capacity.
+        """
+        if self.active_count() >= max_concurrent_runs():
+            raise HTTPException(
+                status_code=409,
+                detail=f"Max concurrent runs ({max_concurrent_runs()}) reached",
+            )
+        active = ActiveRun(run_id=run_id)
+        self._runs[run_id] = active
+        return active
 
     def register_run(self, active: ActiveRun) -> None:
         """Insert a new ActiveRun into the in-process registry."""

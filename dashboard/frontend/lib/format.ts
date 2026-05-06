@@ -1,5 +1,7 @@
 export function timeAgo(date: string): string {
-  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  const ms = Date.now() - new Date(date).getTime();
+  if (Number.isNaN(ms)) return "—";
+  const s = Math.max(0, Math.floor(ms / 1000));
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
@@ -12,7 +14,7 @@ export function formatCost(usd: number | null): string {
 }
 
 export function formatTokens(n: number | null): string {
-  if (n === null) return "0";
+  if (n === null) return "—";
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
   return n.toString();

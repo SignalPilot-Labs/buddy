@@ -59,11 +59,14 @@ export function extractBashCommands(tools: ToolCall[]): Array<{
     const desc = (input.description as string) || "";
     const stdout = (output.stdout as string) || "";
     const stderr = (output.stderr as string) || "";
+    const exitCode = output.exit_code as number | undefined;
+    const exitOk =
+      exitCode === 0 || (exitCode === undefined && !stderr);
     return {
       cmd: cmd || desc,
       desc,
       output: stderr ? `[stderr] ${stderr}\n${stdout}` : stdout,
-      exitOk: !stderr,
+      exitOk,
       duration: tc.duration_ms || 0,
     };
   });

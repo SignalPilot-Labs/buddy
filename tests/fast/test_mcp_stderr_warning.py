@@ -7,19 +7,31 @@ stub it before importing Session.
 
 from __future__ import annotations
 
+import os
+import pathlib
 import subprocess
 import sys
 import textwrap
 
 
-def _run_mcp_test(test_code: str) -> None:
-    """Run a test snippet in a subprocess to avoid module pollution."""
-    script = textwrap.dedent("""
+_REPO_ROOT = str(pathlib.Path(__file__).parent.parent.parent)
+_SANDBOX_DIR = _REPO_ROOT + "/sandbox"
+
+_STUB_HEADER = textwrap.dedent("""
     import sys, asyncio
     from unittest.mock import AsyncMock, MagicMock
 
-    # Stub only the Claude SDK
-    sys.modules["claude_agent_sdk"] = MagicMock()
+    # Stub the Claude SDK with real exception classes so except clauses work
+    class _ClaudeSDKError(Exception):
+        pass
+
+    class _CLIConnectionError(_ClaudeSDKError):
+        pass
+
+    sdk_stub = MagicMock()
+    sdk_stub.ClaudeSDKError = _ClaudeSDKError
+    sdk_stub.CLIConnectionError = _CLIConnectionError
+    sys.modules["claude_agent_sdk"] = sdk_stub
     sys.modules["claude_agent_sdk.types"] = MagicMock()
 
     from sdk.session import Session
@@ -31,18 +43,23 @@ def _run_mcp_test(test_code: str) -> None:
         return list(s.event_log._events)
 
     async def _test():
-    """) + textwrap.indent(test_code, "        ") + textwrap.dedent("""
+""")
+
+_STUB_FOOTER = textwrap.dedent("""
 
     asyncio.run(_test())
     print("PASS")
-    """)
-    repo_root = str(__import__("pathlib").Path(__file__).parent.parent.parent)
-    sandbox_dir = repo_root + "/sandbox"
-    env = {**__import__("os").environ, "PYTHONPATH": sandbox_dir + ":" + repo_root}
+""")
+
+
+def _run_mcp_test(test_code: str) -> None:
+    """Run a test snippet in a subprocess to avoid module pollution."""
+    script = _STUB_HEADER + textwrap.indent(test_code, "        ") + _STUB_FOOTER
+    env = {**os.environ, "PYTHONPATH": _SANDBOX_DIR + ":" + _REPO_ROOT}
     result = subprocess.run(
         [sys.executable, "-c", script],
         capture_output=True, text=True, timeout=10,
-        cwd=sandbox_dir, env=env,
+        cwd=_SANDBOX_DIR, env=env,
     )
     if result.returncode != 0:
         raise AssertionError(f"Test failed:\nstdout: {result.stdout}\nstderr: {result.stderr}")
@@ -96,13 +113,28 @@ assert "a" in events[0].data["message"]
 assert "c" in events[1].data["message"]
 """)
 
-    def test_get_mcp_status_exception_swallowed(self) -> None:
+    def test_cli_connection_error_swallowed(self) -> None:
+        """CLIConnectionError (SDK-expected failure) must be silently swallowed."""
         _run_mcp_test("""
 s = _make_session()
 client = AsyncMock()
-client.get_mcp_status = AsyncMock(side_effect=RuntimeError("not supported"))
+client.get_mcp_status = AsyncMock(side_effect=_CLIConnectionError("not connected"))
 await s._check_mcp_status(client)
 assert len(_drain_events(s)) == 0
+""")
+
+    def test_attribute_error_propagates(self) -> None:
+        """AttributeError (programming error) must not be silently swallowed."""
+        _run_mcp_test("""
+s = _make_session()
+client = AsyncMock()
+client.get_mcp_status = AsyncMock(side_effect=AttributeError("no attribute"))
+raised = False
+try:
+    await s._check_mcp_status(client)
+except AttributeError:
+    raised = True
+assert raised, "AttributeError should have propagated but was swallowed"
 """)
 
     def test_empty_mcp_servers_no_warning(self) -> None:

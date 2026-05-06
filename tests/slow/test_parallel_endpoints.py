@@ -19,7 +19,6 @@ def mock_server():
     server = MagicMock()
     server.runs.return_value = {}
     server.active_count.return_value = 0
-    server.ensure_capacity = MagicMock()
     return server
 
 

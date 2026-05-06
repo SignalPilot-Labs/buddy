@@ -225,7 +225,7 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
     The current index is tracked in 'claude_token_index'. Legacy single-token
     entries are auto-migrated into the pool by read_token_pool().
     """
-    tokens = await read_token_pool(s)
+    tokens = await read_token_pool(s, for_update=True)
     if not tokens:
         return None
     idx_row = await s.get(Setting, "claude_token_index")
@@ -240,9 +240,19 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 # Token pool CRUD
 # ---------------------------------------------------------------------------
 
-async def read_token_pool(s: AsyncSession) -> list[str]:
-    """Read the decrypted token pool."""
-    pool = await s.get(Setting, "claude_tokens")
+async def read_token_pool(s: AsyncSession, for_update: bool) -> list[str]:
+    """Read the decrypted token pool.
+
+    When for_update=True, acquires a row-level lock (SELECT ... FOR UPDATE)
+    to prevent concurrent read-modify-write races during pool mutations.
+    Pass for_update=True in any caller that modifies the pool after reading.
+    """
+    if for_update:
+        stmt = select(Setting).where(Setting.key == "claude_tokens").with_for_update()
+        result = await s.execute(stmt)
+        pool = result.scalar_one_or_none()
+    else:
+        pool = await s.get(Setting, "claude_tokens")
     if pool:
         try:
             decrypted = crypto.decrypt(pool.value, MASTER_KEY_PATH)
@@ -268,7 +278,7 @@ async def _write_token_pool(s: AsyncSession, tokens: list[str]) -> None:
 async def add_token_to_pool(raw_token: str) -> dict:
     """Add a Claude token to the pool. Rejects duplicates."""
     async with session() as s:
-        tokens = await read_token_pool(s)
+        tokens = await read_token_pool(s, for_update=True)
         if raw_token in tokens:
             raise ValueError("This token is already in the pool")
         tokens.append(raw_token)
@@ -280,12 +290,13 @@ async def add_token_to_pool(raw_token: str) -> dict:
 async def list_pool_tokens() -> list[dict]:
     """List all tokens in the pool (masked)."""
     async with session() as s:
-        tokens = await read_token_pool(s)
+        tokens = await read_token_pool(s, for_update=False)
         idx_row = await s.get(Setting, "claude_token_index")
+        idx_value: str | None = idx_row.value if idx_row else None
     if not tokens:
         return []
-    has_used = idx_row is not None
-    active_idx = (int(idx_row.value) - 1) % len(tokens) if has_used else -1
+    has_used = idx_value is not None
+    active_idx = (int(idx_value) - 1) % len(tokens) if has_used else -1
     return [
         {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": has_used and i == active_idx}
         for i, t in enumerate(tokens)
@@ -295,7 +306,7 @@ async def list_pool_tokens() -> list[dict]:
 async def remove_token_from_pool(index: int) -> dict:
     """Remove a token by index. Adjusts round-robin index to avoid skipping."""
     async with session() as s:
-        tokens = await read_token_pool(s)
+        tokens = await read_token_pool(s, for_update=True)
         if index < 0 or index >= len(tokens):
             raise ValueError(f"Index {index} out of range (pool has {len(tokens)} tokens)")
         tokens.pop(index)
