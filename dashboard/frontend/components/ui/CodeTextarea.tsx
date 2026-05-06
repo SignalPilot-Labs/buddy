@@ -50,6 +50,7 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
       <pre
         ref={preRef}
         aria-hidden
+        dangerouslySetInnerHTML={{ __html: html }}
         className={`absolute inset-0 overflow-auto pointer-events-none border-transparent no-scrollbar ${SHARED} [&_pre]:!bg-transparent [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_code]:!bg-transparent [&_code]:!font-mono [&_code]:!text-[length:inherit] [&_code]:!leading-[inherit] [&_code]:!p-0 [&_code]:!m-0`}
       />
       {/* Editable textarea — transparent text so highlight shows through, visible caret */}

@@ -7,7 +7,7 @@ import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import { IconX } from "@/components/ui/icons";
-import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
+import { SlurmFieldsCard, buildSlurmCmd, EMPTY_SLURM } from "@/components/ui/SlurmFieldsCard";
 import { DEFAULT_REMOTE_DOCKER_CMD } from "@/lib/constants";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
@@ -132,11 +132,10 @@ export function RemoteSandboxForm({
               key={t.value}
               type="button"
               onClick={() => {
-                if (t.value === "slurm") {
-                  update({ type: t.value, default_start_cmd: data.default_start_cmd });
-                } else {
-                  update({ type: t.value, default_start_cmd: DEFAULT_REMOTE_DOCKER_CMD });
-                }
+                const cmd = t.value === "slurm"
+                  ? buildSlurmCmd(EMPTY_SLURM)
+                  : DEFAULT_REMOTE_DOCKER_CMD;
+                update({ type: t.value, default_start_cmd: cmd });
               }}
               className={clsx(
                 "px-3 py-1 rounded-full text-content transition-all",
