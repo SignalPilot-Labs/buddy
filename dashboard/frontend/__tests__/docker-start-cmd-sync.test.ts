@@ -20,8 +20,7 @@ describe("DEFAULT_DOCKER_START_CMD sync", () => {
       "--cap-add SYS_ADMIN",
       "--security-opt apparmor:unconfined",
       "autofyn-repo-$AF_RUN_KEY:/home/agentuser/repo:rw",
-      "$AF_DOCKER_EXTRA_VOLUMES",
-      "$AF_DOCKER_EXTRA_ENV",
+      "$AF_HOST_MOUNTS",
       "ghcr.io/signalpilot-labs/autofyn-sandbox:$AF_IMAGE_TAG",
     ];
 
@@ -42,7 +41,6 @@ describe("DEFAULT_DOCKER_START_CMD sync", () => {
     expect(PY_SRC).toContain("SANDBOX_POOL_NETWORK");
     expect(PY_SRC).toContain("$AF_RUN_KEY");
     expect(PY_SRC).toContain("$AF_IMAGE_TAG");
-    expect(PY_SRC).toContain("$AF_DOCKER_EXTRA_VOLUMES");
-    expect(PY_SRC).toContain("$AF_DOCKER_EXTRA_ENV");
+    expect(PY_SRC).toContain("$AF_HOST_MOUNTS");
   });
 });

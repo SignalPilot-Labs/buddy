@@ -25,8 +25,6 @@ from utils.constants import (
     DOCKER_SOCKET_PATH,
     ENV_KEY_ALLOW_DOCKER,
     ENV_KEY_IMAGE_TAG,
-    ENV_KEY_SANDBOX_SECRET,
-    SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE_BASE,
     SANDBOX_POOL_NETWORK,
@@ -45,8 +43,7 @@ DEFAULT_DOCKER_START_CMD: str = (
     " --cap-add SYS_PTRACE --cap-add SYS_ADMIN"
     " --security-opt apparmor:unconfined"
     " -v autofyn-repo-$AF_RUN_KEY:/home/agentuser/repo:rw"
-    " $AF_DOCKER_EXTRA_VOLUMES"
-    " $AF_DOCKER_EXTRA_ENV"
+    " $AF_HOST_MOUNTS"
     f" {SANDBOX_POOL_IMAGE_BASE}:$AF_IMAGE_TAG"
 )
 
@@ -69,7 +66,6 @@ class DockerLocalBackend(SandboxBackend):
         cfg = sandbox_config()
         self._client_timeout: int = cfg["vm_timeout_sec"]
         self._health_timeout: int = cfg["health_timeout_sec"]
-        self._sandbox_secret: str = os.environ[ENV_KEY_SANDBOX_SECRET]
         self._image_tag: str = os.environ[ENV_KEY_IMAGE_TAG]
         log.info(
             "DockerLocalBackend image: %s:%s",
@@ -83,17 +79,15 @@ class DockerLocalBackend(SandboxBackend):
         host_mounts: list[dict[str, str]] | None,
     ) -> dict[str, str]:
         """Build shell env vars for the start command subprocess."""
-        extra_volumes = self._compute_volume_flags(host_mounts)
-        extra_env = self._compute_env_flags()
+        mount_flags = self._compute_mount_flags(host_mounts)
         return {
             **os.environ,
             "AF_RUN_KEY": run_key,
             "AF_IMAGE_TAG": self._image_tag,
-            "AF_DOCKER_EXTRA_VOLUMES": extra_volumes,
-            "AF_DOCKER_EXTRA_ENV": extra_env,
+            "AF_HOST_MOUNTS": mount_flags,
         }
 
-    def _compute_volume_flags(
+    def _compute_mount_flags(
         self,
         host_mounts: list[dict[str, str]] | None,
     ) -> str:
@@ -112,16 +106,6 @@ class DockerLocalBackend(SandboxBackend):
                     continue
                 parts.append(f"-v {host_path}:{container_path}:{mode}")
                 log.info("Host mount: %s -> %s (%s)", host_path, container_path, mode)
-        return " ".join(parts)
-
-    def _compute_env_flags(self) -> str:
-        """Build -e flags for container env passthrough."""
-        parts: list[str] = []
-        parts.append("-e GIT_TERMINAL_PROMPT=0")
-        for key in SANDBOX_POOL_ENV_PASSTHROUGH:
-            val = os.environ.get(key, "")
-            if val:
-                parts.append(f"-e {key}={val}")
         return " ".join(parts)
 
     async def create(
@@ -150,7 +134,7 @@ class DockerLocalBackend(SandboxBackend):
 
         self._start_log_drainer(run_key, proc)
 
-        extracted_secret = ready_data.get("secret", self._sandbox_secret)
+        extracted_secret: str = ready_data["secret"]
         url = f"http://{container_name}:{ready_port}"
 
         try:

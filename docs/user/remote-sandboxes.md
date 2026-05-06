@@ -77,13 +77,13 @@ source /etc/profile && docker run --rm --network=host -e AF_SANDBOX_PORT=0 ghcr.
 ### Slurm / Apptainer
 
 ```bash
-source /etc/profile && module load apptainer && srun --job-name=autofyn -p my_partition -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p my_partition -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME $AF_HOST_MOUNTS ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
 ```
 
 With GPU access:
 
 ```bash
-source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 --cpus-per-task=4 --mem=16G --gres=gpu:1 bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --nv --overlay $W --pwd /opt/autofyn -B $HOME ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 --cpus-per-task=4 --mem=16G --gres=gpu:1 bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --nv --overlay $W --pwd /opt/autofyn -B $HOME $AF_HOST_MOUNTS ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
 ```
 
 > **Note:** The sandbox generates its own authentication secret at startup and transmits it back to the connector over the encrypted SSH stdout pipe. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command, SSH command-line arguments, or Slurm job metadata.

@@ -1,8 +1,8 @@
 """Regression test: mount-related env vars must not appear in SSH cmdline args.
 
-Verifies that run_ssh_command() passes AF_HOST_MOUNTS_JSON, AF_APPTAINER_BINDS,
-AF_DOCKER_VOLUMES, AF_RUN_KEY, and AF_HEARTBEAT_TIMEOUT via stdin (not as
-command-line arguments), preventing exposure via `ps aux` on shared HPC systems.
+Verifies that run_ssh_command() passes AF_HOST_MOUNTS_JSON, AF_HOST_MOUNTS,
+AF_RUN_KEY, and AF_HEARTBEAT_TIMEOUT via stdin (not as command-line arguments),
+preventing exposure via `ps aux` on shared HPC systems.
 """
 
 from unittest.mock import MagicMock, patch
@@ -12,8 +12,7 @@ import pytest
 
 SENSITIVE_ENV_KEYS = [
     "AF_HOST_MOUNTS_JSON",
-    "AF_APPTAINER_BINDS",
-    "AF_DOCKER_VOLUMES",
+    "AF_HOST_MOUNTS",
     "AF_RUN_KEY",
     "AF_HEARTBEAT_TIMEOUT",
 ]
@@ -21,8 +20,7 @@ SENSITIVE_ENV_KEYS = [
 SAMPLE_ENV = {
     "AF_RUN_KEY": "run-abc",
     "AF_HOST_MOUNTS_JSON": '[{"host_path": "/data", "container_path": "/mnt/data", "mode": "ro"}]',
-    "AF_APPTAINER_BINDS": "-B /data:/mnt/data:ro",
-    "AF_DOCKER_VOLUMES": "-v /data:/mnt/data:ro",
+    "AF_HOST_MOUNTS": "-v /data:/mnt/data:ro",
     "AF_HEARTBEAT_TIMEOUT": "120",
 }
 

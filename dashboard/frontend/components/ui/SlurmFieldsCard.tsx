@@ -32,7 +32,7 @@ export function buildSlurmCmd(s: SlurmFields): string {
     `source /etc/profile && module load apptainer && ` +
     `srun --job-name=autofyn -p ${partition} -n 1 --cpus-per-task=${cpus} --mem=${mem}${gres} ` +
     `bash -c 'W=${workDir}/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && ` +
-    `apptainer exec${nv} --overlay $W --pwd /opt/autofyn -B $HOME ${workDir}/autofyn/sandbox.sif python3 -m server; rm -rf $W'`
+    `apptainer exec${nv} --overlay $W --pwd /opt/autofyn -B $HOME $AF_HOST_MOUNTS ${workDir}/autofyn/sandbox.sif python3 -m server; rm -rf $W'`
   );
 }
 
