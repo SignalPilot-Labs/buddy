@@ -240,7 +240,7 @@ async def _pick_next_claude_token(s: AsyncSession) -> str | None:
 # Token pool CRUD
 # ---------------------------------------------------------------------------
 
-async def read_token_pool(s: AsyncSession, for_update: bool = False) -> list[str]:
+async def read_token_pool(s: AsyncSession, for_update: bool) -> list[str]:
     """Read the decrypted token pool.
 
     When for_update=True, acquires a row-level lock (SELECT ... FOR UPDATE)
@@ -290,7 +290,7 @@ async def add_token_to_pool(raw_token: str) -> dict:
 async def list_pool_tokens() -> list[dict]:
     """List all tokens in the pool (masked)."""
     async with session() as s:
-        tokens = await read_token_pool(s)
+        tokens = await read_token_pool(s, for_update=False)
         idx_row = await s.get(Setting, "claude_token_index")
         idx_value: str | None = idx_row.value if idx_row else None
     if not tokens:

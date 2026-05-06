@@ -128,14 +128,6 @@ class AgentServer:
         """Count non-terminal runs (includes starting/running/paused)."""
         return sum(1 for r in self._runs.values() if r.status in ACTIVE_RUN_STATUSES)
 
-    def ensure_capacity(self) -> None:
-        """Raise 409 if max concurrent runs reached."""
-        if self.active_count() >= max_concurrent_runs():
-            raise HTTPException(
-                status_code=409,
-                detail=f"Max concurrent runs ({max_concurrent_runs()}) reached",
-            )
-
     def get_run_or_first(self, run_id: str | None) -> ActiveRun:
         """Look up a specific run or the first running run."""
         if run_id:

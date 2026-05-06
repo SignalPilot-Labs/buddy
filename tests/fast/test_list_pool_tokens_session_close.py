@@ -19,7 +19,7 @@ import pytest
 from backend.utils import list_pool_tokens
 
 
-def _make_session_expiring(idx_value: str | None, tokens: list[str]) -> MagicMock:
+def _make_session_expiring(idx_value: str | None) -> MagicMock:
     """Build an AsyncSession mock that simulates SQLAlchemy attribute expiry.
 
     After the session context manager exits, accessing .value on idx_row raises
@@ -44,7 +44,7 @@ class TestListPoolTokensSessionClose:
     async def test_value_read_inside_session_with_active_token(self) -> None:
         """idx_row.value must be read before session closes; result is correct."""
         tokens = ["sk-ant-tokenA", "sk-ant-tokenB", "sk-ant-tokenC"]
-        s = _make_session_expiring("2", tokens)
+        s = _make_session_expiring("2")
 
         with (
             patch("backend.utils.read_token_pool", new=AsyncMock(return_value=tokens)),
@@ -65,7 +65,7 @@ class TestListPoolTokensSessionClose:
     async def test_value_read_inside_session_no_idx_row(self) -> None:
         """When idx_row is None, idx_value must be None and no token is active."""
         tokens = ["sk-ant-tokenA", "sk-ant-tokenB"]
-        s = _make_session_expiring(None, tokens)
+        s = _make_session_expiring(None)
 
         with (
             patch("backend.utils.read_token_pool", new=AsyncMock(return_value=tokens)),
@@ -86,7 +86,7 @@ class TestListPoolTokensSessionClose:
         read after session close, the attribute would be expired and raise.
         """
         tokens = ["sk-ant-tokenA", "sk-ant-tokenB", "sk-ant-tokenC"]
-        s = _make_session_expiring("0", tokens)
+        s = _make_session_expiring("0")
 
         with (
             patch("backend.utils.read_token_pool", new=AsyncMock(return_value=tokens)),

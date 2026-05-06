@@ -61,7 +61,7 @@ async def settings_status() -> dict:
     """Check which credentials are configured."""
     async with session() as s:
         has: dict[str, bool] = {}
-        has["has_claude_token"] = bool(await read_token_pool(s))
+        has["has_claude_token"] = bool(await read_token_pool(s, for_update=False))
         for key in ("git_token", "github_repo"):
             has[f"has_{key}"] = (await s.get(Setting, key)) is not None
         has["configured"] = all(has.values())
