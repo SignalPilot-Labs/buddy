@@ -10,7 +10,6 @@ import { IconServer, IconPencil, IconPlus } from "@/components/ui/icons";
 import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
-import CodeBlock from "@/components/ui/CodeBlock";
 
 export interface SandboxFormData {
   name: string;
@@ -171,17 +170,6 @@ export function RemoteSandboxes(): React.ReactElement {
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
       )}
 
-      {sandboxes.length === 0 && (
-        <>
-          <p className="mt-2 text-content text-text-dim">
-            Slurm setup (run once on the remote):
-          </p>
-          <CodeBlock
-            code="source /etc/profile && module load apptainer && mkdir -p ~/scratch/autofyn && apptainer pull ~/scratch/autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
-            className="mt-1"
-          />
-        </>
-      )}
     </div>
   );
 }

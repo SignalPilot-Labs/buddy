@@ -47,7 +47,7 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
       <pre
         ref={preRef}
         aria-hidden
-        className="absolute inset-0 overflow-hidden pointer-events-none rounded border border-transparent px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words [&_pre]:!bg-transparent [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_code]:!bg-transparent [&_code]:!font-mono [&_code]:!text-[length:inherit] [&_code]:!leading-[inherit]"
+        className="absolute inset-0 overflow-auto pointer-events-none rounded border border-transparent px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words [&_pre]:!bg-transparent [&_pre]:!m-0 [&_pre]:!p-0 [&_pre]:!whitespace-pre-wrap [&_pre]:!break-words [&_code]:!bg-transparent [&_code]:!font-mono [&_code]:!text-[length:inherit] [&_code]:!leading-[inherit]"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {/* Editable textarea — transparent text, visible caret */}
@@ -59,7 +59,7 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
         placeholder={placeholder}
         rows={rows}
         spellCheck={false}
-        className="relative w-full bg-black/30 border border-border rounded px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+        className="relative w-full bg-black/20 border border-border rounded px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
         style={{ color: html ? "transparent" : undefined, caretColor: "#00ff88" }}
       />
     </div>
