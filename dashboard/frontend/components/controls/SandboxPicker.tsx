@@ -58,12 +58,15 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
         ))}
       </div>
       {selectedId !== null && (
-        <CodeTextarea
-          value={startCmd}
-          onChange={onStartCmdChange}
-          placeholder="Start command for remote sandbox..."
-          rows={3}
-        />
+        <div>
+          <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">Start Command</label>
+          <CodeTextarea
+            value={startCmd}
+            onChange={onStartCmdChange}
+            placeholder="Start command for remote sandbox..."
+            rows={4}
+          />
+        </div>
       )}
     </div>
   );
