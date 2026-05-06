@@ -102,7 +102,7 @@ describe("StartRunModal", () => {
     if (mountsButton) {
       await userEvent.click(mountsButton);
     }
-    expect(document.body.textContent).toContain("+ Add mount");
+    expect(document.body.textContent).toContain("Add Mount");
   });
 
   it("expanding a section reveals its content", async () => {
