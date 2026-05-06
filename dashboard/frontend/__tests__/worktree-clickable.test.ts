@@ -43,9 +43,11 @@ describe("WorkTree: file clickability", () => {
   });
 
   it("loading state has a back button to return to tree", () => {
-    // The loading state between selectedFile and diff body should have a back button
+    // The loading state between selectedFile and diff body should have a back button.
+    // Search window is 1100 chars to accommodate the "too large" message that now
+    // appears between the back button header and the spinner (BUG 14 fix).
     const loadingDiffIdx = WORKTREE_SRC.indexOf('aria-label="Loading diff"');
-    const precedingBlock = WORKTREE_SRC.slice(Math.max(0, loadingDiffIdx - 800), loadingDiffIdx);
+    const precedingBlock = WORKTREE_SRC.slice(Math.max(0, loadingDiffIdx - 1100), loadingDiffIdx);
     expect(precedingBlock).toContain("setSelectedFile(null)");
     expect(precedingBlock).toContain('aria-label="Back to file tree"');
   });

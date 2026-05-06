@@ -79,10 +79,19 @@ export function EventFeed({
     return null;
   }, [grouped]);
 
-  // Track how many events were seen when user scrolled away
+  // Track how many events were seen when user scrolled away.
+  // If events.length drops below seenCount (run switch, clear, filter)
+  // while user is scrolled away, reset seenCount to avoid drift where
+  // newEventCount = events.length - seenCount would be negative/zero
+  // even though new events have arrived since the clear.
+  // Uses functional updater to read seenCount without it in deps —
+  // avoids a feedback loop where setSeenCount triggers re-run.
   useEffect(() => {
+    const len = events.length;
     if (!userScrolled) {
-      setSeenCount(events.length);
+      setSeenCount(len);
+    } else {
+      setSeenCount((prev) => (len < prev ? len : prev));
     }
   }, [userScrolled, events.length]);
 

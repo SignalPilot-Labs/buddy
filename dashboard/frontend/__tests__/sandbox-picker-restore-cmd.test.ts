@@ -28,11 +28,11 @@ const PICKER_SRC = fs.readFileSync(
 
 describe("StartRunModal: populate startCmd on localStorage restore", () => {
   it("modal restores startCmd in the same effect that restores selectedSandboxId", () => {
-    // The effect that reads localStorage must also call fetchLastStartCmd
-    const restoreBlock = MODAL_SRC.slice(
-      MODAL_SRC.indexOf("Restore last-used sandbox"),
-      MODAL_SRC.indexOf("const adjustPromptHeight"),
-    );
+    // The effect that reads localStorage must also call fetchLastStartCmd.
+    // Boundary: from the "Restore last-used sandbox" comment to the fetchRemoteSandboxes effect.
+    const restoreStart = MODAL_SRC.indexOf("Restore last-used sandbox");
+    const restoreEnd = MODAL_SRC.indexOf("fetchRemoteSandboxes().then", restoreStart);
+    const restoreBlock = MODAL_SRC.slice(restoreStart, restoreEnd);
     expect(restoreBlock).toContain("localStorage.getItem");
     expect(restoreBlock).toContain("setSelectedSandboxId");
     expect(restoreBlock).toContain("fetchLastStartCmd");

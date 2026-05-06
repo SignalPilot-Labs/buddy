@@ -224,6 +224,8 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const [repoDiff, setRepoDiff] = useState<string | null>(null);
   const [tmpDiff, setTmpDiff] = useState<string | null>(null);
   const [diffTooLarge, setDiffTooLarge] = useState(false);
+  const [repoTooLarge, setRepoTooLarge] = useState(false);
+  const [tmpTooLarge, setTmpTooLarge] = useState(false);
   const [selectedFile, setSelectedFile] = useState<{ path: string; status: string } | null>(null);
 
   // Fetch diff bodies (repo + tmp). Extracted so both mount and poll
@@ -243,7 +245,10 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       const tmpSafe = tmpOversize ? null : (tmp || null);
       setRepoDiff(repoSafe);
       setTmpDiff(tmpSafe);
-      setDiffTooLarge((repoOversize || tmpOversize) && !repoSafe && !tmpSafe);
+      setRepoTooLarge(repoOversize);
+      setTmpTooLarge(tmpOversize);
+      // diffTooLarge: true when at least one source is oversize (for empty-state warning)
+      setDiffTooLarge(repoOversize || tmpOversize);
     });
   }, []);
 
@@ -254,11 +259,15 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
       setRepoDiff(null);
       setTmpDiff(null);
       setDiffTooLarge(false);
+      setRepoTooLarge(false);
+      setTmpTooLarge(false);
       return;
     }
     const gen = ++diffGenRef.current;
     setSelectedFile(null);
     setDiffTooLarge(false);
+    setRepoTooLarge(false);
+    setTmpTooLarge(false);
     setDiffLoading(true);
     fetchRunDiff(runId)
       .then(d => {
@@ -391,6 +400,12 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
   const diffForPath = (path: string): string | null =>
     path.startsWith("tmp/") ? tmpDiff : repoDiff;
 
+  // Returns true when the diff source for this path was truncated because
+  // it exceeded DIFF_MAX_BYTES — callers should show a "too large" message
+  // instead of a loading spinner (the diff will never arrive).
+  const isFileSourceTooLarge = (path: string): boolean =>
+    path.startsWith("tmp/") ? tmpTooLarge : repoTooLarge;
+
   // Always allow clicking files when the tree has content. Diff bodies
   // load async and may arrive after the tree renders — gating clicks on
   // body availability caused files to appear unclickable on first load.
@@ -434,7 +449,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
             onBack={() => setSelectedFile(null)}
           />
         ) : selectedFile !== null ? (
-          /* File selected but diff body still loading */
+          /* File selected but diff body still loading — or source is oversize */
           <div>
             <div className="flex items-center gap-2 px-2 py-2 border-b border-border shrink-0">
               <button
@@ -450,9 +465,15 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
                 {selectedFile.path}
               </span>
             </div>
-            <div className="flex items-center justify-center py-8" role="status" aria-label="Loading diff">
-              <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
-            </div>
+            {isFileSourceTooLarge(selectedFile.path) ? (
+              <div className="text-meta text-text-dim px-3 py-6 text-center" role="status" aria-label="Diff too large">
+                Diff too large to display — open the PR on GitHub instead
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8" role="status" aria-label="Loading diff">
+                <div className="h-4 w-4 rounded-full border-2 border-border-subtle border-t-[#00ff88]" style={{ animation: "spin 1s linear infinite" }} />
+              </div>
+            )}
           </div>
         ) : (
           <>

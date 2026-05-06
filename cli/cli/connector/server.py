@@ -95,6 +95,8 @@ class ConnectorServer:
         # Track every run we started so shutdown can clean orphaned dirs
         # even if the run crashed and was removed from _states.
         self._started_runs: dict[str, tuple[str, str, str]] = {}  # run_key -> (ssh_target, sandbox_type, work_dir)
+        # Track in-flight destroy tasks so shutdown can await them.
+        self._destroy_tasks: dict[str, asyncio.Task[None]] = {}
         self._app = web.Application(middlewares=[self._auth_middleware])
         self._register_routes()
 
@@ -342,18 +344,36 @@ class ConnectorServer:
         )
 
     async def _handle_stop(self, request: web.Request) -> web.Response:
-        """Stop a remote sandbox."""
+        """Acknowledge stop request and run destroy in the background.
+
+        Returns immediately with status=stopping. The agent only needs
+        the acknowledgment — cleanup (scancel, tunnel kill, overlay removal)
+        can take 30-60s and runs asynchronously.
+        """
         body: dict[str, Any] = await request.json()
         run_key: str = body["run_key"]
-        await self._destroy(run_key)
-        return web.json_response({"ok": True})
+        task = asyncio.create_task(self._tracked_destroy(run_key))
+        self._destroy_tasks[run_key] = task
+        task.add_done_callback(lambda _: self._destroy_tasks.pop(run_key, None))
+        return web.json_response({"ok": True, "status": "stopping"})
+
+    async def _tracked_destroy(self, run_key: str) -> None:
+        """Run _destroy with error logging for background execution."""
+        try:
+            await self._destroy(run_key)
+        except Exception as exc:
+            log.error("Destroy failed for %s: %s", run_key, exc)
 
     async def _handle_shutdown(self, request: web.Request) -> web.Response:
         """Gracefully stop all tracked sandboxes, then sweep remotes for orphans."""
-        keys = list(self._states.keys())
 
         async def _destroy_all() -> None:
-            for key in keys:
+            # Await any in-flight stop destroys first.
+            pending = list(self._destroy_tasks.values())
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            # Only destroy runs still in _states (not already handled above).
+            for key in list(self._states.keys()):
                 await self._destroy(key)
             await self._sweep_orphan_dirs()
 
