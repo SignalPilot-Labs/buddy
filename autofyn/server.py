@@ -257,25 +257,38 @@ class AgentServer:
         bootstrap: BootstrapResult | None,
         sandbox: SandboxClient | None,
     ) -> None:
-        """Emit the run_ended audit event and tear down the sandbox."""
+        """Emit the run_ended audit event and tear down the sandbox.
+
+        Called from a finally block — must never raise, otherwise it
+        masks the real run outcome (a completed run would look crashed).
+        """
         elapsed = (
             round(bootstrap.time_lock.elapsed_minutes(), 1)
             if bootstrap and bootstrap.time_lock
             else None
         )
-        await log_audit(
-            run_id,
-            "run_ended",
-            {
-                "status": active.status or terminal_status,
-                "elapsed_minutes": elapsed,
-            },
-        )
+        try:
+            await log_audit(
+                run_id,
+                "run_ended",
+                {
+                    "status": active.status or terminal_status,
+                    "elapsed_minutes": elapsed,
+                },
+            )
+        except Exception as exc:
+            log.error("Failed to log run_ended audit for %s: %s", run_id, exc)
         active.inbox = None
         active.time_lock = None
         if sandbox is not None:
-            await sandbox.close()
-        await self._pool.destroy(run_id)
+            try:
+                await sandbox.close()
+            except Exception as exc:
+                log.error("Failed to close sandbox client for %s: %s", run_id, exc)
+        try:
+            await self._pool.destroy(run_id)
+        except Exception as exc:
+            log.error("Failed to destroy sandbox for %s: %s", run_id, exc)
 
     async def _link_sandbox(self, run_id: str, sandbox_id: str | None) -> None:
         """Link run to its remote sandbox config, if any."""
