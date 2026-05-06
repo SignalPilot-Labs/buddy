@@ -6,15 +6,17 @@ By default, AutoFyn runs each sandbox in a local Docker container. Remote sandbo
 
 1. AutoFyn SSH-tunnels to the remote machine via the **connector** (a local process started automatically by `autofyn start`)
 2. Your **start command** runs on the remote — it launches the sandbox container/process
-3. The sandbox binds a port and prints `AF_BOUND port=8923`
-4. Once healthy, it prints `AF_READY host=<compute-node> port=8923`
+3. The sandbox binds a free port and prints `AF_BOUND port=<port>`
+4. Once healthy, it prints `AF_READY host=<compute-node> port=<port>`
 5. The connector establishes a reverse tunnel and proxies all traffic
 
 The agent talks to the remote sandbox exactly like a local one — same HTTP API, same security.
 
 ## Setup
 
-### 1. Pull the sandbox image on the remote
+### 1. Create the AutoFyn work directory and install the sandbox image
+
+Pick a directory with enough storage for the sandbox image and agent work (cloned repos, installed packages, build artifacts). Use fast, high-capacity storage your cluster provides (scratch, local SSD, etc.). Avoid home directories — they're usually small and backed up.
 
 **Docker remote:**
 
@@ -25,23 +27,12 @@ docker pull ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 **Slurm / Apptainer (HPC):**
 
 ```bash
-# On the remote (or via SSH)
-ssh user@remote "source /etc/profile && module load apptainer && mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
+ssh user@remote "source /etc/profile && module load apptainer && mkdir -p ~/scratch/autofyn && apptainer pull ~/scratch/autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
 ```
 
-### 2. Create a scratch directory for run files
+This creates `~/scratch/autofyn/` with the sandbox image inside. Each run will create a temporary subdirectory under `~/scratch/autofyn/runs/` for its overlay files, and clean it up when done. If a run is killed hard (SIGKILL, node crash), leftover directories in `runs/` can be safely deleted.
 
-Slurm sandboxes need a writable directory for temporary run files (cloned repos, installed packages, build artifacts). Each run creates a subdirectory here and cleans it up when done.
-
-```bash
-ssh user@remote "mkdir -p ~/scratch/autofyn_runs"
-```
-
-If a run is killed hard (SIGKILL, node crash), its subdirectory may not be cleaned up. Leftover directories in `autofyn_runs/` are from past runs and can be safely deleted.
-
-Use any fast, high-capacity storage your cluster provides (scratch, local SSD, etc.). Avoid home directories — they're usually small and backed up.
-
-### 3. Ensure SSH access
+### 2. Ensure SSH access
 
 You need passwordless SSH to the remote (key-based auth). Test it:
 
@@ -51,20 +42,27 @@ ssh user@remote-host "echo ok"
 
 You can use an SSH config alias (e.g. `Host mycluster` in `~/.ssh/config`).
 
-### 4. Add the sandbox in the dashboard
+### 3. Add the sandbox in the dashboard
 
 Go to **Settings → Remote Sandboxes → Add Sandbox**.
+
+For **Slurm** sandboxes, the form provides structured fields (partition, CPUs, memory, GPU, work directory) that auto-generate the start command. You can also edit the command directly for custom flags.
 
 | Field | Description |
 |-------|-------------|
 | **Name** | Display name (e.g. "GPU Server", "HPC Cluster") |
 | **Type** | `Docker` or `Slurm` |
 | **SSH Target** | `user@host` or SSH config alias |
-| **Start Command** | Shell command that launches the sandbox (see below) |
+| **AutoFyn Work Directory** | The directory from step 1 (e.g. `~/scratch/autofyn`) |
+| **Partition** | Slurm partition name (e.g. `gpu`, `normal`) |
+| **CPUs** | CPU cores per task |
+| **Memory** | Memory per node (e.g. `16G`, `32G`) |
+| **GPU** | GPU GRES (e.g. `a100:1`, `h100:2`). Leave empty for no GPU |
+| **Start Command** | Auto-generated from fields above, or edit directly |
 | **Startup Timeout** | Max seconds to wait for `AF_READY` (default: 1800 for Slurm queues) |
 | **Inactivity Timeout** | Sandbox self-terminates after this many seconds idle (default: 1800) |
 
-### 5. Start a run using the remote sandbox
+### 4. Start a run using the remote sandbox
 
 In the **New Run** modal, expand the **Sandbox** section and select your remote sandbox instead of "Docker (local)". AutoFyn remembers your last choice per repo.
 
@@ -73,19 +71,19 @@ In the **New Run** modal, expand the **Sandbox** section and select your remote 
 ### Docker remote
 
 ```bash
-source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+source /etc/profile && docker run --rm --network=host -e AF_SANDBOX_PORT=0 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 ```
 
 ### Slurm / Apptainer
 
 ```bash
-source /etc/profile && module load apptainer && srun --job-name=autofyn -p my_partition -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn_runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME ~/.autofyn/sandbox.sif python3 -m server; rm -rf $W'
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p my_partition -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME $AF_HOST_MOUNTS ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
 ```
 
 With GPU access:
 
 ```bash
-source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 --cpus-per-task=4 --mem=16G --gres=gpu:1 bash -c 'W=~/scratch/autofyn_runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --nv --overlay $W --pwd /opt/autofyn -B $HOME ~/.autofyn/sandbox.sif python3 -m server; rm -rf $W'
+source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 --cpus-per-task=4 --mem=16G --gres=gpu:1 bash -c 'W=~/scratch/autofyn/runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --nv --overlay $W --pwd /opt/autofyn -B $HOME $AF_HOST_MOUNTS ~/scratch/autofyn/sandbox.sif python3 -m server; rm -rf $W'
 ```
 
 > **Note:** The sandbox generates its own authentication secret at startup and transmits it back to the connector over the encrypted SSH stdout pipe. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command, SSH command-line arguments, or Slurm job metadata.

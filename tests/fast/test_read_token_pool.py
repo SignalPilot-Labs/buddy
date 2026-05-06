@@ -40,7 +40,7 @@ class TestReadTokenPool:
 
         with patch("backend.utils.crypto.decrypt", side_effect=InvalidToken()):
             with pytest.raises(CredentialDecryptionError, match="Token pool"):
-                await read_token_pool(s)
+                await read_token_pool(s, for_update=False)
 
     @pytest.mark.asyncio
     async def test_raises_on_json_decode_error(self) -> None:
@@ -50,7 +50,7 @@ class TestReadTokenPool:
 
         with patch("backend.utils.crypto.decrypt", side_effect=json.JSONDecodeError("bad", "", 0)):
             with pytest.raises(json.JSONDecodeError):
-                await read_token_pool(s)
+                await read_token_pool(s, for_update=False)
 
     @pytest.mark.asyncio
     async def test_raises_on_type_error(self) -> None:
@@ -60,7 +60,7 @@ class TestReadTokenPool:
 
         with patch("backend.utils.crypto.decrypt", side_effect=TypeError("not a string")):
             with pytest.raises(TypeError):
-                await read_token_pool(s)
+                await read_token_pool(s, for_update=False)
 
     @pytest.mark.asyncio
     async def test_propagates_runtime_error(self) -> None:
@@ -70,7 +70,7 @@ class TestReadTokenPool:
 
         with patch("backend.utils.crypto.decrypt", side_effect=RuntimeError("invalid key")):
             with pytest.raises(RuntimeError, match="invalid key"):
-                await read_token_pool(s)
+                await read_token_pool(s, for_update=False)
 
     @pytest.mark.asyncio
     async def test_propagates_connection_error_from_db(self) -> None:
@@ -79,13 +79,13 @@ class TestReadTokenPool:
         s.get = AsyncMock(side_effect=ConnectionError("db unreachable"))
 
         with pytest.raises(ConnectionError, match="db unreachable"):
-            await read_token_pool(s)
+            await read_token_pool(s, for_update=False)
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_setting_row(self) -> None:
         """When no 'claude_tokens' row exists, must return []."""
         s = _make_session(None)
-        result = await read_token_pool(s)
+        result = await read_token_pool(s, for_update=False)
         assert result == []
 
     @pytest.mark.asyncio
@@ -96,6 +96,6 @@ class TestReadTokenPool:
         s = _make_session(setting)
 
         with patch("backend.utils.crypto.decrypt", return_value=json.dumps(tokens)):
-            result = await read_token_pool(s)
+            result = await read_token_pool(s, for_update=False)
 
         assert result == tokens

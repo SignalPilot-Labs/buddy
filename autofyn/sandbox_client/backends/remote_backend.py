@@ -34,6 +34,7 @@ class RemoteBackend(SandboxBackend):
         ssh_target: str,
         sandbox_type: str,
         heartbeat_timeout: int,
+        work_dir: str,
     ) -> None:
         """Initialize the remote backend with connector connection details."""
         self._connector_url = connector_url
@@ -42,6 +43,7 @@ class RemoteBackend(SandboxBackend):
         self._ssh_target = ssh_target
         self._sandbox_type = sandbox_type
         self._heartbeat_timeout = heartbeat_timeout
+        self._work_dir = work_dir
         self._handles: dict[str, SandboxInstance] = {}
 
     def _connector_headers(self) -> dict[str, str]:
@@ -62,6 +64,7 @@ class RemoteBackend(SandboxBackend):
             "sandbox_type": self._sandbox_type,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
+            "work_dir": self._work_dir,
         }
         timeout = httpx.Timeout(SANDBOX_QUEUE_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
@@ -80,7 +83,12 @@ class RemoteBackend(SandboxBackend):
                     yield event
 
     async def _stop_remote_sandbox(self, run_key: str) -> None:
-        """POST /sandboxes/stop to connector."""
+        """POST /sandboxes/stop to connector.
+
+        The connector acknowledges immediately and runs cleanup (scancel,
+        tunnel kill, overlay removal) in the background. The agent only
+        waits for the acknowledgment, not the full cleanup.
+        """
         timeout = httpx.Timeout(SSH_CONNECT_TIMEOUT_SEC)
         async with httpx.AsyncClient(timeout=timeout) as client:
             resp = await client.post(
@@ -111,19 +119,14 @@ class RemoteBackend(SandboxBackend):
     async def create(
         self,
         run_key: str,
-        health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        start_cmd: str | None,
+        start_cmd: str,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote sandbox via the connector.
 
         Streams NDJSON events and returns (handle, events).
         The secret is extracted from the AF_READY marker event.
         """
-        if start_cmd is None:
-            raise ValueError(
-                f"{type(self).__name__}.create requires start_cmd for remote sandboxes"
-            )
 
         events: list[dict[str, Any]] = []
         host: str | None = None

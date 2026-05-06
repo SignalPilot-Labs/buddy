@@ -7,6 +7,8 @@ import { clsx } from "clsx";
 import { Button } from "@/components/ui/Button";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import { IconX } from "@/components/ui/icons";
+import { SlurmFieldsCard, buildSlurmCmd, EMPTY_SLURM } from "@/components/ui/SlurmFieldsCard";
+import { DEFAULT_REMOTE_DOCKER_CMD } from "@/lib/constants";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
 
@@ -14,11 +16,6 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
   { value: "docker", label: "Docker" },
   { value: "slurm", label: "Slurm" },
 ];
-
-const START_CMD_PLACEHOLDERS: Record<string, string> = {
-  docker: "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable",
-  slurm: "source /etc/profile && module load apptainer && srun --job-name=autofyn -p PARTITION -n 1 --cpus-per-task=4 --mem=16G bash -c 'W=~/scratch/autofyn_runs/$AF_RUN_KEY && mkdir -p $W && apptainer exec --overlay $W --pwd /opt/autofyn -B $HOME ~/.autofyn/sandbox.sif python3 -m server; rm -rf $W'",
-};
 
 interface RemoteSandboxFormProps {
   data: SandboxFormData;
@@ -33,12 +30,14 @@ interface RemoteSandboxFormProps {
 function FormField(props: {
   label: string;
   hint?: string;
+  required?: boolean;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
     <div>
       <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
         {props.label}
+        {props.required && <span className="text-[#ff4444] ml-0.5">*</span>}
       </label>
       {props.children}
       {props.hint && (
@@ -74,6 +73,8 @@ export function RemoteSandboxForm({
   const [testError, setTestError] = useState<string | null>(null);
 
   const update = (patch: Partial<SandboxFormData>): void => {
+    setTestResult(null);
+    setTestError(null);
     onChange({ ...data, ...patch });
   };
 
@@ -106,7 +107,7 @@ export function RemoteSandboxForm({
         <IconX />
       </button>
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Name">
+        <FormField label="Name" required>
           <input
             type="text"
             value={data.name}
@@ -115,12 +116,12 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="SSH">
+        <FormField label="SSH" required>
           <input
             type="text"
             value={data.ssh_target}
             onChange={(e) => update({ ssh_target: e.target.value })}
-            placeholder="ssh user@hostname"
+            placeholder="user@hostname"
             className={INPUT_CLASS}
           />
         </FormField>
@@ -132,7 +133,12 @@ export function RemoteSandboxForm({
             <button
               key={t.value}
               type="button"
-              onClick={() => update({ type: t.value })}
+              onClick={() => {
+                const cmd = t.value === "slurm"
+                  ? buildSlurmCmd(EMPTY_SLURM)
+                  : DEFAULT_REMOTE_DOCKER_CMD;
+                update({ type: t.value, default_start_cmd: cmd });
+              }}
               className={clsx(
                 "px-3 py-1 rounded-full text-content transition-all",
                 data.type === t.value
@@ -146,14 +152,23 @@ export function RemoteSandboxForm({
         </div>
       </FormField>
 
-      <FormField label="Start Command">
-        <CodeTextarea
-          value={data.default_start_cmd}
-          onChange={(v) => update({ default_start_cmd: v })}
-          placeholder={START_CMD_PLACEHOLDERS[data.type]}
-          rows={3}
+      {data.type === "slurm" ? (
+        <SlurmFieldsCard
+          key="slurm"
+          startCmd={data.default_start_cmd}
+          onStartCmdChange={(cmd) => update({ default_start_cmd: cmd })}
+          onWorkDirChange={(wd) => update({ work_dir: wd })}
         />
-      </FormField>
+      ) : (
+        <FormField label="Start Command">
+          <CodeTextarea
+            value={data.default_start_cmd}
+            onChange={(v) => update({ default_start_cmd: v })}
+            placeholder={DEFAULT_REMOTE_DOCKER_CMD}
+            rows={5}
+          />
+        </FormField>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Startup Timeout (s)" hint="Max wait for sandbox to be ready.">

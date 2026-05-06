@@ -15,7 +15,7 @@ class TestLoadRunAgentConfigNoAgentSection:
 
     @pytest.mark.asyncio
     async def test_no_agent_section_in_config(self) -> None:
-        yaml_content = "sandbox:\n  url: http://custom-sandbox:9090\n"
+        yaml_content = "sandbox:\n  vm_timeout_sec: 600\n"
         sandbox = _make_sandbox(read_return=yaml_content)
         result = await load_run_agent_config(sandbox)
 

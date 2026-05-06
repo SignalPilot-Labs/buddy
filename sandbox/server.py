@@ -131,6 +131,18 @@ async def on_shutdown(app: web.Application) -> None:
     tracker.stop()
 
 
+def _resolve_bound_port(runner: web.AppRunner) -> int:
+    """Return the actual port the server bound to.
+
+    When SANDBOX_PORT is 0 the OS picks a free port. Read it back from
+    the first listening socket so AF_READY reports the real port.
+    """
+    for site in runner.sites:
+        for sock in site._server.sockets:  # type: ignore[union-attr]
+            return sock.getsockname()[1]
+    raise RuntimeError("Server started but no sockets found")
+
+
 def _emit_markers(port: int, secret: str) -> None:
     """Print AF_BOUND and AF_READY markers after the server has bound the port.
 
@@ -154,15 +166,15 @@ def main() -> None:
     register_health(app)
     register_env(app)
 
-    log.info("Sandbox server starting on :%d", SANDBOX_PORT)
-
     async def _run() -> None:
-        """Bind, emit markers, then block until shutdown."""
+        """Bind to a free port, emit markers, then block until shutdown."""
         runner = web.AppRunner(app)
         await runner.setup()
         site = web.TCPSite(runner, SANDBOX_HOST, SANDBOX_PORT)
         await site.start()
-        _emit_markers(SANDBOX_PORT, _INTERNAL_SECRET)
+        actual_port = _resolve_bound_port(runner)
+        log.info("Sandbox server listening on :%d", actual_port)
+        _emit_markers(actual_port, _INTERNAL_SECRET)
         try:
             await asyncio.Event().wait()
         finally:

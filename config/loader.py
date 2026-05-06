@@ -96,7 +96,6 @@ _REQUIRED_AGENT_KEYS = {
 }
 
 _REQUIRED_SANDBOX_KEYS = {
-    "url",
     "exec_timeout_sec",
     "clone_timeout_sec",
     "health_timeout_sec",
@@ -157,7 +156,6 @@ def _apply_env_overrides(config: dict) -> dict:
     # Sandbox overrides (AF_* prefix)
     sandbox = config.get("sandbox", {})
     sandbox_env_map = {
-        "AF_SANDBOX_URL": ("url", str),
         "AF_MAX_VMS": ("max_vms", int),
         "AF_VM_MEMORY_MB": ("vm_memory_mb", int),
         "AF_VM_VCPUS": ("vm_vcpus", int),

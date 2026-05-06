@@ -11,35 +11,35 @@ from unittest.mock import patch
 import pytest
 
 from utils.constants import ENV_KEY_IMAGE_TAG, SANDBOX_POOL_IMAGE_BASE
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DockerLocalBackend, DEFAULT_DOCKER_START_CMD
 
 
 class TestPoolImageTag:
     """Verify DockerLocalBackend resolves the correct image from AF_IMAGE_TAG."""
 
     def test_pool_image_uses_env_tag(self) -> None:
-        """Backend image must be SANDBOX_POOL_IMAGE_BASE:AF_IMAGE_TAG."""
+        """Backend image tag must come from AF_IMAGE_TAG env var."""
         with patch.dict(os.environ, {ENV_KEY_IMAGE_TAG: "nightly"}):
             backend = DockerLocalBackend()
-            assert backend._image == f"{SANDBOX_POOL_IMAGE_BASE}:nightly"
+            assert backend._image_tag == "nightly"
 
     def test_pool_image_local_tag(self) -> None:
         """Local builds use :local tag."""
         with patch.dict(os.environ, {ENV_KEY_IMAGE_TAG: "local"}):
             backend = DockerLocalBackend()
-            assert backend._image == f"{SANDBOX_POOL_IMAGE_BASE}:local"
+            assert backend._image_tag == "local"
 
     def test_pool_image_stable_tag(self) -> None:
         """Production installs use :stable tag."""
         with patch.dict(os.environ, {ENV_KEY_IMAGE_TAG: "stable"}):
             backend = DockerLocalBackend()
-            assert backend._image == f"{SANDBOX_POOL_IMAGE_BASE}:stable"
+            assert backend._image_tag == "stable"
 
     def test_pool_image_sha_tag(self) -> None:
         """Pinned installs use a commit SHA tag."""
         with patch.dict(os.environ, {ENV_KEY_IMAGE_TAG: "abc1234"}):
             backend = DockerLocalBackend()
-            assert backend._image == f"{SANDBOX_POOL_IMAGE_BASE}:abc1234"
+            assert backend._image_tag == "abc1234"
 
     def test_pool_crashes_without_image_tag(self) -> None:
         """Backend must fail fast if AF_IMAGE_TAG is not set."""
@@ -47,3 +47,8 @@ class TestPoolImageTag:
             os.environ.pop(ENV_KEY_IMAGE_TAG, None)
             with pytest.raises(KeyError):
                 DockerLocalBackend()
+
+    def test_default_start_cmd_contains_image_base(self) -> None:
+        """Default start command must reference the correct image base."""
+        assert SANDBOX_POOL_IMAGE_BASE in DEFAULT_DOCKER_START_CMD
+        assert "$AF_IMAGE_TAG" in DEFAULT_DOCKER_START_CMD

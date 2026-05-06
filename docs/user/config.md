@@ -27,7 +27,6 @@ database:
   max_overflow: 10
 
 sandbox:
-  url: http://sandbox:8923
   max_vms: 10
   vm_memory_mb: 512
   vm_vcpus: 1

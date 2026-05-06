@@ -17,7 +17,7 @@ def _make_pool() -> SandboxManager:
     """Create a SandboxManager with mocked DockerLocalBackend and config."""
     with (
         patch("sandbox_client.manager.DockerLocalBackend", return_value=MagicMock()),
-        patch("sandbox_client.manager.sandbox_config", return_value={"health_timeout_sec": 30}),
+        patch("sandbox_client.manager.sandbox_config", return_value={"vm_timeout_sec": 30}),
         patch("sandbox_client.manager.os.environ", {"SANDBOX_INTERNAL_SECRET": "test", "CONNECTOR_URL": "http://localhost:9400", "CONNECTOR_SECRET": "test"}),
     ):
         return SandboxManager()
@@ -66,6 +66,7 @@ class TestResolveBackendRemote:
             "type": "slurm",
             "ssh_target": "user@hpc.example.com",
             "heartbeat_timeout": 3600,
+            "work_dir": "~/scratch",
         }
 
         with patch(
@@ -84,6 +85,7 @@ class TestResolveBackendRemote:
             ssh_target="user@hpc.example.com",
             sandbox_type="slurm",
             heartbeat_timeout=3600,
+            work_dir="~/scratch",
         )
         assert result is backend_instance
 
@@ -97,6 +99,7 @@ class TestResolveBackendRemote:
             "type": "docker",
             "ssh_target": "user@remote-server.example.com",
             "heartbeat_timeout": 1800,
+            "work_dir": "",
         }
 
         with patch(
@@ -115,6 +118,7 @@ class TestResolveBackendRemote:
             ssh_target="user@remote-server.example.com",
             sandbox_type="docker",
             heartbeat_timeout=1800,
+            work_dir="",
         )
         assert result is backend_instance
 

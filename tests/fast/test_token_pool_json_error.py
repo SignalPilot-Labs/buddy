@@ -33,7 +33,7 @@ class TestTokenPoolJsonError:
         with patch("backend.utils.crypto") as mock_crypto:
             mock_crypto.decrypt.return_value = "not valid json {{{{"
             with pytest.raises(CredentialDecryptionError, match="invalid JSON"):
-                await read_token_pool(mock_session)
+                await read_token_pool(mock_session, for_update=False)
 
     @pytest.mark.asyncio
     async def test_decrypt_failure_still_raises_credential_error(self) -> None:
@@ -49,7 +49,7 @@ class TestTokenPoolJsonError:
         with patch("backend.utils.crypto") as mock_crypto:
             mock_crypto.decrypt.side_effect = InvalidToken()
             with pytest.raises(CredentialDecryptionError, match="cannot be decrypted"):
-                await read_token_pool(mock_session)
+                await read_token_pool(mock_session, for_update=False)
 
     @pytest.mark.asyncio
     async def test_valid_json_returns_tokens(self) -> None:
@@ -64,6 +64,6 @@ class TestTokenPoolJsonError:
 
         with patch("backend.utils.crypto") as mock_crypto:
             mock_crypto.decrypt.return_value = json.dumps(tokens)
-            result = await read_token_pool(mock_session)
+            result = await read_token_pool(mock_session, for_update=False)
 
         assert result == tokens

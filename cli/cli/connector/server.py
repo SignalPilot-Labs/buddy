@@ -92,6 +92,11 @@ class ConnectorServer:
         self._states: dict[str, ForwardState] = {}
         self._heartbeat_tasks: dict[str, asyncio.Task[None]] = {}
         self._drain_tasks: dict[str, asyncio.Task[None]] = {}
+        # Track every run we started so shutdown can clean orphaned dirs
+        # even if the run crashed and was removed from _states.
+        self._started_runs: dict[str, tuple[str, str, str]] = {}  # run_key -> (ssh_target, sandbox_type, work_dir)
+        # Track in-flight destroy tasks so shutdown can await them.
+        self._destroy_tasks: dict[str, asyncio.Task[None]] = {}
         self._app = web.Application(middlewares=[self._auth_middleware])
         self._register_routes()
 
@@ -207,6 +212,7 @@ class ConnectorServer:
         heartbeat_timeout: int = body.get(
             "heartbeat_timeout", SANDBOX_HEARTBEAT_TIMEOUT_SEC,
         )
+        work_dir: str = body.get("work_dir", "")
 
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
@@ -243,10 +249,15 @@ class ConnectorServer:
             await response.write((json.dumps(fail) + "\n").encode())
             return
 
+        # Record only after AF_READY confirms the run started (and may
+        # have created overlay dirs). This way _sweep_orphan_dirs only
+        # cleans dirs that actually exist.
+        self._started_runs[run_key] = (ssh_target, sandbox_type, work_dir)
+
         try:
             state = await self._create_forward_state(
                 run_key, ssh_target, sandbox_type,
-                ready_event, events, process,
+                ready_event, events, process, work_dir,
             )
         except Exception:
             await kill_process_group(process)
@@ -294,6 +305,7 @@ class ConnectorServer:
         ready_event: dict[str, Any],
         events: list[dict[str, Any]],
         process: asyncio.subprocess.Process,
+        work_dir: str,
     ) -> ForwardState:
         """Open SSH tunnel and build ForwardState."""
         remote_host: str = ready_event["host"]
@@ -327,23 +339,43 @@ class ConnectorServer:
             start_process=process if sandbox_type == "slurm" else None,
             sandbox_secret=sandbox_secret,
             backend_id=backend_id,
+            work_dir=work_dir,
             log_buffer=collections.deque(maxlen=RING_BUFFER_MAX_LINES),
         )
 
     async def _handle_stop(self, request: web.Request) -> web.Response:
-        """Stop a remote sandbox."""
+        """Acknowledge stop request and run destroy in the background.
+
+        Returns immediately with status=stopping. The agent only needs
+        the acknowledgment — cleanup (scancel, tunnel kill, overlay removal)
+        can take 30-60s and runs asynchronously.
+        """
         body: dict[str, Any] = await request.json()
         run_key: str = body["run_key"]
-        await self._destroy(run_key)
-        return web.json_response({"ok": True})
+        task = asyncio.create_task(self._tracked_destroy(run_key))
+        self._destroy_tasks[run_key] = task
+        task.add_done_callback(lambda _: self._destroy_tasks.pop(run_key, None))
+        return web.json_response({"ok": True, "status": "stopping"})
+
+    async def _tracked_destroy(self, run_key: str) -> None:
+        """Run _destroy with error logging for background execution."""
+        try:
+            await self._destroy(run_key)
+        except Exception as exc:
+            log.error("Destroy failed for %s: %s", run_key, exc)
 
     async def _handle_shutdown(self, request: web.Request) -> web.Response:
-        """Gracefully stop all active remote sandboxes with a single total timeout."""
-        keys = list(self._states.keys())
+        """Gracefully stop all tracked sandboxes, then sweep remotes for orphans."""
 
         async def _destroy_all() -> None:
-            for key in keys:
+            # Await any in-flight stop destroys first.
+            pending = list(self._destroy_tasks.values())
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            # Only destroy runs still in _states (not already handled above).
+            for key in list(self._states.keys()):
                 await self._destroy(key)
+            await self._sweep_orphan_dirs()
 
         try:
             await asyncio.wait_for(_destroy_all(), timeout=SHUTDOWN_TIMEOUT_SEC)
@@ -398,7 +430,44 @@ class ConnectorServer:
 
         await kill_process_group(state.tunnel_process)
 
+        if state.work_dir and state.sandbox_type == "slurm":
+            overlay_path = f"{state.work_dir}/autofyn/runs/{run_key}"
+            rm_cmd = f"rm -rf {_quote_slurm_path(overlay_path)}"
+            try:
+                proc = await run_ssh_command(state.ssh_target, rm_cmd, {})
+                await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+                log.info("Cleaned up overlay %s on %s", overlay_path, state.ssh_target)
+            except Exception as exc:
+                log.warning("Overlay cleanup failed for %s: %s", run_key, exc)
+
         log.info("Destroyed sandbox %s", run_key)
+
+    async def _sweep_orphan_dirs(self) -> None:
+        """Remove overlay dirs for runs this connector started but _destroy missed.
+
+        Only deletes dirs for run_keys we own, safe with multiple connectors
+        targeting the same remote.
+        """
+        # Collect orphaned run_keys: started by us but no longer in _states
+        # (already destroyed runs had their dirs cleaned in _destroy, but
+        # crashed runs may have skipped cleanup).
+        orphaned: dict[str, tuple[str, str]] = {}  # run_key -> (ssh_target, overlay_path)
+        for run_key, (ssh_target, sandbox_type, work_dir) in self._started_runs.items():
+            if run_key in self._states:
+                continue
+            if sandbox_type != "slurm" or not work_dir:
+                continue
+            overlay_path = f"{work_dir}/autofyn/runs/{run_key}"
+            orphaned[run_key] = (ssh_target, overlay_path)
+
+        for run_key, (ssh_target, overlay_path) in orphaned.items():
+            rm_cmd = f"rm -rf {_quote_slurm_path(overlay_path)}"
+            try:
+                proc = await run_ssh_command(ssh_target, rm_cmd, {})
+                await asyncio.wait_for(proc.communicate(), timeout=SSH_CONNECT_TIMEOUT_SEC)
+                log.info("Swept orphan overlay %s on %s", overlay_path, ssh_target)
+            except Exception as exc:
+                log.warning("Orphan sweep failed for %s: %s", run_key, exc)
 
     async def _drain_logs(
         self,

@@ -10,7 +10,7 @@ import { IconServer, IconPencil, IconPlus } from "@/components/ui/icons";
 import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
-import CodeBlock from "@/components/ui/CodeBlock";
+import { DEFAULT_REMOTE_DOCKER_CMD } from "@/lib/constants";
 
 export interface SandboxFormData {
   name: string;
@@ -19,15 +19,17 @@ export interface SandboxFormData {
   default_start_cmd: string;
   queue_timeout: number;
   heartbeat_timeout: number;
+  work_dir: string;
 }
 
 const EMPTY_FORM: SandboxFormData = {
   name: "",
   ssh_target: "",
   type: "docker",
-  default_start_cmd: "",
+  default_start_cmd: DEFAULT_REMOTE_DOCKER_CMD,
   queue_timeout: 1800,
   heartbeat_timeout: 1800,
+  work_dir: "",
 };
 
 function formFromConfig(s: RemoteSandboxConfig): SandboxFormData {
@@ -38,6 +40,7 @@ function formFromConfig(s: RemoteSandboxConfig): SandboxFormData {
     default_start_cmd: s.default_start_cmd,
     queue_timeout: s.queue_timeout,
     heartbeat_timeout: s.heartbeat_timeout,
+    work_dir: s.work_dir,
   };
 }
 
@@ -142,13 +145,14 @@ export function RemoteSandboxes(): React.ReactElement {
 
         {sandboxes.length === 0 && !showForm && (
           <div className="px-2.5 py-3 text-content text-text-secondary text-center">
-            No remote sandboxes yet
+            No remote sandboxes yet — <a href="https://github.com/SignalPilot-Labs/AutoFyn/blob/main/docs/user/remote-sandboxes.md" target="_blank" rel="noopener noreferrer" className="text-[#00ff88] hover:underline">setup guide</a>
           </div>
         )}
       </div>
 
       {showForm && (
         <RemoteSandboxForm
+          key={editingId ?? "new"}
           data={formData}
           onChange={setFormData}
           onSave={handleSave}
@@ -167,13 +171,6 @@ export function RemoteSandboxes(): React.ReactElement {
         <p className="mt-1.5 text-content text-[#ff4444]">{error}</p>
       )}
 
-      <p className="mt-2 text-content text-text-dim">
-        Pull the image on your remote first:
-      </p>
-      <CodeBlock
-        code="mkdir -p ~/.autofyn && apptainer pull ~/.autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable"
-        className="mt-1"
-      />
     </div>
   );
 }

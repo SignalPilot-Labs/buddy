@@ -127,6 +127,7 @@ export function MobileLayout({
                 connectionState={connectionState}
                 runStatus={runStatus}
                 showToast={showToast}
+                selectedRunId={selectedRunId}
               />
               <EventFeed
                 events={allEvents}

@@ -14,7 +14,7 @@ import httpx
 from config.loader import sandbox_config
 from db.constants import REMOTE_SANDBOX_KEY_PREFIX
 from sandbox_client.backends.base_backend import SandboxBackend
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DockerLocalBackend
 from sandbox_client.backends.remote_backend import CONNECTOR_SECRET_HEADER, RemoteBackend
 from sandbox_client.client import SandboxClient
 from sandbox_client.models import SandboxInstance
@@ -41,19 +41,21 @@ class SandboxManager:
         self._remote_backends: dict[str, SandboxBackend] = {}
         self._connector_url: str | None = os.environ.get(ENV_KEY_CONNECTOR_URL) or None
         self._connector_secret: str | None = os.environ.get(ENV_KEY_CONNECTOR_SECRET) or None
-        self._health_timeout: int = cfg["health_timeout_sec"]
+        self._remote_client_timeout: int = cfg["vm_timeout_sec"]
 
     async def create(
         self,
         run_key: str,
         sandbox_id: str | None,
         host_mounts: list[dict[str, str]] | None,
-        start_cmd: str | None,
+        start_cmd: str,
     ) -> tuple[SandboxClient, list[dict]]:
         """Spin up a sandbox for a run. Returns (client, startup_events)."""
+        if not start_cmd.strip():
+            raise ValueError("start_cmd must not be empty")
         backend = await self._resolve_backend(sandbox_id)
         handle, events = await backend.create(
-            run_key, self._health_timeout, host_mounts, start_cmd,
+            run_key, host_mounts, start_cmd,
         )
         self._handles[run_key] = handle
 
@@ -65,8 +67,8 @@ class SandboxManager:
 
         client = SandboxClient(
             base_url=handle.url,
-            health_timeout=self._health_timeout,
-            timeout=self._health_timeout,
+            health_timeout=self._remote_client_timeout,
+            timeout=self._remote_client_timeout,
             sandbox_secret=handle.sandbox_secret,
             extra_headers=None,
         )
@@ -173,6 +175,7 @@ class SandboxManager:
             ssh_target=str(config["ssh_target"]),
             sandbox_type=str(config["type"]),
             heartbeat_timeout=int(config["heartbeat_timeout"]),
+            work_dir=str(config["work_dir"]),
         )
         self._remote_backends[sandbox_id] = backend
         return backend

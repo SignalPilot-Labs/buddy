@@ -66,11 +66,11 @@ services:
     restart: unless-stopped
     environment:
       GIT_TERMINAL_PROMPT: "0"
-      AF_SANDBOX_URL: http://sandbox:8923
       AGENT_INTERNAL_SECRET: ${AGENT_INTERNAL_SECRET}
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
       AF_ALLOW_DOCKER: ${AF_ALLOW_DOCKER:-}
       AF_IMAGE_TAG: ${AF_IMAGE_TAG}
+      AF_SANDBOX_PORT: ${AF_SANDBOX_PORT}
       CONNECTOR_SECRET: ${CONNECTOR_SECRET}
       CONNECTOR_URL: http://host.docker.internal:${CONNECTOR_PORT:-9400}
     healthcheck:
@@ -104,6 +104,7 @@ services:
     environment:
       GIT_TERMINAL_PROMPT: "0"
       SANDBOX_INTERNAL_SECRET: ${SANDBOX_INTERNAL_SECRET}
+      AF_SANDBOX_PORT: ${AF_SANDBOX_PORT}
     depends_on:
       db:
         condition: service_healthy
@@ -116,7 +117,7 @@ services:
       - agent-repo:/home/agentuser/repo
       - claude-agent-sessions:/home/agentuser/.claude
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8923/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:${AF_SANDBOX_PORT}/health || exit 1"]
       interval: 3s
       timeout: 3s
       retries: 5

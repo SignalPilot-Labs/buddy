@@ -213,11 +213,7 @@ DEFAULT_BUDGET_USD: str = "0"
 SANDBOX_POOL_IMAGE_BASE: str = "ghcr.io/signalpilot-labs/autofyn-sandbox"
 ENV_KEY_IMAGE_TAG: str = "AF_IMAGE_TAG"
 SANDBOX_POOL_NETWORK = "autofyn_default"  # compose default network
-SANDBOX_POOL_PORT = 8923
 SANDBOX_POOL_HEALTH_POLL_SEC = 2
-SANDBOX_POOL_ENV_PASSTHROUGH = [
-    "SANDBOX_INTERNAL_SECRET",
-]
 
 # ── Connector (remote sandbox) ──
 ENV_KEY_CONNECTOR_URL: str = "CONNECTOR_URL"

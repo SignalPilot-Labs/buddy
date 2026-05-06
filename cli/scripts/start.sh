@@ -18,6 +18,8 @@ fi
 export AF_IMAGE_TAG
 echo "[autofyn] Image tag: ${AF_IMAGE_TAG}"
 
+export AF_SANDBOX_PORT="${AF_SANDBOX_PORT:-8923}"
+
 # Generate internal secrets if not already set by the user
 if [ -z "${AGENT_INTERNAL_SECRET:-}" ]; then
     AGENT_INTERNAL_SECRET="$(openssl rand -hex 32)"

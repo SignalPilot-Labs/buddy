@@ -82,6 +82,17 @@ class TestParseNameStatus:
         result = parse_name_status(raw)
         assert result == {"src/a.ts": "modified", "src/b.ts": "added"}
 
+    def test_skips_line_starting_with_tab(self) -> None:
+        """Line starting with tab (empty status) must not raise IndexError."""
+        result = parse_name_status("\tsrc/file.ts")
+        assert result == {}
+
+    def test_skips_empty_status_in_mixed_input(self) -> None:
+        """Empty status line among valid lines must be skipped, not crash."""
+        raw = "M\tsrc/a.ts\n\tsrc/bad.ts\nA\tsrc/b.ts"
+        result = parse_name_status(raw)
+        assert result == {"src/a.ts": "modified", "src/b.ts": "added"}
+
 
 class TestParseNumstat:
     """Tests for parse_numstat."""
@@ -140,6 +151,23 @@ class TestParseNumstat:
         assert result[0] == {"path": "src/a.ts", "added": 10, "removed": 2, "status": "modified"}
         assert result[1] == {"path": "src/b.ts", "added": 50, "removed": 0, "status": "added"}
         assert result[2] == {"path": "src/c.ts", "added": 0, "removed": 15, "status": "deleted"}
+
+    def test_non_numeric_values_default_to_zero(self) -> None:
+        """Non-numeric, non-'-' content (e.g. encoding corruption) must not raise ValueError."""
+        result = parse_numstat(
+            "abc\t123\tfile.ts",
+            {"file.ts": "modified"},
+        )
+        assert result == [{"path": "file.ts", "added": 0, "removed": 123, "status": "modified"}]
+
+    def test_empty_values_default_to_zero(self) -> None:
+        """Empty first field among valid lines must not raise ValueError."""
+        raw = "10\t2\tsrc/a.ts\n\t5\tsrc/b.ts\n3\t1\tsrc/c.ts"
+        result = parse_numstat(raw, {"src/a.ts": "modified", "src/b.ts": "modified", "src/c.ts": "modified"})
+        b_entry = next((e for e in result if e["path"] == "src/b.ts"), None)
+        assert b_entry is not None
+        assert b_entry["added"] == 0
+        assert b_entry["removed"] == 5
 
 
 class TestParseNumstatWithRename:

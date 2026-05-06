@@ -88,6 +88,18 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevOpenRef = useRef(open);
+
+  // Reset all form state when modal transitions from closed to open
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      setStep(0);
+      setError(null);
+      setValues({});
+      setShowPassword(false);
+    }
+    prevOpenRef.current = open;
+  }, [open]);
 
   // Focus input on step change
   useEffect(() => {

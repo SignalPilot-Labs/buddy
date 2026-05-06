@@ -5,7 +5,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select, func
 
 from backend import auth
@@ -29,6 +29,7 @@ from db.constants import (
     START_CMD_MAX_LEN,
     START_CMD_MIN_LEN,
     VALID_SANDBOX_TYPES,
+    WORK_DIR_RE,
     validate_remote_mount_path,
 )
 from db.models import Run, Setting
@@ -49,6 +50,7 @@ class RemoteSandboxConfig(BaseModel):
     default_start_cmd: str = Field(min_length=START_CMD_MIN_LEN, max_length=START_CMD_MAX_LEN)
     queue_timeout: int = Field(ge=QUEUE_TIMEOUT_MIN, le=QUEUE_TIMEOUT_MAX)
     heartbeat_timeout: int = Field(ge=HEARTBEAT_TIMEOUT_MIN, le=HEARTBEAT_TIMEOUT_MAX)
+    work_dir: str = Field(max_length=4096)
 
     @field_validator("ssh_target")
     @classmethod
@@ -61,6 +63,24 @@ class RemoteSandboxConfig(BaseModel):
             )
         return v
 
+    @field_validator("work_dir")
+    @classmethod
+    def validate_work_dir(cls, v: str) -> str:
+        """Reject shell metacharacters in work directory paths."""
+        if v and not WORK_DIR_RE.fullmatch(v):
+            raise ValueError(
+                "Work directory contains unsafe characters — "
+                "only alphanumeric, ~, ., _, /, - allowed"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def require_work_dir_for_slurm(self) -> "RemoteSandboxConfig":
+        """Slurm sandboxes require a work directory for overlay storage."""
+        if self.type == "slurm" and not self.work_dir.strip():
+            raise ValueError("Work directory is required for Slurm sandboxes")
+        return self
+
 
 class RemoteSandboxResponse(BaseModel):
     """Response for a single remote sandbox config."""
@@ -72,6 +92,7 @@ class RemoteSandboxResponse(BaseModel):
     default_start_cmd: str
     queue_timeout: int
     heartbeat_timeout: int
+    work_dir: str
 
 
 class RemoteMountEntry(BaseModel):
@@ -106,6 +127,10 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
     """Parse a Setting row into a RemoteSandboxResponse."""
     sandbox_id = setting.key.removeprefix(REMOTE_SANDBOX_KEY_PREFIX)
     raw: dict[str, str | int] = json.loads(setting.value)
+    required_keys = ("name", "ssh_target", "type", "default_start_cmd", "queue_timeout", "heartbeat_timeout", "work_dir")
+    missing = [k for k in required_keys if k not in raw]
+    if missing:
+        raise ValueError(f"Sandbox {sandbox_id} config missing required fields: {', '.join(missing)}. Re-save the sandbox in Settings to fix.")
     return RemoteSandboxResponse(
         id=sandbox_id,
         name=str(raw["name"]),
@@ -114,6 +139,7 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
         default_start_cmd=str(raw["default_start_cmd"]),
         queue_timeout=int(raw["queue_timeout"]),
         heartbeat_timeout=int(raw["heartbeat_timeout"]),
+        work_dir=str(raw["work_dir"]),
     )
 
 
@@ -126,6 +152,7 @@ def _config_to_dict(body: RemoteSandboxConfig) -> dict[str, str | int]:
         "default_start_cmd": body.default_start_cmd,
         "queue_timeout": body.queue_timeout,
         "heartbeat_timeout": body.heartbeat_timeout,
+        "work_dir": body.work_dir,
     }
 
 

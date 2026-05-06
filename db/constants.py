@@ -193,6 +193,9 @@ REMOTE_MOUNT_PATH_RE: re.Pattern[str] = re.compile(r"^/[a-zA-Z0-9._/\-]+$")
 # SSH target validation: user@host, host, host:port — no shell metacharacters.
 SSH_TARGET_RE: re.Pattern[str] = re.compile(r"^[a-zA-Z0-9@._:/\-]+$")
 
+# Work directory validation: ~/path or /absolute/path — no shell metacharacters.
+WORK_DIR_RE: re.Pattern[str] = re.compile(r"^(~/?|/)[a-zA-Z0-9._/\-]*$")
+
 # ── Remote Sandbox Config CRUD Limits ──
 REMOTE_SANDBOX_KEY_PREFIX: str = "remote_sandbox:"
 LAST_START_CMD_KEY_PREFIX: str = "last_start_cmd:"

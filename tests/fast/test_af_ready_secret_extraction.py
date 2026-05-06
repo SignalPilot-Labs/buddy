@@ -24,16 +24,16 @@ class TestAfReadySecretExtraction:
         assert event["host"] == "node1"
         assert event["port"] == 8080
 
-    def test_af_ready_without_secret_sets_sandbox_secret_none(self) -> None:
-        """AF_READY without 'secret' field → event['sandbox_secret'] is None."""
+    def test_af_ready_without_secret_returns_log_event(self) -> None:
+        """AF_READY without 'secret' field → log event (validation failure)."""
         line = 'AF_READY {"host":"node1","port":8080}'
         match = MARKER_RE.search(line)
         assert match is not None
 
         event = _parse_marker(match, "user@hpc")
 
-        assert event["event"] == "ready"
-        assert event["sandbox_secret"] is None
+        assert event["event"] == "log"
+        assert "missing keys" in event["line"]
 
     def test_af_ready_with_64_char_hex_secret(self) -> None:
         """AF_READY with 64-char hex secret (secrets.token_hex(32)) is parsed correctly."""

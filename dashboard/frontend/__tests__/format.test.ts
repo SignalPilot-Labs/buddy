@@ -25,6 +25,15 @@ describe("timeAgo", () => {
     const twoDaysAgo = new Date(Date.now() - 2 * 86_400_000).toISOString();
     expect(timeAgo(twoDaysAgo)).toBe("2d ago");
   });
+
+  it('returns "—" for invalid date string', () => {
+    expect(timeAgo("not-a-date")).toBe("—");
+  });
+
+  it('returns "0s ago" for future date (clock skew)', () => {
+    const fiveSecsInFuture = new Date(Date.now() + 5_000).toISOString();
+    expect(timeAgo(fiveSecsInFuture)).toBe("0s ago");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -52,8 +61,8 @@ describe("formatCost", () => {
 // formatTokens
 // ---------------------------------------------------------------------------
 describe("formatTokens", () => {
-  it("returns '0' for null", () => {
-    expect(formatTokens(null)).toBe("0");
+  it("returns '—' for null", () => {
+    expect(formatTokens(null)).toBe("—");
   });
 
   it("returns '0' for 0", () => {

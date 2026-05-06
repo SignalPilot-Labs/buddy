@@ -14,7 +14,6 @@ from prompts.loader import load_markdown
 from utils import db
 from utils.db_logging import log_audit
 from utils.constants import max_concurrent_runs
-from utils.models import ActiveRun
 from utils.models_http import HealthResponse, HealthRunEntry, StartRequest
 
 if TYPE_CHECKING:
@@ -51,8 +50,6 @@ def register_run_routes(app: FastAPI, server: "AgentServer") -> None:
     @app.post("/start")
     async def start_run(body: StartRequest) -> dict:
         """Start a new run — bootstraps a sandbox and kicks off the round loop."""
-        server.ensure_capacity()
-
         body.env = merge_tokens_into_env(
             body.env,
             body.claude_token,
@@ -73,25 +70,29 @@ def register_run_routes(app: FastAPI, server: "AgentServer") -> None:
             )
 
         run_id = str(uuid.uuid4())
-        await db.create_run_starting(
-            run_id,
-            body.prompt,
-            body.duration_minutes,
-            body.base_branch,
-            body.github_repo,
-            body.model,
-        )
+        # Reserve the slot atomically — no await between capacity check and
+        # registration, so concurrent requests cannot both pass the check.
+        active = server.check_and_reserve_run(run_id)
+        try:
+            await db.create_run_starting(
+                run_id,
+                body.prompt,
+                body.duration_minutes,
+                body.base_branch,
+                body.github_repo,
+                body.model,
+            )
 
-        await log_audit(run_id, "run_starting", {
-            "repo": body.github_repo,
-            "sandbox_id": body.sandbox_id,
-            "start_cmd": body.start_cmd,
-        })
+            await log_audit(run_id, "run_starting", {
+                "repo": body.github_repo,
+                "sandbox_id": body.sandbox_id,
+                "start_cmd": body.start_cmd,
+            })
 
-        active = ActiveRun(run_id=run_id)
-        server.register_run(active)
-
-        task = asyncio.create_task(server.execute_run(active, body))
-        active.task = task
-        task.add_done_callback(lambda t: server.on_task_done(active, t))
+            task = asyncio.create_task(server.execute_run(active, body))
+            active.task = task
+            task.add_done_callback(lambda t: server.on_task_done(active, t))
+        except Exception:
+            server.remove_run(run_id)
+            raise
         return {"ok": True, "status": RUN_STATUS_STARTING, "run_id": run_id}

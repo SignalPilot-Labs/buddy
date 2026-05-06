@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from docker.errors import NotFound
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DockerLocalBackend
 
 
 class TestGetSelfLogs:

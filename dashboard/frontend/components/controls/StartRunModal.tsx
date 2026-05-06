@@ -12,7 +12,7 @@ import { HostMountsEditor } from "@/components/controls/HostMountsEditor";
 import { SandboxPicker } from "@/components/controls/SandboxPicker";
 import { McpServersEditor } from "@/components/controls/McpServersEditor";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, DEFAULT_DOCKER_START_CMD, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox, fetchLastStartCmd } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
@@ -20,7 +20,7 @@ import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 export interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: string | null, startCmd: string | null) => void;
+  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: string | null, startCmd: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -106,26 +106,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [mcpError, setMcpError] = useState<string | null>(null);
   const [remoteSandboxes, setRemoteSandboxes] = useState<RemoteSandboxConfig[]>([]);
   const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null);
-  const [startCmd, setStartCmd] = useState("");
+  const [startCmd, setStartCmd] = useState(DEFAULT_DOCKER_START_CMD);
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Restore last-used sandbox and its start command per repo.
-  // Runs when remoteSandboxes loads (async), which has the latest
-  // default_start_cmd from the database — even if user just changed it
-  // in Settings.
-  useEffect(() => {
-    if (!open || !activeRepo || remoteSandboxes.length === 0) return;
-    try {
-      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
-      if (!saved) return;
-      setSelectedSandboxId(saved);
-      const sandbox = remoteSandboxes.find((s) => s.id === saved);
-      if (!sandbox) return;
-      fetchLastStartCmd(saved, activeRepo)
-        .catch(() => null)
-        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
-    } catch { /* ignore */ }
-  }, [open, activeRepo, remoteSandboxes]);
+  const prevOpenRef = useRef(open);
 
   const adjustPromptHeight = useCallback((): void => {
     const el = textareaRef.current;
@@ -155,6 +140,60 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     }
   }, [activeRepo]);
 
+  // Reset all local form state when modal transitions from closed to open.
+  // This ensures a fresh form each time the user opens the modal, regardless
+  // of how it was left during a previous session.
+  useEffect(() => {
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (!wasOpen && open) {
+      setCustomPrompt("");
+      setBudget(0);
+      setDuration(0);
+      setBaseBranch(DEFAULT_BASE_BRANCH);
+      setSelectedQuick(null);
+      setEffort(DEFAULT_EFFORT);
+      setEnvText("");
+      setMounts([]);
+      setMcpText("");
+      setStartCmd(DEFAULT_DOCKER_START_CMD);
+      setSelectedSandboxId(null);
+      submittingRef.current = false;
+      setSubmitting(false);
+      setEnvError(null);
+      setMountError(null);
+      setMcpError(null);
+      setMountsLoading(false);
+      // Load local-Docker mounts immediately on open. If a remote sandbox is
+      // restored asynchronously (restoration effect), it will overwrite these
+      // with remote mounts for the correct sandbox.
+      if (activeRepo) void loadMountsForSandbox(null);
+    }
+  }, [open, activeRepo, loadMountsForSandbox]);
+
+  // Restore last-used sandbox and its start command per repo.
+  // Runs when remoteSandboxes loads (async), which has the latest
+  // default_start_cmd from the database — even if user just changed it
+  // in Settings.
+  useEffect(() => {
+    if (!open || !activeRepo || remoteSandboxes.length === 0) return;
+    try {
+      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
+      if (!saved) return;
+      const sandbox = remoteSandboxes.find((s) => s.id === saved);
+      if (!sandbox) {
+        // Sandbox was deleted — clear stale selection.
+        localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
+        return;
+      }
+      setSelectedSandboxId(saved);
+      void loadMountsForSandbox(saved);
+      fetchLastStartCmd(saved, activeRepo)
+        .catch(() => null)
+        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
+    } catch (e) { console.warn("Failed to restore last sandbox selection", e); }
+  }, [open, activeRepo, remoteSandboxes, loadMountsForSandbox]);
+
   useEffect(() => { adjustPromptHeight(); }, [customPrompt, adjustPromptHeight]);
 
   useEffect(() => {
@@ -168,12 +207,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       fetchRepoEnv(activeRepo).then((env) => {
         setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
       }).catch(() => setEnvError("Failed to load environment variables"));
-      loadMountsForSandbox(selectedSandboxId);
       fetchRepoMcpServers(activeRepo).then((servers) => {
         setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
       }).catch(() => setMcpError("Failed to load MCP servers"));
     }
-  }, [open, activeRepo, loadMountsForSandbox]);
+  }, [open, activeRepo]);
 
   useEffect(() => { if (open) setTimeout(() => textareaRef.current?.focus(), 150); }, [open]);
 
@@ -199,47 +237,56 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       try {
         if (id) localStorage.setItem(`autofyn_last_sandbox:${activeRepo}`, id);
         else localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
-      } catch { /* ignore */ }
+      } catch (e) { console.warn("Failed to persist sandbox selection to localStorage", e); }
     }
   }, [loadMountsForSandbox, activeRepo]);
 
-  const handleStart = async () => {
-    const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
-    const preset = selectedQuick !== null ? selectedQuick : undefined;
-    const hasMcpServers = mcpText.trim().length > 0;
-    if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0 || hasMcpServers)) {
-      setEnvError("Select a repository before configuring environment variables, host mounts, or MCP servers");
-      return;
-    }
-    if (activeRepo) {
-      try { await saveRepoEnv(activeRepo, parseEnvText(envText)); setEnvError(null); }
-      catch (e) { setEnvError(e instanceof Error ? e.message : "Failed to save env vars"); return; }
-      try {
-        if (selectedSandboxId === null) await saveRepoMounts(activeRepo, mounts);
-        else await saveRemoteMounts(activeRepo, selectedSandboxId, mounts);
-        setMountError(null);
-      } catch (e) { setMountError(e instanceof Error ? e.message : "Failed to save mounts"); return; }
-      try {
-        const parsedMcp: unknown = mcpText.trim() ? JSON.parse(mcpText) : {};
-        if (typeof parsedMcp !== "object" || parsedMcp === null || Array.isArray(parsedMcp)) {
-          setMcpError("MCP servers must be a JSON object"); return;
-        }
-        await saveRepoMcpServers(activeRepo, parsedMcp as Record<string, Record<string, unknown>>);
-        setMcpError(null);
-      } catch (e) { setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers"); return; }
-    }
-    const cmdToSend = selectedSandboxId !== null && startCmd.trim() ? startCmd.trim() : null;
-    if (selectedSandboxId !== null && cmdToSend) {
-      const sandbox = remoteSandboxes.find((s) => s.id === selectedSandboxId);
-      if (sandbox && cmdToSend !== sandbox.default_start_cmd) {
-        void updateRemoteSandbox(selectedSandboxId, { ...sandbox, default_start_cmd: cmdToSend });
+  const handleStart = async (): Promise<void> => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const prompt = selectedQuick !== null ? undefined : customPrompt.trim() || undefined;
+      const preset = selectedQuick !== null ? selectedQuick : undefined;
+      const hasMcpServers = mcpText.trim().length > 0;
+      if (!activeRepo && (countEnvVars(envText) > 0 || mounts.length > 0 || hasMcpServers)) {
+        setEnvError("Select a repository before configuring environment variables, host mounts, or MCP servers");
+        return;
       }
+      if (activeRepo) {
+        try { await saveRepoEnv(activeRepo, parseEnvText(envText)); setEnvError(null); }
+        catch (e) { setEnvError(e instanceof Error ? e.message : "Failed to save env vars"); return; }
+        try {
+          if (selectedSandboxId === null) await saveRepoMounts(activeRepo, mounts);
+          else await saveRemoteMounts(activeRepo, selectedSandboxId, mounts);
+          setMountError(null);
+        } catch (e) { setMountError(e instanceof Error ? e.message : "Failed to save mounts"); return; }
+        try {
+          const parsedMcp: unknown = mcpText.trim() ? JSON.parse(mcpText) : {};
+          if (typeof parsedMcp !== "object" || parsedMcp === null || Array.isArray(parsedMcp)) {
+            setMcpError("MCP servers must be a JSON object"); return;
+          }
+          await saveRepoMcpServers(activeRepo, parsedMcp as Record<string, Record<string, unknown>>);
+          setMcpError(null);
+        } catch (e) { setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers"); return; }
+      }
+      const cmdToSend = startCmd.trim();
+      if (selectedSandboxId !== null && cmdToSend) {
+        const sandbox = remoteSandboxes.find((s) => s.id === selectedSandboxId);
+        if (sandbox && cmdToSend !== sandbox.default_start_cmd) {
+          void updateRemoteSandbox(selectedSandboxId, { ...sandbox, default_start_cmd: cmdToSend });
+        }
+      }
+      onStart(prompt, preset, budget, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
-    onStart(prompt, preset, budget, duration, baseBranch, model, effort, selectedSandboxId, cmdToSend);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); handleStart(); }
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    if (submittingRef.current || busy) return;
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void handleStart(); }
   };
 
   const modelSummary = `${MODELS[model].label} · ${capitalize(effort)}`;
@@ -414,18 +461,16 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 </CollapsibleSection>
 
                 {/* Sandbox picker (collapsible) */}
-                {remoteSandboxes.length > 0 && (
-                  <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
-                    <SandboxPicker
-                      sandboxes={remoteSandboxes}
-                      selectedId={selectedSandboxId}
-                      onSelect={handleSandboxSelect}
-                      startCmd={startCmd}
-                      onStartCmdChange={setStartCmd}
-                      activeRepo={activeRepo}
-                    />
-                  </CollapsibleSection>
-                )}
+                <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
+                  <SandboxPicker
+                    sandboxes={remoteSandboxes}
+                    selectedId={selectedSandboxId}
+                    onSelect={handleSandboxSelect}
+                    startCmd={startCmd}
+                    onStartCmdChange={setStartCmd}
+                    activeRepo={activeRepo}
+                  />
+                </CollapsibleSection>
 
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>
@@ -445,10 +490,10 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 <div className="flex gap-2">
                   <Button variant="ghost" size="md" onClick={onClose}>Cancel</Button>
                   <Button
-                    variant="success" size="md" onClick={handleStart} disabled={busy}
+                    variant="success" size="md" onClick={() => void handleStart()} disabled={busy || submitting}
                     icon={<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"><polygon points="3 2 8 5 3 8" /></svg>}
                   >
-                    {busy ? "Starting..." : "New Run"}
+                    {busy || submitting ? "Starting..." : "New Run"}
                   </Button>
                 </div>
               </div>

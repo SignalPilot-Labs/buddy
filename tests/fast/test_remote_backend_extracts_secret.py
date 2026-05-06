@@ -24,6 +24,7 @@ def _make_backend() -> RemoteBackend:
         ssh_target="user@hpc",
         sandbox_type="slurm",
         heartbeat_timeout=60,
+        work_dir="~/scratch",
     )
 
 
@@ -61,7 +62,6 @@ class TestRemoteBackendExtractsSecret:
             with patch("sandbox_client.backends.remote_backend.log_audit", new_callable=AsyncMock):
                 handle, events = await backend.create(
                     run_key="run-123",
-                    health_timeout=30,
                     host_mounts=None,
                     start_cmd="start.sh",
                 )
@@ -87,7 +87,6 @@ class TestRemoteBackendExtractsSecret:
                 with pytest.raises(SandboxStartError, match="did not provide secret"):
                     await backend.create(
                         run_key="run-456",
-                        health_timeout=30,
                         host_mounts=None,
                         start_cmd="start.sh",
                     )
@@ -111,7 +110,6 @@ class TestRemoteBackendExtractsSecret:
                 with pytest.raises(SandboxStartError, match="did not provide secret"):
                     await backend.create(
                         run_key="run-789",
-                        health_timeout=30,
                         host_mounts=None,
                         start_cmd="start.sh",
                     )
@@ -136,7 +134,6 @@ class TestRemoteBackendExtractsSecret:
             with patch("sandbox_client.backends.remote_backend.log_audit", new_callable=AsyncMock):
                 handle, events = await backend.create(
                     run_key="run-999",
-                    health_timeout=30,
                     host_mounts=None,
                     start_cmd="start.sh",
                 )

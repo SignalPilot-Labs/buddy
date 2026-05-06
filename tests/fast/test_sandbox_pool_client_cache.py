@@ -1,8 +1,7 @@
 """Regression tests for DockerLocalBackend client caching.
 
-get_client() was creating a new SandboxClient on every call, leaking the
-underlying httpx.AsyncClient. Now it caches by run_key and destroy() closes
-the cached client before removing the container.
+get_client() returns cached clients populated by create(). destroy()
+closes the cached client before removing the container.
 """
 
 import os
@@ -10,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DockerLocalBackend
 from sandbox_client.models import SandboxInstance
 
 
 def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with a mocked Docker client."""
-    with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
-        with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
+    with patch("sandbox_client.backends.local_backend.docker.from_env", return_value=MagicMock()):
+        with patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
                 return DockerLocalBackend()
 
@@ -41,27 +40,20 @@ class TestSandboxPoolClientCache:
         result = backend.get_client("no-such-key")
         assert result is None
 
-    def test_get_client_returns_same_instance_on_second_call(self) -> None:
-        """get_client() must return the cached SandboxClient, not a new one."""
+    def test_get_client_returns_cached_client(self) -> None:
+        """get_client() must return the client populated by create()."""
+        backend = _make_backend()
+        mock_client = MagicMock()
+        backend._clients["key1"] = mock_client
+
+        assert backend.get_client("key1") is mock_client
+
+    def test_get_client_returns_none_when_no_client_cached(self) -> None:
+        """get_client() returns None even if container exists but client wasn't created."""
         backend = _make_backend()
         backend._containers["key1"] = "fake-container-id"
 
-        secret = "test-secret"
-        with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": secret}):
-            client_a = backend.get_client("key1")
-            client_b = backend.get_client("key1")
-
-        assert client_a is client_b
-
-    def test_get_client_caches_client_in_dict(self) -> None:
-        """After get_client(), _clients must contain the run_key."""
-        backend = _make_backend()
-        backend._containers["key1"] = "fake-container-id"
-
-        with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "test-secret"}):
-            backend.get_client("key1")
-
-        assert "key1" in backend._clients
+        assert backend.get_client("key1") is None
 
     @pytest.mark.asyncio
     async def test_destroy_closes_cached_client(self) -> None:
