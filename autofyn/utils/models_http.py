@@ -27,7 +27,7 @@ class StartRequest(BaseModel):
     host_mounts: list[dict[str, str]] | None = None
     mcp_servers: dict[str, dict] | None = None
     sandbox_id: str | None = None
-    start_cmd: str | None = None
+    start_cmd: str = ""
 
     @field_validator("prompt")
     @classmethod

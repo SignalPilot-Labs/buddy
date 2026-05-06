@@ -34,7 +34,7 @@ class StartRunRequest(BaseModel):
     effort: str = Field(default=DEFAULT_EFFORT, pattern=VALID_EFFORTS_PATTERN, description="Thinking effort level.")
     repo: str | None = Field(None, description="Active repo slug for per-repo env vars lookup.")
     sandbox_id: str | None = Field(default=None, description="UUID of remote sandbox config. None for local Docker.")
-    start_cmd: str | None = Field(default=None, max_length=65536, description="Start command for remote sandbox. None for local Docker.")
+    start_cmd: str = Field(default="", max_length=65536, description="Start command for sandbox.")
 
     @field_validator("prompt")
     @classmethod

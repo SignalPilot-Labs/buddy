@@ -114,19 +114,14 @@ class RemoteBackend(SandboxBackend):
     async def create(
         self,
         run_key: str,
-        health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        start_cmd: str | None,
+        start_cmd: str,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote sandbox via the connector.
 
         Streams NDJSON events and returns (handle, events).
         The secret is extracted from the AF_READY marker event.
         """
-        if start_cmd is None:
-            raise ValueError(
-                f"{type(self).__name__}.create requires start_cmd for remote sandboxes"
-            )
 
         events: list[dict[str, Any]] = []
         host: str | None = None

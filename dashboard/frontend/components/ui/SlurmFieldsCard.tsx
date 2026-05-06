@@ -62,11 +62,9 @@ function FieldLabel(props: {
       <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
         {props.label}
         {props.required && <span className="text-[#ff4444] ml-0.5">*</span>}
+        {props.hint && <span className="normal-case tracking-normal font-normal text-text-dim ml-1.5">{props.hint}</span>}
       </label>
       {props.children}
-      {props.hint && (
-        <p className="text-content text-text-dim mt-0.5">{props.hint}</p>
-      )}
     </div>
   );
 }
@@ -111,7 +109,7 @@ export function SlurmFieldsCard({
             className={INPUT_CLASS}
           />
         </FieldLabel>
-        <FieldLabel label="AutoFyn Work Directory" required>
+        <FieldLabel label="Work Directory" required>
           <input
             type="text"
             value={slurm.work_dir}

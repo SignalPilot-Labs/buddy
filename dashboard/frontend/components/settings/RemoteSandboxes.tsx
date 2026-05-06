@@ -10,6 +10,7 @@ import { IconServer, IconPencil, IconPlus } from "@/components/ui/icons";
 import { fetchRemoteSandboxes, createRemoteSandbox, updateRemoteSandbox, deleteRemoteSandbox, testRemoteSandbox } from "@/lib/api";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { RemoteSandboxForm } from "@/components/settings/RemoteSandboxForm";
+import { DEFAULT_REMOTE_DOCKER_CMD } from "@/lib/constants";
 
 export interface SandboxFormData {
   name: string;
@@ -25,7 +26,7 @@ const EMPTY_FORM: SandboxFormData = {
   name: "",
   ssh_target: "",
   type: "docker",
-  default_start_cmd: "",
+  default_start_cmd: DEFAULT_REMOTE_DOCKER_CMD,
   queue_timeout: 1800,
   heartbeat_timeout: 1800,
   work_dir: "",

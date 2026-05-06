@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import { IconX } from "@/components/ui/icons";
 import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
+import { DEFAULT_REMOTE_DOCKER_CMD } from "@/lib/constants";
 import type { SandboxFormData } from "@/components/settings/RemoteSandboxes";
 import type { TestSandboxResult } from "@/lib/api";
 
@@ -15,9 +16,6 @@ const RUNTIME_TYPES: readonly { value: "docker" | "slurm"; label: string }[] = [
   { value: "docker", label: "Docker" },
   { value: "slurm", label: "Slurm" },
 ];
-
-const DOCKER_PLACEHOLDER =
-  "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
 
 interface RemoteSandboxFormProps {
   data: SandboxFormData;
@@ -137,7 +135,7 @@ export function RemoteSandboxForm({
                 if (t.value === "slurm") {
                   update({ type: t.value, default_start_cmd: data.default_start_cmd });
                 } else {
-                  update({ type: t.value, default_start_cmd: "" });
+                  update({ type: t.value, default_start_cmd: DEFAULT_REMOTE_DOCKER_CMD });
                 }
               }}
               className={clsx(
@@ -165,7 +163,7 @@ export function RemoteSandboxForm({
           <CodeTextarea
             value={data.default_start_cmd}
             onChange={(v) => update({ default_start_cmd: v })}
-            placeholder={DOCKER_PLACEHOLDER}
+            placeholder={DEFAULT_REMOTE_DOCKER_CMD}
             rows={5}
           />
         </FormField>

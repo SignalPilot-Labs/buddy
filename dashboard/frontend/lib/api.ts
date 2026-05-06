@@ -156,7 +156,7 @@ export async function startRun(
   effort: string,
   repo: string | null,
   sandboxId: string | null,
-  startCmd: string | null,
+  startCmd: string,
 ): Promise<{ ok: boolean; run_id?: string }> {
   const res = await apiFetch(`/api/agent/start`, {
     method: "POST",
@@ -171,7 +171,7 @@ export async function startRun(
       effort: effort,
       repo: repo || null,
       sandbox_id: sandboxId || null,
-      start_cmd: startCmd || null,
+      start_cmd: startCmd,
     }),
   });
   if (!res.ok) {

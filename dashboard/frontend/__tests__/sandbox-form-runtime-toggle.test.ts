@@ -21,12 +21,12 @@ const CARD_SRC = fs.readFileSync(
 );
 
 describe("RemoteSandboxForm: runtime toggle", () => {
-  it("clears start command when switching to Docker", () => {
+  it("resets start command to default when switching to Docker", () => {
     const clickBlock = SRC.slice(
       SRC.indexOf("onClick={() => {", SRC.indexOf("RUNTIME_TYPES.map")),
       SRC.indexOf("className={clsx(", SRC.indexOf("RUNTIME_TYPES.map")),
     );
-    expect(clickBlock).toContain('default_start_cmd: ""');
+    expect(clickBlock).toContain("DEFAULT_REMOTE_DOCKER_CMD");
   });
 
   it("delegates Slurm fields to shared SlurmFieldsCard", () => {

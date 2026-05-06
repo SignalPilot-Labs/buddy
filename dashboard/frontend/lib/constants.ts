@@ -72,6 +72,23 @@ export const RECONNECT_MAX_ATTEMPTS = 10;
 // Default base branch for new runs.
 export const DEFAULT_BASE_BRANCH = "main";
 
+// Default remote Docker start command (SSH-based remote sandbox).
+export const DEFAULT_REMOTE_DOCKER_CMD =
+  "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
+
+// Default local Docker start command. Must match autofyn/sandbox_client/backends/local_backend.py.
+export const DEFAULT_DOCKER_START_CMD =
+  "docker run --rm=false" +
+  " --name autofyn-sandbox-$AF_RUN_KEY" +
+  " --hostname autofyn-sandbox-$AF_RUN_KEY" +
+  " --network autofyn_default" +
+  " --cap-add SYS_PTRACE --cap-add SYS_ADMIN" +
+  " --security-opt apparmor:unconfined" +
+  " -v autofyn-repo-$AF_RUN_KEY:/home/agentuser/repo:rw" +
+  " $AF_DOCKER_EXTRA_VOLUMES" +
+  " $AF_DOCKER_EXTRA_ENV" +
+  " ghcr.io/signalpilot-labs/autofyn-sandbox:$AF_IMAGE_TAG";
+
 // Effort levels for the thinking-effort picker.
 export const EFFORT_LEVELS = ["low", "medium", "high", "max"] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];

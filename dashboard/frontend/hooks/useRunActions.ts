@@ -58,7 +58,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       model: string,
       effort: string,
       sandboxId: string | null,
-      startCmd: string | null,
+      startCmd: string,
     ): Promise<void> => {
       setStartModalOpen(false);
       setBusy(true);

@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DockerLocalBackend
 from sandbox_client.models import SandboxInstance
 
 
 def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with a mocked Docker client."""
-    with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
-        with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
+    with patch("sandbox_client.backends.local_backend.docker.from_env", return_value=MagicMock()):
+        with patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
                 return DockerLocalBackend()
 

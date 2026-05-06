@@ -12,7 +12,7 @@ import { HostMountsEditor } from "@/components/controls/HostMountsEditor";
 import { SandboxPicker } from "@/components/controls/SandboxPicker";
 import { McpServersEditor } from "@/components/controls/McpServersEditor";
 import { clsx } from "clsx";
-import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
+import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, DEFAULT_DOCKER_START_CMD, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
 import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox, fetchLastStartCmd } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
@@ -20,7 +20,7 @@ import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 export interface StartRunModalProps {
   open: boolean;
   onClose: () => void;
-  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: string | null, startCmd: string | null) => void;
+  onStart: (prompt: string | undefined, preset: string | undefined, budget: number, durationMinutes: number, baseBranch: string, model: string, effort: string, sandboxId: string | null, startCmd: string) => void;
   busy: boolean;
   branches: string[];
   activeRepo: string | null;
@@ -106,7 +106,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   const [mcpError, setMcpError] = useState<string | null>(null);
   const [remoteSandboxes, setRemoteSandboxes] = useState<RemoteSandboxConfig[]>([]);
   const [selectedSandboxId, setSelectedSandboxId] = useState<string | null>(null);
-  const [startCmd, setStartCmd] = useState("");
+  const [startCmd, setStartCmd] = useState(DEFAULT_DOCKER_START_CMD);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Restore last-used sandbox and its start command per repo.
@@ -228,7 +228,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
         setMcpError(null);
       } catch (e) { setMcpError(e instanceof Error ? e.message : "Failed to save MCP servers"); return; }
     }
-    const cmdToSend = selectedSandboxId !== null && startCmd.trim() ? startCmd.trim() : null;
+    const cmdToSend = startCmd.trim();
     if (selectedSandboxId !== null && cmdToSend) {
       const sandbox = remoteSandboxes.find((s) => s.id === selectedSandboxId);
       if (sandbox && cmdToSend !== sandbox.default_start_cmd) {
@@ -414,18 +414,16 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 </CollapsibleSection>
 
                 {/* Sandbox picker (collapsible) */}
-                {remoteSandboxes.length > 0 && (
-                  <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
-                    <SandboxPicker
-                      sandboxes={remoteSandboxes}
-                      selectedId={selectedSandboxId}
-                      onSelect={handleSandboxSelect}
-                      startCmd={startCmd}
-                      onStartCmdChange={setStartCmd}
-                      activeRepo={activeRepo}
-                    />
-                  </CollapsibleSection>
-                )}
+                <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={remoteSandboxes.length > 0}>
+                  <SandboxPicker
+                    sandboxes={remoteSandboxes}
+                    selectedId={selectedSandboxId}
+                    onSelect={handleSandboxSelect}
+                    startCmd={startCmd}
+                    onStartCmdChange={setStartCmd}
+                    activeRepo={activeRepo}
+                  />
+                </CollapsibleSection>
 
                 {/* Host Mounts (collapsible) */}
                 <CollapsibleSection label="Host Mounts" summary={mountSummary} defaultOpen={false}>

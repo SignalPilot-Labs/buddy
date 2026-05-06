@@ -5,6 +5,7 @@
 import { clsx } from "clsx";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
+import { DEFAULT_DOCKER_START_CMD } from "@/lib/constants";
 import type { RemoteSandboxConfig } from "@/lib/api";
 import { fetchLastStartCmd } from "@/lib/api";
 
@@ -19,12 +20,13 @@ interface SandboxPickerProps {
 
 export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
   const selectedSandbox = sandboxes.find((s) => s.id === selectedId) ?? null;
+  const isSlurm = selectedSandbox?.type === "slurm";
 
   return (
     <div className="space-y-2">
       <div className="flex gap-1.5 flex-wrap">
         <button
-          onClick={() => { onSelect(null); onStartCmdChange(""); }}
+          onClick={() => { onSelect(null); onStartCmdChange(DEFAULT_DOCKER_START_CMD); }}
           className={clsx(
             "text-content px-3 py-2 rounded border transition-all",
             selectedId === null
@@ -60,20 +62,19 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
           </button>
         ))}
       </div>
-      {selectedId !== null && selectedSandbox?.type === "slurm" && (
+      {isSlurm ? (
         <SlurmFieldsCard
           key={selectedId}
           startCmd={startCmd}
           onStartCmdChange={onStartCmdChange}
         />
-      )}
-      {selectedId !== null && selectedSandbox?.type !== "slurm" && (
+      ) : (
         <div>
           <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">Start Command</label>
           <CodeTextarea
             value={startCmd}
             onChange={onStartCmdChange}
-            placeholder="Start command for remote sandbox..."
+            placeholder=""
             rows={5}
           />
         </div>

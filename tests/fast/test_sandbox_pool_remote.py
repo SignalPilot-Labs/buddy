@@ -17,7 +17,7 @@ def _make_pool() -> SandboxManager:
     """Create a SandboxManager with mocked DockerLocalBackend and config."""
     with (
         patch("sandbox_client.manager.DockerLocalBackend", return_value=MagicMock()),
-        patch("sandbox_client.manager.sandbox_config", return_value={"health_timeout_sec": 30}),
+        patch("sandbox_client.manager.sandbox_config", return_value={"vm_timeout_sec": 30}),
         patch("sandbox_client.manager.os.environ", {"SANDBOX_INTERNAL_SECRET": "test", "CONNECTOR_URL": "http://localhost:9400", "CONNECTOR_SECRET": "test"}),
     ):
         return SandboxManager()

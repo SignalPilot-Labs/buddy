@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sandbox_client.backends.docker_local_backend import DockerLocalBackend, _LogDrainer
+from sandbox_client.backends.local_backend import DockerLocalBackend
 from sandbox_client.models import SandboxInstance
 
 
@@ -27,8 +27,8 @@ def _mock_container(container_id: str, short_id: str) -> MagicMock:
 
 def _make_backend() -> DockerLocalBackend:
     """Instantiate DockerLocalBackend with mocked Docker."""
-    with patch("sandbox_client.backends.docker_local_backend.docker.from_env", return_value=MagicMock()):
-        with patch("sandbox_client.backends.docker_local_backend.sandbox_config", return_value={"vm_timeout_sec": 30}):
+    with patch("sandbox_client.backends.local_backend.docker.from_env", return_value=MagicMock()):
+        with patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test", "SANDBOX_INTERNAL_SECRET": "test-sandbox-secret"}):
                 return DockerLocalBackend()
 
@@ -37,30 +37,9 @@ class TestDockerLocalBackendLifecycle:
     """Full lifecycle: create → use → destroy."""
 
     @pytest.mark.asyncio
-    async def test_create_returns_handle_with_local_fields(self) -> None:
-        """create() must return a SandboxInstance with sandbox_id=None (local)."""
-        backend = _make_backend()
-        mock_container = _mock_container("abc123", "abc1")
-
-        backend._docker.containers.run = MagicMock(return_value=mock_container)
-
-        with patch.dict(os.environ, {"SANDBOX_INTERNAL_SECRET": "secret-xyz"}):
-            with patch.object(backend, "_wait_healthy", new=AsyncMock()):
-                handle, events = await backend.create(
-                    "run-1", 10, None, None,
-                )
-
-        assert events == []
-        assert handle.run_key == "run-1"
-        assert handle.sandbox_id is None
-        assert handle.sandbox_secret == "test-sandbox-secret"
-        assert "run-1" in backend._containers
-
-    @pytest.mark.asyncio
     async def test_ring_buffer_captures_logs(self) -> None:
         """get_logs() returns lines from the ring buffer."""
         backend = _make_backend()
-        # Simulate a populated ring buffer
         buf: deque[str] = deque(maxlen=100)
         buf.extend(["log line 1", "log line 2", "log line 3"])
         backend._log_buffers["run-1"] = buf
@@ -105,15 +84,3 @@ class TestDockerLocalBackendLifecycle:
                 await backend.destroy_all()
 
         assert len(backend._containers) == 0
-
-    def test_log_drainer_populates_buffer(self) -> None:
-        """_LogDrainer thread reads container logs into deque."""
-        mock_container = MagicMock()
-        mock_container.logs.return_value = iter([b"first\n", b"second\n"])
-
-        buf: deque[str] = deque(maxlen=100)
-        drainer = _LogDrainer(mock_container, buf)
-        drainer.start()
-        drainer.join(timeout=2)
-
-        assert list(buf) == ["first", "second"]

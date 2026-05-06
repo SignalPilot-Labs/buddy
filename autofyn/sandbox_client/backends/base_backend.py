@@ -1,13 +1,26 @@
 """Abstract base class for sandbox backends.
 
 Defines the contract that all sandbox backends (local Docker, remote
-Docker, remote Slurm) must implement. The pool calls these methods
-without knowing the underlying infrastructure.
+Docker, remote Slurm) must implement. Common helpers for health polling
+and AF_READY parsing live here — subclasses only differ in how they
+execute the start command (local subprocess vs connector SSH).
 """
 
+import asyncio
+import json
+import logging
+import re
 from abc import ABC, abstractmethod
+from typing import Any
 
+import httpx
+
+from sandbox_client.client import SandboxClient
 from sandbox_client.models import SandboxInstance
+
+log = logging.getLogger("sandbox_client.base_backend")
+
+MARKER_RE: re.Pattern[str] = re.compile(r"(AF_READY)\s+(\{.*\})")
 
 
 class SandboxBackend(ABC):
@@ -17,16 +30,13 @@ class SandboxBackend(ABC):
     async def create(
         self,
         run_key: str,
-        health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        start_cmd: str | None,
+        start_cmd: str,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Spin up a sandbox and return (handle, startup_events).
 
-        Local backends ignore start_cmd and return empty events.
-        Remote backends require start_cmd and return NDJSON events.
-        Each backend owns its own secret: local reads from env,
-        remote extracts from the AF_READY marker event.
+        Each backend owns its timeouts internally — the caller just
+        provides run_key, mounts, and the start command.
         """
         ...
 
@@ -44,3 +54,33 @@ class SandboxBackend(ABC):
     async def get_logs(self, run_key: str, tail: int) -> list[str]:
         """Fetch recent log lines from a sandbox."""
         ...
+
+    @staticmethod
+    def parse_ready_marker(line: str) -> dict[str, Any] | None:
+        """Parse AF_READY JSON from a log line. Returns None if not a marker."""
+        match = MARKER_RE.search(line)
+        if not match:
+            return None
+        data: dict[str, Any] = json.loads(match.group(2))
+        return data
+
+    @staticmethod
+    async def wait_healthy(
+        client: SandboxClient,
+        name: str,
+        timeout: int,
+        poll_interval: int,
+    ) -> None:
+        """Poll sandbox /health until ready or timeout."""
+        for _ in range(timeout // poll_interval + 1):
+            try:
+                await client.health()
+                log.info("Sandbox %s healthy", name)
+                return
+            except (
+                httpx.ConnectError,
+                httpx.TimeoutException,
+                ConnectionRefusedError,
+            ):
+                await asyncio.sleep(poll_interval)
+        raise TimeoutError(f"Sandbox {name} not healthy after {timeout}s")
