@@ -152,6 +152,7 @@ export function RemoteSandboxes(): React.ReactElement {
 
       {showForm && (
         <RemoteSandboxForm
+          key={editingId ?? "new"}
           data={formData}
           onChange={setFormData}
           onSave={handleSave}

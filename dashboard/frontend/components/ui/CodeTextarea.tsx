@@ -59,7 +59,7 @@ export default function CodeTextarea({ value, onChange, placeholder, rows, class
         placeholder={placeholder}
         rows={rows}
         spellCheck={false}
-        className="relative w-full bg-black/30 border border-border rounded px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words placeholder:text-text-secondary resize-y focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
+        className="relative w-full bg-black/30 border border-border rounded px-3 py-2.5 font-mono text-content leading-normal whitespace-pre-wrap break-words placeholder:text-text-secondary resize-none focus-visible:outline-none focus-visible:border-[#00ff88]/30 focus-visible:ring-1 focus-visible:ring-[#00ff88]/40 transition-all"
         style={{ color: html ? "transparent" : undefined, caretColor: "#00ff88" }}
       />
     </div>

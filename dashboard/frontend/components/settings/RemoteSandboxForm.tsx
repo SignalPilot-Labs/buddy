@@ -28,8 +28,8 @@ interface SlurmFields {
 
 const EMPTY_SLURM: SlurmFields = {
   partition: "",
-  cpus: "4",
-  memory: "16G",
+  cpus: "",
+  memory: "",
   gpu_gres: "",
   work_dir: "",
 };
@@ -38,9 +38,9 @@ function buildSlurmCmd(s: SlurmFields): string {
   const gres = s.gpu_gres.trim() ? ` --gres=gpu:${s.gpu_gres.trim()}` : "";
   const nv = s.gpu_gres.trim() ? " --nv" : "";
   const partition = s.partition.trim() || "PARTITION";
-  const cpus = s.cpus.trim() || "4";
-  const mem = s.memory.trim() || "16G";
-  const workDir = s.work_dir.trim() || "~/scratch";
+  const cpus = s.cpus.trim() || "CPUS";
+  const mem = s.memory.trim() || "MEMORY";
+  const workDir = s.work_dir.trim() || "WORK_DIR";
   return (
     `source /etc/profile && module load apptainer && ` +
     `srun --job-name=autofyn -p ${partition} -n 1 --cpus-per-task=${cpus} --mem=${mem}${gres} ` +
@@ -74,12 +74,14 @@ interface RemoteSandboxFormProps {
 function FormField(props: {
   label: string;
   hint?: string;
+  required?: boolean;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
     <div>
       <label className="text-content uppercase tracking-[0.15em] text-text-muted font-semibold mb-1 block">
         {props.label}
+        {props.required && <span className="text-[#ff4444] ml-0.5">*</span>}
       </label>
       {props.children}
       {props.hint && (
@@ -160,7 +162,7 @@ export function RemoteSandboxForm({
         <IconX />
       </button>
       <div className="grid grid-cols-2 gap-3">
-        <FormField label="Name">
+        <FormField label="Name" required>
           <input
             type="text"
             value={data.name}
@@ -169,7 +171,7 @@ export function RemoteSandboxForm({
             className={INPUT_CLASS}
           />
         </FormField>
-        <FormField label="SSH">
+        <FormField label="SSH" required>
           <input
             type="text"
             value={data.ssh_target}
@@ -208,7 +210,7 @@ export function RemoteSandboxForm({
       {data.type === "slurm" && (
         <>
           <div className="grid grid-cols-2 gap-3">
-            <FormField label="Partition">
+            <FormField label="Partition" required>
               <input
                 type="text"
                 value={slurm.partition}
@@ -217,7 +219,7 @@ export function RemoteSandboxForm({
                 className={INPUT_CLASS}
               />
             </FormField>
-            <FormField label="Work Directory" hint="Fast storage for run files (scratch, local SSD).">
+            <FormField label="AutoFyn Work Directory" required>
               <input
                 type="text"
                 value={slurm.work_dir}
@@ -228,7 +230,7 @@ export function RemoteSandboxForm({
             </FormField>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <FormField label="CPUs">
+            <FormField label="CPUs" required>
               <input
                 type="text"
                 value={slurm.cpus}
@@ -237,7 +239,7 @@ export function RemoteSandboxForm({
                 className={INPUT_CLASS}
               />
             </FormField>
-            <FormField label="Memory">
+            <FormField label="Memory" required>
               <input
                 type="text"
                 value={slurm.memory}
@@ -246,12 +248,12 @@ export function RemoteSandboxForm({
                 className={INPUT_CLASS}
               />
             </FormField>
-            <FormField label="GPU" hint="e.g. a100:1, h100:2">
+            <FormField label="GPU">
               <input
                 type="text"
                 value={slurm.gpu_gres}
                 onChange={(e) => updateSlurm({ gpu_gres: e.target.value })}
-                placeholder="none"
+                placeholder="a100:2"
                 className={INPUT_CLASS}
               />
             </FormField>
