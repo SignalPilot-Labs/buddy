@@ -74,7 +74,7 @@ export const DEFAULT_BASE_BRANCH = "main";
 
 // Default remote Docker start command (SSH-based remote sandbox).
 export const DEFAULT_REMOTE_DOCKER_CMD =
-  "source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
+  "source /etc/profile && docker run --rm --network=host -e AF_SANDBOX_PORT=0 ghcr.io/signalpilot-labs/autofyn-sandbox:stable";
 
 // Default local Docker start command. Must match autofyn/sandbox_client/backends/local_backend.py.
 export const DEFAULT_DOCKER_START_CMD =

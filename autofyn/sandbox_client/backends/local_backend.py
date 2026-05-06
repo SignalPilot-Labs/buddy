@@ -30,13 +30,11 @@ from utils.constants import (
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE_BASE,
     SANDBOX_POOL_NETWORK,
-    SANDBOX_POOL_PORT,
 )
 
 log = logging.getLogger("sandbox_client.docker_local")
 
 _RING_BUFFER_SIZE: int = 100
-_FALLBACK_HEALTH_TIMEOUT: int = 5
 _STARTUP_TIMEOUT_SEC: int = 120
 
 DEFAULT_DOCKER_START_CMD: str = (
@@ -144,15 +142,16 @@ class DockerLocalBackend(SandboxBackend):
         )
 
         ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC)
+        ready_port: int = ready_data["port"]
 
         container_id = await self._get_container_id(container_name)
         self._containers[run_key] = container_id
-        log.info("Started sandbox %s (%s)", container_name, container_id[:12])
+        log.info("Started sandbox %s (%s) on port %d", container_name, container_id[:12], ready_port)
 
         self._start_log_drainer(run_key, proc)
 
         extracted_secret = ready_data.get("secret", self._sandbox_secret)
-        url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
+        url = f"http://{container_name}:{ready_port}"
 
         try:
             await self._create_client(run_key, url)
@@ -260,21 +259,7 @@ class DockerLocalBackend(SandboxBackend):
 
     def get_client(self, run_key: str) -> SandboxClient | None:
         """Return a cached SandboxClient for a live sandbox, or None."""
-        if run_key not in self._containers:
-            return None
-        if run_key in self._clients:
-            return self._clients[run_key]
-        container_name = f"autofyn-sandbox-{run_key}"
-        url = f"http://{container_name}:{SANDBOX_POOL_PORT}"
-        client = SandboxClient(
-            url,
-            _FALLBACK_HEALTH_TIMEOUT,
-            self._client_timeout,
-            sandbox_secret=None,
-            extra_headers=None,
-        )
-        self._clients[run_key] = client
-        return client
+        return self._clients.get(run_key)
 
     async def get_logs(self, run_key: str, tail: int) -> list[str]:
         """Return last N lines from the ring buffer."""

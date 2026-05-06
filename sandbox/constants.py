@@ -22,7 +22,7 @@ _security_cfg = security_config()
 
 # ── Execution ──
 CMD_TIMEOUT: int = _cfg["exec_timeout_sec"]
-SANDBOX_PORT: int = int(os.environ.get("AF_SANDBOX_PORT", "8923"))
+SANDBOX_PORT: int = int(os.environ["AF_SANDBOX_PORT"])
 SANDBOX_HOST: str = "0.0.0.0"
 
 # ── Security ──

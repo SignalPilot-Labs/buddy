@@ -52,6 +52,7 @@ async def stream_start_events(
 
     env = {
         "AF_RUN_KEY": run_key,
+        "AF_SANDBOX_PORT": "0",
         "AF_HOST_MOUNTS_JSON": mounts_json,
         "AF_APPTAINER_BINDS": apptainer_binds if apptainer_binds else "",
         "AF_DOCKER_VOLUMES": docker_volumes if docker_volumes else "",

@@ -6,8 +6,8 @@ By default, AutoFyn runs each sandbox in a local Docker container. Remote sandbo
 
 1. AutoFyn SSH-tunnels to the remote machine via the **connector** (a local process started automatically by `autofyn start`)
 2. Your **start command** runs on the remote — it launches the sandbox container/process
-3. The sandbox binds a port and prints `AF_BOUND port=8923`
-4. Once healthy, it prints `AF_READY host=<compute-node> port=8923`
+3. The sandbox binds a free port and prints `AF_BOUND port=<port>`
+4. Once healthy, it prints `AF_READY host=<compute-node> port=<port>`
 5. The connector establishes a reverse tunnel and proxies all traffic
 
 The agent talks to the remote sandbox exactly like a local one — same HTTP API, same security.
@@ -71,7 +71,7 @@ In the **New Run** modal, expand the **Sandbox** section and select your remote 
 ### Docker remote
 
 ```bash
-source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+source /etc/profile && docker run --rm --network=host -e AF_SANDBOX_PORT=0 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 ```
 
 ### Slurm / Apptainer
