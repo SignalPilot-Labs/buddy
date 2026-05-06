@@ -6,8 +6,8 @@ By default, AutoFyn runs each sandbox in a local Docker container. Remote sandbo
 
 1. AutoFyn SSH-tunnels to the remote machine via the **connector** (a local process started automatically by `autofyn start`)
 2. Your **start command** runs on the remote — it launches the sandbox container/process
-3. The sandbox binds a port and prints `AF_BOUND port=8080`
-4. Once healthy, it prints `AF_READY host=<compute-node> port=8080`
+3. The sandbox binds a port and prints `AF_BOUND port=8923`
+4. Once healthy, it prints `AF_READY host=<compute-node> port=8923`
 5. The connector establishes a reverse tunnel and proxies all traffic
 
 The agent talks to the remote sandbox exactly like a local one — same HTTP API, same security.
@@ -61,7 +61,7 @@ In the **New Run** modal, expand the **Sandbox** section and select your remote 
 ### Docker remote
 
 ```bash
-source /etc/profile && docker run --rm -p 8080:8080 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
+source /etc/profile && docker run --rm -p 127.0.0.1:8923:8923 ghcr.io/signalpilot-labs/autofyn-sandbox:stable
 ```
 
 ### Slurm / Apptainer
@@ -76,12 +76,12 @@ With GPU access:
 source /etc/profile && module load apptainer && srun --job-name=autofyn -p gpu -n 1 -c 4 --mem=8G --gres=gpu:1 apptainer exec --nv --pwd /opt/autofyn --writable-tmpfs -B $HOME ~/.autofyn/sandbox.sif python3 -m server
 ```
 
-> **Note:** Running the start command manually will fail with `SANDBOX_INTERNAL_SECRET is not set`. This is expected — the connector generates a fresh secret per run and injects it automatically. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command or Slurm job metadata. To test manually, prepend `SANDBOX_INTERNAL_SECRET=test` to the command.
+> **Note:** The sandbox generates its own authentication secret at startup and transmits it back to the connector over the encrypted SSH stdout pipe. All secrets (tokens, env vars from the New Run modal) are passed securely over the SSH tunnel after startup — they never appear in the start command, SSH command-line arguments, or Slurm job metadata.
 
 Key flags:
 
 - `source /etc/profile` — non-interactive SSH doesn't source profile, so `docker`, `module`, and other commands in `/usr/local/bin` or module paths may not be found. Always include this for both Docker and Slurm commands
-- `-n 1` — only one task. `-n > 1` would spawn > 1 processes trying to bind port 8080 and **fail**.
+- `-n 1` — only one task. `-n > 1` would spawn > 1 processes trying to bind the same port and **fail**.
 - `-c 4` — request 4 CPU cores (adjust to your needs)
 - `--mem=4G` — memory limit per node
 - `--gres=gpu:1` — request 1 GPU (Slurm generic resource)

@@ -30,17 +30,17 @@ async def stream_start_events(
     ssh_target: str,
     start_cmd: str,
     run_key: str,
-    sandbox_secret: str,
     sandbox_type: str,
     host_mounts: list[dict[str, str]],
     heartbeat_timeout: int,
 ) -> tuple[asyncio.subprocess.Process, AsyncGenerator[dict[str, Any], None]]:
     """Execute start command over SSH. Returns (process, event_gen).
 
-    The sandbox secret is passed as SANDBOX_INTERNAL_SECRET env var.
-    Runtime secrets (GIT_TOKEN, etc.) are injected later via POST /env
-    after the sandbox is healthy — they never appear in SSH args or
-    Slurm job metadata.
+    The sandbox generates its own secret at startup and embeds it in the
+    AF_READY marker payload, transmitted securely over the encrypted SSH
+    stdout pipe. Runtime secrets (GIT_TOKEN, etc.) are injected later via
+    POST /env after the sandbox is healthy — they never appear in SSH args
+    or Slurm job metadata.
     """
     mounts_json = json.dumps(host_mounts)
     apptainer_binds = (
@@ -52,7 +52,6 @@ async def stream_start_events(
 
     env = {
         "AF_RUN_KEY": run_key,
-        "SANDBOX_INTERNAL_SECRET": sandbox_secret,
         "AF_HOST_MOUNTS_JSON": mounts_json,
         "AF_APPTAINER_BINDS": apptainer_binds if apptainer_binds else "",
         "AF_DOCKER_VOLUMES": docker_volumes if docker_volumes else "",
@@ -114,6 +113,7 @@ def _parse_marker(match: re.Match[str], ssh_target: str) -> dict[str, Any]:
             "event": "ready",
             "host": marker_data["host"],
             "port": marker_data["port"],
+            "sandbox_secret": marker_data.get("secret"),
         }
         if "backend_id" in marker_data:
             event["backend_id"] = marker_data["backend_id"]

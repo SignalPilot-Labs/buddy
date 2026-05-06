@@ -11,9 +11,8 @@ Rules (and why):
 5. git clean — protect in-progress work from other subagents
 6. Merge integrity — orchestrator owns branch convergence, not subagents
 7. GitHub writes — orchestrator owns PR/release/repo writes; reads are fine
-8. Secret var refs — block commands that name GIT_TOKEN / GH_TOKEN /
-   SANDBOX_INTERNAL_SECRET / AGENT_INTERNAL_SECRET, which would enable
-   curl/interpreter exfil
+8. Secret var refs — block commands that name any secret env var from config
+   (SECRET_ENV_VARS), which would enable curl/interpreter exfil
 9. /proc/<pid>/environ — block reads; execve snapshot may still contain
    secrets even after os.environ scrub
 """
@@ -24,6 +23,8 @@ import re
 from constants import CREDENTIAL_PATTERNS, GIT_REMOTE_WRITE_RE, SECRET_ENV_VARS
 
 log = logging.getLogger("sandbox.security")
+
+_SECRET_VAR_NAMES: tuple[str, ...] = tuple(SECRET_ENV_VARS.split("|"))
 
 
 class SecurityGate:
@@ -283,7 +284,7 @@ class SecurityGate:
         authenticated operations; subagents have no legitimate reason to
         reference these names in a command string.
         """
-        for name in ("SANDBOX_INTERNAL_SECRET", "AGENT_INTERNAL_SECRET", "GH_TOKEN", "GIT_TOKEN"):
+        for name in _SECRET_VAR_NAMES:
             if name in cmd:
                 return f"Commands that reference {name} are blocked"
         return None

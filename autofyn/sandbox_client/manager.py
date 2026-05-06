@@ -21,7 +21,6 @@ from sandbox_client.models import SandboxInstance
 from utils.constants import (
     ENV_KEY_CONNECTOR_SECRET,
     ENV_KEY_CONNECTOR_URL,
-    ENV_KEY_SANDBOX_SECRET,
 )
 from utils.db import get_setting_value
 
@@ -42,7 +41,6 @@ class SandboxManager:
         self._remote_backends: dict[str, SandboxBackend] = {}
         self._connector_url: str | None = os.environ.get(ENV_KEY_CONNECTOR_URL) or None
         self._connector_secret: str | None = os.environ.get(ENV_KEY_CONNECTOR_SECRET) or None
-        self._sandbox_secret: str = os.environ[ENV_KEY_SANDBOX_SECRET]
         self._health_timeout: int = cfg["health_timeout_sec"]
 
     async def create(
@@ -55,8 +53,7 @@ class SandboxManager:
         """Spin up a sandbox for a run. Returns (client, startup_events)."""
         backend = await self._resolve_backend(sandbox_id)
         handle, events = await backend.create(
-            run_key, self._health_timeout, host_mounts,
-            self._sandbox_secret, start_cmd,
+            run_key, self._health_timeout, host_mounts, start_cmd,
         )
         self._handles[run_key] = handle
 

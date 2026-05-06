@@ -27,6 +27,7 @@ from utils.constants import (
     DOCKER_SOCKET_PATH,
     ENV_KEY_ALLOW_DOCKER,
     ENV_KEY_IMAGE_TAG,
+    ENV_KEY_SANDBOX_SECRET,
     SANDBOX_POOL_ENV_PASSTHROUGH,
     SANDBOX_POOL_HEALTH_POLL_SEC,
     SANDBOX_POOL_IMAGE_BASE,
@@ -75,6 +76,7 @@ class DockerLocalBackend(SandboxBackend):
             "yes",
         )
         self._client_timeout: int = sandbox_config()["vm_timeout_sec"]
+        self._sandbox_secret: str = os.environ[ENV_KEY_SANDBOX_SECRET]
         self._image = f"{SANDBOX_POOL_IMAGE_BASE}:{os.environ[ENV_KEY_IMAGE_TAG]}"
         log.info("DockerLocalBackend image: %s", self._image)
 
@@ -92,7 +94,6 @@ class DockerLocalBackend(SandboxBackend):
         run_key: str,
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        sandbox_secret: str,
         start_cmd: str | None,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Spin up a sandbox container for a run. Returns (handle, [])."""
@@ -135,7 +136,7 @@ class DockerLocalBackend(SandboxBackend):
         handle = SandboxInstance(
             run_key=run_key,
             url=f"http://{container_name}:{SANDBOX_POOL_PORT}",
-            sandbox_secret=sandbox_secret,
+            sandbox_secret=self._sandbox_secret,
             sandbox_id=None,
         )
         return handle, []

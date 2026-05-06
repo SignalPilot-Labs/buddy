@@ -39,7 +39,7 @@ async def open_ssh_tunnel(
     remote_port: int,
     local_port: int,
 ) -> asyncio.subprocess.Process:
-    """Open an SSH tunnel: local_port -> remote_host:remote_port.
+    """Open an SSH tunnel: local_port -> remote_host:remote_port via ssh_target.
 
     Waits until the local port accepts connections before returning.
     """
@@ -86,26 +86,39 @@ async def run_ssh_command(
     command: str,
     env: dict[str, str],
 ) -> asyncio.subprocess.Process:
-    """Run a command over SSH with environment variables.
+    """Run a command over SSH with environment variables passed via stdin.
 
-    All env values are shell-quoted to prevent injection.
+    Env vars are written to the process stdin as shell export statements and
+    evaluated on the remote side via `bash -c 'eval "$(cat)"; <cmd>'`.
+    This keeps all env values out of the SSH command-line arguments, preventing
+    exposure via `ps aux` or /proc/<pid>/cmdline on shared HPC systems.
+
+    SSH stdin is encrypted by SSH transport; on the remote side the data is a
+    pipe (mode 0400, owner-only readable). After eval, vars exist only in the
+    process environment (/proc/PID/environ is 0400).
     """
-    env_exports = " ".join(
-        f"export {k}={shlex.quote(v)};" for k, v in env.items()
+    env_exports = "".join(
+        f"export {k}={shlex.quote(v)};\n" for k, v in env.items()
     )
-    full_cmd = f"{env_exports} {command}" if env_exports else command
+    # Pass command via stdin alongside env exports to avoid shell quoting
+    # issues with single quotes in the command string.
+    stdin_payload = f"{env_exports}{command}\n"
     cmd = [
         "ssh",
         *_ssh_base_opts(),
         ssh_target,
-        full_cmd,
+        "bash -s",
     ]
     process = await asyncio.create_subprocess_exec(
         *cmd,
+        stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT,
         preexec_fn=_preexec_fn,
     )
+    if process.stdin is not None:
+        process.stdin.write(stdin_payload.encode())
+        process.stdin.close()
     return process
 
 

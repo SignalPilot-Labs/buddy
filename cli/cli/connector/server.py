@@ -50,6 +50,19 @@ log = logging.getLogger("connector.server")
 HandlerType = Callable[[web.Request], Awaitable[web.StreamResponse]]
 
 
+def _quote_slurm_path(part: str) -> str:
+    """Quote a path for safe inclusion in a remote shell command.
+
+    Tilde paths preserve $HOME expansion; the rest of the path is quoted
+    to handle spaces and shell metacharacters. Non-tilde paths are quoted
+    directly with shlex.quote().
+    """
+    if part.startswith("~"):
+        rest = part[1:]
+        return "$HOME" + shlex.quote(rest) if rest else "$HOME"
+    return shlex.quote(part)
+
+
 def _build_image_check(sandbox_type: str, start_cmd: str) -> tuple[str, str] | None:
     """Extract the image path from a start command and build a check command.
 
@@ -60,8 +73,8 @@ def _build_image_check(sandbox_type: str, start_cmd: str) -> tuple[str, str] | N
     if sandbox_type == "slurm":
         for part in start_cmd.split():
             if part.endswith(".sif"):
-                expanded = part.replace("~", "$HOME", 1) if part.startswith("~") else part
-                return f"test -f {expanded}", part
+                quoted = _quote_slurm_path(part)
+                return f"test -f {quoted}", part
     elif sandbox_type == "docker":
         for part in start_cmd.split():
             if "/" in part and (":" in part or "." in part):
@@ -189,7 +202,6 @@ class ConnectorServer:
         run_key: str = body["run_key"]
         ssh_target: str = body["ssh_target"]
         sandbox_type: str = body["sandbox_type"]
-        sandbox_secret: str = body["sandbox_secret"]
         start_cmd: str = body["start_cmd"]
         host_mounts: list[dict[str, str]] = body["host_mounts"]
         heartbeat_timeout: int = body.get(
@@ -204,7 +216,6 @@ class ConnectorServer:
                 ssh_target=ssh_target,
                 start_cmd=start_cmd,
                 run_key=run_key,
-                sandbox_secret=sandbox_secret,
                 sandbox_type=sandbox_type,
                 host_mounts=host_mounts,
                 heartbeat_timeout=heartbeat_timeout,
@@ -234,11 +245,17 @@ class ConnectorServer:
 
         try:
             state = await self._create_forward_state(
-                run_key, ssh_target, sandbox_type, sandbox_secret,
+                run_key, ssh_target, sandbox_type,
                 ready_event, events, process,
             )
         except Exception:
             await kill_process_group(process)
+            backend_id = next(
+                (e.get("backend_id") for e in events if e.get("backend_id")),
+                None,
+            )
+            if backend_id and sandbox_type in ("slurm", "docker"):
+                await run_derived_stop(ssh_target, sandbox_type, backend_id)
             raise
         self._states[run_key] = state
 
@@ -274,7 +291,6 @@ class ConnectorServer:
         run_key: str,
         ssh_target: str,
         sandbox_type: str,
-        sandbox_secret: str,
         ready_event: dict[str, Any],
         events: list[dict[str, Any]],
         process: asyncio.subprocess.Process,
@@ -282,6 +298,12 @@ class ConnectorServer:
         """Open SSH tunnel and build ForwardState."""
         remote_host: str = ready_event["host"]
         remote_port: int = ready_event["port"]
+        sandbox_secret: str | None = ready_event.get("sandbox_secret")
+        if not sandbox_secret:
+            raise RuntimeError(
+                "Sandbox did not provide secret in AF_READY marker — "
+                "upgrade sandbox image to a version that generates its own secret"
+            )
         backend_id: str | None = next(
             (
                 e.get("backend_id")

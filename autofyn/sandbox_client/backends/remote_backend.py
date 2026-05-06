@@ -52,7 +52,6 @@ class RemoteBackend(SandboxBackend):
         self,
         run_key: str,
         start_cmd: str,
-        sandbox_secret: str,
         host_mounts: list[dict[str, str]] | None,
     ) -> AsyncGenerator[dict[str, Any], None]:
         """POST /sandboxes/start to connector, yield NDJSON events."""
@@ -61,7 +60,6 @@ class RemoteBackend(SandboxBackend):
             "ssh_target": self._ssh_target,
             "start_cmd": start_cmd,
             "sandbox_type": self._sandbox_type,
-            "sandbox_secret": sandbox_secret,
             "host_mounts": host_mounts or [],
             "heartbeat_timeout": self._heartbeat_timeout,
         }
@@ -115,12 +113,12 @@ class RemoteBackend(SandboxBackend):
         run_key: str,
         health_timeout: int,
         host_mounts: list[dict[str, str]] | None,
-        sandbox_secret: str,
         start_cmd: str | None,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote sandbox via the connector.
 
         Streams NDJSON events and returns (handle, events).
+        The secret is extracted from the AF_READY marker event.
         """
         if start_cmd is None:
             raise ValueError(
@@ -131,9 +129,10 @@ class RemoteBackend(SandboxBackend):
         host: str | None = None
         port: int | None = None
         backend_id: str | None = None
+        extracted_secret: str | None = None
 
         async for event in self._start_remote_sandbox(
-            run_key, start_cmd, sandbox_secret, host_mounts,
+            run_key, start_cmd, host_mounts,
         ):
             events.append(event)
             etype = event.get("event")
@@ -148,6 +147,7 @@ class RemoteBackend(SandboxBackend):
             elif etype == "ready":
                 host = event["host"]
                 port = event["port"]
+                extracted_secret = event.get("sandbox_secret")
                 if "backend_id" in event and backend_id is None:
                     backend_id = event["backend_id"]
             elif etype == "failed":
@@ -164,11 +164,18 @@ class RemoteBackend(SandboxBackend):
                 events,
             )
 
+        if not extracted_secret:
+            raise SandboxStartError(
+                "Sandbox did not provide secret in AF_READY event — "
+                "upgrade sandbox image to a version that generates its own secret",
+                events,
+            )
+
         url = self._build_proxy_url(run_key)
         handle = SandboxInstance(
             run_key=run_key,
             url=url,
-            sandbox_secret=sandbox_secret,
+            sandbox_secret=extracted_secret,
             sandbox_id=self._sandbox_id,
         )
         self._handles[run_key] = handle

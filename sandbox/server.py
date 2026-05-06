@@ -10,6 +10,7 @@ import asyncio
 import hmac
 import logging
 import os
+import secrets
 import socket
 import traceback
 
@@ -47,17 +48,17 @@ for _logger_name in ("aiohttp.access", "aiohttp.server", "aiohttp.web", ""):
 
 
 def _load_sandbox_secret() -> str:
-    """Load the sandbox authentication secret from SANDBOX_INTERNAL_SECRET env var.
+    """Load or generate the sandbox authentication secret.
 
-    Works for both local Docker (set by docker-compose) and remote
-    (passed as env var over SSH by the connector).
+    For local Docker: reads SANDBOX_INTERNAL_SECRET set by docker-compose.
+    For remote sandboxes: generates a fresh cryptographic secret at startup
+    and transmits it back to the connector via the AF_READY marker over the
+    encrypted SSH stdout pipe — never in SSH command-line arguments.
     """
-    secret = os.environ.pop(INTERNAL_SECRET_ENV_VAR, "")
-    if not secret:
-        raise RuntimeError(
-            f"{INTERNAL_SECRET_ENV_VAR} is not set — sandbox cannot start"
-        )
-    return secret
+    from_env = os.environ.pop(INTERNAL_SECRET_ENV_VAR, None)
+    if from_env is not None:
+        return from_env
+    return secrets.token_hex(32)
 
 
 _INTERNAL_SECRET = _load_sandbox_secret()
@@ -130,11 +131,15 @@ async def on_shutdown(app: web.Application) -> None:
     tracker.stop()
 
 
-def _emit_markers(port: int) -> None:
-    """Print AF_BOUND and AF_READY markers after the server has bound the port."""
+def _emit_markers(port: int, secret: str) -> None:
+    """Print AF_BOUND and AF_READY markers after the server has bound the port.
+
+    The secret is embedded in the AF_READY JSON payload and transmitted
+    securely over the encrypted SSH stdout pipe.
+    """
     host = socket.gethostname()
     print(f'{AF_BOUND_MARKER} {{"port":{port}}}', flush=True)
-    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port}}}', flush=True)
+    print(f'{AF_READY_MARKER} {{"host":"{host}","port":{port},"secret":"{secret}"}}', flush=True)
 
 
 def main() -> None:
@@ -157,7 +162,7 @@ def main() -> None:
         await runner.setup()
         site = web.TCPSite(runner, SANDBOX_HOST, SANDBOX_PORT)
         await site.start()
-        _emit_markers(SANDBOX_PORT)
+        _emit_markers(SANDBOX_PORT, _INTERNAL_SECRET)
         try:
             await asyncio.Event().wait()
         finally:

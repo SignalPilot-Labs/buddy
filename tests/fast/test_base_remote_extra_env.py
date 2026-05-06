@@ -73,9 +73,9 @@ class TestRemoteBackendNoExtraEnv:
             async for _ in backend._start_remote_sandbox(
                 run_key="run-123",
                 start_cmd="./start.sh",
-                sandbox_secret="per-run-secret",
                 host_mounts=None,
             ):
                 pass
 
         assert "extra_env" not in captured_body
+        assert "sandbox_secret" not in captured_body
