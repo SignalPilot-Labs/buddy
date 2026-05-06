@@ -8,7 +8,7 @@ import asyncio
 import logging
 from typing import Callable
 
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, ClaudeSDKError
 from claude_agent_sdk.types import (
     PermissionResultAllow,
     PermissionResultDeny,
@@ -147,7 +147,7 @@ class Session:
                     msg = f"MCP server '{name}' failed: {error}"
                     log.warning("Session %s: %s", self.session_id, msg)
                     self._emit({"event": "mcp_warning", "data": {"message": msg}})
-        except Exception as e:
+        except ClaudeSDKError as e:
             log.debug("Could not check MCP status: %s", e)
 
     def _permission_callback(self, gate: SecurityGate) -> Callable:

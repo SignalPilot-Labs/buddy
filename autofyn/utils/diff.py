@@ -39,7 +39,11 @@ async def fetch_github_diff(
     """Fetch full unified diff from GitHub. Tries compare API, falls back to PR.
 
     Returns {"diff": str} on success or {"error": str, "status": int} on failure.
+    Raises ValueError if repo is not a valid 'owner/name' slug.
     """
+    if "/" not in repo or repo.count("/") != 1:
+        raise ValueError(f"Invalid repo slug '{repo}': expected 'owner/name' format")
+
     headers = {"Authorization": f"token {token}"}
 
     async with httpx.AsyncClient(timeout=GITHUB_API_TIMEOUT) as http:

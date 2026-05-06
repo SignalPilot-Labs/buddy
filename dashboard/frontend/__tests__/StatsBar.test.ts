@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { NO_DATA, formatCostStat, formatToolStat, formatContextStat } from "@/components/stats/StatsBar";
+import { NO_DATA, formatCostStat, formatToolStat, formatContextStat, extractPrNumber } from "@/components/stats/StatsBar";
 
 describe("formatCostStat", () => {
   it("uses settled value when present (no tilde)", () => {
@@ -68,5 +68,17 @@ describe("formatContextStat", () => {
 
   it("renders no-data when both are zero", () => {
     expect(formatContextStat(0, 0)).toBe(NO_DATA);
+  });
+});
+
+describe("extractPrNumber", () => {
+  it("extracts PR number from a normal URL", () => {
+    // Regression: .pop() on split of a clean URL must return the number string.
+    expect(extractPrNumber("https://github.com/owner/repo/pull/42")).toBe("42");
+  });
+
+  it("extracts PR number from a trailing-slash URL", () => {
+    // Regression: .pop() previously returned "" because split produced ["...", "42", ""].
+    expect(extractPrNumber("https://github.com/owner/repo/pull/42/")).toBe("42");
   });
 });

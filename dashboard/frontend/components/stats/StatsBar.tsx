@@ -65,6 +65,15 @@ export function formatContextStat(liveTokens: number, settledTokens: number | nu
   return NO_DATA;
 }
 
+/**
+ * Extract the PR number from a GitHub pull request URL.
+ * Strips a trailing slash before splitting so URLs like
+ * `https://github.com/owner/repo/pull/42/` return `"42"` instead of `""`.
+ */
+export function extractPrNumber(url: string): string {
+  return url.replace(/\/$/, "").split("/").pop() ?? NO_DATA;
+}
+
 function Stat({
   icon,
   label,
@@ -174,7 +183,7 @@ export function StatsRow({
             <line x1="3" y1="4.5" x2="3" y2="5.5" />
             <path d="M7 4.5c0 1.5-1.5 2-4 3" />
           </svg>
-          PR #{run.pr_url.split("/").pop()}
+          PR #{extractPrNumber(run.pr_url)}
         </a>
       )}
     </motion.div>
