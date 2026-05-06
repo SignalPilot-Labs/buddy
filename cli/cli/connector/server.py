@@ -215,8 +215,6 @@ class ConnectorServer:
         if run_key in self._states:
             raise RuntimeError(f"Run {run_key} already has an active tunnel")
 
-        self._started_runs[run_key] = (ssh_target, sandbox_type, work_dir)
-
         process, event_gen = await asyncio.wait_for(
             stream_start_events(
                 ssh_target=ssh_target,
@@ -248,6 +246,11 @@ class ConnectorServer:
             fail = {"event": "failed", "error": f"Start command exited without AF_READY:\n{tail}"}
             await response.write((json.dumps(fail) + "\n").encode())
             return
+
+        # Record only after AF_READY confirms the run started (and may
+        # have created overlay dirs). This way _sweep_orphan_dirs only
+        # cleans dirs that actually exist.
+        self._started_runs[run_key] = (ssh_target, sandbox_type, work_dir)
 
         try:
             state = await self._create_forward_state(

@@ -21,13 +21,19 @@ export const EMPTY_SLURM: SlurmFields = {
   work_dir: "",
 };
 
+/** Strip shell metacharacters from a Slurm field value. */
+function sanitize(v: string): string {
+  return v.replace(/[;|&$`'"\\(){}<>!\n\r]/g, "");
+}
+
 export function buildSlurmCmd(s: SlurmFields): string {
-  const gres = s.gpu_gres.trim() ? ` --gres=gpu:${s.gpu_gres.trim()}` : "";
-  const nv = s.gpu_gres.trim() ? " --nv" : "";
-  const partition = s.partition.trim() || "PARTITION";
-  const cpus = s.cpus.trim() || "CPUS";
-  const mem = s.memory.trim() || "MEMORY";
-  const workDir = s.work_dir.trim() || "WORK_DIR";
+  const gpu = sanitize(s.gpu_gres.trim());
+  const gres = gpu ? ` --gres=gpu:${gpu}` : "";
+  const nv = gpu ? " --nv" : "";
+  const partition = sanitize(s.partition.trim()) || "PARTITION";
+  const cpus = sanitize(s.cpus.trim()) || "CPUS";
+  const mem = sanitize(s.memory.trim()) || "MEMORY";
+  const workDir = sanitize(s.work_dir.trim()) || "WORK_DIR";
   return (
     `source /etc/profile && module load apptainer && ` +
     `srun --job-name=autofyn -p ${partition} -n 1 --cpus-per-task=${cpus} --mem=${mem}${gres} ` +

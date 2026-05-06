@@ -5,7 +5,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select, func
 
 from backend import auth
@@ -29,6 +29,7 @@ from db.constants import (
     START_CMD_MAX_LEN,
     START_CMD_MIN_LEN,
     VALID_SANDBOX_TYPES,
+    WORK_DIR_RE,
     validate_remote_mount_path,
 )
 from db.models import Run, Setting
@@ -61,6 +62,24 @@ class RemoteSandboxConfig(BaseModel):
                 "only alphanumeric, @, ., _, :, /, - allowed"
             )
         return v
+
+    @field_validator("work_dir")
+    @classmethod
+    def validate_work_dir(cls, v: str) -> str:
+        """Reject shell metacharacters in work directory paths."""
+        if v and not WORK_DIR_RE.fullmatch(v):
+            raise ValueError(
+                "Work directory contains unsafe characters — "
+                "only alphanumeric, ~, ., _, /, - allowed"
+            )
+        return v
+
+    @model_validator(mode="after")
+    def require_work_dir_for_slurm(self) -> "RemoteSandboxConfig":
+        """Slurm sandboxes require a work directory for overlay storage."""
+        if self.type == "slurm" and not self.work_dir.strip():
+            raise ValueError("Work directory is required for Slurm sandboxes")
+        return self
 
 
 class RemoteSandboxResponse(BaseModel):
@@ -111,7 +130,7 @@ def _parse_config(setting: Setting) -> RemoteSandboxResponse:
     required_keys = ("name", "ssh_target", "type", "default_start_cmd", "queue_timeout", "heartbeat_timeout", "work_dir")
     missing = [k for k in required_keys if k not in raw]
     if missing:
-        raise ValueError(f"Sandbox {sandbox_id} config missing required fields: {', '.join(missing)}")
+        raise ValueError(f"Sandbox {sandbox_id} config missing required fields: {', '.join(missing)}. Re-save the sandbox in Settings to fix.")
     return RemoteSandboxResponse(
         id=sandbox_id,
         name=str(raw["name"]),

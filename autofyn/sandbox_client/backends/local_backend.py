@@ -10,6 +10,7 @@ import asyncio
 import collections
 import logging
 import os
+import shlex
 
 import docker
 import docker.errors
@@ -104,7 +105,9 @@ class DockerLocalBackend(SandboxBackend):
                 if error:
                     log.warning("Skipping invalid host mount: %s", error)
                     continue
-                parts.append(f"-v {host_path}:{container_path}:{mode}")
+                quoted_host = shlex.quote(host_path)
+                quoted_container = shlex.quote(container_path)
+                parts.append(f"-v {quoted_host}:{quoted_container}:{mode}")
                 log.info("Host mount: %s -> %s (%s)", host_path, container_path, mode)
         return " ".join(parts)
 
@@ -128,7 +131,14 @@ class DockerLocalBackend(SandboxBackend):
         ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC)
         ready_port: int = ready_data["port"]
 
-        container_id = await self._get_container_id(container_name)
+        try:
+            container_id = await self._get_container_id(container_name)
+        except docker.errors.NotFound:
+            proc.kill()
+            raise SandboxStartError(
+                f"Container {container_name} exited before health check",
+                [],
+            )
         self._containers[run_key] = container_id
         log.info("Started sandbox %s (%s) on port %d", container_name, container_id[:12], ready_port)
 

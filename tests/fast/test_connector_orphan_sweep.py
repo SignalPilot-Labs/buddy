@@ -1,6 +1,5 @@
 """Tests for ConnectorServer._sweep_orphan_dirs — orphaned overlay cleanup."""
 
-import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest

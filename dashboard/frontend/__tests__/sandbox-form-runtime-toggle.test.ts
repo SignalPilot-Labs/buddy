@@ -31,7 +31,7 @@ describe("RemoteSandboxForm: runtime toggle", () => {
 
   it("delegates Slurm fields to shared SlurmFieldsCard", () => {
     expect(SRC).toContain("SlurmFieldsCard");
-    expect(SRC).toContain('import { SlurmFieldsCard }');
+    expect(SRC).toContain('SlurmFieldsCard, buildSlurmCmd, EMPTY_SLURM');
   });
 
   it("SlurmFieldsCard contains buildSlurmCmd", () => {
