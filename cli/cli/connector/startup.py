@@ -96,7 +96,12 @@ async def _stream_events(
 def _parse_marker(match: re.Match[str], ssh_target: str) -> dict[str, Any]:
     """Parse a marker regex match into an event dict."""
     marker_name = match.group(1)
-    marker_data: dict[str, Any] = json.loads(match.group(2))
+    raw_json = match.group(2)
+    try:
+        marker_data: dict[str, Any] = json.loads(raw_json)
+    except json.JSONDecodeError as exc:
+        log.warning("Malformed %s marker JSON from %s: %s", marker_name, ssh_target, exc)
+        return {"event": "log", "line": f"Malformed marker JSON: {raw_json[:100]}"}
 
     if marker_name == AF_QUEUED_MARKER:
         return {"event": "queued", "backend_id": marker_data.get("backend_id")}

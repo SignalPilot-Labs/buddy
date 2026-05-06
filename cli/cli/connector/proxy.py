@@ -27,28 +27,41 @@ async def handle_proxy(
     headers = _build_proxy_headers(request, state.sandbox_secret)
     body = await request.read() if request.can_read_body else None
 
-    async with httpx.AsyncClient(
-        timeout=httpx.Timeout(PROXY_TIMEOUT_SEC),
-    ) as client:
-        async with client.stream(
-            method=request.method,
-            url=target_url,
-            headers=headers,
-            content=body,
-        ) as resp:
-            response = web.StreamResponse(
-                status=resp.status_code,
-                headers={
-                    "Content-Type": resp.headers.get(
-                        "content-type", "application/json",
-                    ),
-                },
-            )
-            await response.prepare(request)
-            async for chunk in resp.aiter_bytes():
-                await response.write(chunk)
-            await response.write_eof()
-            return response
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(PROXY_TIMEOUT_SEC),
+        ) as client:
+            async with client.stream(
+                method=request.method,
+                url=target_url,
+                headers=headers,
+                content=body,
+            ) as resp:
+                response = web.StreamResponse(
+                    status=resp.status_code,
+                    headers={
+                        "Content-Type": resp.headers.get(
+                            "content-type", "application/json",
+                        ),
+                    },
+                )
+                await response.prepare(request)
+                async for chunk in resp.aiter_bytes():
+                    await response.write(chunk)
+                await response.write_eof()
+                return response
+    except httpx.TimeoutException as exc:
+        log.warning("Proxy timeout for run %s: %s", run_key, exc)
+        return web.json_response(
+            {"error": f"Sandbox timed out: {exc}"},
+            status=504,
+        )
+    except (httpx.ConnectError, httpx.ReadError) as exc:
+        log.warning("Proxy connection error for run %s: %s", run_key, exc)
+        return web.json_response(
+            {"error": f"Tunnel unreachable: {exc}"},
+            status=502,
+        )
 
 
 def _build_target_url(request: web.Request, local_port: int) -> str:

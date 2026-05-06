@@ -19,6 +19,20 @@ from sdk.manager import SessionManager
 log = logging.getLogger("sandbox.endpoints.session")
 
 
+def _parse_int_query(request: web.Request, param_name: str, default: int) -> int:
+    """Parse an integer query parameter, raising HTTP 400 on invalid input."""
+    raw = request.query.get(param_name, str(default))
+    try:
+        return int(raw)
+    except ValueError:
+        raise web.HTTPBadRequest(
+            content_type="application/json",
+            text=json.dumps(
+                {"error": f"Invalid query parameter '{param_name}': expected integer, got {raw!r}"}
+            ),
+        )
+
+
 def _require_session(handler):
     """Decorator that maps SessionNotFoundError to HTTP 404."""
     async def wrapper(request: web.Request):
@@ -45,7 +59,7 @@ async def handle_events(request: web.Request) -> web.StreamResponse:
     sessions: SessionManager = request.app["sessions"]
     event_log = sessions.get_event_log(session_id)
 
-    after_seq = int(request.query.get("after_seq", "0"))
+    after_seq = _parse_int_query(request, "after_seq", 0)
 
     response = web.StreamResponse()
     response.content_type = "text/event-stream"
@@ -125,7 +139,7 @@ async def handle_trim(request: web.Request) -> web.Response:
     """Discard processed events up through seq, freeing sandbox memory."""
     session_id = request.match_info["session_id"]
     sessions: SessionManager = request.app["sessions"]
-    seq = int(request.query.get("seq", "0"))
+    seq = _parse_int_query(request, "seq", 0)
     event_log = sessions.get_event_log(session_id)
     event_log.trim_through(seq)
     return web.json_response({"status": "trimmed", "through_seq": seq})
