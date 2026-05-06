@@ -31,6 +31,21 @@ class TestFetchGithubDiffSlugValidation:
             await fetch_github_diff("owner/repo/extra", "main", "base", "token")
 
     @pytest.mark.asyncio
+    async def test_trailing_slash_owner_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Invalid repo slug"):
+            await fetch_github_diff("owner/", "main", "base", "token")
+
+    @pytest.mark.asyncio
+    async def test_leading_slash_repo_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Invalid repo slug"):
+            await fetch_github_diff("/repo", "main", "base", "token")
+
+    @pytest.mark.asyncio
+    async def test_bare_slash_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Invalid repo slug"):
+            await fetch_github_diff("/", "main", "base", "token")
+
+    @pytest.mark.asyncio
     async def test_valid_slug_does_not_raise(self) -> None:
         mock_response = MagicMock()
         mock_response.status_code = 200

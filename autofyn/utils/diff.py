@@ -41,7 +41,8 @@ async def fetch_github_diff(
     Returns {"diff": str} on success or {"error": str, "status": int} on failure.
     Raises ValueError if repo is not a valid 'owner/name' slug.
     """
-    if "/" not in repo or repo.count("/") != 1:
+    parts = repo.split("/")
+    if len(parts) != 2 or not parts[0] or not parts[1]:
         raise ValueError(f"Invalid repo slug '{repo}': expected 'owner/name' format")
 
     headers = {"Authorization": f"token {token}"}

@@ -56,8 +56,8 @@ async def handle_proxy(
             {"error": f"Sandbox timed out: {exc}"},
             status=504,
         )
-    except (httpx.ConnectError, httpx.ReadError) as exc:
-        log.warning("Proxy connection error for run %s: %s", run_key, exc)
+    except httpx.TransportError as exc:
+        log.warning("Proxy transport error for run %s: %s", run_key, exc)
         return web.json_response(
             {"error": f"Tunnel unreachable: {exc}"},
             status=502,

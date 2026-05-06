@@ -143,6 +143,38 @@ class TestProxyReadError:
         assert response.status == HTTP_502
 
 
+class TestProxyWriteError:
+    """handle_proxy must return 502 when httpx.WriteError is raised."""
+
+    @pytest.mark.asyncio
+    async def test_write_error_returns_502(self) -> None:
+        """WriteError during stream → 502 JSON response."""
+        request = _make_request()
+        states = {RUN_KEY: _make_state()}
+
+        mock_cls = _mock_client_raising(httpx.WriteError("Broken pipe"))
+        with patch("cli.connector.proxy.httpx.AsyncClient", mock_cls):
+            response = await handle_proxy(request, states)
+
+        assert response.status == HTTP_502
+
+
+class TestProxyProtocolError:
+    """handle_proxy must return 502 when httpx.RemoteProtocolError is raised."""
+
+    @pytest.mark.asyncio
+    async def test_remote_protocol_error_returns_502(self) -> None:
+        """RemoteProtocolError during stream → 502 JSON response."""
+        request = _make_request()
+        states = {RUN_KEY: _make_state()}
+
+        mock_cls = _mock_client_raising(httpx.RemoteProtocolError("Malformed response"))
+        with patch("cli.connector.proxy.httpx.AsyncClient", mock_cls):
+            response = await handle_proxy(request, states)
+
+        assert response.status == HTTP_502
+
+
 class TestProxyMissingTunnel:
     """handle_proxy returns 404 when no tunnel is active for the run_key."""
 
