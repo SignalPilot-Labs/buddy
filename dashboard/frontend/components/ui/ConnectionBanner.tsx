@@ -15,9 +15,10 @@ interface ConnectionBannerProps {
   connectionState: ConnectionState;
   runStatus: RunStatus | null;
   showToast: (message: string, variant: ToastVariant) => void;
+  selectedRunId: string | null;
 }
 
-export function ConnectionBanner({ connectionState, runStatus, showToast }: ConnectionBannerProps) {
+export function ConnectionBanner({ connectionState, runStatus, showToast, selectedRunId }: ConnectionBannerProps) {
   const isActiveRun = runStatus !== null && (ACTIVE_STATUSES as readonly string[]).includes(runStatus);
   const wantsBanner = connectionState !== "connected" && isActiveRun;
 
@@ -35,6 +36,11 @@ export function ConnectionBanner({ connectionState, runStatus, showToast }: Conn
 
   const prevStateRef = useRef<ConnectionState>(connectionState);
   const hasConnectedRef = useRef(false);
+
+  // Reset on run switch so the first connection to a new run isn't toasted
+  useEffect(() => {
+    hasConnectedRef.current = false;
+  }, [selectedRunId]);
 
   useEffect(() => {
     const prev = prevStateRef.current;
