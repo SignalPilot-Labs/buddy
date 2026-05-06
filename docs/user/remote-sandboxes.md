@@ -12,12 +12,6 @@ By default, AutoFyn runs each sandbox in a local Docker container. Remote sandbo
 
 The agent talks to the remote sandbox exactly like a local one — same HTTP API, same security.
 
-## Security
-
-Every sandbox endpoint (except `/health`) requires a 256-bit authentication secret in the `X-Internal-Secret` header. The sandbox generates this secret at startup and transmits it to the connector over the encrypted SSH stdout pipe — it never appears in command-line arguments or Slurm job metadata.
-
-Other users on shared HPC nodes can see the port is open but cannot authenticate. All other secrets (Git tokens, API keys) are injected after startup via the authenticated tunnel.
-
 ## Setup
 
 ### 1. Pull the sandbox image on the remote
