@@ -30,8 +30,8 @@ if [ -z "${SANDBOX_INTERNAL_SECRET:-}" ]; then
 fi
 
 if [ -z "${CONNECTOR_SECRET:-}" ]; then
-    echo "[autofyn] ERROR: CONNECTOR_SECRET not set." >&2
-    exit 1
+    CONNECTOR_SECRET="$(openssl rand -hex 32)"
+    export CONNECTOR_SECRET
 fi
 
 # Only tear down if containers are already running

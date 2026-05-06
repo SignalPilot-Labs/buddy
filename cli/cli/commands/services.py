@@ -305,11 +305,12 @@ def _pull_images(image_tag: str) -> bool:
     """Try to pull pre-built images for the given tag. Returns True on success."""
     os.environ["AF_IMAGE_TAG"] = image_tag
     # docker-compose.yml references these secrets in service definitions, so
-    # docker compose warns when they're unset — even for pull, which never
-    # uses them. Placeholders silence the warning; start.sh generates real
-    # secrets before any container runs.
+    # docker compose warns when env vars are unset — even for pull, which
+    # never uses them. Placeholders silence the warning; start.sh generates
+    # real secrets before any container runs.
     os.environ.setdefault("AGENT_INTERNAL_SECRET", "pull-placeholder")
     os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "pull-placeholder")
+    os.environ.setdefault("CONNECTOR_SECRET", "pull-placeholder")
     console.print(f"[dim]→ docker compose pull (tag: {image_tag})[/dim]")
     result = subprocess.run(
         ["docker", "compose", "pull"],
