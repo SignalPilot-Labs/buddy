@@ -111,7 +111,6 @@ export function useDashboard(): DashboardState {
       const gen = ++selectGenRef.current;
       sseRef.current.disconnect();
       setSelectedRunId(id);
-      localStorage.setItem("autofyn_last_run_id", id);
       setHistoryLoadingRef.current(true);
       sseRef.current.clearEvents();
       let lastToolId = 0;
@@ -122,6 +121,7 @@ export function useDashboard(): DashboardState {
         if (gen !== selectGenRef.current) return loadedEvents;
         setHistoryEventsRef.current(result.events);
         setHistoryTruncatedRef.current(result.truncated);
+        localStorage.setItem("autofyn_last_run_id", id);
         loadedEvents = result.events;
         lastToolId = result.lastToolId;
         lastAuditId = result.lastAuditId;

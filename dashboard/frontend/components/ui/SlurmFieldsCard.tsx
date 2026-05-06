@@ -2,7 +2,7 @@
 
 /**Shared Slurm parameter fields + start command card, used in settings and run modal.*/
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import CodeTextarea from "@/components/ui/CodeTextarea";
 
 export interface SlurmFields {
@@ -97,11 +97,13 @@ export function SlurmFieldsCard({
     ? parseSlurmCmd(startCmd) ?? EMPTY_SLURM
     : EMPTY_SLURM;
   const [slurm, setSlurm] = useState<SlurmFields>(initialSlurm);
+  const internalChangeRef = useRef(false);
 
   const updateSlurm = useCallback((patch: Partial<SlurmFields>): void => {
     setSlurm((prev) => {
       const next = { ...prev, ...patch };
       const cmd = buildSlurmCmd(next);
+      internalChangeRef.current = true;
       onStartCmdChange(cmd);
       if (patch.work_dir !== undefined && onWorkDirChange) {
         onWorkDirChange(next.work_dir);
@@ -109,6 +111,17 @@ export function SlurmFieldsCard({
       return next;
     });
   }, [onStartCmdChange, onWorkDirChange]);
+
+  // Sync textarea-to-fields: when startCmd changes externally (i.e. NOT from
+  // updateSlurm), parse it and update structured fields.
+  useEffect(() => {
+    if (internalChangeRef.current) {
+      internalChangeRef.current = false;
+      return;
+    }
+    const parsed = startCmd ? parseSlurmCmd(startCmd) : null;
+    if (parsed) setSlurm(parsed);
+  }, [startCmd]);
 
   return (
     <div className="space-y-3">
