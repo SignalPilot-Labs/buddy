@@ -120,8 +120,6 @@ export function RemoteSandboxForm({
     ? parseSlurmCmd(data.default_start_cmd) ?? EMPTY_SLURM
     : EMPTY_SLURM;
   const [slurm, setSlurm] = useState<SlurmFields>(initialSlurm);
-  const [cmdManuallyEdited, setCmdManuallyEdited] = useState(false);
-
   const update = (patch: Partial<SandboxFormData>): void => {
     onChange({ ...data, ...patch });
   };
@@ -129,7 +127,6 @@ export function RemoteSandboxForm({
   const updateSlurm = useCallback((patch: Partial<SlurmFields>): void => {
     const next = { ...slurm, ...patch };
     setSlurm(next);
-    setCmdManuallyEdited(false);
     update({ default_start_cmd: buildSlurmCmd(next), work_dir: next.work_dir });
   }, [slurm, data]);
 
@@ -189,10 +186,12 @@ export function RemoteSandboxForm({
               key={t.value}
               type="button"
               onClick={() => {
-                update({ type: t.value });
-                if (t.value === "slurm" && !cmdManuallyEdited) {
+                if (t.value === "slurm") {
                   update({ type: t.value, default_start_cmd: buildSlurmCmd(slurm) });
+                } else {
+                  update({ type: t.value, default_start_cmd: "" });
                 }
+
               }}
               className={clsx(
                 "px-3 py-1 rounded-full text-content transition-all",
@@ -266,7 +265,6 @@ export function RemoteSandboxForm({
           value={data.default_start_cmd}
           onChange={(v) => {
             update({ default_start_cmd: v });
-            setCmdManuallyEdited(true);
           }}
           placeholder={data.type === "docker" ? DOCKER_PLACEHOLDER : ""}
           rows={5}
