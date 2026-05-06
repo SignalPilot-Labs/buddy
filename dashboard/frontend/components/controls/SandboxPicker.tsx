@@ -17,7 +17,6 @@ interface SandboxPickerProps {
 }
 
 export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
-
   return (
     <div className="space-y-2">
       <div className="flex gap-1.5 flex-wrap">

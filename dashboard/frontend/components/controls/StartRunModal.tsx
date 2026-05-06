@@ -120,7 +120,9 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       if (!sandbox) return;
       fetchLastStartCmd(saved, activeRepo)
         .catch(() => null)
-        .then((lastCmd) => setStartCmd(lastCmd ?? sandbox.default_start_cmd));
+        .then((lastCmd) => {
+          setStartCmd((prev) => prev || lastCmd || sandbox.default_start_cmd);
+        });
     } catch { /* ignore */ }
   }, [open, activeRepo, remoteSandboxes]);
 
