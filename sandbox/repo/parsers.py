@@ -27,7 +27,7 @@ def parse_name_status(raw: str) -> dict[str, str]:
         if not line:
             continue
         parts = line.split("\t")
-        if len(parts) >= 2:
+        if len(parts) >= 2 and parts[0]:
             code = parts[0][0]
             result[parts[-1]] = _STATUS_CODE_MAP.get(code, "modified")
     return result

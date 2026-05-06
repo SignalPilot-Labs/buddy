@@ -282,10 +282,11 @@ async def list_pool_tokens() -> list[dict]:
     async with session() as s:
         tokens = await read_token_pool(s)
         idx_row = await s.get(Setting, "claude_token_index")
+        idx_value: str | None = idx_row.value if idx_row else None
     if not tokens:
         return []
-    has_used = idx_row is not None
-    active_idx = (int(idx_row.value) - 1) % len(tokens) if has_used else -1
+    has_used = idx_value is not None
+    active_idx = (int(idx_value) - 1) % len(tokens) if has_used else -1
     return [
         {"index": i, "masked": crypto.mask(t, prefix_len=MASK_PREFIX_CLAUDE_TOKEN), "active": has_used and i == active_idx}
         for i, t in enumerate(tokens)

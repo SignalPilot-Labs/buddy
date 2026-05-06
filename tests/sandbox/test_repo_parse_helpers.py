@@ -82,6 +82,17 @@ class TestParseNameStatus:
         result = parse_name_status(raw)
         assert result == {"src/a.ts": "modified", "src/b.ts": "added"}
 
+    def test_skips_line_starting_with_tab(self) -> None:
+        """Line starting with tab (empty status) must not raise IndexError."""
+        result = parse_name_status("\tsrc/file.ts")
+        assert result == {}
+
+    def test_skips_empty_status_in_mixed_input(self) -> None:
+        """Empty status line among valid lines must be skipped, not crash."""
+        raw = "M\tsrc/a.ts\n\tsrc/bad.ts\nA\tsrc/b.ts"
+        result = parse_name_status(raw)
+        assert result == {"src/a.ts": "modified", "src/b.ts": "added"}
+
 
 class TestParseNumstat:
     """Tests for parse_numstat."""
