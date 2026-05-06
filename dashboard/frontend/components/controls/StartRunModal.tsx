@@ -461,7 +461,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                 </CollapsibleSection>
 
                 {/* Sandbox picker (collapsible) */}
-                <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={remoteSandboxes.length > 0}>
+                <CollapsibleSection label="Sandbox" summary={sandboxSummary} defaultOpen={false}>
                   <SandboxPicker
                     sandboxes={remoteSandboxes}
                     selectedId={selectedSandboxId}
