@@ -158,6 +158,6 @@ def _parse_sse_event(raw: str) -> dict | None:
         data = json.loads(data_str)
     except json.JSONDecodeError:
         log.warning("Malformed SSE JSON: %s", data_str[:200])
-        data = {"raw": data_str}
+        raise
 
     return {"event": event_type, "data": data}

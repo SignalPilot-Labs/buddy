@@ -223,13 +223,23 @@ class RoundRunner:
             op_task.cancel()
             if idle_task is not None:
                 idle_task.cancel()
-            # Wait for sse_task cancellation to complete before closing the
-            # generator — aclose() on a running async generator raises
+            # Await all cancelled tasks so their cancellation completes cleanly.
+            # sse_task must be awaited before closing the generator — aclose()
+            # on a running async generator raises
             # "asynchronous generator is already running".
             try:
                 await sse_task
             except (asyncio.CancelledError, Exception):
                 pass
+            try:
+                await op_task
+            except (asyncio.CancelledError, Exception):
+                pass
+            if idle_task is not None:
+                try:
+                    await idle_task
+                except (asyncio.CancelledError, Exception):
+                    pass
             try:
                 await stream_iter.aclose()
             except RuntimeError:

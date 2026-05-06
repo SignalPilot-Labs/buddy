@@ -1,5 +1,8 @@
 """Tests for _parse_sse_event from sandbox_manager.client."""
 
+import json
+
+import pytest
 
 from sandbox_client.handlers.session import _parse_sse_event
 
@@ -22,10 +25,11 @@ class TestParseSSEEvent:
         result = _parse_sse_event(raw)
         assert result == {"event": "chunk", "data": {"a": 1}}
 
-    def test_malformed_json_falls_back_to_raw(self):
+    def test_malformed_json_raises_json_decode_error(self):
+        """Malformed JSON must raise JSONDecodeError instead of returning a fallback dict."""
         raw = "event: error\ndata: not json at all"
-        result = _parse_sse_event(raw)
-        assert result == {"event": "error", "data": {"raw": "not json at all"}}
+        with pytest.raises(json.JSONDecodeError):
+            _parse_sse_event(raw)
 
     def test_missing_event_type_defaults_to_message(self):
         raw = "data: {\"x\": 42}"
