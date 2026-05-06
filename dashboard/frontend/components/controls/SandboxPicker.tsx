@@ -64,7 +64,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
             value={startCmd}
             onChange={onStartCmdChange}
             placeholder="Start command for remote sandbox..."
-            rows={4}
+            rows={5}
           />
         </div>
       )}
