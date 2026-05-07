@@ -35,6 +35,7 @@ export function useDashboard(): DashboardState {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const selectGenRef = useRef(0);
   const resumeGenRef = useRef(0);
+  const initGenRef = useRef(0);
   const skipLastRunRestoreRef = useRef(false);
   const isMobile = useMobile();
   const [mobilePanel, setMobilePanel] = useState<"feed" | "runs" | "changes" | "logs">("feed");
@@ -196,11 +197,14 @@ export function useDashboard(): DashboardState {
   }, []);
 
   useEffect(() => {
+    const gen = ++initGenRef.current;
     fetchSettingsStatus().then((s) => {
+      if (gen !== initGenRef.current) return;
       setSettingsStatus(s);
       if (!s.configured) setOnboardingOpen(true);
     });
     fetchRepos().then((r) => {
+      if (gen !== initGenRef.current) return;
       setRepos(r);
       if (r.length > 0) {
         const stored = activeRepoFilter;
@@ -215,6 +219,7 @@ export function useDashboard(): DashboardState {
         }
       }
     });
+    return () => { initGenRef.current++; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -235,7 +240,11 @@ export function useDashboard(): DashboardState {
     if (repo) {
       try { await setActiveRepo(repo); } catch (e) { console.error("Failed to set active repo:", e); }
     }
-    fetchRepos().then(setRepos);
+    const repoGen = ++initGenRef.current;
+    fetchRepos().then((r) => {
+      if (repoGen !== initGenRef.current) return;
+      setRepos(r);
+    });
   }, []);
 
   useEffect(() => {
