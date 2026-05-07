@@ -215,7 +215,7 @@ export function DashboardHeader({
         variant="success"
         size="md"
         onClick={onNewRun}
-        disabled={!agentReachable || !isConfigured || atCapacity}
+        disabled={!agentReachable || !isConfigured || atCapacity || busy}
         title={newRunTitle}
         icon={
           <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
