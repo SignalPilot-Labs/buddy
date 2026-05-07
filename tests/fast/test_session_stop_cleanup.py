@@ -74,8 +74,8 @@ class TestSessionStopCleanup:
         assert any(e.get("event") == "session_end" for e in events)
 
     @pytest.mark.asyncio
-    async def test_stop_reraises_unexpected_exception(self) -> None:
-        """stop() must re-raise if task raises a non-CancelledError exception."""
+    async def test_stop_logs_but_does_not_raise_unexpected_exception(self) -> None:
+        """stop() must log and return cleanly when task raises a non-CancelledError exception."""
         async def _error_coro() -> None:
             try:
                 await asyncio.sleep(9999)
@@ -92,8 +92,43 @@ class TestSessionStopCleanup:
         manager = SessionManager()
         manager._sessions["test-session"] = mock_session
 
-        with pytest.raises(RuntimeError, match="unexpected error"):
-            await manager.stop("test-session")
+        # stop() must return cleanly — it is best-effort and should not propagate
+        await manager.stop("test-session")
+
+    @pytest.mark.asyncio
+    async def test_stop_all_continues_after_session_exception(self) -> None:
+        """stop_all() must clean up all sessions even if one raises during cancellation."""
+        async def _error_coro() -> None:
+            try:
+                await asyncio.sleep(9999)
+            except asyncio.CancelledError:
+                raise RuntimeError("unexpected error during cancellation")
+
+        async def _normal_coro() -> None:
+            await asyncio.sleep(9999)
+
+        error_task = asyncio.create_task(_error_coro())
+        normal_task = asyncio.create_task(_normal_coro())
+        await asyncio.sleep(0)
+
+        error_session = MagicMock()
+        error_session.task = error_task
+        error_session.finished = False
+
+        normal_session = MagicMock()
+        normal_session.task = normal_task
+        normal_session.finished = False
+
+        manager = SessionManager()
+        manager._sessions["error-session"] = error_session
+        manager._sessions["normal-session"] = normal_session
+
+        # stop_all() must complete without raising, even though error-session throws
+        await manager.stop_all()
+
+        # Both sessions must be deleted
+        assert "error-session" not in manager._sessions
+        assert "normal-session" not in manager._sessions
 
     @pytest.mark.asyncio
     async def test_delete_removes_session_from_registry(self) -> None:

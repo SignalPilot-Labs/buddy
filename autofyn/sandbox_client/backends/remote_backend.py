@@ -79,7 +79,11 @@ class RemoteBackend(SandboxBackend):
                     stripped = line.strip()
                     if not stripped:
                         continue
-                    event: dict[str, Any] = json.loads(stripped)
+                    try:
+                        event: dict[str, Any] = json.loads(stripped)
+                    except json.JSONDecodeError:
+                        log.warning("Malformed NDJSON line from connector: %r", stripped[:200])
+                        continue
                     yield event
 
     async def _stop_remote_sandbox(self, run_key: str) -> None:
