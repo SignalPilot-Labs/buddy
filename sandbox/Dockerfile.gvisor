@@ -78,6 +78,9 @@ RUN useradd -m agentuser \
 # Config (for sandbox config loading)
 COPY --chown=agentuser:agentuser config/ /opt/autofyn/config/
 
+# Keep pip up-to-date (Claude Code / subagents may invoke pip at runtime)
+RUN uv pip install --system --no-cache --upgrade pip
+
 # Sandbox packages — deps first for layer caching
 COPY --chown=agentuser:agentuser sandbox/pyproject.toml /opt/autofyn/
 # Runtime + dev tools (pytest, pyright, ruff, etc. for builder/reviewer)
