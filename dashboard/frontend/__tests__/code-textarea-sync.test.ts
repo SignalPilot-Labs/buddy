@@ -34,9 +34,9 @@ describe("CodeTextarea: highlight and textarea must stay in sync", () => {
     expect(taSection).toContain("${SHARED}");
   });
 
-  it("pre uses overflow-auto for scroll sync", () => {
+  it("pre uses overflow-hidden to prevent double scrollbars", () => {
     const preSection = SRC.slice(SRC.indexOf("<pre"), SRC.indexOf("</pre>"));
-    expect(preSection).toContain("overflow-auto");
+    expect(preSection).toContain("overflow-hidden");
   });
 
   it("shiki inner pre also gets whitespace-pre-wrap", () => {
