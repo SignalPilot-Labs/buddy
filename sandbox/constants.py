@@ -40,6 +40,7 @@ SECRET_ENV_VARS: str = _security_cfg["secret_env_vars"]
 
 # ── Session ──
 MAX_CONCURRENT_SESSIONS: int = _cfg["max_concurrent_sessions"]
+EVENT_LOG_READ_TIMEOUT_SEC: float = 60.0
 
 # ── Time Lock ──
 EARLY_EXIT_THRESHOLD_MIN: float = _cfg["early_exit_threshold_min"]

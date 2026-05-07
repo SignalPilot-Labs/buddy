@@ -410,10 +410,18 @@ class ConnectorServer:
         task = self._heartbeat_tasks.pop(run_key, None)
         if task:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
         drain_task = self._drain_tasks.pop(run_key, None)
         if drain_task:
             drain_task.cancel()
+            try:
+                await drain_task
+            except asyncio.CancelledError:
+                pass
 
         if state.backend_id:
             try:
