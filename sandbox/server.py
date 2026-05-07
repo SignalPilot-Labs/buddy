@@ -8,6 +8,7 @@ and sandbox/session/.
 
 import asyncio
 import hmac
+import json
 import logging
 import os
 import secrets
@@ -20,6 +21,8 @@ from config.constants import AF_BOUND_MARKER, AF_READY_MARKER
 from config.loader import sandbox_config
 from constants import (
     AccessNoiseFilter,
+    API_INVALID_JSON_MSG,
+    API_MISSING_FIELD_MSG,
     INTERNAL_SECRET_ENV_VAR,
     INTERNAL_SECRET_HEADER,
     SANDBOX_HOST,
@@ -69,13 +72,27 @@ async def error_middleware(
     request: web.Request,
     handler,
 ) -> web.StreamResponse:
-    """Catch unhandled exceptions, log the traceback, and return it in the 500 body."""
+    """Catch unhandled exceptions, log the traceback, and return it in the 500 body.
+
+    json.JSONDecodeError and KeyError from request body parsing are returned as
+    400 Bad Request with a clean error message — no traceback exposed to the client.
+    """
     try:
         return await handler(request)
     except web.HTTPException as exc:
         if exc.status >= 500:
             log.error("%s %s -> %d: %s", request.method, request.path, exc.status, exc.text)
         raise
+    except json.JSONDecodeError:
+        log.warning("JSON parse error on %s %s", request.method, request.path)
+        return web.json_response({"error": API_INVALID_JSON_MSG}, status=400)
+    except KeyError as exc:
+        field = exc.args[0]
+        log.warning("Missing field %r on %s %s", field, request.method, request.path)
+        return web.json_response(
+            {"error": API_MISSING_FIELD_MSG.format(field=field)},
+            status=400,
+        )
     except Exception as exc:
         tb = traceback.format_exc()
         log.error("Unhandled error on %s %s:\n%s", request.method, request.path, tb)

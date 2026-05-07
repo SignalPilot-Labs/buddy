@@ -114,3 +114,7 @@ AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 GIT_REMOTE_WRITE_RE: re.Pattern[str] = re.compile(
     r"git\s+remote\s+(add|remove|rm|rename|set-url|set-head|set-branches|prune)\b"
 )
+
+# ── API error messages ──
+API_INVALID_JSON_MSG: str = "Invalid JSON in request body"
+API_MISSING_FIELD_MSG: str = "Missing required field: {field}"
