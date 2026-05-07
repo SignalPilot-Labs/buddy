@@ -87,6 +87,7 @@ async def run_migrations() -> None:
         await _migrate_idempotency_key_columns(conn)
         await _migrate_sandbox_snapshot_columns(conn)
         await _migrate_drop_redundant_sandbox_columns(conn)
+        await _migrate_start_cmd_column(conn)
 
 
 async def _migrate_control_signals_constraint(conn) -> None:
@@ -239,6 +240,23 @@ async def _migrate_drop_redundant_sandbox_columns(conn) -> None:
                 "ALTER TABLE runs DROP COLUMN " + safe_col
             ))
             log.info("Dropped column runs.%s", col_name)
+
+
+async def _migrate_start_cmd_column(conn) -> None:
+    """Add start_cmd column to runs table if it doesn't exist.
+
+    Persists the sandbox start command used for each run so that resume
+    can reconstruct the exact same sandbox configuration.
+    """
+    result = await conn.execute(text(
+        "SELECT 1 FROM information_schema.columns "
+        "WHERE table_name = 'runs' AND column_name = 'start_cmd'"
+    ))
+    if result.first() is None:
+        await conn.execute(text(
+            "ALTER TABLE runs ADD COLUMN start_cmd TEXT"
+        ))
+        log.info("Added column runs.start_cmd")
 
 
 async def close() -> None:

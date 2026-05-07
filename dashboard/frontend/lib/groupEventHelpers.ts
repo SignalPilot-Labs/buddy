@@ -372,22 +372,6 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         ts,
         event,
       };
-    case "sandbox_progress": {
-      const elapsedSec = d.elapsed_sec as number | undefined;
-      const phase = d.phase as string | undefined;
-      const elapsedStr = elapsedSec != null ? `${elapsedSec}s` : "";
-      const phaseStr = phase ? phase : "";
-      const detail = [phaseStr, elapsedStr].filter(Boolean).join(" · ");
-      return {
-        id: `ms-${ts}-progress-${elapsedSec ?? 0}`,
-        type: "milestone",
-        label: "Sandbox Starting",
-        detail,
-        color: "#ffaa00",
-        ts,
-        event,
-      };
-    }
     default:
       return null;
   }

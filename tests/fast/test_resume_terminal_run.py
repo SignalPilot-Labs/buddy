@@ -37,6 +37,8 @@ def _mock_run_info(branch_name: str | None) -> dict:
         "cache_creation_input_tokens": 0,
         "cache_read_input_tokens": 0,
         "model_name": "claude-sonnet-4-6",
+        "sandbox_id": None,
+        "start_cmd": "docker run --rm autofyn-sandbox:test",
     }
 
 
@@ -146,6 +148,79 @@ class TestRestartTerminalRun:
         # remove_run must be called BEFORE register_run
         server.remove_run.assert_called_once_with("run-1")
         server.register_run.assert_called_once()
+
+
+class TestResumePreservesStartCmd:
+    """Resume must pass the persisted start_cmd and sandbox_id to execute_run."""
+
+    @pytest.mark.asyncio
+    async def test_restart_passes_start_cmd_from_db(self) -> None:
+        """StartRequest must carry the start_cmd saved on the original run."""
+        server = MagicMock()
+        server.execute_run = AsyncMock()
+        server.register_run = MagicMock()
+        server.remove_run = MagicMock()
+
+        run_info = _mock_run_info("autofyn/branch")
+        run_info["start_cmd"] = "srun --gres=gpu:1 ./start.sh"
+        run_info["sandbox_id"] = "hpc-sandbox-42"
+
+        body = _make_resume_body("run-1", "continue")
+        captured_args: list[object] = []
+
+        def capture_task(coro: object) -> MagicMock:
+            captured_args.append(coro)
+            task = MagicMock()
+            task.add_done_callback = MagicMock()
+            return task
+
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task", side_effect=capture_task):
+                await _restart_terminal_run(server, body)
+
+        # Inspect the StartRequest passed to execute_run
+        execute_call = server.execute_run.call_args
+        start_request = execute_call[0][1]
+        assert start_request.start_cmd == "srun --gres=gpu:1 ./start.sh"
+        assert start_request.sandbox_id == "hpc-sandbox-42"
+
+    @pytest.mark.asyncio
+    async def test_restart_without_start_cmd_raises_409(self) -> None:
+        """Runs with no persisted start_cmd cannot be resumed."""
+        server = MagicMock()
+
+        run_info = _mock_run_info("autofyn/branch")
+        run_info["start_cmd"] = None
+
+        body = _make_resume_body("run-1", "continue")
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with pytest.raises(HTTPException) as exc_info:
+                await _restart_terminal_run(server, body)
+        assert exc_info.value.status_code == 409
+        assert "start_cmd" in str(exc_info.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_restart_local_docker_passes_start_cmd(self) -> None:
+        """Local Docker runs (sandbox_id=None) must still pass start_cmd."""
+        server = MagicMock()
+        server.execute_run = AsyncMock()
+        server.register_run = MagicMock()
+        server.remove_run = MagicMock()
+
+        run_info = _mock_run_info("autofyn/branch")
+        run_info["sandbox_id"] = None
+        run_info["start_cmd"] = "docker run --rm autofyn-sandbox:test"
+
+        body = _make_resume_body("run-1", "continue")
+        with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=run_info):
+            with patch("endpoints.control.asyncio.create_task") as mock_task:
+                mock_task.return_value = MagicMock()
+                await _restart_terminal_run(server, body)
+
+        execute_call = server.execute_run.call_args
+        start_request = execute_call[0][1]
+        assert start_request.start_cmd == "docker run --rm autofyn-sandbox:test"
+        assert start_request.sandbox_id is None
 
 
 class TestBootstrapResumesBranch:

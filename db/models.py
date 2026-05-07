@@ -65,9 +65,10 @@ class Run(Base):
     context_tokens: Mapped[int] = mapped_column(Integer, default=0)
     model_name: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    # ── Remote Sandbox ──
+    # ── Sandbox ──
     sandbox_id: Mapped[str | None] = mapped_column(String, nullable=True)
     sandbox_backend_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    start_cmd: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     tool_calls: Mapped[list["ToolCall"]] = relationship(back_populates="run", cascade="all, delete-orphan")
     audit_logs: Mapped[list["AuditLog"]] = relationship(back_populates="run", cascade="all, delete-orphan")

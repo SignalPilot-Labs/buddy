@@ -412,6 +412,5 @@ AUDIT_EVENT_TYPES: frozenset[str] = frozenset({
     "llm_thinking",
     "usage",
     # Cancelable sandbox creation
-    "sandbox_progress",
     "sandbox_cancelled",
 })

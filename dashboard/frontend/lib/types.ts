@@ -313,7 +313,6 @@ export type AuditEventType =
   | "sandbox_allocated"
   | "startup_log"
   | "sandbox_start_failed"
-  | "sandbox_progress"
   | "sandbox_cancelled";
 
 export interface AuditEventMeta {
@@ -358,7 +357,6 @@ export const AUDIT_EVENT_META: Record<string, AuditEventMeta> = {
   sandbox_allocated:     { label: "Sandbox Allocated",   color: "text-[#88ccff]",  bg: "bg-[#88ccff]/[0.04]", iconColor: "#88ccff" },
   startup_log:           { label: "Startup Log",          color: "text-text-secondary", bg: "bg-text-secondary/[0.04]", iconColor: "#888888" },
   sandbox_start_failed:  { label: "Start Failed",         color: "text-[#ff4444]",  bg: "bg-[#ff4444]/[0.04]", iconColor: "#ff4444" },
-  sandbox_progress:      { label: "Sandbox Progress",     color: "text-[#ffaa00]",  bg: "bg-[#ffaa00]/[0.04]", iconColor: "#ffaa00" },
   sandbox_cancelled:     { label: "Sandbox Cancelled",    color: "text-[#ff8844]",  bg: "bg-[#ff8844]/[0.04]", iconColor: "#ff8844" },
 };
 

@@ -35,6 +35,7 @@ _DENIED_ENV_KEYS: frozenset[str] = frozenset({
     "SANDBOX_INTERNAL_SECRET",
 })
 
+_GIT_CONFIG_PATH: str = "/tmp/.gitconfig"
 _GIT_TOKEN_KEY: str = "GIT_TOKEN"
 _GH_TOKEN_KEY: str = "GH_TOKEN"
 
@@ -50,13 +51,15 @@ def _is_denied_key(key: str) -> bool:
 
 
 async def _install_git_credential_helper() -> None:
-    """Configure git's global credential helper to read $GIT_TOKEN at request time.
+    """Configure git's credential helper to read $GIT_TOKEN at request time.
 
-    Called automatically when GIT_TOKEN is injected via /env. The helper
-    is a shell function that echoes the env var — nothing written to disk.
+    Writes to /tmp/.gitconfig instead of $HOME/.gitconfig to avoid disk
+    quota issues on remote HPC sandboxes where the home dir may be full.
+    GIT_CONFIG_GLOBAL tells git to use this file as the global config.
     """
+    os.environ["GIT_CONFIG_GLOBAL"] = _GIT_CONFIG_PATH
     proc = await asyncio.create_subprocess_exec(
-        "git", "config", "--global", "credential.helper", GIT_CREDENTIAL_HELPER,
+        "git", "config", "--file", _GIT_CONFIG_PATH, "credential.helper", GIT_CREDENTIAL_HELPER,
         cwd="/",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
