@@ -235,9 +235,10 @@ class ConnectorServer:
                 timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
             )
         except asyncio.TimeoutError:
-            await event_gen.aclose()
             await kill_process_group(process)
             raise
+        finally:
+            await event_gen.aclose()
 
         if not ready_event:
             await kill_process_group(process)
