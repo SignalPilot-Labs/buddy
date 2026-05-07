@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   startRun as apiStartRun,
   stopRun,
+  cancelRun,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
@@ -61,6 +62,9 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       startCmd: string,
     ): Promise<void> => {
       setStartModalOpen(false);
+      // Inject synthetic queued event immediately — visible before API responds
+      const clientId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      addEvent({ _kind: "starting", _clientId: clientId, run_id: null, ts: new Date().toISOString() });
       setBusy(true);
       try {
         const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, model, effort, activeRepoFilter, sandboxId, startCmd);
@@ -75,6 +79,23 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       }
     },
     [addEvent, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
+  );
+
+  const handleCancelStarting = useCallback(
+    (runId: string): void => {
+      setBusy(true);
+      cancelRun(runId)
+        .then(async () => {
+          await refreshRunsRef.current();
+        })
+        .catch((e) => {
+          addEvent({ _kind: "control", text: `Cancel failed: ${e}`, ts: new Date().toISOString() });
+        })
+        .finally(() => {
+          setBusy(false);
+        });
+    },
+    [addEvent, refreshRunsRef, setBusy],
   );
 
   const handleInject = useCallback(
@@ -130,6 +151,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   return {
     controlAction,
     handleStartRun,
+    handleCancelStarting,
     handleInject,
     handleRestart,
     showStopDialog,

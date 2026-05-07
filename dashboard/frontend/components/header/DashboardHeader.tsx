@@ -11,6 +11,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
+import { RunControls } from "@/components/controls/RunControls";
 
 export interface DashboardHeaderProps {
   repos: RepoInfo[];
@@ -24,6 +25,7 @@ export interface DashboardHeaderProps {
   atCapacity: boolean;
   busy: boolean;
   onStop: () => void;
+  onCancel: (runId: string) => void;
   onNewRun: () => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -43,6 +45,7 @@ export function DashboardHeader({
   atCapacity,
   busy,
   onStop,
+  onCancel,
   onNewRun,
   sidebarCollapsed,
   onToggleSidebar,
@@ -224,7 +227,18 @@ export function DashboardHeader({
         New Run
       </Button>
 
-      <div className="w-px h-4 bg-border" />
+      {/* Cancel button (sandbox creation phase) */}
+      {runStatus === "starting" && selectedRun?.id && (
+        <>
+          <div className="w-px h-4 bg-border" />
+          <RunControls
+            runId={selectedRun.id}
+            status={runStatus}
+            busy={busy}
+            onCancel={onCancel}
+          />
+        </>
+      )}
 
       {/* Stop button */}
       <div className="flex items-center gap-1">

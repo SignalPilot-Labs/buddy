@@ -362,6 +362,32 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
         details: d,
         ts,
       };
+    case "sandbox_cancelled":
+      return {
+        id: `ms-${ts}-Sandbox Cancelled`,
+        type: "milestone",
+        label: "Sandbox Cancelled",
+        detail: "",
+        color: "#ff8844",
+        ts,
+        event,
+      };
+    case "sandbox_progress": {
+      const elapsedSec = d.elapsed_sec as number | undefined;
+      const phase = d.phase as string | undefined;
+      const elapsedStr = elapsedSec != null ? `${elapsedSec}s` : "";
+      const phaseStr = phase ? phase : "";
+      const detail = [phaseStr, elapsedStr].filter(Boolean).join(" · ");
+      return {
+        id: `ms-${ts}-Sandbox Progress`,
+        type: "milestone",
+        label: "Sandbox Starting",
+        detail,
+        color: "#ffaa00",
+        ts,
+        event,
+      };
+    }
     default:
       return null;
   }

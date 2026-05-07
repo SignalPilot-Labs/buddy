@@ -212,6 +212,23 @@ async def unlock_run(run_id: str = RunId) -> dict:
     return await send_control_signal(run_id, "unlock", set(ACTIVE_RUN_STATUSES), None, None)
 
 
+@router.post("/runs/{run_id}/cancel")
+async def cancel_run(run_id: str = RunId) -> dict:
+    """Cancel sandbox creation before inbox exists. Returns 409 if inbox already exists."""
+    async with session() as s:
+        run = await s.get(Run, run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status not in ACTIVE_RUN_STATUSES:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot cancel run with status '{run.status}'",
+            )
+    return await agent_request(
+        "POST", "/cancel", AGENT_TIMEOUT_SHORT, None, {"run_id": run_id}, None, extra_headers=None,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Agent proxy
 # ---------------------------------------------------------------------------

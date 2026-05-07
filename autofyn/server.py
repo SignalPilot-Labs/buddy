@@ -22,7 +22,7 @@ from lifecycle.bootstrap import bootstrap_run
 from lifecycle.round_loop import run_rounds
 from lifecycle.teardown import finalize_run
 from sandbox_client.client import SandboxClient
-from sandbox_client.models import SandboxStartError
+from sandbox_client.models import SandboxCancelled, SandboxStartError
 from sandbox_client.manager import SandboxManager
 from utils import db
 from utils.db import (
@@ -46,6 +46,7 @@ from utils.constants import (
     ENV_KEY_SANDBOX_SECRET,
     INTERNAL_SECRET_HEADER,
     SANDBOX_LOG_TAIL_LINES,
+    SANDBOX_PROGRESS_INTERVAL_SEC,
     SERVER_HOST,
     max_concurrent_runs,
     server_port,
@@ -315,6 +316,17 @@ class AgentServer:
                 if backend_id:
                     await update_run_sandbox_backend_id(run_id, backend_id)
 
+    async def _emit_sandbox_progress(self, run_id: str, started_at: float) -> None:
+        """Emit sandbox_progress audit events every SANDBOX_PROGRESS_INTERVAL_SEC.
+
+        Runs as a background task during sandbox creation. Cancelled by
+        execute_run's finally block once _pool.create() returns or raises.
+        """
+        while True:
+            await asyncio.sleep(SANDBOX_PROGRESS_INTERVAL_SEC)
+            elapsed = round(asyncio.get_event_loop().time() - started_at)
+            await log_audit(run_id, "sandbox_progress", {"elapsed_sec": elapsed, "phase": "starting"})
+
     async def execute_run(self, active: ActiveRun, body: StartRequest) -> None:
         """Spin up sandbox → bootstrap → round loop → teardown → destroy."""
         run_id, github_repo, task, budget = self._validate_run_inputs(active, body)
@@ -322,16 +334,29 @@ class AgentServer:
         sandbox: SandboxClient | None = None
         terminal_status = RUN_STATUS_ERROR
         bootstrap = None
+        progress_task: asyncio.Task[None] | None = None
         try:
             await self._link_sandbox(run_id, body.sandbox_id)
             if body.sandbox_id is not None:
                 await log_audit(run_id, "startup_log", {"line": "Connecting to remote sandbox..."})
-            sandbox, events = await self._pool.create(
-                run_id,
-                body.sandbox_id,
-                body.host_mounts,
-                body.start_cmd,
+
+            sandbox_start = asyncio.get_event_loop().time()
+            progress_task = asyncio.create_task(
+                self._emit_sandbox_progress(run_id, sandbox_start)
             )
+
+            try:
+                sandbox, events = await self._pool.create(
+                    run_id,
+                    body.sandbox_id,
+                    body.host_mounts,
+                    body.start_cmd,
+                    active.cancel_event,
+                )
+            finally:
+                progress_task.cancel()
+                progress_task = None
+
             await self._process_sandbox_events(run_id, events)
             await log_audit(run_id, "sandbox_created", {})
 
@@ -374,6 +399,12 @@ class AgentServer:
                 status=terminal_status,
             )
             active.status = terminal_status
+        except SandboxCancelled:
+            log.info("Run %s: sandbox creation cancelled by user", run_id)
+            await log_audit(run_id, "sandbox_cancelled", {})
+            active.status = RUN_STATUS_KILLED
+            terminal_status = RUN_STATUS_KILLED
+            self._persist_terminal_status(run_id, RUN_STATUS_KILLED, "Sandbox creation cancelled", None)
         except SandboxStartError as exc:
             await self._emit_start_failed(run_id, exc, body.env)
             raise
@@ -385,6 +416,8 @@ class AgentServer:
             await self._capture_crash_logs(run_id, exc)
             raise
         finally:
+            if progress_task is not None:
+                progress_task.cancel()
             await self._cleanup_run(run_id, active, terminal_status, bootstrap, sandbox)
 
     def _persist_terminal_status(

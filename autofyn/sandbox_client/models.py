@@ -25,3 +25,7 @@ class SandboxStartError(Exception):
         """Initialize with message and the NDJSON startup logs for debugging."""
         self.startup_logs = startup_logs
         super().__init__(message)
+
+
+class SandboxCancelled(Exception):
+    """Raised when sandbox creation is cancelled by the user via cancel_event."""

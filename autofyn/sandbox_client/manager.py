@@ -5,6 +5,7 @@ to use per run based on sandbox_id (None = local Docker, UUID = remote).
 Creates, destroys, and routes requests to the correct backend.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -36,7 +37,7 @@ class SandboxManager:
     def __init__(self) -> None:
         """Initialize backends and read server-level config."""
         cfg = sandbox_config()
-        self._docker_local = DockerLocalBackend()
+        self._docker_local = DockerLocalBackend(asyncio.Event())
         self._handles: dict[str, SandboxInstance] = {}
         self._remote_backends: dict[str, SandboxBackend] = {}
         self._connector_url: str | None = os.environ.get(ENV_KEY_CONNECTOR_URL) or None
@@ -49,10 +50,13 @@ class SandboxManager:
         sandbox_id: str | None,
         host_mounts: list[dict[str, str]] | None,
         start_cmd: str,
+        cancel_event: asyncio.Event | None = None,
     ) -> tuple[SandboxClient, list[dict]]:
         """Spin up a sandbox for a run. Returns (client, startup_events)."""
         if not start_cmd.strip():
             raise ValueError("start_cmd must not be empty")
+        if sandbox_id is None and cancel_event is not None:
+            self._docker_local._cancel_event = cancel_event
         backend = await self._resolve_backend(sandbox_id)
         handle, events = await backend.create(
             run_key, host_mounts, start_cmd,

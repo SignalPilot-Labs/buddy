@@ -20,7 +20,7 @@ from config.loader import sandbox_config
 from db.constants import validate_host_mount
 from sandbox_client.backends.base_backend import SandboxBackend
 from sandbox_client.client import SandboxClient
-from sandbox_client.models import SandboxInstance, SandboxStartError
+from sandbox_client.models import SandboxCancelled, SandboxInstance, SandboxStartError
 from utils.constants import (
     AGENT_CONTAINER_NAME,
     DOCKER_SOCKET_PATH,
@@ -54,8 +54,9 @@ DEFAULT_DOCKER_START_CMD: str = (
 class DockerLocalBackend(SandboxBackend):
     """Local Docker via shell command — unified with remote sandboxes."""
 
-    def __init__(self) -> None:
+    def __init__(self, cancel_event: asyncio.Event) -> None:
         """Initialize Docker client (for cleanup) and internal state."""
+        self._cancel_event = cancel_event
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
         self._clients: dict[str, SandboxClient] = {}
@@ -130,7 +131,7 @@ class DockerLocalBackend(SandboxBackend):
             env=env,
         )
 
-        ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC)
+        ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC, self._cancel_event)
         ready_port: int = ready_data["port"]
 
         try:
@@ -173,8 +174,9 @@ class DockerLocalBackend(SandboxBackend):
         proc: asyncio.subprocess.Process,
         run_key: str,
         timeout: int,
+        cancel_event: asyncio.Event,
     ) -> dict:
-        """Read stdout lines until AF_READY marker or timeout."""
+        """Read stdout lines until AF_READY marker, timeout, or cancellation."""
         buf: list[str] = []
 
         async def _read() -> dict:
@@ -191,15 +193,31 @@ class DockerLocalBackend(SandboxBackend):
                 [],
             )
 
-        try:
-            return await asyncio.wait_for(_read(), timeout=timeout)
-        except asyncio.TimeoutError:
+        read_task = asyncio.create_task(_read())
+        cancel_task = asyncio.create_task(cancel_event.wait())
+        done, pending = await asyncio.wait(
+            {read_task, cancel_task},
+            timeout=timeout,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for t in pending:
+            t.cancel()
+
+        if not done:
+            # Timeout: neither task completed within timeout seconds
             proc.kill()
             tail = "\n".join(buf[-10:]) if buf else "(no output)"
             raise SandboxStartError(
                 f"Start command timed out after {timeout}s:\n{tail}",
                 [],
             )
+
+        if cancel_task in done:
+            proc.kill()
+            raise SandboxCancelled("Sandbox creation cancelled by user")
+
+        # read_task completed — may have raised SandboxStartError
+        return read_task.result()
 
     async def _get_container_id(self, container_name: str) -> str:
         """Look up container ID by name via Docker API."""

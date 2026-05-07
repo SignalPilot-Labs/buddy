@@ -4,6 +4,7 @@ get_client() returns cached clients populated by create(). destroy()
 closes the cached client before removing the container.
 """
 
+import asyncio
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,7 +19,7 @@ def _make_backend() -> DockerLocalBackend:
     with patch("sandbox_client.backends.local_backend.docker.from_env", return_value=MagicMock()):
         with patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test"}):
-                return DockerLocalBackend()
+                return DockerLocalBackend(asyncio.Event())
 
 
 def _make_handle(run_key: str) -> SandboxInstance:

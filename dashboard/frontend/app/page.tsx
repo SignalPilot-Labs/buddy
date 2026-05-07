@@ -75,6 +75,7 @@ function MonitorPageInner() {
     handleRepoSwitch,
     handleSelectRun,
     handleStartRun,
+    handleCancelStarting,
     handleInject,
     handleRestart,
     handleStopClick,
@@ -176,6 +177,7 @@ function MonitorPageInner() {
         atCapacity={atCapacity}
         busy={busy}
         onStop={handleStopClick}
+        onCancel={handleCancelStarting}
         onNewRun={() => {
           if (!activeRepoFilter) {
             showToast("Select a repo first", "error");

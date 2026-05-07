@@ -118,6 +118,18 @@ def register_control_routes(app: FastAPI, server: "AgentServer") -> None:
             r.inbox.push("unlock", "")
         return {"ok": True, "event": "unlock", "run_id": r.run_id}
 
+    @app.post("/cancel")
+    async def cancel(run_id: str | None = None) -> dict:
+        """Cancel sandbox creation before inbox exists. Returns 409 if inbox exists."""
+        r = server.get_run_or_first(run_id)
+        if r.inbox is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="Sandbox already started — use /stop instead",
+            )
+        r.cancel_event.set()
+        return {"ok": True, "event": "cancel", "run_id": r.run_id}
+
     @app.post("/cleanup")
     async def cleanup() -> dict:
         to_remove = [rid for rid, r in server.runs().items() if r.status in CLEANABLE_RUN_STATUSES]

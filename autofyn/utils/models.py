@@ -297,5 +297,6 @@ class ActiveRun:
     time_lock: TimeLock | None = field(default=None, repr=False)
     run_context: RunContext | None = field(default=None, repr=False)
     skip_pr: bool = False
+    cancel_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
 
 

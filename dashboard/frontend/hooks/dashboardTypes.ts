@@ -28,6 +28,7 @@ export interface RunActions {
     sandboxId: string | null,
     startCmd: string,
   ) => Promise<void>;
+  handleCancelStarting: (runId: string) => void;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
   showStopDialog: boolean;
@@ -89,6 +90,7 @@ export interface DashboardState {
     sandboxId: string | null,
     startCmd: string,
   ) => Promise<void>;
+  handleCancelStarting: (runId: string) => void;
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
   handleStopClick: () => void;

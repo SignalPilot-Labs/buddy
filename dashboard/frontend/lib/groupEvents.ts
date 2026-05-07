@@ -271,6 +271,20 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
       continue;
     }
 
+    // ── Optimistic starting event (synthetic, pre-API) ──
+    if (ev._kind === "starting") {
+      result.push({
+        id: `ms-${ev.ts}-starting`,
+        type: "milestone",
+        label: "Run Queued",
+        detail: "Preparing sandbox...",
+        color: "#ffaa00",
+        ts: ev.ts,
+      });
+      i++;
+      continue;
+    }
+
     // Fallback: skip unknown
     i++;
   }

@@ -7,6 +7,7 @@ and paths are shell-quoted.
 
 from __future__ import annotations
 
+import asyncio
 import os
 from unittest.mock import MagicMock, patch
 
@@ -30,7 +31,7 @@ def _make_backend(allow_docker: bool) -> DockerLocalBackend:
         patch("docker.from_env", return_value=MagicMock()),
         patch.dict(os.environ, env),
     ):
-        return DockerLocalBackend()
+        return DockerLocalBackend(asyncio.Event())
 
 
 class TestComputeMountFlags:

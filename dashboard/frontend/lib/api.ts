@@ -261,6 +261,19 @@ export async function saveRemoteMounts(
   }
 }
 
+export async function cancelRun(runId: string): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/runs/${runId}/cancel`, { method: "POST" });
+  if (res.status === 409) {
+    // Sandbox already started — fall back to stop
+    return stopRun(runId, true);
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function stopRun(
   runId: string,
   skipPr: boolean,
