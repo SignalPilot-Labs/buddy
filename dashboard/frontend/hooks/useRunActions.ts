@@ -15,6 +15,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   const {
     selectedRunId,
     addEvent,
+    filterEvents,
     refreshRunsRef,
     handleSelectRun,
     activeRepoFilter,
@@ -64,7 +65,7 @@ export function useRunActions(config: RunActionsConfig): RunActions {
       setStartModalOpen(false);
       // Inject synthetic queued event immediately — visible before API responds
       const clientId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      addEvent({ _kind: "starting", _clientId: clientId, run_id: null, ts: new Date().toISOString() });
+      addEvent({ _kind: "starting", _clientId: clientId, ts: new Date().toISOString() });
       setBusy(true);
       try {
         const result = await apiStartRun(prompt, preset, budget, durationMinutes, baseBranch, model, effort, activeRepoFilter, sandboxId, startCmd);
@@ -73,12 +74,14 @@ export function useRunActions(config: RunActionsConfig): RunActions {
           await handleSelectRun(result.run_id);
         }
       } catch (err) {
+        // Remove the synthetic event — run never started
+        filterEvents((e) => !(e._kind === "starting" && e._clientId === clientId));
         addEvent({ _kind: "control", text: `Failed to start run: ${err}`, ts: new Date().toISOString() });
       } finally {
         setBusy(false);
       }
     },
-    [addEvent, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
+    [addEvent, filterEvents, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
   );
 
   const handleCancelStarting = useCallback(

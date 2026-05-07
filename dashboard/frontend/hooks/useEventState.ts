@@ -31,6 +31,7 @@ export interface EventState {
   setHistoryLoading: (loading: boolean) => void;
   setHistoryTruncated: (truncated: boolean) => void;
   addEvent: (event: FeedEvent) => void;
+  filterEvents: (predicate: (e: FeedEvent) => boolean) => void;
 }
 
 export function deduplicateToolEvents(
@@ -124,6 +125,10 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
     setHistoryEvents((prev) => [...prev, event]);
   }, []);
 
+  const filterEvents = useCallback((predicate: (e: FeedEvent) => boolean) => {
+    setHistoryEvents((prev) => prev.filter(predicate));
+  }, []);
+
   return {
     historyEvents,
     liveEvents,
@@ -134,5 +139,6 @@ export function useEventState(liveEvents: FeedEvent[]): EventState {
     setHistoryLoading,
     setHistoryTruncated,
     addEvent,
+    filterEvents,
   };
 }

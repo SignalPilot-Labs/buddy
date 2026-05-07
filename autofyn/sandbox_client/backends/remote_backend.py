@@ -15,7 +15,7 @@ import httpx
 
 from db.constants import SANDBOX_QUEUE_TIMEOUT_SEC, SSH_CONNECT_TIMEOUT_SEC
 from sandbox_client.backends.base_backend import SandboxBackend
-from sandbox_client.models import SandboxStartError
+from sandbox_client.models import SandboxCancelled, SandboxStartError
 from sandbox_client.models import SandboxInstance
 from utils.db_logging import log_audit
 
@@ -128,6 +128,8 @@ class RemoteBackend(SandboxBackend):
 
         Streams NDJSON events and returns (handle, events).
         The secret is extracted from the AF_READY marker event.
+        Cooperative cancellation: if cancel_event is set, stops the
+        connector sandbox (scancel / docker rm) and raises SandboxCancelled.
         """
 
         events: list[dict[str, Any]] = []
@@ -136,30 +138,56 @@ class RemoteBackend(SandboxBackend):
         backend_id: str | None = None
         extracted_secret: str | None = None
 
-        async for event in self._start_remote_sandbox(
-            run_key, start_cmd, host_mounts,
-        ):
-            events.append(event)
-            etype = event.get("event")
-            if etype == "queued":
-                backend_id = event.get("backend_id")
-                await log_audit(run_key, "sandbox_queued", {"backend_id": backend_id})
-            elif etype == "log":
-                line = event.get("line", "")
-                await log_audit(run_key, "startup_log", {"line": line})
-                if "has been allocated resources" in line:
-                    await log_audit(run_key, "sandbox_allocated", {"backend_id": backend_id})
-            elif etype == "ready":
-                host = event["host"]
-                port = event["port"]
-                extracted_secret = event.get("sandbox_secret")
-                if "backend_id" in event and backend_id is None:
-                    backend_id = event["backend_id"]
-            elif etype == "failed":
-                raise SandboxStartError(
-                    f"Sandbox start failed: {event.get('error', 'unknown')}",
-                    events,
-                )
+        async def _consume_stream() -> None:
+            """Consume NDJSON events from the connector stream."""
+            nonlocal host, port, backend_id, extracted_secret
+            async for event in self._start_remote_sandbox(
+                run_key, start_cmd, host_mounts,
+            ):
+                events.append(event)
+                etype = event.get("event")
+                if etype == "queued":
+                    backend_id = event.get("backend_id")
+                    await log_audit(run_key, "sandbox_queued", {"backend_id": backend_id})
+                elif etype == "log":
+                    line = event.get("line", "")
+                    await log_audit(run_key, "startup_log", {"line": line})
+                    if "has been allocated resources" in line:
+                        await log_audit(run_key, "sandbox_allocated", {"backend_id": backend_id})
+                elif etype == "ready":
+                    host = event["host"]
+                    port = event["port"]
+                    extracted_secret = event.get("sandbox_secret")
+                    if "backend_id" in event and backend_id is None:
+                        backend_id = event["backend_id"]
+                elif etype == "failed":
+                    raise SandboxStartError(
+                        f"Sandbox start failed: {event.get('error', 'unknown')}",
+                        events,
+                    )
+
+        stream_task = asyncio.create_task(_consume_stream())
+        cancel_task = asyncio.create_task(cancel_event.wait())
+        done, pending = await asyncio.wait(
+            {stream_task, cancel_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for t in pending:
+            t.cancel()
+
+        if cancel_task in done:
+            # Retrieve stream_task exception to suppress asyncio warning
+            if stream_task.done() and not stream_task.cancelled():
+                stream_task.exception()  # marks exception as retrieved
+            # User cancelled — tell connector to tear down the sandbox
+            try:
+                await self._stop_remote_sandbox(run_key)
+            except Exception as exc:
+                log.warning("Failed to stop remote sandbox %s on cancel: %s", run_key, exc)
+            raise SandboxCancelled("Remote sandbox creation cancelled by user")
+
+        # stream_task completed — re-raise any exception it encountered
+        stream_task.result()
 
         if host is None or port is None:
             log_lines = [e["line"] for e in events if e.get("event") == "log"]

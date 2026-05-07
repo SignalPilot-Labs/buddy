@@ -6,6 +6,7 @@ export interface RunActionsConfig {
   selectedRunId: string | null;
   selectedRunIdRef: RefObject<string | null>;
   addEvent: (event: FeedEvent) => void;
+  filterEvents: (predicate: (e: FeedEvent) => boolean) => void;
   sseRef: RefObject<{ disconnect: () => void; clearEvents: () => void; connect: (id: string, cursors: { afterTool: number; afterAudit: number }) => void }>;
   cursorsRef: RefObject<{ afterTool: number; afterAudit: number }>;
   refreshRunsRef: RefObject<() => void>;

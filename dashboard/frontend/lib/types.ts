@@ -87,7 +87,7 @@ export type FeedEvent =
   | { _kind: "llm_thinking"; text: string; ts: string; agent_role?: string }
   | { _kind: "control"; text: string; ts: string; retryAction?: () => void }
   | { _kind: "usage"; data: UsageEvent }
-  | { _kind: "starting"; _clientId: string; run_id: string | null; ts: string };
+  | { _kind: "starting"; _clientId: string; ts: string };
 
 export const STATUS_META: Record<
   RunStatus,

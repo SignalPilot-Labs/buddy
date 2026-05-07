@@ -89,7 +89,7 @@ export function useDashboard(): DashboardState {
   sseRef.current = { connect: sseConnect, disconnect: sseDisconnect, clearEvents };
 
   const evState = useEventState(liveEvents);
-  const { allEvents, historyLoading, historyTruncated, addEvent } = evState;
+  const { allEvents, historyLoading, historyTruncated, addEvent, filterEvents } = evState;
 
   setHistoryEventsRef.current = evState.setHistoryEvents;
   setHistoryLoadingRef.current = evState.setHistoryLoading;
@@ -144,6 +144,7 @@ export function useDashboard(): DashboardState {
     selectedRunId,
     selectedRunIdRef,
     addEvent,
+    filterEvents,
     sseRef,
     cursorsRef,
     refreshRunsRef,
