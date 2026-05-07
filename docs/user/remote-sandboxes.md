@@ -134,3 +134,8 @@ Startup log lines (srun output, server boot, etc.) are stored in the audit log b
 **Connection drops during run:**
 - The connector auto-reconnects. If it can't, the run status changes to `connector_lost`
 - Check `~/.autofyn/.connector.log` for details
+
+**`mksquashfs: FATAL ERROR: Failed to create thread` during `apptainer pull`:**
+- The login node has a low thread/process limit (`ulimit -u`). `mksquashfs` cannot create worker threads even with `MKSQUASHFS_PROCS=1`.
+- Run the pull inside an interactive job instead: `srun --pty --mem=8G --time=00:30:00 bash -c 'source /etc/profile && module load apptainer && MKSQUASHFS_PROCS=1 apptainer pull --force ~/scratch/autofyn/sandbox.sif docker://ghcr.io/signalpilot-labs/autofyn-sandbox:stable'`
+- Compute nodes have higher thread limits than login nodes

@@ -259,7 +259,7 @@ function MonitorPageInner() {
             />
             <EventFeed
               events={allEvents}
-              runActive={runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
+              runActive={runStatus === "starting" || runStatus === "running" || runStatus === "paused" || runStatus === "rate_limited"}
               runPaused={runStatus === "paused"}
               isLoading={historyLoading}
               historyTruncated={historyTruncated}

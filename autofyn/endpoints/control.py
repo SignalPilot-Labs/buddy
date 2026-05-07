@@ -74,10 +74,14 @@ def register_control_routes(app: FastAPI, server: "AgentServer") -> None:
     @app.post("/stop")
     async def stop(body: StopRequest, run_id: str | None = None) -> dict:
         r = server.get_run_or_first(run_id)
-        if not r.inbox:
+        if r.inbox:
+            r.skip_pr = body.skip_pr
+            r.inbox.push("stop", "User stop via API")
+        elif r.task:
+            r.skip_pr = body.skip_pr
+            r.task.cancel()
+        else:
             raise HTTPException(status_code=409, detail="Run not accepting signals")
-        r.skip_pr = body.skip_pr
-        r.inbox.push("stop", "User stop via API")
         return {"ok": True, "event": "stop", "run_id": r.run_id}
 
     @app.post("/pause")

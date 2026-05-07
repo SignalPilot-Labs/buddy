@@ -254,7 +254,7 @@ export function DashboardHeader({
           </span>
         )}
         <Button
-          variant="ghost"
+          variant="danger"
           size="sm"
           disabled={!canControl}
           onClick={onStop}

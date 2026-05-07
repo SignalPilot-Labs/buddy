@@ -41,6 +41,7 @@ from db.constants import (
     RUN_STATUS_PAUSED,
     RUN_STATUS_RATE_LIMITED,
     RUN_STATUS_RUNNING,
+    RUN_STATUS_STARTING,
     SUPPORTED_MODELS,
 )
 from db.models import AuditLog, Run, ToolCall
@@ -151,7 +152,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "sandbox_id": run.sandbox_id,
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
-    run.status = RUN_STATUS_RUNNING
+    run.status = RUN_STATUS_STARTING
     run.error_message = None
     await s.commit()
     return {"ok": True, "signal": "resume", "run_id": run_id, "resumed": True}
