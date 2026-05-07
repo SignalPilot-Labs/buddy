@@ -320,6 +320,10 @@ class DockerLocalBackend(SandboxBackend):
         task = self._log_tasks.pop(run_key, None)
         if task:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
         await self._remove_container(container_id, container_name)
         await self._remove_volume(volume_name)

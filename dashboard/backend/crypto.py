@@ -15,12 +15,17 @@ log = logging.getLogger("backend.crypto")
 
 
 _fernet: Fernet | None = None
+_cached_key_path: str | None = None
 
 
 def _get_fernet(key_path: str) -> Fernet:
     """Get or create the Fernet instance, generating a key if needed."""
-    global _fernet
+    global _fernet, _cached_key_path
     if _fernet is not None:
+        if _cached_key_path != key_path:
+            raise RuntimeError(
+                f"key_path mismatch: expected {_cached_key_path!r}, got {key_path!r}"
+            )
         return _fernet
 
     p = Path(key_path)
@@ -42,6 +47,7 @@ def _get_fernet(key_path: str) -> Fernet:
             log.warning("Could not set secure permissions on %s: %s", p, exc)
 
     _fernet = Fernet(key)
+    _cached_key_path = key_path
     return _fernet
 
 
