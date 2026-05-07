@@ -406,6 +406,7 @@ class ConnectorServer:
         state = self._states.pop(run_key, None)
         if not state:
             return
+        self._started_runs.pop(run_key, None)
 
         task = self._heartbeat_tasks.pop(run_key, None)
         if task:

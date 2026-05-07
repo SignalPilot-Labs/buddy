@@ -213,7 +213,11 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
     }
   }, [open, activeRepo]);
 
-  useEffect(() => { if (open) setTimeout(() => textareaRef.current?.focus(), 150); }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const timerId = setTimeout(() => textareaRef.current?.focus(), 150);
+    return () => clearTimeout(timerId);
+  }, [open]);
 
   useEffect(() => {
     if (open) {

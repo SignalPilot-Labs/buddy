@@ -103,7 +103,9 @@ export function OnboardingModal({ open, onComplete, initialStatus }: OnboardingM
 
   // Focus input on step change
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 150);
+    if (!open) return;
+    const timerId = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(timerId);
   }, [open, step]);
 
   // Lock body scroll — save and restore original value

@@ -172,18 +172,23 @@ export function useDashboard(): DashboardState {
   // (e.g. health poll re-selecting a run that handleStartRun just selected).
   useEffect(() => {
     const check = async () => {
-      const h = await fetchAgentHealth();
-      setAgentHealth((prev) => {
-        const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
-        const hasNewRun = h.runs.some((r) => !prevIds.has(r.run_id));
-        const selectedId = selectedRunIdRef.current;
-        const selectedWasActive = selectedId !== null && prev?.runs.some((r) => r.run_id === selectedId);
-        const selectedGone = selectedWasActive === true && !h.runs.some((r) => r.run_id === selectedId);
-        if (hasNewRun || selectedGone) {
-          refreshRunsRef.current();
-        }
-        return h;
-      });
+      try {
+        const h = await fetchAgentHealth();
+        setAgentHealth((prev) => {
+          const prevIds = new Set(prev?.runs.map((r) => r.run_id) ?? []);
+          const hasNewRun = h.runs.some((r) => !prevIds.has(r.run_id));
+          const selectedId = selectedRunIdRef.current;
+          const selectedWasActive = selectedId !== null && prev?.runs.some((r) => r.run_id === selectedId);
+          const selectedGone = selectedWasActive === true && !h.runs.some((r) => r.run_id === selectedId);
+          if (hasNewRun || selectedGone) {
+            refreshRunsRef.current();
+          }
+          return h;
+        });
+      } catch (err) {
+        console.error("Health poll check() failed:", err);
+        setAgentHealth(null);
+      }
     };
     check();
     const id = setInterval(check, AGENT_HEALTH_POLL_MS);
