@@ -177,6 +177,7 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   // in Settings.
   useEffect(() => {
     if (!open || !activeRepo || remoteSandboxes.length === 0) return;
+    let cancelled = false;
     try {
       const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
       if (!saved) return;
@@ -190,27 +191,36 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
       void loadMountsForSandbox(saved);
       fetchLastStartCmd(saved, activeRepo)
         .catch(() => null)
-        .then((lastCmd) => setStartCmd(lastCmd || sandbox.default_start_cmd));
+        .then((lastCmd) => { if (cancelled) return; setStartCmd(lastCmd || sandbox.default_start_cmd); });
     } catch (e) { console.warn("Failed to restore last sandbox selection", e); }
+    return () => { cancelled = true; };
   }, [open, activeRepo, remoteSandboxes, loadMountsForSandbox]);
 
   useEffect(() => { adjustPromptHeight(); }, [customPrompt, adjustPromptHeight]);
 
   useEffect(() => {
-    if (open) fetchRemoteSandboxes().then(setRemoteSandboxes).catch(() => setRemoteSandboxes([]));
+    if (!open) return;
+    let cancelled = false;
+    fetchRemoteSandboxes()
+      .then((sandboxes) => { if (cancelled) return; setRemoteSandboxes(sandboxes); })
+      .catch(() => { if (cancelled) return; setRemoteSandboxes([]); });
+    return () => { cancelled = true; };
   }, [open]);
 
   useEffect(() => {
-    if (open && activeRepo) {
-      setEnvError(null);
-      setMcpError(null);
-      fetchRepoEnv(activeRepo).then((env) => {
-        setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
-      }).catch(() => setEnvError("Failed to load environment variables"));
-      fetchRepoMcpServers(activeRepo).then((servers) => {
-        setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
-      }).catch(() => setMcpError("Failed to load MCP servers"));
-    }
+    if (!open || !activeRepo) return;
+    let cancelled = false;
+    setEnvError(null);
+    setMcpError(null);
+    fetchRepoEnv(activeRepo).then((env) => {
+      if (cancelled) return;
+      setEnvText(Object.keys(env).length > 0 ? envToText(env) : "");
+    }).catch(() => { if (cancelled) return; setEnvError("Failed to load environment variables"); });
+    fetchRepoMcpServers(activeRepo).then((servers) => {
+      if (cancelled) return;
+      setMcpText(Object.keys(servers).length > 0 ? JSON.stringify(servers, null, 2) : "");
+    }).catch(() => { if (cancelled) return; setMcpError("Failed to load MCP servers"); });
+    return () => { cancelled = true; };
   }, [open, activeRepo]);
 
   useEffect(() => {

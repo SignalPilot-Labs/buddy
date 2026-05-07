@@ -53,9 +53,11 @@ export function RemoteSandboxes(): React.ReactElement {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     fetchRemoteSandboxes()
-      .then(setSandboxes)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : "Failed to load"));
+      .then((sandboxes) => { if (cancelled) return; setSandboxes(sandboxes); })
+      .catch((e: unknown) => { if (cancelled) return; setError(e instanceof Error ? e.message : "Failed to load"); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleAdd = (): void => {
