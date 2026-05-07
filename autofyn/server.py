@@ -122,7 +122,7 @@ class AgentServer:
         yield
         await self._pool.destroy_all()
         if self._pending_db_tasks:
-            await asyncio.gather(*self._pending_db_tasks, return_exceptions=True)
+            await asyncio.gather(*list(self._pending_db_tasks), return_exceptions=True)
         await db.close_db()
 
     # ── Accessors used by endpoints.py ─────────────────────────────────

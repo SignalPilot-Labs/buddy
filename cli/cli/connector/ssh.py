@@ -12,6 +12,7 @@ from cli.connector.constants import (
     SSH_CONNECT_TIMEOUT_SEC,
     SSH_KEEPALIVE_COUNT_MAX,
     SSH_KEEPALIVE_INTERVAL_SEC,
+    SSH_PORT_PROBE_TIMEOUT_SEC,
     SSH_TUNNEL_READY_TIMEOUT_SEC,
 )
 
@@ -75,7 +76,7 @@ async def _wait_for_port_ready(port: int, timeout: float) -> None:
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection("127.0.0.1", port),
-                timeout=0.5,
+                timeout=SSH_PORT_PROBE_TIMEOUT_SEC,
             )
             writer.close()
             await writer.wait_closed()
