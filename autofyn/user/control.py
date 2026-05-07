@@ -112,7 +112,24 @@ class UserControl:
         )
 
     async def _handle_pause(self) -> ControlOutcome:
-        """Interrupt the session and signal the runner to await resume."""
-        log.info("PAUSE requested")
+        """Interrupt the session and either pause or inject pending messages.
+
+        If the inbox has queued inject messages, the user wants to redirect
+        the agent — interrupt the current work, flush pending messages into
+        the session, and continue the round (don't pause).
+
+        If no pending messages, pause immediately.
+        """
+        pending = self._inbox.peek_pending_messages()
+        if pending:
+            log.info(
+                "PAUSE with %d pending message(s) — redirecting instead of pausing",
+                len(pending),
+            )
+            await self._sandbox.session.interrupt(self._session_id)
+            await self.flush_pending()
+            return ControlOutcome(kind="continue", reason="redirected with pending messages")
+
+        log.info("PAUSE requested — no pending messages, pausing immediately")
         await self._sandbox.session.interrupt(self._session_id)
         return ControlOutcome(kind="break_pause", reason="user pause")
