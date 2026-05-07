@@ -80,7 +80,7 @@ function ControlsIcon() {
 }
 
 const runActive = (status: RunStatus | null): boolean =>
-  status === "running" || status === "paused" || status === "rate_limited";
+  status === "starting" || status === "running" || status === "paused" || status === "rate_limited";
 
 export function MobileLayout({
   mobilePanel,
