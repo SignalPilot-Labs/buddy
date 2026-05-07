@@ -98,6 +98,21 @@ class Session:
                     exc,
                 )
                 await asyncio.sleep(SSE_RECONNECT_BACKOFF_SEC)
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code >= 500:
+                    consecutive_failures += 1
+                    if consecutive_failures >= SSE_RECONNECT_MAX_ATTEMPTS:
+                        raise
+                    log.warning(
+                        "SSE stream HTTP %d (attempt %d/%d), reconnecting from seq %d",
+                        exc.response.status_code,
+                        consecutive_failures,
+                        SSE_RECONNECT_MAX_ATTEMPTS,
+                        current_seq,
+                    )
+                    await asyncio.sleep(SSE_RECONNECT_BACKOFF_SEC)
+                else:
+                    raise
 
     async def send_message(self, session_id: str, text: str) -> None:
         """Send a follow-up message to a running sandbox session."""

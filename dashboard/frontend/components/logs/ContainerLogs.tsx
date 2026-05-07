@@ -12,9 +12,12 @@ export function ContainerLogs({ runId }: { runId: string | null }) {
   const [filter, setFilter] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const genRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const gen = ++genRef.current;
     const data = await fetchContainerLogs(CONTAINER_LOGS_DEFAULT_TAIL, runId ?? undefined);
+    if (gen !== genRef.current) return;
     setLines(data.lines ?? []);
   }, [runId]);
 

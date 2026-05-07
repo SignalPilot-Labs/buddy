@@ -48,6 +48,8 @@ class TestExecuteRunUnboundSandbox:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-timeout")
             with pytest.raises(TimeoutError, match="container start timed out"):
@@ -69,6 +71,8 @@ class TestExecuteRunUnboundSandbox:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-timeout-2")
             exc_type = None

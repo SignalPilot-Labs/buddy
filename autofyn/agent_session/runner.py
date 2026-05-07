@@ -106,6 +106,10 @@ class RoundRunner:
                 )
             finally:
                 pulse.cancel()
+                try:
+                    await pulse
+                except asyncio.CancelledError:
+                    pass
         except asyncio.CancelledError:
             await log_audit(
                 self._run.run_id,

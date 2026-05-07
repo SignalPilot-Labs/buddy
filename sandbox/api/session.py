@@ -11,6 +11,7 @@ import logging
 
 from aiohttp import web
 
+from constants import EVENT_LOG_READ_TIMEOUT_SEC
 from sdk.errors import ClientNotReadyError
 from sdk.errors import SessionNotFoundError
 from sdk.event_log import SessionEventGap
@@ -70,7 +71,9 @@ async def handle_events(request: web.Request) -> web.StreamResponse:
     try:
         while True:
             try:
-                events = await event_log.read_after(after_seq)
+                events = await event_log.read_after(after_seq, EVENT_LOG_READ_TIMEOUT_SEC)
+            except asyncio.TimeoutError:
+                continue
             except SessionEventGap:
                 error_payload = json.dumps({"error": "session_event_gap"})
                 payload = f"event: session_error\ndata: {error_payload}\n\n"

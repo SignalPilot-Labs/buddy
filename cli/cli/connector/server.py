@@ -235,9 +235,10 @@ class ConnectorServer:
                 timeout=SANDBOX_QUEUE_TIMEOUT_SEC,
             )
         except asyncio.TimeoutError:
-            await event_gen.aclose()
             await kill_process_group(process)
             raise
+        finally:
+            await event_gen.aclose()
 
         if not ready_event:
             await kill_process_group(process)
@@ -406,14 +407,23 @@ class ConnectorServer:
         state = self._states.pop(run_key, None)
         if not state:
             return
+        self._started_runs.pop(run_key, None)
 
         task = self._heartbeat_tasks.pop(run_key, None)
         if task:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
         drain_task = self._drain_tasks.pop(run_key, None)
         if drain_task:
             drain_task.cancel()
+            try:
+                await drain_task
+            except asyncio.CancelledError:
+                pass
 
         if state.backend_id:
             try:

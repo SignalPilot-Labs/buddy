@@ -12,6 +12,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi import FastAPI, HTTPException
+from tests.fast.helpers import make_server
 from fastapi.testclient import TestClient
 
 from endpoints.control import _restart_terminal_run
@@ -58,10 +59,7 @@ class TestRestartTerminalRun:
     @pytest.mark.asyncio
     async def test_restart_creates_active_run(self) -> None:
         """Restart must register a new ActiveRun and start execute_run."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         body = _make_resume_body("run-1", "continue the work")
         with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
@@ -78,10 +76,7 @@ class TestRestartTerminalRun:
     @pytest.mark.asyncio
     async def test_restart_uses_new_prompt_if_provided(self) -> None:
         """When prompt is provided, it overrides the original custom_prompt."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         body = _make_resume_body("run-1", "new instructions")
         with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
@@ -96,10 +91,7 @@ class TestRestartTerminalRun:
     @pytest.mark.asyncio
     async def test_restart_falls_back_to_original_prompt(self) -> None:
         """When no prompt provided, uses the original custom_prompt from DB."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         body = _make_resume_body("run-1", None)
         with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
@@ -132,10 +124,7 @@ class TestRestartTerminalRun:
     @pytest.mark.asyncio
     async def test_restart_cleans_up_stale_active_run(self) -> None:
         """Restart must remove any stale ActiveRun before registering a new one."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         body = _make_resume_body("run-1", None)
         with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/fix-bug")):
@@ -295,10 +284,7 @@ class TestResumeEdgeCases:
     @pytest.mark.asyncio
     async def test_resume_completed_run_restarts(self) -> None:
         """Completed run with run_id in body should trigger restart."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         run_info = _mock_run_info("autofyn/completed-branch")
         run_info["status"] = "completed"
@@ -314,10 +300,7 @@ class TestResumeEdgeCases:
     @pytest.mark.asyncio
     async def test_resume_crashed_run_restarts(self) -> None:
         """Crashed run should be restartable."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         run_info = _mock_run_info("autofyn/crashed-branch")
         run_info["status"] = "crashed"
@@ -333,10 +316,7 @@ class TestResumeEdgeCases:
     @pytest.mark.asyncio
     async def test_resume_stopped_no_pr_run_restarts(self) -> None:
         """Stopped run (no PR) should be restartable."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         run_info = _mock_run_info("autofyn/stopped-branch")
         run_info["status"] = "stopped"
@@ -436,10 +416,7 @@ class TestResumeStateTransitions:
     async def test_each_terminal_status_is_restartable(self) -> None:
         """All terminal statuses must successfully restart."""
         for status in ("stopped", "crashed", "completed", "completed_no_changes", "error", "killed"):
-            server = MagicMock()
-            server.execute_run = AsyncMock()
-            server.register_run = MagicMock()
-            server.remove_run = MagicMock()
+            server = make_server()
 
             run_info = _mock_run_info("autofyn/branch")
             run_info["status"] = status
@@ -459,10 +436,7 @@ class TestResumeStateTransitions:
         if the dashboard correctly gates on RESTARTABLE_STATUSES. But at
         the agent level, _restart_terminal_run will still proceed (it trusts
         the dashboard). This test verifies the agent does remove+re-register."""
-        server = MagicMock()
-        server.execute_run = AsyncMock()
-        server.register_run = MagicMock()
-        server.remove_run = MagicMock()
+        server = make_server()
 
         run_info = _mock_run_info("autofyn/branch")
         run_info["status"] = "running"
@@ -480,10 +454,7 @@ class TestResumeStateTransitions:
     async def test_double_resume_replaces_stale_active_run(self) -> None:
         """Two rapid resume calls: second must clean up first's ActiveRun."""
         for _ in range(2):
-            server = MagicMock()
-            server.execute_run = AsyncMock()
-            server.register_run = MagicMock()
-            server.remove_run = MagicMock()
+            server = make_server()
 
             body = _make_resume_body("run-1", None)
             with patch("endpoints.control.db.get_run_for_resume", new_callable=AsyncMock, return_value=_mock_run_info("autofyn/branch")):

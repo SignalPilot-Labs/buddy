@@ -78,14 +78,13 @@ describe("SandboxPicker: Slurm fields in run modal", () => {
   });
 
   it("sets command before selection so remounted SlurmFieldsCard sees correct value", () => {
-    // onStartCmdChange must be called BEFORE onSelect for cache hits,
-    // so the SlurmFieldsCard remount picks up the right startCmd.
-    const cacheHitBlock = PICKER_SRC.slice(
-      PICKER_SRC.indexOf("if (cached)"),
-      PICKER_SRC.indexOf("} else {", PICKER_SRC.indexOf("if (cached)")),
+    // switchTo must call onStartCmdChange BEFORE onSelect.
+    const switchBlock = PICKER_SRC.slice(
+      PICKER_SRC.indexOf("const switchTo"),
+      PICKER_SRC.indexOf("}, [", PICKER_SRC.indexOf("const switchTo")),
     );
-    const cmdIdx = cacheHitBlock.indexOf("onStartCmdChange");
-    const selectIdx = cacheHitBlock.indexOf("onSelect");
+    const cmdIdx = switchBlock.indexOf("onStartCmdChange");
+    const selectIdx = switchBlock.indexOf("onSelect");
     expect(cmdIdx).toBeGreaterThan(-1);
     expect(selectIdx).toBeGreaterThan(-1);
     expect(cmdIdx).toBeLessThan(selectIdx);

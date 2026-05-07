@@ -97,10 +97,11 @@ class SessionEventLog:
         self._notify.set()
         return self._seq
 
-    async def read_after(self, after_seq: int) -> list[SessionEvent]:
+    async def read_after(self, after_seq: int, timeout: float) -> list[SessionEvent]:
         """Return events with seq > after_seq. Waits if none available.
 
         Raises SessionEventGap if after_seq < low_water_mark (trimmed away).
+        Raises asyncio.TimeoutError if timeout expires with no new events.
         """
         while True:
             if after_seq < self._low_water_mark:
@@ -109,7 +110,7 @@ class SessionEventLog:
             if events:
                 return events
             self._notify.clear()
-            await self._notify.wait()
+            await asyncio.wait_for(self._notify.wait(), timeout=timeout)
 
     def trim_through(self, seq: int) -> None:
         """Discard events with seq <= N, free their bytes, advance low-water mark."""

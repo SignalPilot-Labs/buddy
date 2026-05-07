@@ -26,6 +26,8 @@ def _make_server() -> AgentServer:
     """Build an AgentServer without calling __init__ (avoids DB + pool setup)."""
     srv = AgentServer.__new__(AgentServer)
     srv._pool = MagicMock()
+    srv._runs = {}
+    srv._pending_db_tasks = set()
     return srv
 
 

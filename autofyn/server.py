@@ -81,6 +81,7 @@ class AgentServer:
     def __init__(self) -> None:
         self._pool = SandboxManager()
         self._runs: dict[str, ActiveRun] = {}
+        self._pending_db_tasks: set[asyncio.Task[None]] = set()
 
         self.app = FastAPI(title="AutoFyn Agent", lifespan=self._lifespan)
         self._internal_secret = os.environ[ENV_KEY_INTERNAL_SECRET]
@@ -120,6 +121,8 @@ class AgentServer:
         log.info("Ready — waiting for start command on :%d", server_port())
         yield
         await self._pool.destroy_all()
+        if self._pending_db_tasks:
+            await asyncio.gather(*list(self._pending_db_tasks), return_exceptions=True)
         await db.close_db()
 
     # ── Accessors used by endpoints.py ─────────────────────────────────
@@ -297,6 +300,7 @@ class AgentServer:
             await self._pool.destroy(run_id)
         except Exception as exc:
             log.error("Failed to destroy sandbox for %s: %s", run_id, exc)
+        self.remove_run(run_id)
 
     async def _link_sandbox(self, run_id: str, sandbox_id: str | None) -> None:
         """Link run to its remote sandbox config, if any."""
@@ -396,7 +400,7 @@ class AgentServer:
     ) -> None:
         """Fire-and-forget DB write for crash or cancel terminal states."""
         if context is not None:
-            asyncio.create_task(
+            task: asyncio.Task[None] = asyncio.create_task(
                 db.finish_run(
                     run_id,
                     status,
@@ -412,9 +416,11 @@ class AgentServer:
                 )
             )
         else:
-            asyncio.create_task(
+            task = asyncio.create_task(
                 db.update_run_status(run_id, status),
             )
+        self._pending_db_tasks.add(task)
+        task.add_done_callback(self._pending_db_tasks.discard)
 
     def on_task_done(self, active: ActiveRun, task: asyncio.Task) -> None:
         """Persist final status for crashes and cancels."""

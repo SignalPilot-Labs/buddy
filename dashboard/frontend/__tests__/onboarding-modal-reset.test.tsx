@@ -83,7 +83,8 @@ describe("OnboardingModal: state reset on reopen (BUG 8)", () => {
     // The reset-on-open effect must be defined before the focus effect so it
     // fires first and the input focus fires on the already-reset step.
     const resetEffectStart = SRC.indexOf("if (open && !prevOpenRef.current)");
-    const focusEffectStart = SRC.indexOf("if (open) setTimeout(() => inputRef.current?.focus()");
+    // After the timer-cleanup fix the focus effect uses: if (!open) return;
+    const focusEffectStart = SRC.indexOf("// Focus input on step change");
 
     expect(resetEffectStart).toBeGreaterThan(-1);
     expect(focusEffectStart).toBeGreaterThan(-1);

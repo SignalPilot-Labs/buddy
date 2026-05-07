@@ -84,7 +84,6 @@ class SessionManager:
                 pass
             except Exception:
                 log.exception("Session %s raised exception during cancellation", session_id)
-                raise
 
     def delete(self, session_id: str) -> None:
         """Remove a session and release its event log. Called by agent after draining."""

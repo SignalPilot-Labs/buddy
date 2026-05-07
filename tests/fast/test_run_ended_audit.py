@@ -113,6 +113,8 @@ class TestRunEndedAudit:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-1")
             await srv.execute_run(active, _make_body())
@@ -140,6 +142,8 @@ class TestRunEndedAudit:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-2")
             with pytest.raises(RuntimeError, match="clone failed"):
@@ -170,6 +174,8 @@ class TestRunEndedAudit:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-3")
             with pytest.raises(RuntimeError, match="sandbox died"):
@@ -209,6 +215,8 @@ class TestRunEndedAudit:
 
             srv = AgentServer.__new__(AgentServer)
             srv._pool = pool
+            srv._runs = {}
+            srv._pending_db_tasks = set()
 
             active = _make_active_run("run-4")
             await srv.execute_run(active, _make_body())

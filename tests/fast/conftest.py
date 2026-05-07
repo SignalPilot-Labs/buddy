@@ -6,6 +6,7 @@ os.environ.setdefault("AGENT_INTERNAL_SECRET", "test-secret")
 os.environ.setdefault("AF_IMAGE_TAG", "test")
 os.environ.setdefault("AF_SANDBOX_PORT", "8923")
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from agent_session.stream import StreamDispatcher
@@ -43,6 +44,8 @@ def _make_dispatcher() -> tuple[StreamDispatcher, SubagentTracker]:
     tracker = SubagentTracker(_DEFAULT_RUN_CONFIG)
     dispatcher = StreamDispatcher(run=_make_run(), round_number=1, tracker=tracker)
     return dispatcher, tracker
+
+
 
 
 def _make_sandbox(read_return: str | None) -> MagicMock:

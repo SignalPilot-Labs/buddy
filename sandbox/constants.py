@@ -40,6 +40,7 @@ SECRET_ENV_VARS: str = _security_cfg["secret_env_vars"]
 
 # ── Session ──
 MAX_CONCURRENT_SESSIONS: int = _cfg["max_concurrent_sessions"]
+EVENT_LOG_READ_TIMEOUT_SEC: float = 60.0
 
 # ── Time Lock ──
 EARLY_EXIT_THRESHOLD_MIN: float = _cfg["early_exit_threshold_min"]
@@ -114,3 +115,7 @@ AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 GIT_REMOTE_WRITE_RE: re.Pattern[str] = re.compile(
     r"git\s+remote\s+(add|remove|rm|rename|set-url|set-head|set-branches|prune)\b"
 )
+
+# ── API error messages ──
+API_INVALID_JSON_MSG: str = "Invalid JSON in request body"
+API_MISSING_FIELD_MSG: str = "Missing required field: {field}"

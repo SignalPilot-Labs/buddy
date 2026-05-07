@@ -28,7 +28,7 @@ export function useRuns(repo?: string | null, pollInterval = 8000) {
     setRuns([]);
     refresh();
     const id = setInterval(refresh, pollInterval);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); genRef.current++; };
   }, [refresh, pollInterval]);
 
   return { runs, loading, refresh };

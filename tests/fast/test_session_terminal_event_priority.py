@@ -7,6 +7,7 @@ import asyncio
 
 import pytest
 
+from constants import EVENT_LOG_READ_TIMEOUT_SEC
 from sdk.event_log import (
     SessionEventLog,
     SessionEventLogOverflow,
@@ -33,7 +34,7 @@ class TestSessionEventLog:
         log.append("b", {"i": 2})
         log.append("c", {"i": 3})
 
-        events = await log.read_after(1)
+        events = await log.read_after(1, EVENT_LOG_READ_TIMEOUT_SEC)
         assert len(events) == 2
         assert events[0].seq == 2
         assert events[1].seq == 3
@@ -45,7 +46,7 @@ class TestSessionEventLog:
         log.append("a", {})
         log.append("b", {})
 
-        events = await log.read_after(0)
+        events = await log.read_after(0, EVENT_LOG_READ_TIMEOUT_SEC)
         assert len(events) == 2
 
     def test_overflow_fails_loudly(self) -> None:
@@ -76,7 +77,7 @@ class TestSessionEventLog:
         with pytest.raises(SessionEventLogOverflow):
             log.append("big", {"data": "x" * 100})
 
-        events = await log.read_after(1)
+        events = await log.read_after(1, EVENT_LOG_READ_TIMEOUT_SEC)
         assert len(events) == 1
         assert events[0].event == "session_event_log_overflow"
         assert events[0].seq == 2
@@ -113,7 +114,7 @@ class TestSessionEventLog:
         log.trim_through(2)
 
         with pytest.raises(SessionEventGap):
-            await log.read_after(0)
+            await log.read_after(0, EVENT_LOG_READ_TIMEOUT_SEC)
 
     @pytest.mark.asyncio
     async def test_read_after_at_low_water_mark_works(self) -> None:
@@ -125,7 +126,7 @@ class TestSessionEventLog:
 
         log.trim_through(2)
 
-        events = await log.read_after(2)
+        events = await log.read_after(2, EVENT_LOG_READ_TIMEOUT_SEC)
         assert len(events) == 1
         assert events[0].seq == 3
 
@@ -140,7 +141,7 @@ class TestSessionEventLog:
             log.append("b", {"delayed": True})
 
         task = asyncio.create_task(_delayed_append())
-        events = await log.read_after(1)
+        events = await log.read_after(1, EVENT_LOG_READ_TIMEOUT_SEC)
         await task
 
         assert len(events) == 1
