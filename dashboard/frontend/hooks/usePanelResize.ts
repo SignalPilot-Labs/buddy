@@ -76,6 +76,19 @@ export function usePanelResize({
   const moveRef = useRef<(e: MouseEvent) => void>(null);
   const upRef = useRef<() => void>(null);
 
+  // Track whether document listeners are currently attached so the unmount
+  // cleanup can remove them even if mouseup never fired.
+  const listenersAttachedRef = useRef(false);
+
+  const stableMoveRef = useRef((e: MouseEvent) => {
+    moveRef.current?.(e);
+  });
+  const stableUpRef = useRef(() => {
+    upRef.current?.();
+  });
+  const stableMove = stableMoveRef.current;
+  const stableUp = stableUpRef.current;
+
   moveRef.current = (e: MouseEvent): void => {
     const delta = e.clientX - startXRef.current;
     const raw =
@@ -97,6 +110,7 @@ export function usePanelResize({
     }
     document.removeEventListener("mousemove", stableMove);
     document.removeEventListener("mouseup", stableUp);
+    listenersAttachedRef.current = false;
     setWidth(currentWidthRef.current);
     setIsDragging(false);
     localStorage.setItem(
@@ -105,14 +119,23 @@ export function usePanelResize({
     );
   };
 
-  const stableMoveRef = useRef((e: MouseEvent) => {
-    moveRef.current?.(e);
-  });
-  const stableUpRef = useRef(() => {
-    upRef.current?.();
-  });
-  const stableMove = stableMoveRef.current;
-  const stableUp = stableUpRef.current;
+  // Unmount cleanup: remove listeners and restore body styles if we unmount
+  // mid-drag (before mouseup fires). Safe to call when listeners are not
+  // attached — removeEventListener is a no-op for listeners that were never
+  // added, and resetting empty styles is harmless.
+  useEffect(() => {
+    return () => {
+      if (listenersAttachedRef.current) {
+        document.removeEventListener("mousemove", stableMove);
+        document.removeEventListener("mouseup", stableUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        listenersAttachedRef.current = false;
+      }
+    };
+    // stableMove/stableUp are stable refs — never change after mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent): void => {
     e.preventDefault();
@@ -125,6 +148,7 @@ export function usePanelResize({
     setIsDragging(true);
     document.body.style.userSelect = "none";
     document.body.style.cursor = "col-resize";
+    listenersAttachedRef.current = true;
     document.addEventListener("mousemove", stableMove);
     document.addEventListener("mouseup", stableUp);
   };
