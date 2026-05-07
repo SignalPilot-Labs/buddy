@@ -113,9 +113,6 @@ services:
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
-    volumes:
-      - agent-repo:/home/agentuser/repo
-      - claude-agent-sessions:/home/agentuser/.claude
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:${AF_SANDBOX_PORT}/health || exit 1"]
       interval: 3s
@@ -126,6 +123,4 @@ services:
 volumes:
   autofyn-db:
   autofyn-keys:
-  claude-agent-sessions:
-  agent-repo:
   autofyn-rounds:
