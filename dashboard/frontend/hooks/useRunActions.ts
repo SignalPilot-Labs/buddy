@@ -4,7 +4,6 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   startRun as apiStartRun,
   stopRun,
-  cancelRun,
   resumeAgent,
   injectPrompt as apiInjectPrompt,
 } from "@/lib/api";
@@ -14,6 +13,7 @@ import type { RunActionsConfig, RunActions } from "@/hooks/dashboardTypes";
 export function useRunActions(config: RunActionsConfig): RunActions {
   const {
     selectedRunId,
+    runStatus,
     addEvent,
     filterEvents,
     refreshRunsRef,
@@ -84,22 +84,6 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     [addEvent, filterEvents, handleSelectRun, activeRepoFilter, setStartModalOpen, setBusy, refreshRunsRef],
   );
 
-  const handleCancelStarting = useCallback(
-    (runId: string): void => {
-      setBusy(true);
-      cancelRun(runId)
-        .then(async () => {
-          await refreshRunsRef.current();
-        })
-        .catch((e) => {
-          addEvent({ _kind: "control", text: `Cancel failed: ${e}`, ts: new Date().toISOString() });
-        })
-        .finally(() => {
-          setBusy(false);
-        });
-    },
-    [addEvent, refreshRunsRef, setBusy],
-  );
 
   const handleInject = useCallback(
     (prompt: string): void => {
@@ -126,10 +110,6 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     [selectedRunId, addEvent, refreshRunsRef, handleSelectRun],
   );
 
-  const handleStopClick = useCallback((): void => {
-    setShowStopDialog(true);
-  }, []);
-
   const handleStopConfirm = useCallback(
     (openPr: boolean): void => {
       setShowStopDialog(false);
@@ -147,6 +127,15 @@ export function useRunActions(config: RunActionsConfig): RunActions {
     [controlAction, setBusy],
   );
 
+  const handleStopClick = useCallback((): void => {
+    if (runStatus === "starting") {
+      // No work done yet — skip "Open PR?" dialog, stop immediately
+      handleStopConfirm(false);
+      return;
+    }
+    setShowStopDialog(true);
+  }, [runStatus, handleStopConfirm]);
+
   const handleStopCancel = useCallback((): void => {
     setShowStopDialog(false);
   }, []);
@@ -154,7 +143,6 @@ export function useRunActions(config: RunActionsConfig): RunActions {
   return {
     controlAction,
     handleStartRun,
-    handleCancelStarting,
     handleInject,
     handleRestart,
     showStopDialog,

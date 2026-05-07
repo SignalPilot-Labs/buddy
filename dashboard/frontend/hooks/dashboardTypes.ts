@@ -5,6 +5,7 @@ import type { RefObject } from "react";
 export interface RunActionsConfig {
   selectedRunId: string | null;
   selectedRunIdRef: RefObject<string | null>;
+  runStatus: RunStatus | null;
   addEvent: (event: FeedEvent) => void;
   filterEvents: (predicate: (e: FeedEvent) => boolean) => void;
   sseRef: RefObject<{ disconnect: () => void; clearEvents: () => void; connect: (id: string, cursors: { afterTool: number; afterAudit: number }) => void }>;
@@ -29,7 +30,7 @@ export interface RunActions {
     sandboxId: string | null,
     startCmd: string,
   ) => Promise<void>;
-  handleCancelStarting: (runId: string) => void;
+
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
   showStopDialog: boolean;
@@ -91,7 +92,7 @@ export interface DashboardState {
     sandboxId: string | null,
     startCmd: string,
   ) => Promise<void>;
-  handleCancelStarting: (runId: string) => void;
+
   handleInject: (prompt: string) => void;
   handleRestart: (prompt?: string) => void;
   handleStopClick: () => void;

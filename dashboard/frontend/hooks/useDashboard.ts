@@ -143,6 +143,7 @@ export function useDashboard(): DashboardState {
   const runActions = useRunActions({
     selectedRunId,
     selectedRunIdRef,
+    runStatus,
     addEvent,
     filterEvents,
     sseRef,

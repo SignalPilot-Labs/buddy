@@ -24,7 +24,6 @@ export interface DashboardHeaderProps {
   atCapacity: boolean;
   busy: boolean;
   onStop: () => void;
-  onCancel: (runId: string) => void;
   onNewRun: () => void;
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
@@ -44,7 +43,6 @@ export function DashboardHeader({
   atCapacity,
   busy,
   onStop,
-  onCancel,
   onNewRun,
   sidebarCollapsed,
   onToggleSidebar,
@@ -228,36 +226,7 @@ export function DashboardHeader({
 
       <div className="w-px h-4 bg-border" />
 
-      {/* Cancel button (sandbox creation phase) */}
-      {runStatus === "starting" && selectedRun?.id && (
-        <Button
-          variant="warning"
-          size="sm"
-          disabled={busy}
-          onClick={() => onCancel(selectedRun.id)}
-          title="Cancel sandbox creation"
-          icon={
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <line x1="2" y1="2" x2="8" y2="8" />
-              <line x1="8" y1="2" x2="2" y2="8" />
-            </svg>
-          }
-        >
-          Cancel
-        </Button>
-      )}
-
-      {/* Stop button */}
+{/* Stop button */}
       <div className="flex items-center gap-1">
         {sessionLocked && canControl && (
           <Button
