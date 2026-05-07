@@ -284,6 +284,7 @@ export function WorkTree({ events, runId, runStatus }: WorkTreeProps) {
         setDiffLoading(false);
       });
     fetchDiffBodies(runId, gen);
+    return () => { diffGenRef.current++; };
   }, [runId]);
 
   // Poll all three diff sources for live/agent runs so the tree, badge,

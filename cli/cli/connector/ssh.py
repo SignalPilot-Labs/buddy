@@ -59,7 +59,11 @@ async def open_ssh_tunnel(
         "SSH tunnel %s -> %s:%d (pid %d)",
         ssh_target, remote_host, remote_port, process.pid,
     )
-    await _wait_for_port_ready(local_port, SSH_TUNNEL_READY_TIMEOUT_SEC)
+    try:
+        await _wait_for_port_ready(local_port, SSH_TUNNEL_READY_TIMEOUT_SEC)
+    except Exception:
+        await kill_process_group(process)
+        raise
     return process
 
 
