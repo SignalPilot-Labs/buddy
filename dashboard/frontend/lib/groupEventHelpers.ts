@@ -379,7 +379,7 @@ export function milestoneFromAudit(event: FeedEvent): GroupedEvent | null {
       const phaseStr = phase ? phase : "";
       const detail = [phaseStr, elapsedStr].filter(Boolean).join(" · ");
       return {
-        id: `ms-${ts}-Sandbox Progress`,
+        id: `ms-${ts}-progress-${elapsedSec ?? 0}`,
         type: "milestone",
         label: "Sandbox Starting",
         detail,

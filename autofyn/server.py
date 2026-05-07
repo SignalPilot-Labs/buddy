@@ -418,6 +418,10 @@ class AgentServer:
         finally:
             if progress_task is not None:
                 progress_task.cancel()
+                try:
+                    await progress_task
+                except asyncio.CancelledError:
+                    pass
             await self._cleanup_run(run_id, active, terminal_status, bootstrap, sandbox)
 
     def _persist_terminal_status(

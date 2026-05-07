@@ -5,7 +5,6 @@ Docker API. Verifies ring buffer captures logs, client caching works across
 the full lifecycle, and destroy cleans up all resources.
 """
 
-import asyncio
 import os
 from collections import deque
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -31,7 +30,7 @@ def _make_backend() -> DockerLocalBackend:
     with patch("sandbox_client.backends.local_backend.docker.from_env", return_value=MagicMock()):
         with patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}):
             with patch.dict(os.environ, {"AF_IMAGE_TAG": "test", "SANDBOX_INTERNAL_SECRET": "test-sandbox-secret"}):
-                return DockerLocalBackend(asyncio.Event())
+                return DockerLocalBackend()
 
 
 class TestDockerLocalBackendLifecycle:

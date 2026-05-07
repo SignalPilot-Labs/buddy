@@ -32,11 +32,13 @@ class SandboxBackend(ABC):
         run_key: str,
         host_mounts: list[dict[str, str]] | None,
         start_cmd: str,
+        cancel_event: asyncio.Event,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Spin up a sandbox and return (handle, startup_events).
 
         Each backend owns its timeouts internally — the caller just
-        provides run_key, mounts, and the start command.
+        provides run_key, mounts, and the start command. cancel_event
+        allows cooperative cancellation during startup.
         """
         ...
 

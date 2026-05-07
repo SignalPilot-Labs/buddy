@@ -1,6 +1,5 @@
 """Tests for --allow-docker socket mount logic in DockerLocalBackend."""
 
-import asyncio
 import os
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +24,7 @@ def _make_backend(extra_env: dict | None = None) -> DockerLocalBackend:
         patch(_DOCKER_MOCK_PATCHES[1], return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}),
         patch.dict(os.environ, env),
     ):
-        return DockerLocalBackend(asyncio.Event())
+        return DockerLocalBackend()
 
 
 class TestAllowDocker:

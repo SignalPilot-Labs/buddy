@@ -11,7 +11,6 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { RepoSelector } from "@/components/ui/RepoSelector";
 import { MobileAccessPopover } from "@/components/ui/MobileAccessPopover";
-import { RunControls } from "@/components/controls/RunControls";
 
 export interface DashboardHeaderProps {
   repos: RepoInfo[];
@@ -227,17 +226,35 @@ export function DashboardHeader({
         New Run
       </Button>
 
+      <div className="w-px h-4 bg-border" />
+
       {/* Cancel button (sandbox creation phase) */}
       {runStatus === "starting" && selectedRun?.id && (
-        <>
-          <div className="w-px h-4 bg-border" />
-          <RunControls
-            runId={selectedRun.id}
-            status={runStatus}
-            busy={busy}
-            onCancel={onCancel}
-          />
-        </>
+        <Button
+          variant="warning"
+          size="sm"
+          disabled={busy}
+          onClick={() => onCancel(selectedRun.id)}
+          title="Cancel sandbox creation"
+          icon={
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="2" y1="2" x2="8" y2="8" />
+              <line x1="8" y1="2" x2="2" y2="8" />
+            </svg>
+          }
+        >
+          Cancel
+        </Button>
       )}
 
       {/* Stop button */}

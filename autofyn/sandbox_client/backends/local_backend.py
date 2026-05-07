@@ -54,9 +54,8 @@ DEFAULT_DOCKER_START_CMD: str = (
 class DockerLocalBackend(SandboxBackend):
     """Local Docker via shell command — unified with remote sandboxes."""
 
-    def __init__(self, cancel_event: asyncio.Event) -> None:
+    def __init__(self) -> None:
         """Initialize Docker client (for cleanup) and internal state."""
-        self._cancel_event = cancel_event
         self._docker = docker.from_env()
         self._containers: dict[str, str] = {}
         self._clients: dict[str, SandboxClient] = {}
@@ -119,6 +118,7 @@ class DockerLocalBackend(SandboxBackend):
         run_key: str,
         host_mounts: list[dict[str, str]] | None,
         start_cmd: str,
+        cancel_event: asyncio.Event,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Run the start command, parse AF_READY, return handle."""
         container_name = f"autofyn-sandbox-{run_key}"
@@ -131,7 +131,7 @@ class DockerLocalBackend(SandboxBackend):
             env=env,
         )
 
-        ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC, self._cancel_event)
+        ready_data = await self._wait_for_ready(proc, run_key, _STARTUP_TIMEOUT_SEC, cancel_event)
         ready_port: int = ready_data["port"]
 
         try:

@@ -5,6 +5,7 @@ NDJSON streaming, and reverse proxying. This class holds the HTTP calls
 to the connector and the create/destroy lifecycle.
 """
 
+import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
@@ -121,6 +122,7 @@ class RemoteBackend(SandboxBackend):
         run_key: str,
         host_mounts: list[dict[str, str]] | None,
         start_cmd: str,
+        cancel_event: asyncio.Event,
     ) -> tuple[SandboxInstance, list[dict]]:
         """Start a remote sandbox via the connector.
 

@@ -5,6 +5,7 @@ event from the connector. This is the end-to-end flow that eliminates
 command-line secret exposure.
 """
 
+import asyncio
 from collections.abc import AsyncGenerator
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -64,6 +65,7 @@ class TestRemoteBackendExtractsSecret:
                     run_key="run-123",
                     host_mounts=None,
                     start_cmd="start.sh",
+                    cancel_event=asyncio.Event(),
                 )
 
         assert handle.sandbox_secret == marker_secret
@@ -89,6 +91,7 @@ class TestRemoteBackendExtractsSecret:
                         run_key="run-456",
                         host_mounts=None,
                         start_cmd="start.sh",
+                        cancel_event=asyncio.Event(),
                     )
 
     @pytest.mark.asyncio
@@ -112,6 +115,7 @@ class TestRemoteBackendExtractsSecret:
                         run_key="run-789",
                         host_mounts=None,
                         start_cmd="start.sh",
+                        cancel_event=asyncio.Event(),
                     )
 
     @pytest.mark.asyncio
@@ -136,6 +140,7 @@ class TestRemoteBackendExtractsSecret:
                     run_key="run-999",
                     host_mounts=None,
                     start_cmd="start.sh",
+                    cancel_event=asyncio.Event(),
                 )
 
         assert handle.sandbox_secret == marker_secret

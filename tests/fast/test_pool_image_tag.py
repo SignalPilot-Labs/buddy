@@ -5,7 +5,6 @@ used a hardcoded "autofyn-sandbox" which diverged from the GHCR-tagged
 images, causing per-run sandboxes to run stale code (missing entrypoint).
 """
 
-import asyncio
 import os
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +21,7 @@ def _make_backend(tag: str) -> DockerLocalBackend:
         patch("sandbox_client.backends.local_backend.sandbox_config", return_value={"vm_timeout_sec": 30, "health_timeout_sec": 5}),
         patch.dict(os.environ, {ENV_KEY_IMAGE_TAG: tag}),
     ):
-        return DockerLocalBackend(asyncio.Event())
+        return DockerLocalBackend()
 
 
 class TestPoolImageTag:
@@ -57,7 +56,7 @@ class TestPoolImageTag:
         ):
             os.environ.pop(ENV_KEY_IMAGE_TAG, None)
             with pytest.raises(KeyError):
-                DockerLocalBackend(asyncio.Event())
+                DockerLocalBackend()
 
     def test_default_start_cmd_contains_image_base(self) -> None:
         """Default start command must reference the correct image base."""

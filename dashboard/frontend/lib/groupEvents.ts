@@ -280,6 +280,7 @@ export function groupEvents(events: FeedEvent[]): GroupedEvent[] {
         detail: "Preparing sandbox...",
         color: "#ffaa00",
         ts: ev.ts,
+        event: ev,
       });
       i++;
       continue;

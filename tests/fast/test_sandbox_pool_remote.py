@@ -4,6 +4,7 @@ Covers _resolve_backend(), remote SandboxClient construction, and destroy_all()
 with mixed local+remote handles.
 """
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -257,6 +258,7 @@ class TestRemoteSandboxClientCreation:
                     sandbox_id="sandbox-Z",
                     host_mounts=None,
                     start_cmd="./start.sh",
+                    cancel_event=asyncio.Event(),
                 )
 
         MockClient.assert_called_once_with(
