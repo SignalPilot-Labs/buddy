@@ -9,7 +9,7 @@
  * "start command required".
  *
  * Fix: StartRunModal itself populates startCmd in the same useEffect that
- * restores selectedSandboxId from localStorage.
+ * restores selectedSandboxId from localStorage using sandbox.default_start_cmd.
  */
 
 import { describe, it, expect } from "vitest";
@@ -28,30 +28,21 @@ const PICKER_SRC = fs.readFileSync(
 
 describe("StartRunModal: populate startCmd on localStorage restore", () => {
   it("modal restores startCmd in the same effect that restores selectedSandboxId", () => {
-    // The effect that reads localStorage must also call fetchLastStartCmd.
-    // Boundary: from the "Restore last-used sandbox" comment to the fetchRemoteSandboxes effect.
     const restoreStart = MODAL_SRC.indexOf("Restore last-used sandbox");
-    const restoreEnd = MODAL_SRC.indexOf("fetchRemoteSandboxes().then", restoreStart);
+    const restoreEnd = MODAL_SRC.indexOf("adjustPromptHeight", restoreStart);
     const restoreBlock = MODAL_SRC.slice(restoreStart, restoreEnd);
     expect(restoreBlock).toContain("localStorage.getItem");
     expect(restoreBlock).toContain("setSelectedSandboxId");
-    expect(restoreBlock).toContain("fetchLastStartCmd");
     expect(restoreBlock).toContain("setStartCmd");
-  });
-
-  it("modal imports fetchLastStartCmd", () => {
-    expect(MODAL_SRC).toContain("fetchLastStartCmd");
+    expect(restoreBlock).toContain("default_start_cmd");
   });
 
   it("SandboxPicker does NOT have a useEffect for startCmd population", () => {
-    // The logic lives in the modal now, not in the picker
     expect(PICKER_SRC).not.toContain("useEffect");
   });
 
   it("SandboxPicker populates startCmd on manual selection via handleRemoteClick", () => {
-    // The async fetch logic is in handleRemoteClick, invoked from onClick.
     expect(PICKER_SRC).toContain("handleRemoteClick");
-    expect(PICKER_SRC).toContain("fetchLastStartCmd");
     expect(PICKER_SRC).toContain("default_start_cmd");
   });
 });

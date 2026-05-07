@@ -14,7 +14,7 @@ import httpx
 from config.loader import sandbox_config
 from db.constants import REMOTE_SANDBOX_KEY_PREFIX
 from sandbox_client.backends.base_backend import SandboxBackend
-from sandbox_client.backends.local_backend import DockerLocalBackend
+from sandbox_client.backends.local_backend import DEFAULT_DOCKER_START_CMD, DockerLocalBackend
 from sandbox_client.backends.remote_backend import CONNECTOR_SECRET_HEADER, RemoteBackend
 from sandbox_client.client import SandboxClient
 from sandbox_client.models import SandboxInstance
@@ -113,6 +113,20 @@ class SandboxManager:
             return await self._docker_local.get_logs(run_key, tail)
         backend = await self._resolve_backend(handle.sandbox_id)
         return await backend.get_logs(run_key, tail)
+
+    async def resolve_start_cmd(self, sandbox_id: str | None) -> str:
+        """Resolve the start command for a sandbox.
+
+        Local Docker (sandbox_id=None) returns the built-in default.
+        Remote sandboxes read default_start_cmd from their settings config.
+        """
+        if sandbox_id is None:
+            return DEFAULT_DOCKER_START_CMD
+        config_str = await get_setting_value(f"{REMOTE_SANDBOX_KEY_PREFIX}{sandbox_id}")
+        if config_str is None:
+            raise ValueError(f"No sandbox config found for sandbox_id={sandbox_id}")
+        config: dict[str, str | int] = json.loads(config_str)
+        return str(config["default_start_cmd"])
 
     async def test_connection(self, sandbox_id: str) -> dict:
         """Test SSH connection and image availability for a remote sandbox."""

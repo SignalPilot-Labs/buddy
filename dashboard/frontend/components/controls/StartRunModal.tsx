@@ -14,7 +14,7 @@ import { McpServersEditor } from "@/components/controls/McpServersEditor";
 import { clsx } from "clsx";
 import { MODELS, loadStoredModel, capitalize, DEFAULT_BASE_BRANCH, DEFAULT_DOCKER_START_CMD, STARTER_PRESETS, STARTER_PRESET_KEYS, EFFORT_LEVELS, DEFAULT_EFFORT } from "@/lib/constants";
 import type { StarterPresetKey, EffortLevel, ModelId } from "@/lib/constants";
-import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox, fetchLastStartCmd } from "@/lib/api";
+import { fetchRepoEnv, saveRepoEnv, fetchRepoMounts, saveRepoMounts, fetchRemoteMounts, saveRemoteMounts, fetchRepoMcpServers, saveRepoMcpServers, fetchRemoteSandboxes, updateRemoteSandbox } from "@/lib/api";
 import type { HostMount, RemoteSandboxConfig } from "@/lib/api";
 
 export interface StartRunModalProps {
@@ -172,28 +172,19 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
   }, [open, activeRepo, loadMountsForSandbox]);
 
   // Restore last-used sandbox and its start command per repo.
-  // Runs when remoteSandboxes loads (async), which has the latest
-  // default_start_cmd from the database — even if user just changed it
-  // in Settings.
   useEffect(() => {
     if (!open || !activeRepo || remoteSandboxes.length === 0) return;
-    let cancelled = false;
-    try {
-      const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
-      if (!saved) return;
-      const sandbox = remoteSandboxes.find((s) => s.id === saved);
-      if (!sandbox) {
-        // Sandbox was deleted — clear stale selection.
-        localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
-        return;
-      }
-      setSelectedSandboxId(saved);
-      void loadMountsForSandbox(saved);
-      fetchLastStartCmd(saved, activeRepo)
-        .catch(() => null)
-        .then((lastCmd) => { if (cancelled) return; setStartCmd(lastCmd || sandbox.default_start_cmd); });
-    } catch (e) { console.warn("Failed to restore last sandbox selection", e); }
-    return () => { cancelled = true; };
+    const saved = localStorage.getItem(`autofyn_last_sandbox:${activeRepo}`);
+    if (!saved) return;
+    const sandbox = remoteSandboxes.find((s) => s.id === saved);
+    if (!sandbox) {
+      // Sandbox was deleted — clear stale selection.
+      localStorage.removeItem(`autofyn_last_sandbox:${activeRepo}`);
+      return;
+    }
+    setSelectedSandboxId(saved);
+    setStartCmd(sandbox.default_start_cmd);
+    void loadMountsForSandbox(saved);
   }, [open, activeRepo, remoteSandboxes, loadMountsForSandbox]);
 
   useEffect(() => { adjustPromptHeight(); }, [customPrompt, adjustPromptHeight]);
@@ -482,7 +473,6 @@ export function StartRunModal({ open, onClose, onStart, busy, branches, activeRe
                     onSelect={handleSandboxSelect}
                     startCmd={startCmd}
                     onStartCmdChange={setStartCmd}
-                    activeRepo={activeRepo}
                   />
                 </CollapsibleSection>
 

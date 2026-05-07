@@ -42,6 +42,7 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
         raise HTTPException(status_code=409, detail="Run has no base_branch in DB")
 
     merged_env = merge_tokens_into_env(body.env, body.claude_token, body.git_token)
+    start_cmd = await server.pool().resolve_start_cmd(body.sandbox_id)
     start_body = StartRequest(
         prompt=prompt,
         max_budget_usd=0,
@@ -51,6 +52,8 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
         github_repo=github_repo,
         env=merged_env,
         mcp_servers=body.mcp_servers,
+        sandbox_id=body.sandbox_id,
+        start_cmd=start_cmd,
     )
 
     # Clean up stale ActiveRun if present (e.g. crashed but not cleaned up).

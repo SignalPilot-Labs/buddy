@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import select, func
 
@@ -15,7 +15,6 @@ from db.constants import (
     ACTIVE_RUN_STATUSES,
     HEARTBEAT_TIMEOUT_MAX,
     HEARTBEAT_TIMEOUT_MIN,
-    LAST_START_CMD_KEY_PREFIX,
     MAX_REMOTE_MOUNTS,
     QUEUE_TIMEOUT_MAX,
     QUEUE_TIMEOUT_MIN,
@@ -235,20 +234,6 @@ async def test_sandbox(sandbox_id: str) -> dict:
         extra_headers=None,
     )
 
-
-@router.get("/sandboxes/{sandbox_id}/last-start-cmd")
-async def get_last_start_cmd(
-    sandbox_id: str,
-    repo: str = Query(...),
-) -> dict[str, str | None]:
-    """Get the last-used start command for a repo+sandbox combination."""
-    repo = validate_repo_slug(repo)
-    key = f"{LAST_START_CMD_KEY_PREFIX}{repo}:{sandbox_id}"
-    async with session() as s:
-        setting = await s.get(Setting, key)
-        if not setting:
-            return {"start_cmd": None}
-        return {"start_cmd": setting.value}
 
 
 @router.get("/repos/{repo:path}/remote-mounts/{sandbox_id}")

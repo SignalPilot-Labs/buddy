@@ -148,6 +148,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "github_repo": run.github_repo,
         "env": creds.get("env"),
         "mcp_servers": creds.get("mcp_servers"),
+        "sandbox_id": run.sandbox_id,
     }
     await agent_request("POST", "/resume", AGENT_TIMEOUT_LONG, resume_body, None, None, extra_headers=None)
     run.status = RUN_STATUS_RUNNING

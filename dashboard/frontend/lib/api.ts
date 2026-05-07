@@ -525,17 +525,4 @@ export async function deleteRemoteSandbox(
   return res.json();
 }
 
-export async function fetchLastStartCmd(
-  sandboxId: string,
-  repo: string,
-): Promise<string | null> {
-  const res = await apiFetch(
-    `/api/sandboxes/${sandboxId}/last-start-cmd?repo=${encodeURIComponent(repo)}`,
-  );
-  if (!res.ok) {
-    throw new Error(`Failed to fetch last start cmd (HTTP ${res.status})`);
-  }
-  const data = await res.json();
-  return data.start_cmd || null;
-}
 

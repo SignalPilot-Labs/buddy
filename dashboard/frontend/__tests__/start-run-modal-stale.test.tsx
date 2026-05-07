@@ -5,7 +5,7 @@
  * Before the fix, three useEffects had unguarded async fetches:
  *   1. fetchRemoteSandboxes().then(setRemoteSandboxes) — no cancelled guard
  *   2. fetchRepoEnv / fetchRepoMcpServers — no cancelled guard
- *   3. fetchLastStartCmd in restore-sandbox effect — no cancelled guard
+ *   3. (removed — restore-sandbox effect is now synchronous)
  *
  * The fix adds a `cancelled` flag in each effect. The cleanup sets cancelled = true
  * and all setState calls check `if (cancelled) return;` before executing.
@@ -97,27 +97,6 @@ describe("StartRunModal: cancelled flag guard — fetchRepoEnv / fetchRepoMcpSer
     expect(depArrayIdx).toBeGreaterThan(0);
     const effectBody = SRC.slice(envIdx - 100, depArrayIdx);
     expect(effectBody).toContain("return () => { cancelled = true; }");
-  });
-});
-
-describe("StartRunModal: cancelled flag guard — fetchLastStartCmd in restore-sandbox effect", () => {
-  it("the restore-sandbox effect has a cancelled flag", () => {
-    const lastCmdIdx = SRC.indexOf("fetchLastStartCmd(");
-    expect(lastCmdIdx).toBeGreaterThan(0);
-    const cancelledIdx = SRC.lastIndexOf("let cancelled = false", lastCmdIdx);
-    expect(cancelledIdx).toBeGreaterThan(0);
-    expect(cancelledIdx).toBeLessThan(lastCmdIdx);
-  });
-
-  it("setStartCmd in fetchLastStartCmd callback is guarded", () => {
-    const lastCmdIdx = SRC.indexOf("fetchLastStartCmd(");
-    const thenIdx = SRC.indexOf(".then(", lastCmdIdx);
-    const setStartIdx = SRC.indexOf("setStartCmd(", thenIdx);
-    const guardIdx = SRC.indexOf("if (cancelled) return", thenIdx);
-
-    expect(thenIdx).toBeGreaterThan(lastCmdIdx);
-    expect(guardIdx).toBeGreaterThan(thenIdx);
-    expect(guardIdx).toBeLessThan(setStartIdx);
   });
 });
 

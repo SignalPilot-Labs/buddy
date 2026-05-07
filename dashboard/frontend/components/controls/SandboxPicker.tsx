@@ -8,7 +8,6 @@ import CodeTextarea from "@/components/ui/CodeTextarea";
 import { SlurmFieldsCard } from "@/components/ui/SlurmFieldsCard";
 import { DEFAULT_DOCKER_START_CMD } from "@/lib/constants";
 import type { RemoteSandboxConfig } from "@/lib/api";
-import { fetchLastStartCmd } from "@/lib/api";
 
 /** Key for local Docker in the command cache. */
 const LOCAL_KEY = "__local__";
@@ -19,17 +18,14 @@ interface SandboxPickerProps {
   onSelect: (id: string | null) => void;
   startCmd: string;
   onStartCmdChange: (cmd: string) => void;
-  activeRepo: string | null;
 }
 
-export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange, activeRepo }: SandboxPickerProps) {
+export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onStartCmdChange }: SandboxPickerProps) {
   const selectedSandbox = sandboxes.find((s) => s.id === selectedId) ?? null;
   const isSlurm = selectedSandbox?.type === "slurm";
 
   // Cache start commands per sandbox so switching back restores edits.
   const cmdCache = useRef<Map<string, string>>(new Map());
-  // Generation counter to discard stale async fetch results after a newer selection.
-  const selectGenRef = useRef(0);
 
   /** Save current command, then switch to a new sandbox with the given command. */
   const switchTo = useCallback((nextId: string | null, nextCmd: string) => {
@@ -44,28 +40,10 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
     switchTo(null, DEFAULT_DOCKER_START_CMD);
   }, [switchTo]);
 
-  const handleRemoteClick = useCallback(async (s: RemoteSandboxConfig) => {
-    const gen = ++selectGenRef.current;
-    const currentKey = selectedId ?? LOCAL_KEY;
-    cmdCache.current.set(currentKey, startCmd);
-
+  const handleRemoteClick = useCallback((s: RemoteSandboxConfig) => {
     const cached = cmdCache.current.get(s.id);
-    if (cached) {
-      // Synchronous: cached command available, set before select for correct remount.
-      onStartCmdChange(cached);
-      onSelect(s.id);
-    } else {
-      // First time selecting this sandbox — fetch last-used or use default.
-      let cmd = s.default_start_cmd;
-      if (activeRepo) {
-        const lastCmd = await fetchLastStartCmd(s.id, activeRepo).catch(() => null);
-        if (gen !== selectGenRef.current) return; // stale fetch — discard
-        cmd = lastCmd ?? s.default_start_cmd;
-      }
-      onStartCmdChange(cmd);
-      onSelect(s.id);
-    }
-  }, [selectedId, startCmd, activeRepo, onSelect, onStartCmdChange]);
+    switchTo(s.id, cached ?? s.default_start_cmd);
+  }, [switchTo]);
 
   return (
     <div className="space-y-2">
@@ -84,7 +62,7 @@ export function SandboxPicker({ sandboxes, selectedId, onSelect, startCmd, onSta
         {sandboxes.map((s) => (
           <button
             key={s.id}
-            onClick={() => void handleRemoteClick(s)}
+            onClick={() => handleRemoteClick(s)}
             className={clsx(
               "text-content px-3 py-2 rounded border transition-all",
               selectedId === s.id

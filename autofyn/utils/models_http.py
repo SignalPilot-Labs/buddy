@@ -123,6 +123,7 @@ class ResumeRequest(BaseModel):
     github_repo: str | None
     env: dict[str, str] | None
     mcp_servers: dict[str, dict] | None = None
+    sandbox_id: str | None = None
 
     @field_validator("prompt")
     @classmethod
