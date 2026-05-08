@@ -99,12 +99,12 @@ class UserControl:
                 "STOP with %d pending message(s) — redirecting instead of stopping",
                 len(pending),
             )
-            await self._sandbox.session.interrupt(self._session_id)
+            await self._try_interrupt()
             await self.flush_pending()
             return ControlOutcome(kind="continue", reason="redirected with pending messages")
 
         log.info("STOP requested: %s", reason or "user stop")
-        await self._sandbox.session.interrupt(self._session_id)
+        await self._try_interrupt()
         self._inbox.mark_stopped()
         return ControlOutcome(
             kind="break_stop",
@@ -126,10 +126,22 @@ class UserControl:
                 "PAUSE with %d pending message(s) — redirecting instead of pausing",
                 len(pending),
             )
-            await self._sandbox.session.interrupt(self._session_id)
+            await self._try_interrupt()
             await self.flush_pending()
             return ControlOutcome(kind="continue", reason="redirected with pending messages")
 
         log.info("PAUSE requested — no pending messages, pausing immediately")
-        await self._sandbox.session.interrupt(self._session_id)
+        await self._try_interrupt()
         return ControlOutcome(kind="break_pause", reason="user pause")
+
+    async def _try_interrupt(self) -> None:
+        """Interrupt the session, ignoring SessionNotReadyError.
+
+        When a pause/stop arrives at the start of a new round, the Claude
+        SDK client may not have initialized yet (503). The interrupt is a
+        no-op in that case — there is nothing running to interrupt.
+        """
+        try:
+            await self._sandbox.session.interrupt(self._session_id)
+        except SessionNotReadyError:
+            log.debug("Skipping interrupt — session client not ready")
