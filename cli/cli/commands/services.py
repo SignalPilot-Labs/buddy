@@ -311,6 +311,7 @@ def _pull_images(image_tag: str) -> bool:
     os.environ.setdefault("AGENT_INTERNAL_SECRET", "pull-placeholder")
     os.environ.setdefault("SANDBOX_INTERNAL_SECRET", "pull-placeholder")
     os.environ.setdefault("CONNECTOR_SECRET", "pull-placeholder")
+    os.environ.setdefault("AF_SANDBOX_PORT", "8923")
     console.print(f"[dim]→ docker compose pull (tag: {image_tag})[/dim]")
     result = subprocess.run(
         ["docker", "compose", "pull"],
