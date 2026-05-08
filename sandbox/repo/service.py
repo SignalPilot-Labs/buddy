@@ -16,6 +16,7 @@ from constants import (
     AUTO_COMMIT_MESSAGE,
     CLONE_TMP_DIR,
     CMD_TIMEOUT,
+    GH_NO_DIFF_MARKER,
     GIT_CLONE_DEPTH,
     REPO_BRANCH_NAME_MAX_LEN,
     REPO_BRANCH_NAME_PATTERN,
@@ -403,6 +404,9 @@ class RepoService:
         )
         if create.exit_code != 0:
             err = scrub_secrets(create.stderr.strip())[:STDERR_BRIEF_LIMIT]
+            if GH_NO_DIFF_MARKER in err:
+                log.info("GitHub reports no diff between branches — no PR needed")
+                return None, None
             return None, f"gh pr create failed: {err}"
         return create.stdout.strip(), None
 

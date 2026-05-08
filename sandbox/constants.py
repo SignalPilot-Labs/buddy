@@ -108,6 +108,11 @@ STDERR_BRIEF_LIMIT: int = 200
 # ── Auto-commit message ──
 AUTO_COMMIT_MESSAGE: str = "Auto-commit: save uncommitted work at session end"
 
+# ── PR creation: GitHub errors that mean "nothing to PR" ──
+# Local git rev-list can report commits_ahead > 0 while GitHub sees no
+# diff (e.g. fast-forward merge, cherry-pick). These are not failures.
+GH_NO_DIFF_MARKER: str = "No commits between"
+
 
 # ── Security: git remote write subcommands ──
 # Matches only remote-mutating subcommands. Read-only commands like
