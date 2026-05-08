@@ -140,7 +140,7 @@ async def pause_run(run_id: str = RunId) -> dict:
 
 async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: AsyncSession) -> dict:
     """Resume a completed/stopped/error run with the given prompt."""
-    creds = await read_credentials(run.github_repo)
+    creds = await read_credentials(run.github_repo, run.sandbox_id)
     resume_body = {
         "run_id": run_id,
         "prompt": prompt,
@@ -148,6 +148,7 @@ async def _resume_completed_run(run: Run, run_id: str, prompt: str | None, s: As
         "git_token": creds.get("git_token"),
         "github_repo": run.github_repo,
         "env": creds.get("env"),
+        "host_mounts": creds.get("host_mounts"),
         "mcp_servers": creds.get("mcp_servers"),
         "sandbox_id": run.sandbox_id,
     }
@@ -229,7 +230,7 @@ async def agent_health() -> dict:
 @router.post("/agent/start")
 async def start_agent_run(body: StartRunRequest) -> dict:
     """Trigger a new improvement run."""
-    creds = await read_credentials(body.repo)
+    creds = await read_credentials(body.repo, body.sandbox_id)
     return await agent_request("POST", "/start", AGENT_TIMEOUT_LONG, {
         "prompt": body.prompt,
         "preset": body.preset,
@@ -252,7 +253,7 @@ async def start_agent_run(body: StartRunRequest) -> dict:
 @router.get("/agent/branches")
 async def list_branches(repo: str = Query(...)) -> list:
     """List git branches for a repo via the agent (GitHub API proxy)."""
-    creds = await read_credentials(repo)
+    creds = await read_credentials(repo, None)
     token = creds.get("git_token")
     if not token:
         raise HTTPException(
@@ -357,7 +358,7 @@ async def get_diff_repo(run_id: str = RunId) -> dict:
     is_active = run_status in ACTIVE_RUN_STATUSES
     source = "sandbox" if is_active else "github"
 
-    creds = await read_credentials(github_repo)
+    creds = await read_credentials(github_repo, None)
     token = creds.get("git_token")
     if not token:
         raise HTTPException(status_code=400, detail="No git_token configured for this repo")

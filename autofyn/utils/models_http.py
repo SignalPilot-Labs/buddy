@@ -122,6 +122,7 @@ class ResumeRequest(BaseModel):
     git_token: str | None = Field(repr=False)
     github_repo: str | None
     env: dict[str, str] | None
+    host_mounts: list[dict[str, str]] | None = None
     mcp_servers: dict[str, dict] | None = None
     sandbox_id: str | None = None
 

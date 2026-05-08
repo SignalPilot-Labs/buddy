@@ -25,6 +25,7 @@ from backend.constants import (
     SIGNAL_AGENT_PATHS,
 )
 from db.connection import get_session_factory
+from db.constants import REMOTE_MOUNTS_KEY_PREFIX
 from db.models import AuditLog, ControlSignal, Run, Setting
 
 
@@ -149,8 +150,13 @@ async def ensure_repo_in_list(s: AsyncSession, repo: str) -> None:
         await save_repo_list(s, repos)
 
 
-async def read_credentials(repo: str | None) -> dict:
-    """Read and decrypt stored credentials. Picks next Claude token round-robin."""
+async def read_credentials(repo: str | None, sandbox_id: str | None) -> dict:
+    """Read and decrypt stored credentials. Picks next Claude token round-robin.
+
+    When sandbox_id is provided, loads remote mounts from
+    ``remote_mounts:{repo}:{sandbox_id}`` instead of local Docker mounts
+    from ``host_mounts:{repo}``.
+    """
     creds: dict[str, Any] = {}
     async with session() as s:
         for key in ("git_token", "github_repo"):
@@ -189,7 +195,11 @@ async def read_credentials(repo: str | None) -> dict:
                         f"Stored credential '{env_key}' exists but cannot be parsed — data may be corrupted"
                     ) from e
 
-            mounts_key = f"host_mounts:{repo}"
+            mounts_key = (
+                f"{REMOTE_MOUNTS_KEY_PREFIX}{repo}:{sandbox_id}"
+                if sandbox_id
+                else f"host_mounts:{repo}"
+            )
             mounts_setting = await s.get(Setting, mounts_key)
             if mounts_setting:
                 try:
