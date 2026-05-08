@@ -25,6 +25,7 @@ if "db.connection" not in sys.modules:
     sys.modules["db.connection"] = MagicMock()
 
 import backend.utils as utils_mod  # noqa: E402
+from backend.utils import CredentialDecryptionError  # noqa: E402
 
 SANDBOX_UUID = "6256fbc5-8e8d-4a93-849d-73ac4ad5e7ef"
 REPO = "org/repo"
@@ -130,3 +131,18 @@ class TestRemoteMountsLoaded:
             creds = await utils_mod.read_credentials(None, None)
 
         assert "host_mounts" not in creds
+
+    @pytest.mark.asyncio
+    async def test_corrupt_remote_mounts_json_raises(self) -> None:
+        """Corrupt JSON in remote_mounts must raise CredentialDecryptionError."""
+        corrupt_setting = _make_setting(REMOTE_KEY, "NOT_VALID_JSON{{")
+        get_map: dict[str, MagicMock | None] = {
+            "git_token": None,
+            "github_repo": None,
+            "claude_tokens": None,
+            REMOTE_KEY: corrupt_setting,
+        }
+
+        with patch.object(utils_mod, "session", _make_session_ctx(get_map)):
+            with pytest.raises(CredentialDecryptionError, match=REMOTE_KEY):
+                await utils_mod.read_credentials(REPO, SANDBOX_UUID)

@@ -11,10 +11,12 @@ forward host_mounts into the StartRequest.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from endpoints.control import _restart_terminal_run
 from utils.models_http import ResumeRequest, StartRequest
 
 
@@ -59,10 +61,6 @@ class TestRestartTerminalRunHostMounts:
     @pytest.mark.asyncio
     async def test_host_mounts_forwarded_to_start_request(self) -> None:
         """host_mounts from ResumeRequest must appear in the StartRequest passed to execute_run."""
-        import asyncio
-
-        from endpoints.control import _restart_terminal_run
-
         body = ResumeRequest(
             run_id="aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
             prompt="fix the bug",
@@ -89,7 +87,7 @@ class TestRestartTerminalRunHostMounts:
         server.register_run = MagicMock()
 
         captured_start_body: list[StartRequest] = []
-        execute_future: asyncio.Future[None] = asyncio.get_event_loop().create_future()
+        execute_future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
 
         async def fake_execute(active: MagicMock, start_body: StartRequest) -> None:
             captured_start_body.append(start_body)

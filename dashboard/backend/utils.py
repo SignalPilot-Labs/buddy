@@ -25,7 +25,7 @@ from backend.constants import (
     SIGNAL_AGENT_PATHS,
 )
 from db.connection import get_session_factory
-from db.constants import REMOTE_MOUNTS_KEY_PREFIX
+from db.constants import HOST_MOUNTS_KEY_PREFIX, REMOTE_MOUNTS_KEY_PREFIX
 from db.models import AuditLog, ControlSignal, Run, Setting
 
 
@@ -198,7 +198,7 @@ async def read_credentials(repo: str | None, sandbox_id: str | None) -> dict:
             mounts_key = (
                 f"{REMOTE_MOUNTS_KEY_PREFIX}{repo}:{sandbox_id}"
                 if sandbox_id
-                else f"host_mounts:{repo}"
+                else f"{HOST_MOUNTS_KEY_PREFIX}{repo}"
             )
             mounts_setting = await s.get(Setting, mounts_key)
             if mounts_setting:

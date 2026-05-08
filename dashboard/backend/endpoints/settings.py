@@ -16,6 +16,7 @@ from backend.constants import (
 from db.constants import (
     GITHUB_REPO_MAX_LEN,
     GITHUB_REPO_RE,
+    HOST_MOUNTS_KEY_PREFIX,
     validate_host_mount,
 )
 from backend.models import (
@@ -82,7 +83,7 @@ def _env_vars_key(repo: str) -> str:
 
 def _host_mounts_key(repo: str) -> str:
     """Setting table key for per-repo host directory mounts."""
-    return f"host_mounts:{repo}"
+    return f"{HOST_MOUNTS_KEY_PREFIX}{repo}"
 
 
 def _mcp_servers_key(repo: str) -> str:
@@ -97,7 +98,7 @@ async def get_settings() -> dict:
         result = await s.execute(select(Setting))
         settings: dict[str, str] = {}
         for setting in result.scalars().all():
-            if setting.key.startswith("env_vars:") or setting.key.startswith("host_mounts:") or setting.key.startswith("mcp_servers:"):
+            if setting.key.startswith("env_vars:") or setting.key.startswith(HOST_MOUNTS_KEY_PREFIX) or setting.key.startswith("mcp_servers:"):
                 continue
             if setting.encrypted:
                 try:
