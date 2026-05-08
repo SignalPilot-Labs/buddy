@@ -87,7 +87,7 @@ class TestCredentialDecryptError:
             patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt_fail),
         ):
             with pytest.raises(CredentialDecryptionError, match="git_token"):
-                await utils_mod.read_credentials(None)
+                await utils_mod.read_credentials(None, None)
 
     @pytest.mark.asyncio
     async def test_read_credentials_github_repo_decrypt_failure_raises(self) -> None:
@@ -107,7 +107,7 @@ class TestCredentialDecryptError:
             patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt_fail),
         ):
             with pytest.raises(CredentialDecryptionError, match="github_repo"):
-                await utils_mod.read_credentials(None)
+                await utils_mod.read_credentials(None, None)
 
     @pytest.mark.asyncio
     async def test_read_credentials_env_vars_decrypt_failure_raises(self) -> None:
@@ -129,7 +129,7 @@ class TestCredentialDecryptError:
             patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt_fail),
         ):
             with pytest.raises(CredentialDecryptionError, match="env_vars:org/repo"):
-                await utils_mod.read_credentials("org/repo")
+                await utils_mod.read_credentials("org/repo", None)
 
     @pytest.mark.asyncio
     async def test_read_credentials_host_mounts_corrupt_json_raises(self) -> None:
@@ -147,7 +147,7 @@ class TestCredentialDecryptError:
             patch.object(utils_mod, "session", _make_session_ctx(get_map)),
         ):
             with pytest.raises(CredentialDecryptionError, match="host_mounts:org/repo"):
-                await utils_mod.read_credentials("org/repo")
+                await utils_mod.read_credentials("org/repo", None)
 
     @pytest.mark.asyncio
     async def test_read_credentials_env_vars_corrupt_json_raises(self) -> None:
@@ -169,7 +169,7 @@ class TestCredentialDecryptError:
             patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt_corrupt_json),
         ):
             with pytest.raises(CredentialDecryptionError, match="env_vars:org/repo"):
-                await utils_mod.read_credentials("org/repo")
+                await utils_mod.read_credentials("org/repo", None)
 
     @pytest.mark.asyncio
     async def test_read_token_pool_decrypt_failure_raises(self) -> None:
@@ -195,7 +195,7 @@ class TestCredentialDecryptError:
         }
 
         with patch.object(utils_mod, "session", _make_session_ctx(get_map)):
-            result = await utils_mod.read_credentials(None)
+            result = await utils_mod.read_credentials(None, None)
 
         assert result == {}
 

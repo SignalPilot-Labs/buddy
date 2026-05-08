@@ -51,6 +51,7 @@ async def _restart_terminal_run(server: "AgentServer", body: ResumeRequest) -> d
         model=run_info["model_name"],
         github_repo=github_repo,
         env=merged_env,
+        host_mounts=body.host_mounts,
         mcp_servers=body.mcp_servers,
         sandbox_id=body.sandbox_id,
         start_cmd=start_cmd,

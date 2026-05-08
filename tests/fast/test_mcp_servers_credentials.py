@@ -75,7 +75,7 @@ class TestReadCredentialsMcpServers:
             patch.object(utils_mod.crypto, "decrypt", side_effect=fake_decrypt),
             patch.object(utils_mod, "read_token_pool", AsyncMock(return_value=[])),
         ):
-            creds = await utils_mod.read_credentials("org/repo")
+            creds = await utils_mod.read_credentials("org/repo", None)
 
         assert "mcp_servers" in creds
         assert creds["mcp_servers"] == _SAMPLE_MCP_SERVERS
@@ -92,7 +92,7 @@ class TestReadCredentialsMcpServers:
             patch.object(utils_mod, "session", session_ctx),
             patch.object(utils_mod, "read_token_pool", AsyncMock(return_value=[])),
         ):
-            creds = await utils_mod.read_credentials("org/repo")
+            creds = await utils_mod.read_credentials("org/repo", None)
 
         assert "mcp_servers" not in creds
 
@@ -115,7 +115,7 @@ class TestReadCredentialsMcpServers:
             patch.object(utils_mod, "read_token_pool", AsyncMock(return_value=[])),
         ):
             with pytest.raises(CredentialDecryptionError) as exc_info:
-                await utils_mod.read_credentials("org/repo")
+                await utils_mod.read_credentials("org/repo", None)
 
         assert "mcp_servers:org/repo" in str(exc_info.value)
 
@@ -138,7 +138,7 @@ class TestReadCredentialsMcpServers:
             patch.object(utils_mod, "read_token_pool", AsyncMock(return_value=[])),
         ):
             with pytest.raises(CredentialDecryptionError) as exc_info:
-                await utils_mod.read_credentials("org/repo")
+                await utils_mod.read_credentials("org/repo", None)
 
         assert "mcp_servers:org/repo" in str(exc_info.value)
 
@@ -151,6 +151,6 @@ class TestReadCredentialsMcpServers:
             patch.object(utils_mod, "session", session_ctx),
             patch.object(utils_mod, "read_token_pool", AsyncMock(return_value=[])),
         ):
-            creds = await utils_mod.read_credentials(None)
+            creds = await utils_mod.read_credentials(None, None)
 
         assert "mcp_servers" not in creds

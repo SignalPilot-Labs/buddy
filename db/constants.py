@@ -199,6 +199,7 @@ WORK_DIR_RE: re.Pattern[str] = re.compile(r"^(~/?|/)[a-zA-Z0-9._/\-]*$")
 # ── Remote Sandbox Config CRUD Limits ──
 REMOTE_SANDBOX_KEY_PREFIX: str = "remote_sandbox:"
 REMOTE_MOUNTS_KEY_PREFIX: str = "remote_mounts:"
+HOST_MOUNTS_KEY_PREFIX: str = "host_mounts:"
 SANDBOX_NAME_MIN_LEN: int = 1
 SANDBOX_NAME_MAX_LEN: int = 256
 SSH_TARGET_MIN_LEN: int = 1
