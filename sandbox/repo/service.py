@@ -290,9 +290,16 @@ class RepoService:
         return bool(result.stdout.strip())
 
     async def _commit(self, message: str) -> bool:
-        """Stage everything and commit. Returns True on commit, False if clean."""
+        """Stage everything and commit. Returns True on commit, False if clean.
+
+        Always passes --no-verify to bypass pre-commit hooks on the target
+        repo. We develop on a branch and squash-merge via PR — the target
+        repo's CI validates the PR, not the commit hooks.
+        """
         fail(await git(["add", "."], CMD_TIMEOUT, cwd=REPO_WORK_DIR), "git add")
-        result = await git(["commit", "-m", message], CMD_TIMEOUT, cwd=REPO_WORK_DIR)
+        result = await git(
+            ["commit", "--no-verify", "-m", message], CMD_TIMEOUT, cwd=REPO_WORK_DIR,
+        )
         if result.exit_code != 0 and "nothing to commit" in (result.stdout + result.stderr):
             return False
         fail(result, "git commit")
