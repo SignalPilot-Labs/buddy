@@ -137,18 +137,20 @@ export function MobileLayout({
                 historyTruncated={historyTruncated}
                 hasSelectedRun={selectedRunId !== null}
               />
-              <CommandInput
-                runId={selectedRunId}
-                status={runStatus}
-                run={selectedRun}
-                connected={connected}
-                events={allEvents}
-                busy={busy}
-                onPause={onPause}
-                onResume={onResume}
-                onInject={onInject}
-                onRestart={onRestart}
-              />
+              {selectedRunId && (
+                <CommandInput
+                  runId={selectedRunId}
+                  status={runStatus}
+                  run={selectedRun}
+                  connected={connected}
+                  events={allEvents}
+                  busy={busy}
+                  onPause={onPause}
+                  onResume={onResume}
+                  onInject={onInject}
+                  onRestart={onRestart}
+                />
+              )}
             </motion.div>
           )}
           {mobilePanel === "changes" && (
