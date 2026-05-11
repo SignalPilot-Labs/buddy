@@ -1,4 +1,4 @@
-# 9 Recognized CVEs
+# 11 Recognized CVEs
 
 Security advisories filed by AutoFyn and recognized by maintainers.
 
@@ -17,6 +17,13 @@ Security advisories filed by AutoFyn and recognized by maintainers.
 |----------|--------|
 | [GHSA-g978-rqfm-7m79](https://github.com/BerriAI/litellm/security/advisories/GHSA-g978-rqfm-7m79) | Recognized |
 | [GHSA-h8fm-g6wc-j228](https://github.com/BerriAI/litellm/security/advisories/GHSA-h8fm-g6wc-j228) | Recognized (duplicate of ongoing investigation) |
+
+## [Open WebUI](https://github.com/open-webui/open-webui)
+
+| Advisory | Status |
+|----------|--------|
+| [GHSA-xjhr-9c35-4vp5](https://github.com/open-webui/open-webui/security/advisories/GHSA-xjhr-9c35-4vp5) | Recognized (duplicate of ongoing investigation) |
+| [GHSA-hf76-c83f-63w2](https://github.com/open-webui/open-webui/security/advisories/GHSA-hf76-c83f-63w2) | Recognized (duplicate of ongoing investigation) |
 
 ## [Langflow](https://github.com/langflow-ai/langflow)
 
