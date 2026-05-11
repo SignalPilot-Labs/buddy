@@ -26,7 +26,7 @@ Each round runs Claude in a sandboxed Docker container with fresh context. A per
 
 ### Security audits
 
-- **[Warp](https://www.warp.dev/)** — 30 vulnerabilities (6 Critical, 7 High, 8 Medium, 9 Low), 3 exploit chains. Responsibly disclosed. [CVEs](docs/cves.md#warp)
+- **[Warp](https://github.com/warpdotdev/Warp)** — 30 vulnerabilities (6 Critical, 7 High, 8 Medium, 9 Low), 3 exploit chains. Responsibly disclosed. [CVEs](docs/cves.md#warp)
 - **[LiteLLM](https://github.com/BerriAI/litellm)** — 14 vulnerabilities (3 Critical, 4 High, 4 Medium, 3 Low), 2 exploit chains. Responsibly disclosed. [CVEs](docs/cves.md#litellm)
 - **[Open WebUI](https://github.com/open-webui/open-webui)** — 12 vulnerabilities (4 Critical, 5 High, 3 Medium), 4 exploit chains. Responsibly disclosed. [CVEs](docs/cves.md#open-webui)
 - **[Langflow](https://github.com/langflow-ai/langflow)** — 22 vulnerabilities (3 Critical, 13 High, 6 Medium), 4 exploit chains. Responsibly disclosed. [CVEs](docs/cves.md#langflow)
