@@ -265,18 +265,20 @@ function MonitorPageInner() {
               historyTruncated={historyTruncated}
               hasSelectedRun={selectedRunId !== null}
             />
-            <CommandInput
-              runId={selectedRunId}
-              status={runStatus}
-              run={selectedRun}
-              connected={connected}
-              events={allEvents}
-              busy={busy}
-              onPause={() => { void toastControlAction("Pause", pauseAgent); }}
-              onResume={(prompt) => handleRestart(prompt)}
-              onInject={handleInject}
-              onRestart={handleRestart}
-            />
+            {selectedRunId && (
+              <CommandInput
+                runId={selectedRunId}
+                status={runStatus}
+                run={selectedRun}
+                connected={connected}
+                events={allEvents}
+                busy={busy}
+                onPause={() => { void toastControlAction("Pause", pauseAgent); }}
+                onResume={(prompt) => handleRestart(prompt)}
+                onInject={handleInject}
+                onRestart={handleRestart}
+              />
+            )}
           </main>
 
           {/* Right panel divider + panel */}
