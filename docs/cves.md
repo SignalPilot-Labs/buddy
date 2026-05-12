@@ -22,8 +22,10 @@ Security advisories filed by AutoFyn and recognized by maintainers.
 
 | Advisory | Status |
 |----------|--------|
+| [GHSA-rh5x-h6pp-cjj6](https://github.com/open-webui/open-webui/security/advisories/GHSA-rh5x-h6pp-cjj6) | Published |
 | [GHSA-xjhr-9c35-4vp5](https://github.com/open-webui/open-webui/security/advisories/GHSA-xjhr-9c35-4vp5) | Recognized (duplicate of ongoing investigation) |
-| [GHSA-hf76-c83f-63w2](https://github.com/open-webui/open-webui/security/advisories/GHSA-hf76-c83f-63w2) | Recognized (duplicate of ongoing investigation) |
+
+
 
 ## [Langflow](https://github.com/langflow-ai/langflow)
 
